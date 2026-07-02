@@ -55,7 +55,7 @@ export default function ApiListPage() {
   const [form, setForm] = useState({
     leadSourceId: '',
     source: '',
-    country_code: '+91',
+    countryCode: '+91',
     status: 'ACTIVE' as ApiTokenConfig['status'],
   })
 
@@ -96,7 +96,7 @@ export default function ApiListPage() {
     setForm({
       leadSourceId: '',
       source: '',
-      country_code: '+91',
+      countryCode: '+91',
       status: 'ACTIVE',
     })
     setDialogOpen(true)
@@ -107,7 +107,7 @@ export default function ApiListPage() {
     setForm({
       leadSourceId: apiE.leadSourceId || '',
       source: apiE.source || '',
-      country_code: apiE.country_code || '+91',
+      countryCode: apiE.countryCode || apiE.country_code || '+91',
       status: apiE.status || 'ACTIVE',
     })
     setDialogOpen(true)
@@ -204,7 +204,7 @@ export default function ApiListPage() {
       } else if (header.key === 'status') {
         col.width = 120
         col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
-      } else if (header.key === 'country_code') {
+      } else if (header.key === 'countryCode' || header.key === 'country_code') {
         col.width = 120
         col.renderCell = (p) => p.value || '+91'
       } else if (header.key === 'createdAt') {
@@ -277,15 +277,15 @@ export default function ApiListPage() {
       )
     }
 
-    if (field.key === 'country_code') {
+    if (field.key === 'countryCode' || field.key === 'country_code') {
       return (
         <TextField
           key={field.key}
           select
           fullWidth
           label={field.label}
-          value={form.country_code}
-          onChange={(e) => setForm(prev => ({ ...prev, country_code: e.target.value }))}
+          value={form.countryCode}
+          onChange={(e) => setForm(prev => ({ ...prev, countryCode: e.target.value }))}
           required={field.required}
         >
           {COUNTRY_CODES.map((item) => (
@@ -394,8 +394,9 @@ export default function ApiListPage() {
                 if (renderedKeys.has(field.key)) return null
 
                 if (field.key === 'source') {
-                  const countryField = fields.find(f => f.key === 'country_code')
+                  const countryField = fields.find(f => f.key === 'countryCode' || f.key === 'country_code')
                   if (countryField) {
+                    renderedKeys.add('countryCode')
                     renderedKeys.add('country_code')
                     return (
                       <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>

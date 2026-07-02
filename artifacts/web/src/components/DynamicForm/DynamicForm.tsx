@@ -378,6 +378,13 @@ export function DynamicForm({
             } else {
               opts = (f.options || []).map((o) => ({ value: o, label: o }))
             }
+
+            if (f.key === 'status' && opts.length === 0) {
+              opts = [
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'INACTIVE', label: 'Inactive' }
+              ];
+            }
             const isLoading = f.dropdown_source === 'api' && !!apiUrl && dropdownLoading[apiUrl]
             const dropdownErr =
               f.dropdown_source === 'api' && apiUrl ? errors[`__dropdown__${apiUrl}`] : ''

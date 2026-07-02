@@ -986,8 +986,9 @@ export default function ResourcesPage() {
 
                 // Group value and country_code side-by-side (2fr 1fr)
                 if (field.key === 'value') {
-                  const countryCodeField = fields.find(f => f.key === 'country_code')
+                  const countryCodeField = fields.find(f => f.key === 'countryCode' || f.key === 'country_code')
                   if (countryCodeField) {
+                    renderedKeys.add('countryCode')
                     renderedKeys.add('country_code')
                     return (
                       <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>

@@ -154,7 +154,7 @@ export default function ApiListPage() {
       } else if (header.key === 'status') {
         col.width = 110
         col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
-      } else if (header.key === 'country_code') {
+      } else if (header.key === 'countryCode' || header.key === 'country_code') {
         col.width = 100
         col.renderCell = (p) => p.value || '+91'
       } else if (header.key === 'createdAt') {

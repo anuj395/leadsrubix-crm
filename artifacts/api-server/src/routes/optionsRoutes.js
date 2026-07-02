@@ -161,7 +161,7 @@ router.get('/:key', (req, res, next) => {
     return res.json({ items: COUNTRY_CODES });
   }
 
-  if (key.startsWith('resource_')) {
+  if (key.startsWith('resource_') || key.startsWith('resource')) {
     try {
       let orgId = null;
       let resolvedIndustryId = null;

@@ -26,18 +26,19 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.user.role === 'superAdmin') {
       const orgs = await Organization.find({}).lean().exec();
       orgs.forEach(o => {
-        if (o.organization_id) {
-          orgMap[o.organization_id] = o.name || o.organization_id;
+        const idVal = o.organizationId || o.organization_id;
+        if (idVal) {
+          orgMap[idVal] = o.name || o.organizationName || idVal;
         }
       });
     } else {
       const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? org.organization_id : null;
+      const orgId = org ? (org.organizationId || org.organization_id) : null;
       if (!orgId) {
         return res.json([]);
       }
-      query = { organization_id: orgId };
-      orgMap[orgId] = org.name || org.organization_id;
+      query = { organizationId: orgId };
+      orgMap[orgId] = org.name || org.organizationName || orgId;
     }
 
     const tokens = await ApiToken.find(query).sort({ createdAt: -1 }).lean().exec();
@@ -45,7 +46,9 @@ router.get('/', authenticate, async (req, res, next) => {
     const formatted = tokens.map(t => ({
       ...t,
       id: t._id,
-      organization_name: orgMap[t.organization_id] || '',
+      organization_name: orgMap[t.organizationId || t.organization_id] || '',
+      countryCode: t.countryCode || t.country_code || '+91',
+      country_code: t.countryCode || t.country_code || '+91',
     }));
 
     res.json(formatted);
@@ -63,21 +66,45 @@ router.post('/', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    let orgId = req.body.organization_id || null;
+    let orgId = req.body.organizationId || req.body.organization_id || null;
 
     if (req.user.role !== 'superAdmin') {
       const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      orgId = org ? org.organization_id : null;
+      orgId = org ? (org.organizationId || org.organization_id) : null;
       if (!orgId) {
         return res.status(400).json({ message: 'Organization ID is mandatory for Admin users' });
       }
     }
 
+    let leadSourceId = req.body.leadSourceId || req.body.leadSource_id || null;
+    if (!leadSourceId && req.body.source) {
+      try {
+        const OrganizationResources = mongoose.model('OrganizationResources');
+        const resDoc = await OrganizationResources.findOne({
+          $or: [
+            { organizationId: orgId },
+            { organizationId: null },
+            { organizationId: '' }
+          ]
+        }).exec();
+        if (resDoc && resDoc.leadSources) {
+          const matched = resDoc.leadSources.find(s => 
+            String(s.leadSource || s.name || s.value || '').toLowerCase() === String(req.body.source).toLowerCase()
+          );
+          if (matched) {
+            leadSourceId = matched.id || matched._id || null;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to resolve leadSourceId from source:', err);
+      }
+    }
+
     const payload = {
-      organization_id: orgId,
+      organizationId: orgId,
       source: req.body.source,
-      leadSourceId: req.body.leadSourceId || req.body.leadSource_id,
-      country_code: req.body.country_code || '+91',
+      leadSourceId,
+      countryCode: req.body.countryCode || req.body.country_code || '+91',
       status: req.body.status || 'ACTIVE',
       api_key: req.body.api_key || generateApiKey(),
     };
@@ -106,15 +133,44 @@ router.put('/:id', authenticate, async (req, res, next) => {
 
     if (req.user.role !== 'superAdmin') {
       const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? org.organization_id : null;
-      if (String(doc.organization_id) !== String(orgId)) {
+      const orgId = org ? (org.organizationId || org.organization_id) : null;
+      if (String(doc.organizationId || doc.organization_id) !== String(orgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot edit configuration of another organization' });
       }
     }
 
-    const { api_key, organization_id, _id, id: bodyId, ...updatePayload } = req.body || {};
+    const { api_key, organizationId, organization_id, _id, id: bodyId, countryCode, country_code, leadSourceId, leadSource_id, ...updatePayload } = req.body || {};
+
+    let resolvedLeadSourceId = leadSourceId || leadSource_id || doc.leadSourceId;
+    if ((leadSourceId === undefined && leadSource_id === undefined) && updatePayload.source && updatePayload.source !== doc.source) {
+      try {
+        const OrganizationResources = mongoose.model('OrganizationResources');
+        const orgId = doc.organizationId || doc.organization_id;
+        const resDoc = await OrganizationResources.findOne({
+          $or: [
+            { organizationId: orgId },
+            { organizationId: null },
+            { organizationId: '' }
+          ]
+        }).exec();
+        if (resDoc && resDoc.leadSources) {
+          const matched = resDoc.leadSources.find(s => 
+            String(s.leadSource || s.name || s.value || '').toLowerCase() === String(updatePayload.source).toLowerCase()
+          );
+          if (matched) {
+            resolvedLeadSourceId = matched.id || matched._id || null;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to resolve leadSourceId from source inside PUT:', err);
+      }
+    }
 
     Object.assign(doc, updatePayload);
+    doc.leadSourceId = resolvedLeadSourceId;
+    if (countryCode !== undefined) doc.countryCode = countryCode;
+    else if (country_code !== undefined) doc.countryCode = country_code;
+
     await doc.save();
 
     res.json(doc);
@@ -140,8 +196,8 @@ router.delete('/:id', authenticate, async (req, res, next) => {
 
     if (req.user.role !== 'superAdmin') {
       const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? org.organization_id : null;
-      if (String(doc.organization_id) !== String(orgId)) {
+      const orgId = org ? (org.organizationId || org.organization_id) : null;
+      if (String(doc.organizationId || doc.organization_id) !== String(orgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot delete configuration of another organization' });
       }
     }
