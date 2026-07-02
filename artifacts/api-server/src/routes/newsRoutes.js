@@ -24,20 +24,35 @@ router.get('/', authenticate, async (req, res, next) => {
 
     const docs = await News.find(query).exec();
     let newsItems = [];
+    let seenKeys = new Set();
+
+    // Prioritize organization-specific news documents over global news documents
+    docs.sort((a, b) => {
+      const aHasOrg = !!a.organizationId;
+      const bHasOrg = !!b.organizationId;
+      if (aHasOrg && !bHasOrg) return -1;
+      if (!aHasOrg && bHasOrg) return 1;
+      return 0;
+    });
+
     docs.forEach(doc => {
       if (doc.news && Array.isArray(doc.news)) {
         doc.news.forEach(item => {
-          newsItems.push({
-            _id: item._id,
-            id: item._id,
-            name: item.name,
-            link: item.link,
-            status: item.status,
-            created_by: item.created_by,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-            organizationId: doc.organizationId
-          });
+          const key = `${item.name}::${item.link}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            newsItems.push({
+              _id: item._id,
+              id: item._id,
+              name: item.name,
+              link: item.link,
+              status: item.status,
+              created_by: item.created_by,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+              organizationId: doc.organizationId
+            });
+          }
         });
       }
     });
@@ -131,6 +146,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (req.body.link) item.link = req.body.link;
     if (req.body.status) item.status = req.body.status;
 
+    doc.markModified('news');
     await doc.save();
     res.json({
       _id: item._id,
