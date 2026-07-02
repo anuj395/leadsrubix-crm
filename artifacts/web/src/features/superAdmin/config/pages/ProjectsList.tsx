@@ -37,20 +37,18 @@ import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 
 export interface Project {
   id: string
-  project_id?: string
-  project_name: string
-  developer_name: string
+  projectId?: string
+  projectName: string
+  developerName: string
   address: string
-  rera_link: string
-  walkthrough_link: string
+  reraLink: string
+  walkthroughLink: string
   propertyType: string
-  property_stage: string
-  project_status: 'Launched' | 'Pre Launch' | 'Intermediate Occupation'
+  propertyStage: string
+  projectStatus: 'Launched' | 'Pre Launch' | 'Intermediate Occupation'
   status: 'ACTIVE' | 'INACTIVE'
   organizationId?: string
-  organization_id?: string
   organizationName?: string
-  organization_name?: string
   createdAt?: string
 }
 
@@ -105,7 +103,7 @@ export default function ProjectsListPage() {
         .map((o: Organization) => String(o.organizationId || o.organization_id || ''))
 
       const filteredProjects = (resProjects.data || []).filter((p: Project) =>
-        orgIdsInIndustry.includes(String(p.organizationId || p.organization_id || ''))
+        orgIdsInIndustry.includes(String(p.organizationId || ''))
       )
       setItems(filteredProjects)
     } catch (e: any) {
@@ -132,7 +130,7 @@ export default function ProjectsListPage() {
 
   const openEditDialog = (proj: Project) => {
     setEditing(proj)
-    const org = organizations.find(o => (o.organizationId || o.organization_id) === (proj.organizationId || proj.organization_id))
+    const org = organizations.find(o => (o.organizationId || o.organization_id) === (proj.organizationId))
     const industryForForm = (org?.industry_id || org?.industryId || selectedIndustry || industries[0]?.code || '') as string
     setSelectedIndustryInForm(industryForForm)
     setDialogOpen(true)
@@ -185,31 +183,31 @@ export default function ProjectsListPage() {
       }
 
       if (header.key === 'organizationId' || header.key === 'organization_id') {
-        col.field = 'organization_name' as any
+        col.field = 'organizationName' as any
         col.flex = 1.2
         col.minWidth = 160
-        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organization_name || p.row.organizationName || p.value || <em>Global</em>}</Box>
-      } else if (header.key === 'project_name') {
+        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || p.value || <em>Global</em>}</Box>
+      } else if (header.key === 'projectName' || header.key === 'project_name') {
         col.flex = 1.2
         col.minWidth = 160
         col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value}</Box>
-      } else if (header.key === 'developer_name') {
+      } else if (header.key === 'developerName' || header.key === 'developer_name') {
         col.flex = 1.2
         col.minWidth = 150
       } else if (header.key === 'propertyType') {
         col.width = 140
-      } else if (header.key === 'property_stage') {
+      } else if (header.key === 'propertyStage' || header.key === 'property_stage') {
         col.width = 140
-      } else if (header.key === 'project_status') {
+      } else if (header.key === 'projectStatus' || header.key === 'project_status') {
         col.width = 160
         col.renderCell = (p) => <StatusBadge value={p.value} />
       } else if (header.key === 'address') {
         col.flex = 1.2
         col.minWidth = 160
-      } else if (header.key === 'rera_link') {
+      } else if (header.key === 'reraLink' || header.key === 'rera_link') {
         col.width = 140
         col.renderCell = (p) => p.value ? <a href={p.value} target="_blank" rel="noreferrer" style={{ color: '#1976d2', textDecoration: 'none' }}>View Link</a> : <em>N/A</em>
-      } else if (header.key === 'walkthrough_link') {
+      } else if (header.key === 'walkthroughLink' || header.key === 'walkthrough_link') {
         col.width = 150
         col.renderCell = (p) => p.value ? <a href={p.value} target="_blank" rel="noreferrer" style={{ color: '#1976d2', textDecoration: 'none' }}>View Link</a> : <em>N/A</em>
       } else if (header.key === 'status') {

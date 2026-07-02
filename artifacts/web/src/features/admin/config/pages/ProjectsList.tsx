@@ -34,15 +34,15 @@ import { resolveScreen, type ResolvedScreen, type ResolvedFormField } from '@/se
 
 export interface Project {
   id: string
-  project_id?: string
-  project_name: string
-  developer_name: string
+  projectId?: string
+  projectName: string
+  developerName: string
   address: string
-  rera_link: string
-  walkthrough_link: string
+  reraLink: string
+  walkthroughLink: string
   propertyType: string
-  property_stage: string
-  project_status: 'Launched' | 'Pre Launch' | 'Intermediate Occupation'
+  propertyStage: string
+  projectStatus: 'Launched' | 'Pre Launch' | 'Intermediate Occupation'
   status: 'ACTIVE' | 'INACTIVE'
   createdAt?: string
 }
@@ -72,14 +72,14 @@ export default function ProjectsListPage() {
 
   // Form state
   const [form, setForm] = useState({
-    project_name: '',
-    developer_name: '',
+    projectName: '',
+    developerName: '',
     address: '',
-    rera_link: '',
-    walkthrough_link: '',
+    reraLink: '',
+    walkthroughLink: '',
     propertyType: '',
-    property_stage: '',
-    project_status: 'Launched' as Project['project_status'],
+    propertyStage: '',
+    projectStatus: 'Launched' as Project['projectStatus'],
     status: 'ACTIVE' as Project['status'],
   })
 
@@ -116,14 +116,14 @@ export default function ProjectsListPage() {
   const openAddDialog = () => {
     setEditing(null)
     setForm({
-      project_name: '',
-      developer_name: '',
+      projectName: '',
+      developerName: '',
       address: '',
-      rera_link: '',
-      walkthrough_link: '',
+      reraLink: '',
+      walkthroughLink: '',
       propertyType: '',
-      property_stage: '',
-      project_status: 'Launched',
+      propertyStage: '',
+      projectStatus: 'Launched',
       status: 'ACTIVE',
     })
     setDialogOpen(true)
@@ -132,14 +132,14 @@ export default function ProjectsListPage() {
   const openEditDialog = (proj: Project) => {
     setEditing(proj)
     setForm({
-      project_name: proj.project_name || '',
-      developer_name: proj.developer_name || '',
+      projectName: proj.projectName || '',
+      developerName: proj.developerName || '',
       address: proj.address || '',
-      rera_link: proj.rera_link || '',
-      walkthrough_link: proj.walkthrough_link || '',
+      reraLink: proj.reraLink || '',
+      walkthroughLink: proj.walkthroughLink || '',
       propertyType: proj.propertyType || '',
-      property_stage: proj.property_stage || '',
-      project_status: proj.project_status || 'Launched',
+      propertyStage: proj.propertyStage || '',
+      projectStatus: proj.projectStatus || 'Launched',
       status: proj.status || 'ACTIVE',
     })
     setDialogOpen(true)
@@ -161,7 +161,7 @@ export default function ProjectsListPage() {
   }
 
   const handleSave = async () => {
-    if (!form.project_name || !form.developer_name) {
+    if (!form.projectName || !form.developerName) {
       setToast({ open: true, msg: 'Developer Name and Project Name are required', sev: 'error' })
       return
     }
@@ -215,27 +215,27 @@ export default function ProjectsListPage() {
         sortable: header.sortable,
       }
 
-      if (header.key === 'project_name') {
+      if (header.key === 'projectName' || header.key === 'project_name') {
         col.flex = 1.2
         col.minWidth = 160
         col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value}</Box>
-      } else if (header.key === 'developer_name') {
+      } else if (header.key === 'developerName' || header.key === 'developer_name') {
         col.flex = 1.2
         col.minWidth = 150
       } else if (header.key === 'propertyType') {
         col.width = 140
-      } else if (header.key === 'property_stage') {
+      } else if (header.key === 'propertyStage' || header.key === 'property_stage') {
         col.width = 140
-      } else if (header.key === 'project_status') {
+      } else if (header.key === 'projectStatus' || header.key === 'project_status') {
         col.width = 160
         col.renderCell = (p) => <StatusBadge value={p.value} />
       } else if (header.key === 'address') {
         col.flex = 1.2
         col.minWidth = 160
-      } else if (header.key === 'rera_link') {
+      } else if (header.key === 'reraLink' || header.key === 'rera_link') {
         col.width = 140
         col.renderCell = (p) => p.value ? <a href={p.value} target="_blank" rel="noreferrer" style={{ color: '#1976d2', textDecoration: 'none' }}>View Link</a> : <em>N/A</em>
-      } else if (header.key === 'walkthrough_link') {
+      } else if (header.key === 'walkthroughLink' || header.key === 'walkthrough_link') {
         col.width = 150
         col.renderCell = (p) => p.value ? <a href={p.value} target="_blank" rel="noreferrer" style={{ color: '#1976d2', textDecoration: 'none' }}>View Link</a> : <em>N/A</em>
       } else if (header.key === 'status') {
@@ -285,27 +285,27 @@ export default function ProjectsListPage() {
     // Admin does not render organizationId or organization_id input field
     if (field.key === 'organizationId' || field.key === 'organization_id') return null
 
-    if (field.key === 'developer_name') {
+    if (field.key === 'developerName' || field.key === 'developer_name') {
       return (
         <TextField
           key={field.key}
           fullWidth
           label={field.label}
-          value={form.developer_name}
-          onChange={(e) => setForm(prev => ({ ...prev, developer_name: e.target.value }))}
+          value={form.developerName}
+          onChange={(e) => setForm(prev => ({ ...prev, developerName: e.target.value }))}
           required={field.required}
         />
       )
     }
 
-    if (field.key === 'project_name') {
+    if (field.key === 'projectName' || field.key === 'project_name') {
       return (
         <TextField
           key={field.key}
           fullWidth
           label={field.label}
-          value={form.project_name}
-          onChange={(e) => setForm(prev => ({ ...prev, project_name: e.target.value }))}
+          value={form.projectName}
+          onChange={(e) => setForm(prev => ({ ...prev, projectName: e.target.value }))}
           required={field.required}
         />
       )
@@ -331,15 +331,15 @@ export default function ProjectsListPage() {
       )
     }
 
-    if (field.key === 'property_stage') {
+    if (field.key === 'propertyStage' || field.key === 'property_stage') {
       return (
         <TextField
           key={field.key}
           select
           fullWidth
           label={field.label}
-          value={form.property_stage}
-          onChange={(e) => setForm(prev => ({ ...prev, property_stage: e.target.value }))}
+          value={form.propertyStage}
+          onChange={(e) => setForm(prev => ({ ...prev, propertyStage: e.target.value }))}
           required={field.required}
         >
           {propertyStages.map((s) => (
@@ -351,15 +351,15 @@ export default function ProjectsListPage() {
       )
     }
 
-    if (field.key === 'project_status') {
+    if (field.key === 'projectStatus' || field.key === 'project_status') {
       return (
         <TextField
           key={field.key}
           select
           fullWidth
           label={field.label}
-          value={form.project_status}
-          onChange={(e) => setForm(prev => ({ ...prev, project_status: e.target.value as any }))}
+          value={form.projectStatus}
+          onChange={(e) => setForm(prev => ({ ...prev, projectStatus: e.target.value as any }))}
           required={field.required}
         >
           {PROPERTY_STATUS_OPTIONS.map((opt) => (
@@ -401,27 +401,27 @@ export default function ProjectsListPage() {
       )
     }
 
-    if (field.key === 'rera_link') {
+    if (field.key === 'reraLink' || field.key === 'rera_link') {
       return (
         <TextField
           key={field.key}
           fullWidth
           label={field.label}
-          value={form.rera_link}
-          onChange={(e) => setForm(prev => ({ ...prev, rera_link: e.target.value }))}
+          value={form.reraLink}
+          onChange={(e) => setForm(prev => ({ ...prev, reraLink: e.target.value }))}
           required={field.required}
         />
       )
     }
 
-    if (field.key === 'walkthrough_link') {
+    if (field.key === 'walkthroughLink' || field.key === 'walkthrough_link') {
       return (
         <TextField
           key={field.key}
           fullWidth
           label={field.label}
-          value={form.walkthrough_link}
-          onChange={(e) => setForm(prev => ({ ...prev, walkthrough_link: e.target.value }))}
+          value={form.walkthroughLink}
+          onChange={(e) => setForm(prev => ({ ...prev, walkthroughLink: e.target.value }))}
           required={field.required}
         />
       )
@@ -535,9 +535,10 @@ export default function ProjectsListPage() {
               return fields.map((field) => {
                 if (renderedKeys.has(field.key)) return null
 
-                if (field.key === 'developer_name') {
-                  const sibling = fields.find(f => f.key === 'project_name')
+                if (field.key === 'developerName' || field.key === 'developer_name') {
+                  const sibling = fields.find(f => f.key === 'projectName' || f.key === 'project_name')
                   if (sibling) {
+                    renderedKeys.add('projectName')
                     renderedKeys.add('project_name')
                     return (
                       <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
@@ -549,8 +550,9 @@ export default function ProjectsListPage() {
                 }
 
                 if (field.key === 'propertyType') {
-                  const sibling = fields.find(f => f.key === 'property_stage')
+                  const sibling = fields.find(f => f.key === 'propertyStage' || f.key === 'property_stage')
                   if (sibling) {
+                    renderedKeys.add('propertyStage')
                     renderedKeys.add('property_stage')
                     return (
                       <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
@@ -561,7 +563,7 @@ export default function ProjectsListPage() {
                   }
                 }
 
-                if (field.key === 'project_status') {
+                if (field.key === 'projectStatus' || field.key === 'project_status') {
                   const sibling = fields.find(f => f.key === 'status')
                   if (sibling) {
                     renderedKeys.add('status')
@@ -574,9 +576,10 @@ export default function ProjectsListPage() {
                   }
                 }
 
-                if (field.key === 'rera_link') {
-                  const sibling = fields.find(f => f.key === 'walkthrough_link')
+                if (field.key === 'reraLink' || field.key === 'rera_link') {
+                  const sibling = fields.find(f => f.key === 'walkthroughLink' || f.key === 'walkthrough_link')
                   if (sibling) {
+                    renderedKeys.add('walkthroughLink')
                     renderedKeys.add('walkthrough_link')
                     return (
                       <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>

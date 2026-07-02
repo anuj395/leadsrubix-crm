@@ -197,7 +197,21 @@ router.get('/:key', (req, res, next) => {
         resource_key: key,
       });
 
-      const displayField = req.query.display || 'name';
+      let displayField = req.query.display;
+      if (!displayField) {
+        const keyLower = key.toLowerCase();
+        if (keyLower.includes('propertytype')) {
+          displayField = 'propertyType';
+        } else if (keyLower.includes('propertystage') || keyLower.includes('stage')) {
+          displayField = 'stage';
+        } else if (keyLower.includes('leadsource')) {
+          displayField = 'leadSource';
+        } else if (keyLower.includes('location')) {
+          displayField = 'locationName';
+        } else {
+          displayField = 'name';
+        }
+      }
       const toCamelCase = (str) => str.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
       const displayFieldCamel = toCamelCase(displayField);
 
