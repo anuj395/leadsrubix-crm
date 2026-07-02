@@ -406,6 +406,56 @@ exports.create = async ({ payload, authedUser }) => {
     console.error('[organizationService] Failed to copy global FAQs to the new organization:', err);
   }
 
+  // Automatically clone Super Admin resources (where organizationId is null or empty) for the new organization
+  try {
+    const OrganizationResources = mongoose.model('OrganizationResources');
+    const globalResDoc = await OrganizationResources.findOne({
+      $or: [
+        { organizationId: null },
+        { organizationId: '' }
+      ]
+    }).exec();
+
+    if (globalResDoc) {
+      // Find or create resources doc for the new organizationId
+      let orgResDoc = await OrganizationResources.findOne({ organizationId: orgId }).exec();
+      if (!orgResDoc) {
+        orgResDoc = new OrganizationResources({ organizationId: orgId });
+      }
+
+      // Copy all arrays from the global document if they are not already populated
+      const resourceFields = [
+        'PropertyStages',
+        'PropertySubTypes',
+        'PropertyTypes',
+        'TransferReasons',
+        'budgets',
+        'carousel',
+        'leadSources',
+        'locations',
+        'projects'
+      ];
+
+      resourceFields.forEach(field => {
+        if (globalResDoc[field] && Array.isArray(globalResDoc[field]) && globalResDoc[field].length > 0) {
+          const existingItems = orgResDoc[field] || [];
+          const existingKeys = new Set(existingItems.map(item => typeof item === 'object' && item ? JSON.stringify(item) : String(item)));
+          
+          globalResDoc[field].forEach(item => {
+            const itemKey = typeof item === 'object' && item ? JSON.stringify(item) : String(item);
+            if (!existingKeys.has(itemKey)) {
+              orgResDoc[field].push(item);
+            }
+          });
+        }
+      });
+
+      await orgResDoc.save();
+    }
+  } catch (err) {
+    console.error('[organizationService] Failed to copy global resources to the new organization:', err);
+  }
+
   return orgDoc;
 };
 
