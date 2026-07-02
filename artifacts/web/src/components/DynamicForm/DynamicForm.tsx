@@ -33,6 +33,7 @@ import Select from '@mui/material/Select'
 import InputAdornment from '@mui/material/InputAdornment'
 import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
 import { api } from '@/services/api'
+import { useAuth } from '@/hooks/useAuth'
 
 type Value = string | number | boolean | null
 
@@ -147,6 +148,8 @@ export function DynamicForm({
   readOnly = false,
   fullWidthSubmit = false,
 }: Props) {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
   const [fields, setFields] = useState<ResolvedFormField[]>([])
   const [values, setValues] = useState<Record<string, Value>>(initialValues)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -302,6 +305,9 @@ export function DynamicForm({
     () => () => {
       const next: Record<string, string> = {}
       for (const f of fields) {
+        if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
+          continue
+        }
         if (f.required) {
           const v = values[f.key]
           if (v === undefined || v === null || v === '' || v === false) {
@@ -318,7 +324,7 @@ export function DynamicForm({
       }
       return next
     },
-    [fields, values, trialPeriodLicenses, screen],
+    [fields, values, trialPeriodLicenses, screen, isSuperAdmin],
   )
 
   const handleSubmit = async (e: FormEvent) => {
@@ -364,6 +370,9 @@ export function DynamicForm({
         }}
       >
         {fields.map((f) => {
+          if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
+            return null
+          }
           const value = values[f.key]
           const err = errors[f.key] || ''
           const labelWithRequired = f.required ? `${f.label} *` : f.label

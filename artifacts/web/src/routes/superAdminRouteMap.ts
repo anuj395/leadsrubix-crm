@@ -67,7 +67,7 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/days-config": DaysConfigPage,
 
   "/integrations": IntegrationsPage,
-  "/integrations/api": IntegrationsApiPage,
+  "/integrations/api": ApiListPage,
   "/integrations/api-data": IntegrationsApiDataPage,
 
   "/support/news": NewsListPage,

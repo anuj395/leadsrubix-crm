@@ -298,7 +298,6 @@ export default function ApiListPage() {
     }
 
     if (field.key === 'status') {
-      if (!editing) return null
       return (
         <TextField
           key={field.key}
@@ -309,7 +308,7 @@ export default function ApiListPage() {
           onChange={(e) => setForm(prev => ({ ...prev, status: e.target.value as ApiTokenConfig['status'] }))}
           required={field.required}
         >
-          {(field.options || ['ACTIVE', 'INACTIVE']).map((opt) => (
+          {(!field.options || field.options.length === 0 ? ['ACTIVE', 'INACTIVE'] : field.options).map((opt) => (
             <MenuItem key={opt} value={opt}>
               {opt}
             </MenuItem>

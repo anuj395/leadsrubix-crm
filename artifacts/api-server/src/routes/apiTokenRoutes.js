@@ -170,6 +170,10 @@ router.put('/:id', authenticate, async (req, res, next) => {
     doc.leadSourceId = resolvedLeadSourceId;
     if (countryCode !== undefined) doc.countryCode = countryCode;
     else if (country_code !== undefined) doc.countryCode = country_code;
+    
+    if (req.user.role === 'superAdmin' && (organizationId !== undefined || organization_id !== undefined)) {
+      doc.organizationId = organizationId || organization_id;
+    }
 
     await doc.save();
 
