@@ -32,7 +32,7 @@ export interface NewsArticle {
   link: string
   status: 'Active' | 'Draft'
   created_by?: string
-  organization_id?: string | null
+  organizationId?: string | null
 }
 
 function getEmbedUrl(url: string): { type: 'iframe' | 'video' | 'link'; embedUrl: string } {
@@ -143,7 +143,7 @@ export default function NewsListPage() {
         link: n.link,
         status: n.status,
         created_by: n.created_by || '',
-        organization_id: n.organization_id || null,
+        organizationId: n.organizationId || n.organization_id || null,
       }))
       setItems(mapped)
     } catch (e: any) {

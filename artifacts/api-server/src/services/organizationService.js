@@ -329,6 +329,44 @@ exports.create = async ({ payload, authedUser }) => {
     }
   })();
 
+  // Automatically clone Super Admin news articles (where organizationId is null or empty) for the new organization
+  try {
+    const News = mongoose.model('News');
+    const globalNewsDoc = await News.findOne({
+      $or: [
+        { organizationId: null },
+        { organizationId: '' }
+      ]
+    }).exec();
+
+    if (globalNewsDoc && globalNewsDoc.news && globalNewsDoc.news.length > 0) {
+      // Find or create news doc for the new organizationId
+      let orgNewsDoc = await News.findOne({ organizationId: orgId }).exec();
+      if (!orgNewsDoc) {
+        orgNewsDoc = new News({ organizationId: orgId, news: [] });
+      }
+
+      globalNewsDoc.news.forEach(n => {
+        // Prevent duplicate cloning
+        const duplicate = orgNewsDoc.news.find(item => item.name === n.name && item.link === n.link);
+        if (!duplicate) {
+          orgNewsDoc.news.push({
+            name: n.name,
+            link: n.link,
+            status: n.status,
+            created_by: n.created_by
+          });
+        }
+      });
+
+      if (orgNewsDoc.news.length > 0) {
+        await orgNewsDoc.save();
+      }
+    }
+  } catch (err) {
+    console.error('[organizationService] Failed to copy global news to the new organization:', err);
+  }
+
   return orgDoc;
 };
 
