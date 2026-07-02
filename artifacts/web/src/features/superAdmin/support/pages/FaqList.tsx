@@ -34,7 +34,7 @@ export interface FaqItem {
   status: 'Active' | 'Draft'
   videoUrl?: string
   created_by?: string
-  organization_id?: string | null
+  organizationId?: string | null
 }
 
 function getEmbedUrl(url: string): { type: 'iframe' | 'video' | 'link'; embedUrl: string } {
@@ -148,7 +148,7 @@ export default function FaqListPage() {
         status: f.status,
         videoUrl: f.videoUrl || '',
         created_by: f.created_by || '',
-        organization_id: f.organization_id || null,
+        organizationId: f.organizationId || f.organization_id || null,
       }))
       setItems(mapped)
     } catch (e: any) {

@@ -367,6 +367,45 @@ exports.create = async ({ payload, authedUser }) => {
     console.error('[organizationService] Failed to copy global news to the new organization:', err);
   }
 
+  // Automatically clone Super Admin FAQs (where organizationId is null or empty) for the new organization
+  try {
+    const FAQ = mongoose.model('FAQ');
+    const globalFaqDoc = await FAQ.findOne({
+      $or: [
+        { organizationId: null },
+        { organizationId: '' }
+      ]
+    }).exec();
+
+    if (globalFaqDoc && globalFaqDoc.faqs && globalFaqDoc.faqs.length > 0) {
+      // Find or create FAQ doc for the new organizationId
+      let orgFaqDoc = await FAQ.findOne({ organizationId: orgId }).exec();
+      if (!orgFaqDoc) {
+        orgFaqDoc = new FAQ({ organizationId: orgId, faqs: [] });
+      }
+
+      globalFaqDoc.faqs.forEach(f => {
+        // Prevent duplicate cloning
+        const duplicate = orgFaqDoc.faqs.find(item => item.question === f.question && item.answer === f.answer);
+        if (!duplicate) {
+          orgFaqDoc.faqs.push({
+            question: f.question,
+            answer: f.answer,
+            status: f.status,
+            videoUrl: f.videoUrl || '',
+            created_by: f.created_by
+          });
+        }
+      });
+
+      if (orgFaqDoc.faqs.length > 0) {
+        await orgFaqDoc.save();
+      }
+    }
+  } catch (err) {
+    console.error('[organizationService] Failed to copy global FAQs to the new organization:', err);
+  }
+
   return orgDoc;
 };
 
