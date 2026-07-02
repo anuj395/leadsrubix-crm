@@ -232,6 +232,22 @@ export function DynamicForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, industry_code, role_key])
 
+  const getDropdownUrl = (f: ResolvedFormField) => {
+    let url = f.dropdown_api || ''
+    if (!url) return ''
+    if (url.includes('options/states') && values.country) {
+      url = `${url}?country=${encodeURIComponent(String(values.country))}`
+    }
+    if (url.includes('options/organizations') && industry_code) {
+      url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(industry_code))}`
+    }
+    const activeOrg = values.organizationId || values.organization_id
+    if (activeOrg && !url.includes('options/organizations')) {
+      url = `${url}${url.includes('?') ? '&' : '?'}organizationId=${encodeURIComponent(String(activeOrg))}`
+    }
+    return url
+  }
+
   // 2) Lazy-load API dropdowns once we know which fields need them.
   useEffect(() => {
     let cancelled = false
@@ -239,11 +255,8 @@ export function DynamicForm({
       (f) => f.type === 'select' && f.dropdown_source === 'api' && f.dropdown_api,
     )
     for (const f of apiFields) {
-      let url = f.dropdown_api
-      // Append country to states API dynamically so we fetch the country-specific states
-      if (url.includes('options/states') && values.country) {
-        url = `${url}?country=${encodeURIComponent(String(values.country))}`
-      }
+      const url = getDropdownUrl(f)
+      if (!url) continue
       
       if (dropdownCache.has(url)) {
         // already cached — hydrate immediately
@@ -285,7 +298,7 @@ export function DynamicForm({
     return () => {
       cancelled = true
     }
-  }, [fields, values.country])
+  }, [fields, values.country, industry_code, values.organizationId, values.organization_id])
 
   const setValue = (key: string, value: Value) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -378,7 +391,7 @@ export function DynamicForm({
           const labelWithRequired = f.required ? `${f.label} *` : f.label
 
           if (f.type === 'select') {
-            const apiUrl = f.dropdown_api
+            const apiUrl = getDropdownUrl(f)
             let opts: DropdownOption[] = []
             if (f.dropdown_source === 'api' && apiUrl) {
               opts = dropdowns[apiUrl] ?? []

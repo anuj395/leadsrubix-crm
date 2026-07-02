@@ -126,7 +126,15 @@ router.get('/:key', (req, res, next) => {
   if (key === 'organizations') {
     try {
       const Organization = mongoose.model('Organization');
-      const list = await Organization.find({}).sort({ name: 1 }).lean().exec();
+      const targetIndustry = req.query.industryId || req.query.industry_id || req.query.industry_code;
+      let query = {};
+      if (targetIndustry) {
+        query.$or = [
+          { industryId: targetIndustry },
+          { industry_id: targetIndustry }
+        ];
+      }
+      const list = await Organization.find(query).sort({ name: 1 }).lean().exec();
       const options = list.map(org => ({ value: String(org.organizationId || org.organization_id || org._id), label: org.name || org.organizationName }));
       return res.json({ items: options });
     } catch (err) {
