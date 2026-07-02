@@ -74,6 +74,20 @@ export default function OrganizationsListPage() {
 
   const [selectedFilterIndustry, setSelectedFilterIndustry] = useState<string>('')
 
+  const openAddDialog = () => {
+    setEditing(null)
+    const industryForForm = selectedFilterIndustry || industries[0]?.code || ''
+    setSelectedIndustry(industryForForm)
+    setDialogOpen(true)
+  }
+
+  const openEditDialog = (org: Organization) => {
+    setEditing(org)
+    const industryForForm = org.industryId || org.industry_id || selectedFilterIndustry || industries[0]?.code || ''
+    setSelectedIndustry(String(industryForForm))
+    setDialogOpen(true)
+  }
+
   useEffect(() => {
     getIndustries(true)
       .then((inds) => {
@@ -195,7 +209,7 @@ export default function OrganizationsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => { setEditing(p.row); setSelectedIndustry(String(p.row.industryId || p.row.industry_id || 'temp0001')); setDialogOpen(true) }}>
+            <IconButton size="small" onClick={() => openEditDialog(p.row)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -267,7 +281,7 @@ export default function OrganizationsListPage() {
         title="Organizations"
         subtitle="Organization records. Columns and the Add/Edit form are driven by the Screen Configuration system (screen key: organization)."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditing(null); setSelectedIndustry(''); setDialogOpen(true) }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog}>
             Add Organization
           </Button>
         }
