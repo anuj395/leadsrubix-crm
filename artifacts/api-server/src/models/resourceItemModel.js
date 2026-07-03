@@ -1,15 +1,16 @@
 const mongoose = require('mongoose');
 
 const KEY_MAP = {
-  resourcePropertyTypes: 'PropertyTypes',
-  resourcePropertySubTypes: 'PropertySubTypes',
+  resourcePropertyTypes: 'propertyTypes',
+  resourcePropertySubTypes: 'propertySubTypes',
   resourceBudgets: 'budgets',
   resourceLocations: 'locations',
   resourceLeadSources: 'leadSources',
-  resourceTransferReasons: 'TransferReasons',
-  resourcePropertyStages: 'PropertyStages',
+  resourceTransferReasons: 'transferReasons',
+  resourcePropertyStages: 'propertyStages',
   resourceCarousel: 'carousel',
   resourceProjects: 'projects',
+  resourcePropertyStatus: 'propertyStatuses',
 };
 
 function getFieldName(resourceKey) {
@@ -20,15 +21,16 @@ const organizationResourcesSchema = new mongoose.Schema(
   {
     organizationId: { type: String, default: null, index: true },
     industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', default: null, index: true },
-    PropertyStages: { type: Array, default: [] },
-    PropertySubTypes: { type: Array, default: [] },
-    PropertyTypes: { type: Array, default: [] },
-    TransferReasons: { type: Array, default: [] },
+    propertyStages: { type: Array, default: [] },
+    propertySubTypes: { type: Array, default: [] },
+    propertyTypes: { type: Array, default: [] },
+    transferReasons: { type: Array, default: [] },
     budgets: { type: Array, default: [] },
     carousel: { type: Array, default: [] },
     leadSources: { type: Array, default: [] },
     locations: { type: Array, default: [] },
     projects: { type: Array, default: [] },
+    propertyStatuses: { type: Array, default: [] },
   },
   { timestamps: true, strict: false }
 );
@@ -38,7 +40,7 @@ const OrganizationResources = mongoose.model('OrganizationResources', organizati
 exports.ResourceItem = OrganizationResources;
 
 exports.list = async ({ organizationId, industryId, resource_key, all = false } = {}) => {
-  if (resource_key === 'resource_projects' && all) {
+  if ((resource_key === 'resource_projects' || resource_key === 'resourceProjects') && all) {
     const docs = await OrganizationResources.find({}).lean().exec();
     const allProjects = [];
     const Organization = mongoose.model('Organization');

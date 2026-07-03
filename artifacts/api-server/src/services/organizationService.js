@@ -425,15 +425,16 @@ exports.create = async ({ payload, authedUser }) => {
 
       // Copy all arrays from the global document if they are not already populated
       const resourceFields = [
-        'PropertyStages',
-        'PropertySubTypes',
-        'PropertyTypes',
-        'TransferReasons',
+        'propertyStages',
+        'propertySubTypes',
+        'propertyTypes',
+        'transferReasons',
         'budgets',
         'carousel',
         'leadSources',
         'locations',
-        'projects'
+        'projects',
+        'propertyStatuses'
       ];
 
       resourceFields.forEach(field => {
