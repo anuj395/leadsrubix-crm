@@ -80,7 +80,6 @@ export default function ProjectsListPage() {
     propertyType: '',
     propertyStage: '',
     projectStatus: 'Launched' as Project['projectStatus'],
-    status: 'ACTIVE' as Project['status'],
   })
 
   const loadData = async () => {
@@ -124,7 +123,6 @@ export default function ProjectsListPage() {
       propertyType: '',
       propertyStage: '',
       projectStatus: 'Launched',
-      status: 'ACTIVE',
     })
     setDialogOpen(true)
   }
@@ -140,7 +138,6 @@ export default function ProjectsListPage() {
       propertyType: proj.propertyType || '',
       propertyStage: proj.propertyStage || '',
       projectStatus: proj.projectStatus || 'Launched',
-      status: proj.status || 'ACTIVE',
     })
     setDialogOpen(true)
   }
@@ -371,22 +368,7 @@ export default function ProjectsListPage() {
       )
     }
 
-    if (field.key === 'status') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.status}
-          onChange={(e) => setForm(prev => ({ ...prev, status: e.target.value as any }))}
-          required={field.required}
-        >
-          <MenuItem value="ACTIVE">ACTIVE</MenuItem>
-          <MenuItem value="INACTIVE">INACTIVE</MenuItem>
-        </TextField>
-      )
-    }
+
 
     if (field.key === 'address') {
       return (

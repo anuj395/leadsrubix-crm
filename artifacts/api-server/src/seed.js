@@ -445,8 +445,7 @@ const SCREEN_DEFAULTS = [
       { field_key: 'address', label: 'Address', type: 'text', is_required: false, order: 7 },
       { field_key: 'reraLink', label: 'Rera Link', type: 'text', is_required: false, order: 8 },
       { field_key: 'walkthroughLink', label: 'Walkthrough Link', type: 'text', is_required: false, order: 9 },
-      { field_key: 'status', label: 'Status', type: 'select', dropdown_source: 'static', options: ['ACTIVE', 'INACTIVE'], is_required: true, order: 10 },
-      { field_key: 'createdAt', label: 'Created At', type: 'date', is_form_visible: false, is_required: false, order: 11 },
+      { field_key: 'createdAt', label: 'Created At', type: 'date', is_form_visible: false, is_required: false, order: 10 },
     ]
   },
   {

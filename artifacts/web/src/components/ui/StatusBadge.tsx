@@ -78,6 +78,24 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ value, hideDot = false
     bg = 'rgba(249, 115, 22, 0.12)'
     border = '1px solid rgba(249, 115, 22, 0.25)'
   }
+  // Property Status color coding
+  else if (lowerVal === 'launched') {
+    color = '#10b981' // Emerald
+    bg = 'rgba(16, 185, 129, 0.12)'
+    border = '1px solid rgba(16, 185, 129, 0.25)'
+  } else if (lowerVal === 'pre launch' || lowerVal === 'pre_launch') {
+    color = '#3b82f6' // Blue
+    bg = 'rgba(59, 130, 246, 0.12)'
+    border = '1px solid rgba(59, 130, 246, 0.25)'
+  } else if (lowerVal === 'intermediate occupation' || lowerVal === 'intermediate_occupation') {
+    color = '#f59e0b' // Amber
+    bg = 'rgba(245, 158, 11, 0.12)'
+    border = '1px solid rgba(245, 158, 11, 0.25)'
+  } else if (lowerVal.includes('ready to move') || lowerVal.includes('ready_to_move')) {
+    color = '#8b5cf6' // Purple
+    bg = 'rgba(139, 92, 246, 0.12)'
+    border = '1px solid rgba(139, 92, 246, 0.25)'
+  }
   // Green statuses
   else if (
     lowerVal === 'won' ||

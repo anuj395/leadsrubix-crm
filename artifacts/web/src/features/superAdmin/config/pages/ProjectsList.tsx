@@ -395,7 +395,7 @@ export default function ProjectsListPage() {
                   screen="configProjects"
                   industry_code={selectedIndustryInForm}
                   role_key="admin"
-                  initialValues={editing ? (editing as any) : { organizationId: '', status: 'ACTIVE' }}
+                  initialValues={editing ? (editing as any) : { organizationId: '' }}
                   onCancel={() => setDialogOpen(false)}
                   submitLabel={editing ? 'Save' : 'Create'}
                   onSubmit={async (values) => {
