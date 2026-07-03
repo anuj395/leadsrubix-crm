@@ -18,6 +18,11 @@ const SOURCES = {
     { value: 'warm', label: 'Warm' },
     { value: 'cold', label: 'Cold' },
   ],
+  'propertyStatus': [
+    { value: 'Launched',  label: 'Launched' },
+    { value: 'Pre Launch',  label: 'Pre Launch' },
+    { value: 'Intermediate Occupation',   label: 'Intermediate Occupation' },
+  ],
   'lead-statuses': [
     { value: 'new',         label: 'New' },
     { value: 'contacted',   label: 'Contacted' },
@@ -233,6 +238,22 @@ router.get('/:key', (req, res, next) => {
     } catch (err) {
       console.error(err);
       return res.status(500).json({ message: 'Failed to fetch resource options' });
+    }
+  }
+
+  if (key === 'propertyStatus') {
+    try {
+      const list = await mongoose.connection.db.collection('property_statuses').find({}).toArray();
+      if (list && list.length > 0) {
+        return res.json({
+          items: list.map(item => ({
+            value: item.name || item.value,
+            label: item.name || item.value
+          }))
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load property status options from property_statuses collection', err);
     }
   }
 

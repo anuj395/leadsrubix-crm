@@ -441,7 +441,7 @@ const SCREEN_DEFAULTS = [
       { field_key: 'projectName', label: 'Project Name', type: 'text', is_required: true, order: 3 },
       { field_key: 'propertyType', label: 'Property Type', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourcePropertyTypes', is_required: true, order: 4 },
       { field_key: 'propertyStage', label: 'Property Stage', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourcePropertyStages', is_required: true, order: 5 },
-      { field_key: 'projectStatus', label: 'Property Status', type: 'select', dropdown_source: 'static', options: ['Launched', 'Pre Launch', 'Intermediate Occupation'], is_required: true, order: 6 },
+      { field_key: 'projectStatus', label: 'Property Status', type: 'select', dropdown_source: 'api', dropdown_api: 'options/propertyStatus', options: [], is_required: true, order: 6 },
       { field_key: 'address', label: 'Address', type: 'text', is_required: false, order: 7 },
       { field_key: 'reraLink', label: 'Rera Link', type: 'text', is_required: false, order: 8 },
       { field_key: 'walkthroughLink', label: 'Walkthrough Link', type: 'text', is_required: false, order: 9 },
