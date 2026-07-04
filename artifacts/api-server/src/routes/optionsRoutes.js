@@ -257,6 +257,65 @@ router.get('/:key', (req, res, next) => {
     }
   }
 
+  if (key === 'teams') {
+    try {
+      const Team = mongoose.model('Team');
+      const targetIndustry = req.query.industryId || req.query.industry_code || req.body.industryId || req.body.industry_code || req.user.industryId;
+      let query = { isActive: true };
+      if (targetIndustry) {
+        const Industry = mongoose.model('Industry');
+        const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
+        if (ind) {
+          query.industryId = String(ind._id);
+        } else {
+          query.industryId = targetIndustry;
+        }
+      }
+      const list = await Team.find(query).sort({ name: 1 }).lean().exec();
+      const options = list.map(t => ({ value: t.name, label: t.name }));
+      return res.json({ items: options });
+    } catch (err) {
+      console.error('Failed to load teams', err);
+      return res.status(500).json({ message: 'Failed to fetch teams' });
+    }
+  }
+
+  if (key === 'branches') {
+    try {
+      const Branch = mongoose.model('Branch');
+      const targetIndustry = req.query.industryId || req.query.industry_code || req.body.industryId || req.body.industry_code || req.user.industryId;
+      let query = { isActive: true };
+      if (targetIndustry) {
+        const Industry = mongoose.model('Industry');
+        const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
+        if (ind) {
+          query.industryId = String(ind._id);
+        } else {
+          query.industryId = targetIndustry;
+        }
+      }
+      const list = await Branch.find(query).sort({ name: 1 }).lean().exec();
+      const options = list.map(b => ({ value: b.name, label: b.name }));
+      return res.json({ items: options });
+    } catch (err) {
+      console.error('Failed to load branches', err);
+      return res.status(500).json({ message: 'Failed to fetch branches' });
+    }
+  }
+
+  if (key === 'designations') {
+    try {
+      const DropdownOption = mongoose.model('DropdownOption');
+      const list = await DropdownOption.find({ key: 'designations' }).lean().exec();
+      if (list && list.length > 0) {
+        return res.json({ items: list.map(item => ({ value: item.value, label: item.label })) });
+      }
+    } catch (err) {
+      console.error('Failed to load designations option list', err);
+    }
+    return res.json({ items: [] });
+  }
+
   try {
     const DropdownOption = mongoose.model('DropdownOption');
     const list = await DropdownOption.find({ key }).lean().exec();

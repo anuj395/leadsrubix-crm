@@ -509,7 +509,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                         </ButtonBase>
 
                         <ButtonBase
-                            onClick={handleCloseProfileMenu}
+                            onClick={() => { handleCloseProfileMenu(); navigate('/settings') }}
                             sx={{
                                 justifyContent: 'flex-start',
                                 gap: 1.25,

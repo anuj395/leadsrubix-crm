@@ -4,6 +4,8 @@ export interface AdminUser {
   _id: string
   id?: string
   name?: string
+  firstName?: string
+  lastName?: string
   email: string
   role: string
   industryId?: string
@@ -18,6 +20,8 @@ export interface CreateUserInput {
   email: string
   password: string
   name?: string
+  firstName?: string
+  lastName?: string
   role: string
   industryId?: string
   isActive?: boolean
@@ -27,6 +31,8 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   name?: string
+  firstName?: string
+  lastName?: string
   role?: string
   industryId?: string
   isActive?: boolean

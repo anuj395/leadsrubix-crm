@@ -208,8 +208,9 @@ exports.create = async ({ payload, authedUser }) => {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
   }
-  const role = String(payload.role || 'sales');
-  const name = payload.name ? String(payload.name).trim() : '';
+  const role = String(payload.role || (payload.fields && payload.fields.designation) || 'sales');
+  const firstName = payload.firstName ? String(payload.firstName).trim() : '';
+  const lastName = payload.lastName ? String(payload.lastName).trim() : '';
   const industryId = isSuperAdmin
     ? String(payload.industryId || authedUser?.industryId || '').trim()
     : authedUser?.industryId;
@@ -222,6 +223,25 @@ exports.create = async ({ payload, authedUser }) => {
   const existing = await userModel.findByEmail(email);
   if (existing) { const e = new Error('Email already in use'); e.status = 409; throw e; }
 
+  if (payload.reporting_to) {
+    const manager = await userModel.findById(payload.reporting_to);
+    if (manager) {
+      if (role === 'leadManager') {
+        if (manager.role === 'sales' || manager.role === 'teamLead') {
+          const err = new Error('Lead Manager cannot report to lower roles (Sales, Team Lead).');
+          err.status = 400;
+          throw err;
+        }
+      } else if (role === 'teamLead') {
+        if (manager.role === 'sales') {
+          const err = new Error('Team Lead cannot report to lower roles (Sales).');
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+  }
+
   const { fields: allowed } = await resolveAllowedFields({
     industry_code: industryId,
     role_key: role,
@@ -230,12 +250,14 @@ exports.create = async ({ payload, authedUser }) => {
   const cleanedFields = pickAllowedFields(payload.fields, allowed);
 
   const createdUser = await userModel.create({
-    name,
+    firstName,
+    lastName,
     email,
     password,
     role,
     industryId,
     isActive: payload.isActive !== false,
+    reporting_to: payload.reporting_to || '',
     fields: cleanedFields,
     needs_password_change: true,
   });
@@ -248,7 +270,7 @@ exports.create = async ({ payload, authedUser }) => {
       const orgName = org ? (org.name || org.organizationName) : 'Leads Rubix Workspace';
       await sendCredentialsEmail({
         orgName,
-        userName: name,
+        userName: `${firstName} ${lastName}`.trim() || email,
         emailAddress: email,
         tempPassword: password
       });
@@ -269,7 +291,7 @@ exports.update = async ({ id, payload, authedUser }) => {
     const e = new Error('Forbidden'); e.status = 403; throw e;
   }
 
-  const nextRole = payload.role || target.role;
+  const nextRole = payload.role || (payload.fields && payload.fields.designation) || target.role;
   const nextIndustry = isSuperAdmin && payload.industryId ? payload.industryId : target.industryId;
 
   // Block privilege escalation. Also prevent a non-superAdmin from editing an
@@ -277,22 +299,45 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (!isSuperAdmin && target.role === 'superAdmin') {
     const e = new Error('Forbidden'); e.status = 403; throw e;
   }
-  if (payload.role !== undefined) {
+  if ((payload.fields && payload.fields.designation) !== undefined || payload.role !== undefined) {
     ensureCanAssignRole({ authedUser, targetRole: nextRole });
   }
 
+  const nextReportingTo = payload.reporting_to !== undefined ? payload.reporting_to : target.reportingTo;
+
+  if (nextReportingTo) {
+    const manager = await userModel.findById(nextReportingTo);
+    if (manager) {
+      if (nextRole === 'leadManager') {
+        if (manager.role === 'sales' || manager.role === 'teamLead') {
+          const err = new Error('Lead Manager cannot report to lower roles (Sales, Team Lead).');
+          err.status = 400;
+          throw err;
+        }
+      } else if (nextRole === 'teamLead') {
+        if (manager.role === 'sales') {
+          const err = new Error('Team Lead cannot report to lower roles (Sales).');
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+  }
+
   const patch = {};
-  if (payload.name !== undefined) patch.name = String(payload.name).trim();
-  if (payload.role !== undefined) patch.role = String(payload.role);
+  if (payload.firstName !== undefined) patch.firstName = String(payload.firstName).trim();
+  if (payload.lastName !== undefined) patch.lastName = String(payload.lastName).trim();
+  if ((payload.fields && payload.fields.designation) !== undefined || payload.role !== undefined) patch.role = nextRole;
   if (payload.isActive !== undefined) patch.isActive = !!payload.isActive;
   if (isSuperAdmin && payload.industryId !== undefined) patch.industryId = String(payload.industryId);
   if (payload.password) patch.password = String(payload.password);
+  if (payload.reporting_to !== undefined) patch.reporting_to = String(payload.reporting_to).trim();
 
   // Always re-validate required dynamic fields against the *next* role's
   // configuration. Merge any newly-supplied fields onto the existing record so
   // a role change without an explicit `fields` payload still gets caught.
   const roleOrIndustryChanging =
-    payload.role !== undefined || (isSuperAdmin && payload.industryId !== undefined);
+    (payload.fields && payload.fields.designation) !== undefined || payload.role !== undefined || (isSuperAdmin && payload.industryId !== undefined);
   if (payload.fields !== undefined || roleOrIndustryChanging) {
     const merged = { ...(target.fields || {}), ...(payload.fields || {}) };
     const { fields: allowed } = await resolveAllowedFields({

@@ -24,6 +24,7 @@ import FaqListPage from '@/features/admin/support/pages/FaqList'
 
 import UpdatePasswordPage from '@/features/admin/setting/pages/UpdatePassword'
 import SubscriptionDetailsPage from '@/features/admin/setting/pages/SubscriptionDetails'
+import SettingsPage from '@/features/admin/setting/pages/Settings'
 
 import AddContactPage from '@/features/admin/leads/pages/AddContact'
 
@@ -60,6 +61,7 @@ export const routeComponentMap: Record<string, any> = {
 
   "/account/subscription-details": SubscriptionDetailsPage,
   "/account/update-password": UpdatePasswordPage,
+  "/settings": SettingsPage,
 
   "/tool/areaConverter": AreaConverterPage,
   "/tool/calculator": CalculatorPage,

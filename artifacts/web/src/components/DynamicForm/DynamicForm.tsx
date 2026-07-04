@@ -133,6 +133,7 @@ interface Props {
   hideActions?: boolean
   readOnly?: boolean
   fullWidthSubmit?: boolean
+  onChange?: (values: Record<string, Value>) => void
 }
 
 export function DynamicForm({
@@ -147,6 +148,7 @@ export function DynamicForm({
   hideActions = false,
   readOnly = false,
   fullWidthSubmit = false,
+  onChange,
 }: Props) {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -157,6 +159,10 @@ export function DynamicForm({
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [trialPeriodLicenses, setTrialPeriodLicenses] = useState<number>(10)
+
+  useEffect(() => {
+    onChange?.(values)
+  }, [values, onChange])
 
   useEffect(() => {
     let cancelled = false

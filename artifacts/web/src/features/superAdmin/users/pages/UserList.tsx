@@ -69,7 +69,8 @@ const CORE_COLUMNS: ResolvedTableHeader[] = [
 const SERVER_SORTABLE = new Set(['name', 'email', 'role', 'isActive', 'createdAt', 'updatedAt'])
 
 interface CoreFormState {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   password: string
   role: string
@@ -79,7 +80,8 @@ interface CoreFormState {
 }
 
 const emptyCore: CoreFormState = {
-  name: '',
+  firstName: '',
+  lastName: '',
   email: '',
   password: '',
   role: 'sales',
@@ -222,7 +224,7 @@ export default function UserListPage() {
       const sort = sortModel[0]
       const sortField = sort?.field && SERVER_SORTABLE.has(sort.field) ? sort.field : undefined
       const { items: list, total } = await listUsersPaged({
-        industryId: isSuperAdmin ? filterIndustry || undefined : undefined,
+        industryId: undefined,
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
         q: searchQuery || undefined,
@@ -331,7 +333,8 @@ export default function UserListPage() {
   const openEdit = (row: AdminUser) => {
     setEditing(row)
     setCore({
-      name: row.name ?? '',
+      firstName: row.firstName ?? '',
+      lastName: row.lastName ?? '',
       email: row.email,
       password: '',
       role: row.role,
@@ -384,6 +387,7 @@ export default function UserListPage() {
 
   const handleSubmit = async (dynVals: Record<string, unknown>) => {
     setFormError(null)
+    if (!core.firstName.trim()) { setFormError('First Name is required'); return }
     if (!core.email.trim()) { setFormError('Email is required'); return }
     if (!editing && !core.password) { setFormError('Password is required for a new user'); return }
     if (!core.role) { setFormError('Role is required'); return }
@@ -398,7 +402,8 @@ export default function UserListPage() {
         : ''
       if (editing) {
         await updateUser(editing._id, {
-          name: core.name.trim(),
+          firstName: core.firstName.trim(),
+          lastName: core.lastName.trim(),
           role: core.role,
           industryId: core.industryId || undefined,
           isActive: core.isActive,
@@ -409,7 +414,8 @@ export default function UserListPage() {
         showToast('User updated')
       } else {
         await createUser({
-          name: core.name.trim(),
+          firstName: core.firstName.trim(),
+          lastName: core.lastName.trim(),
           email: core.email.trim().toLowerCase(),
           password: core.password,
           role: core.role,
@@ -468,7 +474,6 @@ export default function UserListPage() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={openCreate}
-              disabled={!filterIndustry}
             >
               Add User
             </Button>
@@ -476,27 +481,7 @@ export default function UserListPage() {
         }
         fullHeight
       >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, flexShrink: 0, pt: 1.5 }}>
-          {isSuperAdmin && (
-            <TextField
-              select
-              size="small"
-              label="Industry"
-              value={filterIndustry}
-              onChange={(e) => {
-                setFilterIndustry(e.target.value)
-                setPaginationModel((p) => ({ ...p, page: 0 }))
-              }}
-              sx={{ minWidth: 240 }}
-            >
-              {industries.map((i) => (
-                <MenuItem key={i._id} value={i.code}>
-                  {i.name} ({i.code})
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-        </Stack>
+        <Box sx={{ mb: 1 }} />
 
         <AppDataGrid
           height="100%"
@@ -524,6 +509,7 @@ export default function UserListPage() {
             industry_code={isSuperAdmin ? core.industryId : undefined}
             role_key={core.role}
             initialValues={dynamicValues as Record<string, string | number | boolean | null>}
+
             onSubmit={async (vals) => { await handleSubmit(vals as Record<string, unknown>) }}
             onCancel={closeDialog}
             submitLabel={editing ? 'Save' : 'Create User'}
@@ -542,9 +528,16 @@ export default function UserListPage() {
                 >
                   <TextField
                     size="small"
-                    label="Name"
-                    value={core.name}
-                    onChange={(e) => setCore({ ...core, name: e.target.value })}
+                    label="First Name *"
+                    value={core.firstName}
+                    onChange={(e) => setCore({ ...core, firstName: e.target.value })}
+                    fullWidth
+                  />
+                  <TextField
+                    size="small"
+                    label="Last Name"
+                    value={core.lastName}
+                    onChange={(e) => setCore({ ...core, lastName: e.target.value })}
                     fullWidth
                   />
                   <TextField
@@ -555,12 +548,6 @@ export default function UserListPage() {
                     onChange={(e) => setCore({ ...core, email: e.target.value })}
                     disabled={!!editing}
                     fullWidth
-                  />
-                  <InputField
-                    label={editing ? 'New Password (leave blank to keep)' : 'Password *'}
-                    type="password"
-                    value={core.password}
-                    onChange={(e) => setCore({ ...core, password: e.target.value })}
                   />
                   <TextField
                     select
@@ -596,17 +583,6 @@ export default function UserListPage() {
                       ))}
                     </TextField>
                   )}
-                  <TextField
-                    select
-                    size="small"
-                    label="Status"
-                    value={core.isActive ? 'active' : 'inactive'}
-                    onChange={(e) => setCore({ ...core, isActive: e.target.value === 'active' })}
-                    fullWidth
-                  >
-                    <MenuItem value="active">Active</MenuItem>
-                    <MenuItem value="inactive">Inactive</MenuItem>
-                  </TextField>
                   {ROLES_WITH_MANAGER.has(core.role) && (
                     <TextField
                       select

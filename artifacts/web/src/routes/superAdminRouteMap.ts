@@ -28,6 +28,7 @@ import LicensesPage from '@/features/superAdmin/setting/pages/Licenses'
 import CouponsPage from '@/features/superAdmin/setting/pages/Coupons'
 import UpdatePasswordPage from '@/features/superAdmin/setting/pages/UpdatePassword'
 import SubscriptionDetailsPage from '@/features/admin/setting/pages/SubscriptionDetails'
+import SettingsPage from '@/features/admin/setting/pages/Settings'
 
 import HolidayConfigPage from '@/features/admin/config/pages/HolidayConfig'
 import DaysConfigPage from '@/features/admin/config/pages/DaysConfig'
@@ -77,6 +78,7 @@ export const routeComponentMap: Record<string, any> = {
   "/account/coupons": CouponsPage,
   "/account/subscription-details": SubscriptionDetailsPage,
   "/account/update-password": UpdatePasswordPage,
+  "/settings": SettingsPage,
 
   "/tool/areaConverter": AreaConverterPage,
   "/tool/calculator": CalculatorPage,
