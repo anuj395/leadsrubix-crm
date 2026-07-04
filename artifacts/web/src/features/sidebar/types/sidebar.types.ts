@@ -12,7 +12,7 @@ export interface RawSidebarMenuItem {
 }
 
 export interface SidebarApiResponse {
-  industry_id: string
+  industryId: string
   role: string
   menus: RawSidebarMenuItem[]
 }

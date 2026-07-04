@@ -143,11 +143,11 @@ export default function ApiListPage() {
         sortable: header.sortable,
       }
 
-      if (header.key === 'organizationId' || header.key === 'organization_id') {
-        col.field = 'organization_name' as any
+      if (header.key === 'organizationId' || header.key === 'organizationId') {
+        col.field = 'organizationName' as any
         col.flex = 1.2
         col.minWidth = 180
-        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organization_name || p.row.organizationName || p.value || <em>Global Default</em>}</Box>
+        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || p.row.organizationName || p.value || <em>Global Default</em>}</Box>
       } else if (header.key === 'source') {
         col.width = 160
         col.renderCell = (p) => p.value || <em>Not Mapped</em>
@@ -204,8 +204,8 @@ export default function ApiListPage() {
 
   const filteredItems = useMemo(() => {
     if (!selectedIndustry) return items
-    const orgIds = new Set(organizations.filter(o => (o.industry_id || o.industryId) === selectedIndustry).map(o => String(o.organizationId || o.organization_id || o._id)))
-    return items.filter(item => orgIds.has(String(item.organizationId || item.organization_id)))
+    const orgIds = new Set(organizations.filter(o => (o.industryId || o.industryId) === selectedIndustry).map(o => String(o.organizationId || o.organizationId || o._id)))
+    return items.filter(item => orgIds.has(String(item.organizationId || item.organizationId)))
   }, [items, organizations, selectedIndustry])
 
   return (

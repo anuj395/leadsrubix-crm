@@ -16,9 +16,9 @@ exports.list = async (opts) => {
   return items.filter((item) => validFieldIds.has(String(item.field_id)));
 };
 
-exports.bulkSet = async ({ screen_id, role_id, industry_id, field_ids }) => {
-  if (!screen_id || !role_id || !industry_id) {
-    const err = new Error('screen_id, role_id and industry_id are required');
+exports.bulkSet = async ({ screen_id, roleId, industryId, field_ids }) => {
+  if (!screen_id || !roleId || !industryId) {
+    const err = new Error('screen_id, roleId and industryId are required');
     err.status = 400;
     throw err;
   }
@@ -32,8 +32,8 @@ exports.bulkSet = async ({ screen_id, role_id, industry_id, field_ids }) => {
   // we write rows that would otherwise drift from real FKs.
   const [screen, role, industry] = await Promise.all([
     screenModel.findById(screen_id),
-    roleModel.findById(role_id),
-    industryModel.findById(industry_id),
+    roleModel.findById(roleId),
+    industryModel.findById(industryId),
   ]);
   if (!screen) {
     const err = new Error('Screen not found'); err.status = 404; throw err;
@@ -44,7 +44,7 @@ exports.bulkSet = async ({ screen_id, role_id, industry_id, field_ids }) => {
   if (!role) {
     const err = new Error('Role not found'); err.status = 404; throw err;
   }
-  if (String(role.industry_id) !== String(industry_id)) {
+  if (String(role.industryId) !== String(industryId)) {
     const err = new Error('Role does not belong to the given industry');
     err.status = 400;
     throw err;
@@ -64,7 +64,7 @@ exports.bulkSet = async ({ screen_id, role_id, industry_id, field_ids }) => {
     }
   }
 
-  return permissionModel.bulkSetForCombo({ screen_id, role_id, industry_id, field_ids });
+  return permissionModel.bulkSetForCombo({ screen_id, roleId, industryId, field_ids });
 };
 
 /**
@@ -73,13 +73,13 @@ exports.bulkSet = async ({ screen_id, role_id, industry_id, field_ids }) => {
  * user. Returns:
  *   {
  *     screen: { _id, key, name },
- *     industry_id, role_id,
+ *     industryId, roleId,
  *     table_headers: [{ key, label, type, sortable, order, options }],
  *     form_fields:   [{ key, label, type, required, options, order }]
  *   }
  *
  * Visibility rules:
- *   - Field must have is_active=true and screen.is_active=true.
+ *   - Field must have isActive=true and screen.isActive=true.
  *   - A permission row with is_enabled=true must exist for (screen, role, industry, field).
  *   - is_table_visible / is_form_visible on the field decide which buckets it goes into.
  */
@@ -91,18 +91,18 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
   }
 
   const screen = await screenModel.findByKey(screen_key);
-  if (!screen || !screen.is_active) {
+  if (!screen || !screen.isActive) {
     const err = new Error('Screen not found');
     err.status = 404;
     throw err;
   }
 
-  // Resolve industry — explicit code wins; else fall back to user's industry_id.
+  // Resolve industry — explicit code wins; else fall back to user's industryId.
   let industryCode = industry_code;
   let resolvedRoleKey = role_key;
   if ((!industryCode || !resolvedRoleKey) && authedUser?.id) {
     const u = await userModel.findById(authedUser.id);
-    if (!industryCode) industryCode = u?.industry_id;
+    if (!industryCode) industryCode = u?.industryId;
     if (!resolvedRoleKey) resolvedRoleKey = u?.role || authedUser?.role;
   }
 
@@ -136,10 +136,10 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
     if (!role && resolvedRoleKey === 'superAdmin') {
       try {
         role = await roleModel.create({
-          industry_id: industry._id,
+          industryId: industry._id,
           key: 'superAdmin',
           name: 'Super Administrator',
-          is_active: true
+          isActive: true
         });
       } catch (e) {
         // ignore
@@ -157,8 +157,8 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
   if (fields.length === 0) {
     return {
       screen: { _id: screen._id, key: screen.key, name: screen.name },
-      industry_id: industry ? industry._id : null,
-      role_id: role ? role._id : null,
+      industryId: industry ? industry._id : null,
+      roleId: role ? role._id : null,
       table_headers: [],
       form_fields: [],
     };
@@ -172,8 +172,8 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
     // Enabled permissions for this triple.
     const perms = await permissionModel.list({
       screen_id: screen._id,
-      role_id: role._id,
-      industry_id: industry._id,
+      roleId: role._id,
+      industryId: industry._id,
       enabledOnly: true,
     });
     const allowedFieldIds = new Set(perms.map((p) => String(p.field_id)));
@@ -209,8 +209,8 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
 
   return {
     screen: { _id: screen._id, key: screen.key, name: screen.name },
-    industry_id: industry ? industry._id : null,
-    role_id: role ? role._id : null,
+    industryId: industry ? industry._id : null,
+    roleId: role ? role._id : null,
     table_headers,
     form_fields,
   };

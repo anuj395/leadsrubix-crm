@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const whatsappConfigSchema = new mongoose.Schema(
   {
-    organization_id: { type: String, default: null }, // null for global default
+    organizationId: { type: String, default: null }, // null for global default
     simply: {
       active: { type: Boolean, default: false },
       url: { type: String, default: 'https://app.simplywhatsapp.com/api/send' },

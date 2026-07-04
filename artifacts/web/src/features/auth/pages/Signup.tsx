@@ -58,7 +58,6 @@ export function SignupPage() {
           fields: {
             ...dynamicVals,
             industryId: selectedIndustry,
-            industry_id: selectedIndustry,
           },
           password: dynamicVals.password || dynamicVals.password_hash || '',
         })
@@ -139,7 +138,6 @@ export function SignupPage() {
               role_key="admin"
               initialValues={{
                 industryId: selectedIndustry,
-                industry_id: selectedIndustry,
               }}
               submitLabel="Sign Up"
               hideActions={false}

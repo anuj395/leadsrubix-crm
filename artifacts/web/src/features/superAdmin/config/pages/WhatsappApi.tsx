@@ -63,7 +63,7 @@ const JSON_PAYLOADS = {
       "Lead Type" : "lead_type",
       "Email": "email",
       "Lead Source": "lead_source",
-      "Organization Name": "organization_name",
+      "Organization Name": "organizationName",
       "Message": "Please check your leads in CRM on daily basis, As WhatsApp notifications gets\n\nfail sometimes due to network connections \n\nDo"
     },
     transfer: {
@@ -74,7 +74,7 @@ const JSON_PAYLOADS = {
       "Lead Type" : "lead_type",
       "Email": "email",
       "Lead Source": "lead_source",
-      "Organization Name": "organization_name",
+      "Organization Name": "organizationName",
       "Message": "Hii"
     }
   },
@@ -87,7 +87,7 @@ const JSON_PAYLOADS = {
       "Lead Type" : "lead_type",
       "Email": "email",
       "Lead Source": "lead_source",
-      "Organization Name": "organization_name",
+      "Organization Name": "organizationName",
       "Message": "Hii dear"
     },
     transfer: {
@@ -98,7 +98,7 @@ const JSON_PAYLOADS = {
       "Lead Type" : "lead_type",
       "Email": "email",
       "Lead Source": "lead_source",
-      "Organization Name": "organization_name",
+      "Organization Name": "organizationName",
       "Message": "Hi abcd"
     }
   },

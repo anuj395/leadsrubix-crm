@@ -41,7 +41,7 @@ async function getVisibleUserIds(authedUser) {
     depth += 1;
     const filter = {
       reporting_to: { $in: frontier },
-      ...(authedUser.industry_id ? { industry_id: authedUser.industry_id } : {}),
+      ...(authedUser.industryId ? { industryId: authedUser.industryId } : {}),
     };
     const reports = await User.find(filter).select('_id').lean().exec();
     const nextFrontier = [];
@@ -74,12 +74,12 @@ const MANAGER_OF = {
   admin: 'superAdmin',
 };
 
-async function listManagerCandidates({ role, industry_id }) {
+async function listManagerCandidates({ role, industryId }) {
   const managerRole = MANAGER_OF[role];
   if (!managerRole) return [];
-  const filter = { role: managerRole, is_active: { $ne: false } };
+  const filter = { role: managerRole, isActive: { $ne: false } };
   // SuperAdmin is global; all other roles are tenant-scoped.
-  if (managerRole !== 'superAdmin' && industry_id) filter.industry_id = industry_id;
+  if (managerRole !== 'superAdmin' && industryId) filter.industryId = industryId;
   const list = await User.find(filter).select('_id name email role').lean().exec();
   return list.map((u) => ({
     _id: String(u._id),

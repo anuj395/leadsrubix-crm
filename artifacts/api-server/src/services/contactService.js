@@ -22,21 +22,21 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
   }
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
-  const filter = isSuperAdmin ? {} : { industry_id: user.industry_id };
+  const filter = isSuperAdmin ? {} : { industryId: user.industryId };
 
   // Apply the lead-visibility hierarchy:
   //   superAdmin → all
   //   admin      → all in own industry (no uid restriction; null returned)
   //   leadManager / teamLead / sales → uid IN getVisibleUserIds(...)
-  // contactModel stores ownership in `created_by` (ObjectId), so we filter
+  // contactModel stores ownership in `createdBy` (ObjectId), so we filter
   // there. `null` from the helper means "do not add a uid filter".
   const visibleIds = await getVisibleUserIds({
     id: String(user._id),
     role,
-    industry_id: user.industry_id,
+    industryId: user.industryId,
   });
   if (visibleIds !== null) {
-    filter.created_by = { $in: visibleIds };
+    filter.createdBy = { $in: visibleIds };
   }
   return contactModel.list({ filter, limit });
 };
@@ -57,15 +57,15 @@ exports.createForUser = async ({ payload, authedUser }) => {
   }
 
   const screen = await screenModel.findByKey('contacts');
-  if (!screen || !screen.is_active) {
+  if (!screen || !screen.isActive) {
     const err = new Error('Contacts screen is not configured'); err.status = 404; throw err;
   }
 
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
 
-  const industry = await industryModel.findByCode(user.industry_id);
+  const industry = await industryModel.findByCode(user.industryId);
   if (!industry) {
-    const err = new Error(`Industry "${user.industry_id}" not found`); err.status = 400; throw err;
+    const err = new Error(`Industry "${user.industryId}" not found`); err.status = 400; throw err;
   }
 
   const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
@@ -80,8 +80,8 @@ exports.createForUser = async ({ payload, authedUser }) => {
     }
     const perms = await permissionModel.list({
       screen_id: screen._id,
-      role_id: role._id,
-      industry_id: industry._id,
+      roleId: role._id,
+      industryId: industry._id,
       enabledOnly: true,
     });
     const allowedIds = new Set(perms.map((p) => String(p.field_id)));
@@ -110,9 +110,9 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   return contactModel.create({
     ...cleaned,
-    industry_id: user.industry_id,
-    role_id: user.role,
-    created_by: user._id,
+    industryId: user.industryId,
+    roleId: user.role,
+    createdBy: user._id,
   });
 };
 
@@ -133,18 +133,18 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  if (!isSuperAdmin && existing.industry_id !== user.industry_id) {
+  if (!isSuperAdmin && existing.industryId !== user.industryId) {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
   const screen = await screenModel.findByKey('contacts');
-  if (!screen || !screen.is_active) {
+  if (!screen || !screen.isActive) {
     const err = new Error('Contacts screen is not configured'); err.status = 404; throw err;
   }
 
-  const industry = await industryModel.findByCode(user.industry_id);
+  const industry = await industryModel.findByCode(user.industryId);
   if (!industry && !isSuperAdmin) {
-    const err = new Error(`Industry "${user.industry_id}" not found`); err.status = 400; throw err;
+    const err = new Error(`Industry "${user.industryId}" not found`); err.status = 400; throw err;
   }
 
   const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
@@ -158,8 +158,8 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     }
     const perms = await permissionModel.list({
       screen_id: screen._id,
-      role_id: roleDoc._id,
-      industry_id: industry._id,
+      roleId: roleDoc._id,
+      industryId: industry._id,
       enabledOnly: true,
     });
     const allowedIds = new Set(perms.map((p) => String(p.field_id)));
@@ -208,7 +208,7 @@ exports.deleteForUser = async ({ id, authedUser }) => {
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  if (!isSuperAdmin && existing.industry_id !== user.industry_id) {
+  if (!isSuperAdmin && existing.industryId !== user.industryId) {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 

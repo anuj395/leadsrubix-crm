@@ -3,7 +3,7 @@ const userService = require('../services/userService');
 const { listManagerCandidates, MANAGER_OF } = require('../services/userHierarchyService');
 
 /**
- * GET /api/users/managers?profile=<role>&industry_id=<id>
+ * GET /api/users/managers?profile=<role>&industryId=<id>
  * Returns the candidate managers for a user with the given role, used to
  * populate the `reporting_to` dropdown on the user create/edit form.
  * Tenant-scoped: non-superAdmins are pinned to their own industry.
@@ -16,11 +16,11 @@ exports.getManagerCandidates = async (req, res, next) => {
         message: `Unknown or unsupported role "${role}". Expected one of: ${Object.keys(MANAGER_OF).join(', ')}`,
       });
     }
-    const industry_id =
+    const industryId =
       req.user?.role === 'superAdmin'
-        ? req.query.industry_id || req.user?.industry_id
-        : req.user?.industry_id;
-    const items = await listManagerCandidates({ role, industry_id });
+        ? req.query.industryId || req.user?.industryId
+        : req.user?.industryId;
+    const items = await listManagerCandidates({ role, industryId });
     res.json({ items });
   } catch (err) {
     next(err);
@@ -40,7 +40,7 @@ exports.getAllUsers = async (req, res, next) => {
     if (isPaged) {
       const { items, total } = await userService.fetchPaged({
         authedUser: req.user,
-        industry_id: req.query.industry_id,
+        industryId: req.query.industryId,
         q: req.query.q,
         page: req.query.page,
         pageSize: req.query.pageSize,
@@ -52,7 +52,7 @@ exports.getAllUsers = async (req, res, next) => {
 
     const items = await userService.fetchAll({
       authedUser: req.user,
-      industry_id: req.query.industry_id,
+      industryId: req.query.industryId,
     });
     res.json({ items });
   } catch (err) {

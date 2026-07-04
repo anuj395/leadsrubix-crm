@@ -34,7 +34,7 @@ export interface FaqItem {
   answer: string
   status: 'Active' | 'Draft'
   videoUrl?: string
-  created_by?: string
+  createdBy?: string
   organizationId?: string | null
 }
 
@@ -151,8 +151,8 @@ export default function FaqListPage() {
         answer: f.answer,
         status: f.status,
         videoUrl: f.videoUrl || '',
-        created_by: f.created_by || '',
-        organizationId: f.organizationId || f.organization_id || null,
+        createdBy: f.createdBy || '',
+        organizationId: f.organizationId || f.organizationId || null,
       }))
       setItems(mapped)
     } catch (e: any) {
@@ -287,7 +287,7 @@ export default function FaqListPage() {
           sortable: false,
           filterable: false,
           renderCell: (p) => {
-            const canModify = p.row.created_by === user?.id
+            const canModify = p.row.createdBy === user?.id
             return (
               <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
                 {canModify && (

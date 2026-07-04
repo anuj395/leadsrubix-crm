@@ -6,7 +6,7 @@ const userModel = require('../models/userModel');
 /**
  * Verifies the JWT then hydrates req.user from the DB so downstream code can
  * trust the latest role / industry / active flag (the JWT itself may pre-date
- * a profile change, and older tokens don't carry industry_id at all). This
+ * a profile change, and older tokens don't carry industryId at all). This
  * is what makes tenant scoping in user CRUD reliable.
  */
 module.exports.authenticate = async (req, res, next) => {
@@ -21,21 +21,21 @@ module.exports.authenticate = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid or expired token' });
     }
     const fresh = await userModel.findById(payload.id);
-    if (!fresh || fresh.is_active === false) {
+    if (!fresh || fresh.isActive === false) {
       return res.status(401).json({ message: 'Account is no longer active' });
     }
     req.user = {
       id: String(fresh._id),
       role: fresh.role,
-      industry_id: fresh.industry_id,
+      industryId: fresh.industryId,
       email: fresh.email,
     };
 
     // Subscription & Trial expiration checks for non-superAdmin users
-    if (fresh.role !== 'superAdmin' && fresh.industry_id) {
+    if (fresh.role !== 'superAdmin' && fresh.industryId) {
       const mongoose = require('mongoose');
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: fresh.industry_id });
+      const org = await Organization.findOne({ industryId: fresh.industryId });
       if (org) {
         let isExpired = false;
         const now = new Date();

@@ -34,10 +34,10 @@ interface FormState {
   name: string
   description: string
   order: number
-  is_active: boolean
+  isActive: boolean
 }
 
-const emptyForm: FormState = { key: '', name: '', description: '', order: 0, is_active: true }
+const emptyForm: FormState = { key: '', name: '', description: '', order: 0, isActive: true }
 
 export default function ScreensPage() {
   const [items, setItems] = useState<Screen[]>([])
@@ -64,7 +64,7 @@ export default function ScreensPage() {
 
   const openCreate = () => { setForm(emptyForm); setDialogOpen(true) }
   const openEdit = (row: Screen) => {
-    setForm({ _id: row._id, key: row.key, name: row.name, description: row.description ?? '', order: row.order ?? 0, is_active: row.is_active })
+    setForm({ _id: row._id, key: row.key, name: row.name, description: row.description ?? '', order: row.order ?? 0, isActive: row.isActive })
     setDialogOpen(true)
   }
 
@@ -75,9 +75,9 @@ export default function ScreensPage() {
     setSaving(true)
     try {
       if (form._id) {
-        await updateScreen(form._id, { key: form.key, name: form.name, description: form.description, order: form.order, is_active: form.is_active })
+        await updateScreen(form._id, { key: form.key, name: form.name, description: form.description, order: form.order, isActive: form.isActive })
       } else {
-        await createScreen({ key: form.key, name: form.name, description: form.description, order: form.order, is_active: form.is_active })
+        await createScreen({ key: form.key, name: form.name, description: form.description, order: form.order, isActive: form.isActive })
       }
       setDialogOpen(false)
       setToast({ open: true, msg: 'Saved', sev: 'success' })
@@ -112,7 +112,7 @@ export default function ScreensPage() {
     { field: 'description', headerName: 'Description', flex: 1.5, minWidth: 200,
       renderCell: (p) => p.value ? String(p.value) : <Box sx={{ color: 'text.secondary' }}>—</Box> },
     { field: 'order', headerName: 'Order', width: 90, type: 'number' },
-    { field: 'is_active', headerName: 'Status', minWidth: 110,
+    { field: 'isActive', headerName: 'Status', minWidth: 110,
       renderCell: (p) => <StatusBadge value={p.value ? 'Active' : 'Inactive'} />,
     },
     { field: '__actions', headerName: 'Actions', sortable: false, filterable: false, disableColumnMenu: true,
@@ -149,7 +149,7 @@ export default function ScreensPage() {
             <TextField label="Sort Order" type="number" value={form.order}
               onChange={(e) => setForm({ ...form, order: Number(e.target.value) })} fullWidth />
             <FormControlLabel
-              control={<Switch checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />}
+              control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
               label="Active"
             />
           </Stack>

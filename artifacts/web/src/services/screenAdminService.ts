@@ -7,7 +7,7 @@ export interface Screen {
   name: string
   description?: string
   order?: number
-  is_active: boolean
+  isActive: boolean
   createdAt?: string
   updatedAt?: string
 }
@@ -17,7 +17,7 @@ export interface ScreenInput {
   name: string
   description?: string
   order?: number
-  is_active?: boolean
+  isActive?: boolean
 }
 
 export type ScreenFieldType =
@@ -54,7 +54,7 @@ export interface ScreenField {
   is_required: boolean
   sortable: boolean
   order: number
-  is_active: boolean
+  isActive: boolean
 }
 
 export interface ScreenFieldInput {
@@ -70,14 +70,14 @@ export interface ScreenFieldInput {
   is_required?: boolean
   sortable?: boolean
   order?: number
-  is_active?: boolean
+  isActive?: boolean
 }
 
 export interface ScreenPermission {
   _id: string
   screen_id: string
-  role_id: string
-  industry_id: string
+  roleId: string
+  industryId: string
   field_id: string
   is_enabled: boolean
 }
@@ -105,8 +105,8 @@ export interface ResolvedFormField {
 
 export interface ResolvedScreen {
   screen: { _id: string; key: string; name: string }
-  industry_id: string
-  role_id: string
+  industryId: string
+  roleId: string
   table_headers: ResolvedTableHeader[]
   form_fields: ResolvedFormField[]
 }
@@ -156,14 +156,14 @@ export async function deleteScreenField(id: string): Promise<void> {
 // ── Permissions ──────────────────────────────────────────────────────────────
 export async function getScreenPermissions(params: {
   screen_id?: string
-  role_id?: string
-  industry_id?: string
+  roleId?: string
+  industryId?: string
   enabledOnly?: boolean
 } = {}): Promise<ScreenPermission[]> {
   const search = new URLSearchParams()
   if (params.screen_id) search.set('screen_id', params.screen_id)
-  if (params.role_id) search.set('role_id', params.role_id)
-  if (params.industry_id) search.set('industry_id', params.industry_id)
+  if (params.roleId) search.set('roleId', params.roleId)
+  if (params.industryId) search.set('industryId', params.industryId)
   if (params.enabledOnly) search.set('enabled', 'true')
   const qs = search.toString()
   return safeList<ScreenPermission>(qs ? `screen-permissions?${qs}` : 'screen-permissions')
@@ -171,8 +171,8 @@ export async function getScreenPermissions(params: {
 
 export async function bulkSetScreenPermissions(input: {
   screen_id: string
-  role_id: string
-  industry_id: string
+  roleId: string
+  industryId: string
   field_ids: string[]
 }): Promise<ScreenPermission[]> {
   const res = await api.post('screen-permissions/bulk', input)

@@ -117,7 +117,7 @@ router.get('/:key', (req, res, next) => {
       const Industry = mongoose.model('Industry');
       const query = {};
       if (req.query.launchedOnly === 'true') {
-        query.is_active = true;
+        query.isActive = true;
         query.status = 'Launched';
       }
       const list = await Industry.find(query).sort({ name: 1 }).lean().exec();
@@ -131,16 +131,16 @@ router.get('/:key', (req, res, next) => {
   if (key === 'organizations') {
     try {
       const Organization = mongoose.model('Organization');
-      const targetIndustry = req.query.industryId || req.query.industry_id || req.query.industry_code;
+      const targetIndustry = req.query.industryId || req.query.industryId || req.query.industry_code;
       let query = {};
       if (targetIndustry) {
         query.$or = [
           { industryId: targetIndustry },
-          { industry_id: targetIndustry }
+          { industryId: targetIndustry }
         ];
       }
       const list = await Organization.find(query).sort({ name: 1 }).lean().exec();
-      const options = list.map(org => ({ value: String(org.organizationId || org.organization_id || org._id), label: org.name || org.organizationName }));
+      const options = list.map(org => ({ value: String(org.organizationId || org.organizationId || org._id), label: org.name || org.organizationName }));
       return res.json({ items: options });
     } catch (err) {
       return res.status(500).json({ message: 'Failed to fetch organizations' });
@@ -179,10 +179,10 @@ router.get('/:key', (req, res, next) => {
       let orgId = null;
       let resolvedIndustryId = null;
       if (req.user.role === 'superAdmin') {
-        orgId = req.query.organizationId || req.query.organization_id;
+        orgId = req.query.organizationId || req.query.organizationId;
         if (orgId === 'null' || orgId === '') orgId = null;
 
-        const targetInd = req.query.industryId || req.query.industry_id || req.query.industry_code || req.body.industryId || req.body.industry_id || req.body.industry_code;
+        const targetInd = req.query.industryId || req.query.industryId || req.query.industry_code || req.body.industryId || req.body.industryId || req.body.industry_code;
         if (targetInd) {
           const Industry = mongoose.model('Industry');
           let ind = await Industry.findOne({ code: targetInd }).lean().exec();
@@ -195,8 +195,8 @@ router.get('/:key', (req, res, next) => {
         }
       } else {
         const Organization = mongoose.model('Organization');
-        const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-        orgId = org ? (org.organizationId || org.organization_id) : null;
+        const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+        orgId = org ? (org.organizationId || org.organizationId) : null;
         if (org && org.industryId) {
           const Industry = mongoose.model('Industry');
           const ind = await Industry.findOne({ code: org.industryId }).lean().exec();

@@ -12,9 +12,9 @@ function isMenuItemValid(m) {
 }
 
 module.exports.validateUpsert = (req, res, next) => {
-  const { industry_id, role, menus } = req.body || {};
-  if (!industry_id || typeof industry_id !== 'string') {
-    const err = new Error('industry_id is required and must be a string');
+  const { industryId, role, menus } = req.body || {};
+  if (!industryId || typeof industryId !== 'string') {
+    const err = new Error('industryId is required and must be a string');
     err.status = 400;
     return next(err);
   }
@@ -41,9 +41,9 @@ module.exports.validateUpsert = (req, res, next) => {
 };
 
 module.exports.validateGet = (req, res, next) => {
-  const { industry_id } = req.params || {};
-  if (!industry_id || typeof industry_id !== 'string') {
-    const err = new Error('industry_id param is required');
+  const { industryId } = req.params || {};
+  if (!industryId || typeof industryId !== 'string') {
+    const err = new Error('industryId param is required');
     err.status = 400;
     return next(err);
   }
@@ -51,9 +51,9 @@ module.exports.validateGet = (req, res, next) => {
 };
 
 module.exports.validateUserRequest = (req, res, next) => {
-  const { industry_id, role } = req.body || {};
-  if (!industry_id || typeof industry_id !== 'string') {
-    const err = new Error('industry_id is required and must be a string');
+  const { industryId, role } = req.body || {};
+  if (!industryId || typeof industryId !== 'string') {
+    const err = new Error('industryId is required and must be a string');
     err.status = 400;
     return next(err);
   }
@@ -66,13 +66,13 @@ module.exports.validateUserRequest = (req, res, next) => {
 };
 
 // Validator for the new POST /sidebar/resolve endpoint, which accepts either
-// {industry_code, role_key} (preferred) or {industry_id, role} (legacy).
+// {industry_code, role_key} (preferred) or {industryId, role} (legacy).
 module.exports.validateResolve = (req, res, next) => {
   const body = req.body || {};
-  const industry = body.industry_code || body.industry_id;
+  const industry = body.industry_code || body.industryId;
   const role = body.role_key || body.role;
   if (!industry || typeof industry !== 'string') {
-    const err = new Error('industry_code (or industry_id) is required and must be a string');
+    const err = new Error('industry_code (or industryId) is required and must be a string');
     err.status = 400;
     return next(err);
   }

@@ -48,7 +48,7 @@ interface FormState {
   is_required: boolean
   sortable: boolean
   order: number
-  is_active: boolean
+  isActive: boolean
 }
 
 const emptyForm: FormState = {
@@ -63,7 +63,7 @@ const emptyForm: FormState = {
   is_required: false,
   sortable: true,
   order: 0,
-  is_active: true,
+  isActive: true,
 }
 
 export default function BookingFormPage() {
@@ -146,7 +146,7 @@ export default function BookingFormPage() {
       is_required: row.is_required,
       sortable: row.sortable,
       order: row.order,
-      is_active: row.is_active,
+      isActive: row.isActive,
     })
     setDialogOpen(true)
   }
@@ -174,7 +174,7 @@ export default function BookingFormPage() {
         is_required: form.is_required,
         sortable: form.sortable,
         order: Number(form.order) || 0,
-        is_active: form.is_active,
+        isActive: form.isActive,
       }
       if (form._id) {
         await updateScreenField(form._id, payload)
@@ -395,7 +395,7 @@ export default function BookingFormPage() {
                 label="Sortable"
               />
               <FormControlLabel
-                control={<Switch checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />}
+                control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
                 label="Active"
               />
             </Stack>

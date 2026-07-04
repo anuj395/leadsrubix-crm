@@ -8,9 +8,9 @@
 // gives every collection the same predictable behaviour:
 //
 //   - GET  /         → paginated list scoped to the caller's industry
-//                      (super-admin sees all unless ?industry_id= is passed)
+//                      (super-admin sees all unless ?industryId= is passed)
 //   - GET  /:id      → single document (tenant-checked)
-//   - POST /         → create, auto-stamping created_by + industry_id
+//   - POST /         → create, auto-stamping createdBy + industryId
 //   - PUT  /:id      → patch (tenant-checked)
 //   - DELETE /:id    → hard delete (tenant-checked)
 //
@@ -36,19 +36,19 @@ function buildController({
   }
 
   // Resolves the industry filter the caller is allowed to see.
-  // Super-admin: pass any industry_id explicitly, or omit it to see all.
+  // Super-admin: pass any industryId explicitly, or omit it to see all.
   // Everyone else: pinned to their own industry regardless of input.
   function resolveTenantFilter(authedUser, requested) {
     if (isSuperAdmin(authedUser)) {
-      if (requested) return { industry_id: requested };
+      if (requested) return { industryId: requested };
       return {};
     }
-    return authedUser?.industry_id ? { industry_id: authedUser.industry_id } : { industry_id: '__none__' };
+    return authedUser?.industryId ? { industryId: authedUser.industryId } : { industryId: '__none__' };
   }
 
   async function list(req, res, next) {
     try {
-      const filter = resolveTenantFilter(req.user, req.query.industry_id);
+      const filter = resolveTenantFilter(req.user, req.query.industryId);
       const q = (req.query.q || '').toString().trim();
       if (q) {
         const re = new RegExp(escapeRegex(q), 'i');
@@ -76,7 +76,7 @@ function buildController({
     try {
       const doc = await Model.findById(req.params.id).lean().exec();
       if (!doc) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && doc.industry_id !== req.user?.industry_id) {
+      if (!isSuperAdmin(req.user) && doc.industryId !== req.user?.industryId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       res.json(doc);
@@ -86,12 +86,12 @@ function buildController({
   async function create(req, res, next) {
     try {
       const payload = { ...(req.body || {}) };
-      // Tenant + ownership stamping. Super-admin may override industry_id;
+      // Tenant + ownership stamping. Super-admin may override industryId;
       // everyone else is pinned to their own.
-      payload.industry_id = isSuperAdmin(req.user)
-        ? payload.industry_id || req.user?.industry_id
-        : req.user?.industry_id;
-      payload.created_by = req.user?.id;
+      payload.industryId = isSuperAdmin(req.user)
+        ? payload.industryId || req.user?.industryId
+        : req.user?.industryId;
+      payload.createdBy = req.user?.id;
       const doc = await Model.create(payload);
       res.status(201).json(doc.toObject());
     } catch (err) { next(err); }
@@ -101,13 +101,13 @@ function buildController({
     try {
       const existing = await Model.findById(req.params.id).lean().exec();
       if (!existing) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && existing.industry_id !== req.user?.industry_id) {
+      if (!isSuperAdmin(req.user) && existing.industryId !== req.user?.industryId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       const patch = { ...(req.body || {}) };
       // Don't let a non-super-admin reparent the row to another tenant.
-      if (!isSuperAdmin(req.user)) delete patch.industry_id;
-      delete patch.created_by;
+      if (!isSuperAdmin(req.user)) delete patch.industryId;
+      delete patch.createdBy;
       delete patch.createdAt;
       const updated = await Model.findByIdAndUpdate(req.params.id, { $set: patch }, { new: true })
         .lean()
@@ -120,7 +120,7 @@ function buildController({
     try {
       const existing = await Model.findById(req.params.id).lean().exec();
       if (!existing) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && existing.industry_id !== req.user?.industry_id) {
+      if (!isSuperAdmin(req.user) && existing.industryId !== req.user?.industryId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       await Model.findByIdAndDelete(req.params.id).exec();

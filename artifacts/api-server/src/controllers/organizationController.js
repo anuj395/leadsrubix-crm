@@ -4,7 +4,7 @@ exports.list = async (req, res, next) => {
   try {
     const { items, total } = await service.listPaged({
       authedUser: req.user,
-      industry_id: req.query.industry_id,
+      industryId: req.query.industryId,
       q: req.query.q,
       page: req.query.page,
       pageSize: req.query.pageSize,

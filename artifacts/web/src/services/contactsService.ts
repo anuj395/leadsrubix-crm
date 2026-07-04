@@ -2,9 +2,9 @@ import { api } from './api'
 
 export interface Contact {
   _id: string
-  industry_id?: string | null
-  role_id?: string | null
-  created_by?: string | null
+  industryId?: string | null
+  roleId?: string | null
+  createdBy?: string | null
   createdAt?: string
   updatedAt?: string
   // dynamic fields live alongside these — keys depend on the screen config

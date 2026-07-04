@@ -93,14 +93,14 @@ export default function ProjectsListPage() {
         listOrganizationsPaged({ page: 0, pageSize: 200 }),
         resolveScreen({ screen_key: 'configProjects', industry_code: activeIndustry || undefined })
       ])
-      
+
       setOrganizations(resOrgs.items || [])
       setResolvedScreen(resolved)
 
       // Filter projects to only those belonging to organizations under the active industry
       const orgIdsInIndustry = (resOrgs.items || [])
-        .filter((o: Organization) => o.industry_id === activeIndustry || o.industryId === activeIndustry)
-        .map((o: Organization) => String(o.organizationId || o.organization_id || ''))
+        .filter((o: Organization) => o.industryId === activeIndustry || o.industryId === activeIndustry)
+        .map((o: Organization) => String(o.organizationId || o.organizationId || ''))
 
       const filteredProjects = (resProjects.data || []).filter((p: Project) =>
         orgIdsInIndustry.includes(String(p.organizationId || ''))
@@ -130,8 +130,8 @@ export default function ProjectsListPage() {
 
   const openEditDialog = (proj: Project) => {
     setEditing(proj)
-    const org = organizations.find(o => (o.organizationId || o.organization_id) === (proj.organizationId))
-    const industryForForm = (org?.industry_id || org?.industryId || selectedIndustry || industries[0]?.code || '') as string
+    const org = organizations.find(o => (o.organizationId || o.organizationId) === (proj.organizationId))
+    const industryForForm = (org?.industryId || org?.industryId || selectedIndustry || industries[0]?.code || '') as string
     setSelectedIndustryInForm(industryForForm)
     setDialogOpen(true)
   }
@@ -154,7 +154,7 @@ export default function ProjectsListPage() {
   const handleExport = () => {
     if (!resolvedScreen || items.length === 0) return
     const headers = resolvedScreen.table_headers.map(h => h.label)
-    const csvContent = "data:text/csv;charset=utf-8," 
+    const csvContent = "data:text/csv;charset=utf-8,"
       + [headers.join(",")].concat(items.map(row => resolvedScreen.table_headers.map(h => `"${row[h.key as keyof Project] ?? ''}"`).join(","))).join("\n")
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
@@ -182,7 +182,7 @@ export default function ProjectsListPage() {
         sortable: header.sortable,
       }
 
-      if (header.key === 'organizationId' || header.key === 'organization_id') {
+      if (header.key === 'organizationId' || header.key === 'organizationId') {
         col.field = 'organizationName' as any
         col.flex = 1.2
         col.minWidth = 160
@@ -330,10 +330,10 @@ export default function ProjectsListPage() {
                   <LinearProgress />
                 </Box>
               )}
-              <AppDataGrid 
-                height="100%" 
-                rows={items} 
-                columns={columns} 
+              <AppDataGrid
+                height="100%"
+                rows={items}
+                columns={columns}
                 getRowId={(r) => r.id}
                 slots={{ toolbar: CustomToolbar }}
               />
@@ -342,10 +342,10 @@ export default function ProjectsListPage() {
         )
       })()}
 
-      <Dialog 
-        open={dialogOpen} 
-        onClose={() => setDialogOpen(false)} 
-        maxWidth="md" 
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {

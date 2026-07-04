@@ -2,10 +2,10 @@ import { api } from './api'
 
 export interface Organization {
   _id: string
-  organization_id?: string
-  industry_id?: string | null
-  is_active: boolean
-  created_by?: string | null
+  organizationId?: string
+  industryId?: string | null
+  isActive: boolean
+  createdBy?: string | null
   createdAt?: string
   updatedAt?: string
   // Dynamic fields are merged at the document root (strict:false on the model),
@@ -29,7 +29,7 @@ export interface ListOrgsArgs {
 
 export async function listOrganizationsPaged(args: ListOrgsArgs): Promise<PagedOrganizations> {
   const params = new URLSearchParams()
-  if (args.industryId) params.set('industry_id', args.industryId)
+  if (args.industryId) params.set('industryId', args.industryId)
   params.set('page', String(args.page))
   params.set('pageSize', String(args.pageSize))
   if (args.q) params.set('q', args.q)
@@ -44,14 +44,14 @@ export async function listOrganizationsPaged(args: ListOrgsArgs): Promise<PagedO
 }
 
 export interface CreateOrgInput {
-  industry_id?: string
-  is_active?: boolean
+  industryId?: string
+  isActive?: boolean
   fields?: Record<string, unknown>
 }
 
 export interface UpdateOrgInput {
-  industry_id?: string
-  is_active?: boolean
+  industryId?: string
+  isActive?: boolean
   fields?: Record<string, unknown>
 }
 

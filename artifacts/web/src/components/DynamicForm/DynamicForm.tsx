@@ -241,7 +241,7 @@ export function DynamicForm({
     if (url.includes('options/organizations') && industry_code) {
       url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(industry_code))}`
     }
-    const activeOrg = values.organizationId || values.organization_id
+    const activeOrg = values.organizationId || values.organizationId
     if (activeOrg && !url.includes('options/organizations')) {
       url = `${url}${url.includes('?') ? '&' : '?'}organizationId=${encodeURIComponent(String(activeOrg))}`
     }
@@ -298,7 +298,7 @@ export function DynamicForm({
     return () => {
       cancelled = true
     }
-  }, [fields, values.country, industry_code, values.organizationId, values.organization_id])
+  }, [fields, values.country, industry_code, values.organizationId, values.organizationId])
 
   const setValue = (key: string, value: Value) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -318,7 +318,7 @@ export function DynamicForm({
     () => () => {
       const next: Record<string, string> = {}
       for (const f of fields) {
-        if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
+        if ((f.key === 'organizationId' || f.key === 'organizationId') && !isSuperAdmin) {
           continue
         }
         if (f.required) {
@@ -383,7 +383,7 @@ export function DynamicForm({
         }}
       >
         {fields.map((f) => {
-          if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
+          if ((f.key === 'organizationId' || f.key === 'organizationId') && !isSuperAdmin) {
             return null
           }
           const value = values[f.key]
@@ -420,7 +420,7 @@ export function DynamicForm({
                 onChange={(e) => setValue(f.key, e.target.value)}
                 error={!!err || !!dropdownErr}
                 helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}
-                disabled={isLoading || readOnly || f.key === 'industryId' || f.key === 'industry_id'}
+                disabled={isLoading || readOnly || f.key === 'industryId' || f.key === 'industryId'}
                 fullWidth
                 SelectProps={{
                   MenuProps: {
@@ -711,7 +711,7 @@ export function DynamicForm({
               error={!!err}
               helperText={err}
               fullWidth
-              disabled={readOnly || f.key === 'industryId' || f.key === 'industry_id'}
+              disabled={readOnly || f.key === 'industryId' || f.key === 'industryId'}
               InputLabelProps={inputType === 'date' ? { shrink: true } : undefined}
             />
           )

@@ -2,10 +2,10 @@ const service = require('../services/sidebarPermissionService');
 
 exports.list = async (req, res, next) => {
   try {
-    const { role_id, industry_id, menu_id, visible } = req.query;
+    const { roleId, industryId, menu_id, visible } = req.query;
     const docs = await service.list({
-      role_id,
-      industry_id,
+      roleId,
+      industryId,
       menu_id,
       visibleOnly: visible === 'true',
     });
@@ -26,8 +26,8 @@ exports.upsert = async (req, res, next) => {
 
 exports.bulkSet = async (req, res, next) => {
   try {
-    const { role_id, industry_id, menu_ids } = req.body || {};
-    const docs = await service.bulkSet({ role_id, industry_id, menu_ids });
+    const { roleId, industryId, menu_ids } = req.body || {};
+    const docs = await service.bulkSet({ roleId, industryId, menu_ids });
     res.json({ items: docs });
   } catch (err) {
     next(err);

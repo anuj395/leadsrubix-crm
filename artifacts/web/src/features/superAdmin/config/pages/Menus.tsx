@@ -39,7 +39,7 @@ interface FormState {
   parent_id: string
   order: number
   module: string
-  is_active: boolean
+  isActive: boolean
 }
 
 const emptyForm: FormState = {
@@ -50,7 +50,7 @@ const emptyForm: FormState = {
   parent_id: '',
   order: 0,
   module: '',
-  is_active: true,
+  isActive: true,
 }
 
 export default function MenusPage() {
@@ -116,7 +116,7 @@ export default function MenusPage() {
       parent_id: row.parent_id ?? '',
       order: row.order ?? 0,
       module: row.module ?? '',
-      is_active: row.is_active,
+      isActive: row.isActive,
     })
     setDialogOpen(true)
   }
@@ -136,7 +136,7 @@ export default function MenusPage() {
         parent_id: form.parent_id || null,
         order: form.order,
         module: form.module || undefined,
-        is_active: form.is_active,
+        isActive: form.isActive,
       }
       if (form._id) {
         await updateMenuRecord(form._id, payload)
@@ -201,7 +201,7 @@ export default function MenusPage() {
       },
       { field: 'order', headerName: 'Order', width: 90, type: 'number' },
       {
-        field: 'is_active',
+        field: 'isActive',
         headerName: 'Status',
         width: 100,
         renderCell: (p) => <StatusBadge value={p.value ? 'Active' : 'Inactive'} />,
@@ -329,8 +329,8 @@ export default function MenusPage() {
             <FormControlLabel
               control={
                 <Switch
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                  checked={form.isActive}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
                 />
               }
               label="Active"

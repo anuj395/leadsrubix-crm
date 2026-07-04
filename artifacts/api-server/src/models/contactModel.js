@@ -7,9 +7,9 @@ const mongoose = require('mongoose');
  */
 const contactSchema = new mongoose.Schema(
   {
-    industryId: { type: String, default: null, alias: 'industry_id' }, // industry code, mirrors user.industry_id
-    role_id: { type: String, default: null },     // role key,    mirrors user.role
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, alias: 'created_by' },
+    industryId: { type: String, default: null }, // industry code, mirrors user.industryId
+    roleId: { type: String, default: null },     // role key,    mirrors user.role
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { 
     timestamps: true, 

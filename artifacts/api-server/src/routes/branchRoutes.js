@@ -6,7 +6,7 @@ const controller = buildController({
   Model: Branch,
   resourceName: 'Branch',
   searchKeys: ['name', 'code'],
-  allowedSort: ['createdAt', 'updatedAt', 'name', 'is_active'],
+  allowedSort: ['createdAt', 'updatedAt', 'name', 'isActive'],
 });
 
 module.exports = buildRouter(controller, { authenticate });

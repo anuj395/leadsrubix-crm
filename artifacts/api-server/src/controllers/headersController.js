@@ -1,5 +1,5 @@
 // src/controllers/headersController.js
-// Spec-compliant `/api/headers/:organization_id/:module` compat layer.
+// Spec-compliant `/api/headers/:organizationId/:module` compat layer.
 // Internally proxies the existing screen-config system (Screens + ScreenFields
 // + ScreenPermissions), which is the single source of truth for dynamic
 // table/form configuration in this project. READ shape matches the spec
@@ -38,10 +38,10 @@ function projectColumns(fields) {
 
 exports.get = async (req, res, next) => {
   try {
-    const { organization_id, module } = req.params;
+    const { organizationId, module } = req.params;
     // Tenant isolation: non-super-admins may only read their own org's config.
-    // Super-admin can pass any organization_id and is treated as a system op.
-    if (req.user?.role !== 'superAdmin' && organization_id !== req.user?.industry_id) {
+    // Super-admin can pass any organizationId and is treated as a system op.
+    if (req.user?.role !== 'superAdmin' && organizationId !== req.user?.industryId) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const screenKey = MODULE_TO_SCREEN[module];
@@ -53,11 +53,11 @@ exports.get = async (req, res, next) => {
       // Spec: "If none exists, returns default column config for that module"
       // Our defaults live in seed.js — when the screen hasn't been seeded yet
       // we return an empty columns array rather than fabricating one.
-      return res.json({ organization_id, module, columns: [] });
+      return res.json({ organizationId, module, columns: [] });
     }
     const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
     res.json({
-      organization_id,
+      organizationId,
       module,
       columns: projectColumns(fields),
     });

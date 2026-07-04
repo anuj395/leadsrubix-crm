@@ -146,7 +146,7 @@ export default function AnalyticsPage() {
       setLoading(true)
       let url = `/analytics/dashboard?group_by=${groupBy}`
       if (isSuperAdmin && selectedOrg !== 'all') {
-        url += `&industry_id=${selectedOrg}`
+        url += `&industryId=${selectedOrg}`
       }
       if (startDate) url += `&start_date=${startDate}`
       if (endDate) url += `&end_date=${endDate}`

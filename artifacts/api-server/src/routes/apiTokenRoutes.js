@@ -26,14 +26,14 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.user.role === 'superAdmin') {
       const orgs = await Organization.find({}).lean().exec();
       orgs.forEach(o => {
-        const idVal = o.organizationId || o.organization_id;
+        const idVal = o.organizationId || o.organizationId;
         if (idVal) {
           orgMap[idVal] = o.name || o.organizationName || idVal;
         }
       });
     } else {
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? (org.organizationId || org.organization_id) : null;
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      const orgId = org ? (org.organizationId || org.organizationId) : null;
       if (!orgId) {
         return res.json([]);
       }
@@ -46,7 +46,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const formatted = tokens.map(t => ({
       ...t,
       id: t._id,
-      organization_name: orgMap[t.organizationId || t.organization_id] || '',
+      organizationName: orgMap[t.organizationId || t.organizationId] || '',
       countryCode: t.countryCode || t.country_code || '+91',
       country_code: t.countryCode || t.country_code || '+91',
     }));
@@ -66,11 +66,11 @@ router.post('/', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    let orgId = req.body.organizationId || req.body.organization_id || null;
+    let orgId = req.body.organizationId || req.body.organizationId || null;
 
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      orgId = org ? (org.organizationId || org.organization_id) : null;
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      orgId = org ? (org.organizationId || org.organizationId) : null;
       if (!orgId) {
         return res.status(400).json({ message: 'Organization ID is mandatory for Admin users' });
       }
@@ -132,20 +132,20 @@ router.put('/:id', authenticate, async (req, res, next) => {
     }
 
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? (org.organizationId || org.organization_id) : null;
-      if (String(doc.organizationId || doc.organization_id) !== String(orgId)) {
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      const orgId = org ? (org.organizationId || org.organizationId) : null;
+      if (String(doc.organizationId || doc.organizationId) !== String(orgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot edit configuration of another organization' });
       }
     }
 
-    const { api_key, organizationId, organization_id, _id, id: bodyId, countryCode, country_code, leadSourceId, leadSource_id, ...updatePayload } = req.body || {};
+    const { api_key, organizationId, _id, id: bodyId, countryCode, country_code, leadSourceId, leadSource_id, ...updatePayload } = req.body || {};
 
     let resolvedLeadSourceId = leadSourceId || leadSource_id || doc.leadSourceId;
     if ((leadSourceId === undefined && leadSource_id === undefined) && updatePayload.source && updatePayload.source !== doc.source) {
       try {
         const OrganizationResources = mongoose.model('OrganizationResources');
-        const orgId = doc.organizationId || doc.organization_id;
+        const orgId = doc.organizationId || doc.organizationId;
         const resDoc = await OrganizationResources.findOne({
           $or: [
             { organizationId: orgId },
@@ -171,8 +171,8 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (countryCode !== undefined) doc.countryCode = countryCode;
     else if (country_code !== undefined) doc.countryCode = country_code;
     
-    if (req.user.role === 'superAdmin' && (organizationId !== undefined || organization_id !== undefined)) {
-      doc.organizationId = organizationId || organization_id;
+    if (req.user.role === 'superAdmin' && (organizationId !== undefined || organizationId !== undefined)) {
+      doc.organizationId = organizationId || organizationId;
     }
 
     await doc.save();
@@ -199,9 +199,9 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     }
 
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? (org.organizationId || org.organization_id) : null;
-      if (String(doc.organizationId || doc.organization_id) !== String(orgId)) {
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      const orgId = org ? (org.organizationId || org.organizationId) : null;
+      if (String(doc.organizationId || doc.organizationId) !== String(orgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot delete configuration of another organization' });
       }
     }

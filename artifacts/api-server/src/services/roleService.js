@@ -17,18 +17,18 @@ exports.get = async (id) => {
 };
 
 exports.create = async (payload) => {
-  if (!payload?.industry_id || !payload?.key || !payload?.name) {
-    const err = new Error('industry_id, key and name are required');
+  if (!payload?.industryId || !payload?.key || !payload?.name) {
+    const err = new Error('industryId, key and name are required');
     err.status = 400;
     throw err;
   }
-  const industry = await industryModel.findById(payload.industry_id);
+  const industry = await industryModel.findById(payload.industryId);
   if (!industry) {
     const err = new Error('Industry not found');
     err.status = 404;
     throw err;
   }
-  const dup = await roleModel.findByIndustryAndKey(payload.industry_id, payload.key);
+  const dup = await roleModel.findByIndustryAndKey(payload.industryId, payload.key);
   if (dup) {
     const err = new Error('Role with this key already exists for this industry');
     err.status = 409;
@@ -38,8 +38,8 @@ exports.create = async (payload) => {
 };
 
 exports.update = async (id, patch) => {
-  if (patch?.industry_id && patch?.key) {
-    const dup = await roleModel.findByIndustryAndKey(patch.industry_id, patch.key);
+  if (patch?.industryId && patch?.key) {
+    const dup = await roleModel.findByIndustryAndKey(patch.industryId, patch.key);
     if (dup && String(dup._id) !== String(id)) {
       const err = new Error('Role with this key already exists for this industry');
       err.status = 409;
@@ -67,7 +67,7 @@ exports.remove = async (id) => {
   if (typeof permissionModel.removeByRole === 'function') {
     await permissionModel.removeByRole(id);
   } else if (typeof permissionModel.deleteMany === 'function') {
-    await permissionModel.deleteMany({ role_id: id });
+    await permissionModel.deleteMany({ roleId: id });
   }
 
   // Cascade: also wipe screen-permission rows for this role so the normalized
@@ -75,7 +75,7 @@ exports.remove = async (id) => {
   if (typeof screenPermissionModel.removeByRole === 'function') {
     await screenPermissionModel.removeByRole(id);
   } else if (typeof screenPermissionModel.deleteMany === 'function') {
-    await screenPermissionModel.deleteMany({ role_id: id });
+    await screenPermissionModel.deleteMany({ roleId: id });
   }
 
   // Cascade: also wipe role-action permission rows for this role.

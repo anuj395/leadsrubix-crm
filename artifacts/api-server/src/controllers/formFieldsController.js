@@ -1,5 +1,5 @@
 // src/controllers/formFieldsController.js
-// Spec-compliant `/api/formFields/:organization_id/:form_name` compat layer.
+// Spec-compliant `/api/formFields/:organizationId/:form_name` compat layer.
 // Same approach as headersController: READ projects the existing screen-config
 // into the spec's shape; WRITE methods return 501 with a pointer to the
 // canonical `/api/screen-fields` endpoints (avoiding two parallel sources of
@@ -46,9 +46,9 @@ function projectFields(fields) {
 
 exports.get = async (req, res, next) => {
   try {
-    const { organization_id, form_name } = req.params;
+    const { organizationId, form_name } = req.params;
     // Tenant isolation: non-super-admins may only read their own org's config.
-    if (req.user?.role !== 'superAdmin' && organization_id !== req.user?.industry_id) {
+    if (req.user?.role !== 'superAdmin' && organizationId !== req.user?.industryId) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const screenKey = FORM_TO_SCREEN[form_name];
@@ -57,11 +57,11 @@ exports.get = async (req, res, next) => {
     }
     const screen = await screenModel.findByKey(screenKey);
     if (!screen) {
-      return res.json({ organization_id, form_name, fields: [] });
+      return res.json({ organizationId, form_name, fields: [] });
     }
     const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
     res.json({
-      organization_id,
+      organizationId,
       form_name,
       fields: projectFields(fields),
     });

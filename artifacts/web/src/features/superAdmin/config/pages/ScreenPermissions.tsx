@@ -120,8 +120,8 @@ export default function ScreenPermissionsPage() {
       try {
         const perms = await getScreenPermissions({
           screen_id: screenId,
-          role_id: roleId,
-          industry_id: industryId,
+          roleId: roleId,
+          industryId: industryId,
           enabledOnly: true,
         })
         if (!cancelled) setEnabled(new Set(perms.map((p) => p.field_id)))
@@ -161,8 +161,8 @@ export default function ScreenPermissionsPage() {
     try {
       await bulkSetScreenPermissions({
         screen_id: screenId,
-        role_id: roleId,
-        industry_id: industryId,
+        roleId: roleId,
+        industryId: industryId,
         field_ids: [...enabled],
       })
       setToast({ open: true, msg: 'Permissions updated', sev: 'success' })

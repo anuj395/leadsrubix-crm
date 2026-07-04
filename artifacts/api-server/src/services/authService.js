@@ -26,8 +26,8 @@ exports.signup = async (payload) => {
       email: payload.email,
       firstName: payload.name || 'Admin',
       organizationName: payload.name || 'Organization',
-      industryId: payload.industry_id || 'temp0001',
-      industry_id: payload.industry_id || 'temp0001',
+      industryId: payload.industryId || 'temp0001',
+      industryId: payload.industryId || 'temp0001',
     };
   }
 
@@ -69,8 +69,8 @@ exports.signup = async (payload) => {
     name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
     email: user.email,
     role: user.role,
-    industryId: user.industryId || user.industry_id,
-    industry_id: user.industryId || user.industry_id,
+    industryId: user.industryId || user.industryId,
+    industryId: user.industryId || user.industryId,
     needsPasswordChange: !!(user.needsPasswordChange || user.needs_password_change),
     needs_password_change: !!(user.needsPasswordChange || user.needs_password_change),
   };
@@ -110,8 +110,8 @@ exports.login = async (email, password) => {
     name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
     email: user.email,
     role: user.role,
-    industryId: user.industryId || user.industry_id,
-    industry_id: user.industryId || user.industry_id,
+    industryId: user.industryId || user.industryId,
+    industryId: user.industryId || user.industryId,
     needsPasswordChange: !!(user.needsPasswordChange || user.needs_password_change),
     needs_password_change: !!(user.needsPasswordChange || user.needs_password_change),
   };

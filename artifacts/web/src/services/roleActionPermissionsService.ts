@@ -2,8 +2,8 @@ import { api } from './api'
 
 export interface RoleActionPermission {
   _id: string
-  role_id: string
-  industry_id: string
+  roleId: string
+  industryId: string
   screen_id: string
   can_view: boolean
   can_add: boolean
@@ -21,13 +21,13 @@ export interface MyActionPerms {
 }
 
 export async function listRoleActionPermissions(params: {
-  role_id?: string
-  industry_id?: string
+  roleId?: string
+  industryId?: string
   screen_id?: string
 } = {}): Promise<RoleActionPermission[]> {
   const search = new URLSearchParams()
-  if (params.role_id)     search.set('role_id', params.role_id)
-  if (params.industry_id) search.set('industry_id', params.industry_id)
+  if (params.roleId)     search.set('roleId', params.roleId)
+  if (params.industryId) search.set('industryId', params.industryId)
   if (params.screen_id)   search.set('screen_id', params.screen_id)
   const qs = search.toString()
   const res = await api.get(qs ? `role-action-permissions?${qs}` : 'role-action-permissions')
@@ -35,8 +35,8 @@ export async function listRoleActionPermissions(params: {
 }
 
 export async function upsertRoleActionPermission(input: {
-  role_id: string
-  industry_id: string
+  roleId: string
+  industryId: string
   screen_id: string
   can_view?: boolean
   can_add?: boolean

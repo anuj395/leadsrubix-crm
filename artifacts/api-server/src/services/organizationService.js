@@ -33,7 +33,7 @@ async function resolveActor(authedUser) {
  */
 async function resolveAllowedFormFields({ industry_code, role_key, isSuperAdmin }) {
   const screen = await screenModel.findByKey(ORG_SCREEN_KEY);
-  if (!screen || !screen.is_active) {
+  if (!screen || !screen.isActive) {
     return { screen: null, fields: [] };
   }
   const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
@@ -49,8 +49,8 @@ async function resolveAllowedFormFields({ industry_code, role_key, isSuperAdmin 
 
   const perms = await permissionModel.list({
     screen_id: screen._id,
-    role_id: role._id,
-    industry_id: industry._id,
+    roleId: role._id,
+    industryId: industry._id,
     enabledOnly: true,
   });
   const allowedIds = new Set(perms.map((p) => String(p.field_id)));
@@ -80,7 +80,7 @@ function pickAllowed(payload, allowedFieldDefs) {
 
 exports.listPaged = async ({
   authedUser,
-  industry_id,
+  industryId,
   q,
   page = 0,
   pageSize = 25,
@@ -94,17 +94,17 @@ exports.listPaged = async ({
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
 
   const { fields: allowedFields } = await resolveAllowedFormFields({
-    industry_code: industry_id || user.industry_id,
+    industry_code: industryId || user.industryId,
     role_key: user.role || authedUser.role,
     isSuperAdmin,
   });
 
   const queryIndustry = isSuperAdmin
-    ? industry_id
-    : user.industry_id;
+    ? industryId
+    : user.industryId;
 
   const { items, total } = await organizationModel.listPaged({
-    industry_id: queryIndustry,
+    industryId: queryIndustry,
     q,
     page,
     pageSize,
@@ -115,7 +115,7 @@ exports.listPaged = async ({
 
   // Enrich createdBy with human-readable name or role
   const userIds = items
-    .map(org => org.createdBy || org.created_by)
+    .map(org => org.createdBy || org.createdBy)
     .filter(id => id && mongoose.Types.ObjectId.isValid(id));
   const users = await userModel.User.find({ _id: { $in: userIds } }).lean().exec();
   const userMap = users.reduce((acc, u) => {
@@ -124,7 +124,7 @@ exports.listPaged = async ({
   }, {});
 
   const enrichedItems = items.map(org => {
-    const creatorId = (org.createdBy || org.created_by)?.toString();
+    const creatorId = (org.createdBy || org.createdBy)?.toString();
     const creator = userMap[creatorId];
     let createdByVal = creatorId || '';
     if (creator) {
@@ -135,7 +135,7 @@ exports.listPaged = async ({
     return {
       ...org,
       createdBy: createdByVal,
-      created_by: createdByVal,
+      createdBy: createdByVal,
     };
   });
 
@@ -149,11 +149,11 @@ exports.fetchById = async ({ id, authedUser }) => {
   }
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
   const org = await organizationModel.findById(id);
-  if (org && !isSuperAdmin && org.industry_id && org.industry_id !== user.industry_id) {
+  if (org && !isSuperAdmin && org.industryId && org.industryId !== user.industryId) {
     return null;
   }
   if (org) {
-    const creatorId = (org.createdBy || org.created_by)?.toString();
+    const creatorId = (org.createdBy || org.createdBy)?.toString();
     if (creatorId && mongoose.Types.ObjectId.isValid(creatorId)) {
       const creator = await userModel.User.findById(creatorId).lean().exec();
       let createdByVal = creatorId;
@@ -161,7 +161,7 @@ exports.fetchById = async ({ id, authedUser }) => {
         createdByVal = creator.role === 'superAdmin' ? 'Super Admin' : (creator.organizationName || creator.name || creator.email);
       }
       org.createdBy = createdByVal;
-      org.created_by = createdByVal;
+      org.createdBy = createdByVal;
     }
   }
   return org;
@@ -180,12 +180,12 @@ exports.create = async ({ payload, authedUser }) => {
   const user = authedUser?.id ? await resolveActor(authedUser) : null;
   const isSuperAdmin = user && (user.role || authedUser?.role) === 'superAdmin';
 
-  const industry_id = (isSuperAdmin || !user)
-    ? payload.industryId || payload.industry_id || payload.fields?.industryId || payload.fields?.industry_id || payload.industry || payload.fields?.industry || (user ? user.industryId || user.industry_id : null)
-    : (user ? user.industryId || user.industry_id : null);
+  const industryId = (isSuperAdmin || !user)
+    ? payload.industryId || payload.industryId || payload.fields?.industryId || payload.fields?.industryId || payload.industry || payload.fields?.industry || (user ? user.industryId || user.industryId : null)
+    : (user ? user.industryId || user.industryId : null);
 
   const { fields: allowedFields } = await resolveAllowedFormFields({
-    industry_code: industry_id,
+    industry_code: industryId,
     role_key: user ? user.role || authedUser?.role : 'admin',
     isSuperAdmin,
   });
@@ -252,15 +252,15 @@ exports.create = async ({ payload, authedUser }) => {
     validFrom,
     validTill,
     organizationId: orgId,
-    organization_id: orgId,
-    industryId: industry_id,
-    is_active: payload.is_active !== false,
+    organizationId: orgId,
+    industryId: industryId,
+    isActive: payload.isActive !== false,
     createdBy: creatorId,
-    created_by: creatorId,
+    createdBy: creatorId,
   });
 
   // Automatically create an Admin user for this organization
-  const orgName = cleaned.organizationName || cleaned.organization_name || (cleaned.firstName
+  const orgName = cleaned.organizationName || cleaned.organizationName || (cleaned.firstName
     ? `${cleaned.firstName} ${cleaned.lastName || ''}`.trim()
     : cleaned.name || payload.name || 'Organization');
   const orgEmail = cleaned.emailId || cleaned.email || payload.email;
@@ -295,8 +295,8 @@ exports.create = async ({ payload, authedUser }) => {
     email: adminEmail.toLowerCase().trim(),
     password: adminPassword,
     role: 'admin',
-    organizationId: orgDoc.organizationId || orgDoc.organization_id,
-    industryId: industry_id,
+    organizationId: orgDoc.organizationId || orgDoc.organizationId,
+    industryId: industryId,
     contactNumber: cleaned.contactNumber || cleaned.contact_no || cleaned.contact || '',
     userImage: '',
     designation: 'Administrator',
@@ -354,7 +354,7 @@ exports.create = async ({ payload, authedUser }) => {
             name: n.name,
             link: n.link,
             status: n.status,
-            created_by: n.created_by
+            createdBy: n.createdBy
           });
         }
       });
@@ -393,7 +393,7 @@ exports.create = async ({ payload, authedUser }) => {
             answer: f.answer,
             status: f.status,
             videoUrl: f.videoUrl || '',
-            created_by: f.created_by
+            createdBy: f.createdBy
           });
         }
       });
@@ -468,24 +468,24 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (!existing) {
     const err = new Error('Organization not found'); err.status = 404; throw err;
   }
-  if (!isSuperAdmin && existing.industry_id && existing.industry_id !== user.industry_id) {
+  if (!isSuperAdmin && existing.industryId && existing.industryId !== user.industryId) {
     const err = new Error('Organization not found'); err.status = 404; throw err;
   }
 
   const { fields: allowedFields } = await resolveAllowedFormFields({
-    industry_code: existing.industry_id,
+    industry_code: existing.industryId,
     role_key: user.role || authedUser.role,
     isSuperAdmin,
   });
   const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields);
 
   const patch = { ...cleaned };
-  if (isSuperAdmin && payload.industry_id) patch.industry_id = payload.industry_id;
+  if (isSuperAdmin && payload.industryId) patch.industryId = payload.industryId;
 
   let newActive = undefined;
   const rawStatus = payload.status ?? payload.fields?.status ?? cleaned.status ?? 
                     payload.isActive ?? payload.fields?.isActive ?? cleaned.isActive ??
-                    payload.is_active ?? payload.fields?.is_active ?? cleaned.is_active;
+                    payload.isActive ?? payload.fields?.isActive ?? cleaned.isActive;
 
   if (rawStatus !== undefined && rawStatus !== null) {
     if (typeof rawStatus === 'boolean') {
@@ -502,12 +502,12 @@ exports.update = async ({ id, payload, authedUser }) => {
 
   if (newActive !== undefined) {
     patch.isActive = newActive;
-    patch.is_active = newActive;
+    patch.isActive = newActive;
     patch.status = newActive ? 'ACTIVE' : 'INACTIVE';
     
     const userUpdate = {
       isActive: newActive,
-      is_active: newActive,
+      isActive: newActive,
       status: newActive ? 'active' : 'inactive'
     };
     if (newActive) {
@@ -525,7 +525,7 @@ exports.update = async ({ id, payload, authedUser }) => {
       {
         $or: [
           { organizationId: existing._id },
-          { organizationId: existing.organizationId || existing.organization_id }
+          { organizationId: existing.organizationId || existing.organizationId }
         ]
       },
       { $set: userUpdate }
@@ -542,17 +542,17 @@ exports.remove = async ({ id, authedUser }) => {
   if (!existing) {
     const err = new Error('Organization not found'); err.status = 404; throw err;
   }
-  if (!isSuperAdmin && existing.industry_id && existing.industry_id !== user.industry_id) {
+  if (!isSuperAdmin && existing.industryId && existing.industryId !== user.industryId) {
     const err = new Error('Organization not found'); err.status = 404; throw err;
   }
   
-  // Cascade delete all users belonging to this organization's industryId / industry_id
-  const targetIndustry = existing.industryId || existing.industry_id;
+  // Cascade delete all users belonging to this organization's industryId / industryId
+  const targetIndustry = existing.industryId || existing.industryId;
   if (targetIndustry) {
     const deleteResult = await userModel.User.deleteMany({
       $or: [
         { industryId: targetIndustry },
-        { industry_id: targetIndustry }
+        { industryId: targetIndustry }
       ],
       role: { $ne: 'superAdmin' }
     });

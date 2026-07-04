@@ -9,7 +9,7 @@ const sidebarMenuSchema = new mongoose.Schema(
     parent_id: { type: mongoose.Schema.Types.ObjectId, ref: 'SidebarMenu', default: null },
     order: { type: Number, default: 0 },
     module: { type: String, default: '' },
-    is_active: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
@@ -22,7 +22,7 @@ const SidebarMenu = mongoose.model('SidebarMenu', sidebarMenuSchema, 'sidebar_me
 exports.SidebarMenu = SidebarMenu;
 
 exports.list = async ({ activeOnly = false, parent_id } = {}) => {
-  const q = activeOnly ? { is_active: true } : {};
+  const q = activeOnly ? { isActive: true } : {};
   if (parent_id !== undefined) q.parent_id = parent_id;
   return SidebarMenu.find(q).sort({ order: 1, name: 1 }).lean().exec();
 };
@@ -38,7 +38,7 @@ exports.findByKey = async (key) =>
 exports.findByIds = async (ids) =>
   SidebarMenu.find({ _id: { $in: ids } }).lean().exec();
 
-exports.create = async ({ key, name, icon, route, parent_id, order, module: mod, is_active }) => {
+exports.create = async ({ key, name, icon, route, parent_id, order, module: mod, isActive }) => {
   const doc = await SidebarMenu.create({
     key: String(key).trim(),
     name: String(name).trim(),
@@ -47,7 +47,7 @@ exports.create = async ({ key, name, icon, route, parent_id, order, module: mod,
     parent_id: parent_id || null,
     order: typeof order === 'number' ? order : 0,
     module: mod || '',
-    is_active: is_active !== false,
+    isActive: isActive !== false,
   });
   return doc.toObject();
 };
@@ -61,7 +61,7 @@ exports.update = async (id, patch) => {
   if (patch.parent_id !== undefined) update.parent_id = patch.parent_id || null;
   if (patch.order !== undefined) update.order = Number(patch.order);
   if (patch.module !== undefined) update.module = String(patch.module);
-  if (patch.is_active !== undefined) update.is_active = !!patch.is_active;
+  if (patch.isActive !== undefined) update.isActive = !!patch.isActive;
   return SidebarMenu.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec();
 };
 
@@ -76,7 +76,7 @@ exports.upsertByKey = async (key, attrs) => {
     parent_id: attrs.parent_id || null,
     order: typeof attrs.order === 'number' ? attrs.order : 0,
     module: attrs.module || '',
-    is_active: attrs.is_active !== false,
+    isActive: attrs.isActive !== false,
   };
   await SidebarMenu.updateOne({ key: safe }, { $set, $setOnInsert: { key: safe } }, { upsert: true });
   return SidebarMenu.findOne({ key: safe }).lean().exec();

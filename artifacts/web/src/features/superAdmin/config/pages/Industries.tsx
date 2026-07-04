@@ -33,11 +33,11 @@ interface FormState {
   code: string
   name: string
   description: string
-  is_active: boolean
+  isActive: boolean
   status: string
 }
 
-const emptyForm: FormState = { code: '', name: '', description: '', is_active: true, status: 'Launched' }
+const emptyForm: FormState = { code: '', name: '', description: '', isActive: true, status: 'Launched' }
 
 export default function IndustriesPage() {
   const [items, setItems] = useState<Industry[]>([])
@@ -64,7 +64,7 @@ export default function IndustriesPage() {
 
   const openCreate = () => { setForm(emptyForm); setDialogOpen(true) }
   const openEdit = (row: Industry) => {
-    setForm({ _id: row._id, code: row.code, name: row.name, description: row.description ?? '', is_active: row.is_active, status: row.status ?? 'Launched' })
+    setForm({ _id: row._id, code: row.code, name: row.name, description: row.description ?? '', isActive: row.isActive, status: row.status ?? 'Launched' })
     setDialogOpen(true)
   }
 
@@ -75,9 +75,9 @@ export default function IndustriesPage() {
     setSaving(true)
     try {
       if (form._id) {
-        await updateIndustryRecord(form._id, { code: form.code, name: form.name, description: form.description, is_active: form.is_active, status: form.status })
+        await updateIndustryRecord(form._id, { code: form.code, name: form.name, description: form.description, isActive: form.isActive, status: form.status })
       } else {
-        await createIndustryRecord({ code: form.code, name: form.name, description: form.description, is_active: form.is_active, status: form.status })
+        await createIndustryRecord({ code: form.code, name: form.name, description: form.description, isActive: form.isActive, status: form.status })
       }
       setDialogOpen(false)
       setToast({ open: true, msg: 'Saved', sev: 'success' })
@@ -111,7 +111,7 @@ export default function IndustriesPage() {
     { field: 'name', headerName: 'Name', flex: 1, minWidth: 160 },
     { field: 'description', headerName: 'Description', flex: 1.5, minWidth: 200,
       renderCell: (p) => p.value ? String(p.value) : <Box sx={{ color: 'text.secondary' }}>—</Box> },
-    { field: 'is_active', headerName: 'Active', minWidth: 110,
+    { field: 'isActive', headerName: 'Active', minWidth: 110,
       renderCell: (p) => <StatusBadge value={p.value ? 'Active' : 'Inactive'} />,
     },
     { field: 'status', headerName: 'Status', minWidth: 140,
@@ -161,7 +161,7 @@ export default function IndustriesPage() {
               <option value="Pending">Pending</option>
             </TextField>
             <FormControlLabel
-              control={<Switch checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />}
+              control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
               label="Active"
             />
           </Stack>

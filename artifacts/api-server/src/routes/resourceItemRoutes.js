@@ -11,7 +11,7 @@ async function resolveOrganizationId(req) {
   
   if (req.user.role === 'superAdmin') {
     // SuperAdmin can specify organizationId in query or body
-    let targetOrgId = req.query.organizationId || req.query.organization_id || req.body.organizationId || req.body.organization_id;
+    let targetOrgId = req.query.organizationId || req.query.organizationId || req.body.organizationId || req.body.organizationId;
     if (targetOrgId === 'null' || targetOrgId === '') {
       return null;
     }
@@ -20,16 +20,16 @@ async function resolveOrganizationId(req) {
     }
     return null;
   } else {
-    // Regular admin or user: resolve orgId via their user industry_id
-    const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-    return org ? (org.organizationId || org.organization_id) : null;
+    // Regular admin or user: resolve orgId via their user industryId
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    return org ? org.organizationId : null;
   }
 }
 
 // Helper to resolve Industry ID
 async function resolveIndustryId(req) {
-  const { industryId, industry_id, industry_code } = { ...req.query, ...req.body };
-  const target = industry_code || industryId || industry_id;
+  const { industryId, industry_code } = { ...req.query, ...req.body };
+  const target = industry_code || industryId;
   if (target) {
     const Industry = mongoose.model('Industry');
     // Try to find by code first
@@ -89,7 +89,7 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
     }
 
     // Extract dynamic data (except system metadata)
-    const { industry_code, industry_id, organizationId: bodyOrgId, organization_id, ...payloadData } = req.body || {};
+    const { industry_code, industryId: bodyIndustryId, organizationId: bodyOrgId, ...payloadData } = req.body || {};
 
     // Validate image file size (max 20MB)
     const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
@@ -106,11 +106,11 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
 
 
 
-    const industryId = await resolveIndustryId(req);
+    const resolvedIndustryId = await resolveIndustryId(req);
 
     const doc = await resourceItemModel.create({
       organizationId: orgId,
-      industryId,
+      industryId: resolvedIndustryId,
       resource_key,
       data: payloadData,
     });
@@ -141,14 +141,14 @@ router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
 
     if (req.user.role !== 'superAdmin') {
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const userOrgId = org ? (org.organizationId || org.organization_id) : null;
-      if (!userOrgId || String(doc.organizationId || doc.organization_id) !== String(userOrgId)) {
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      const userOrgId = org ? (org.organizationId || org.organizationId) : null;
+      if (!userOrgId || String(doc.organizationId || doc.organizationId) !== String(userOrgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot edit resource from another organization' });
       }
     }
 
-    const { industry_code, industry_id, organizationId: bodyOrgId, organization_id, id: bodyId, ...payloadData } = req.body || {};
+    const { industry_code, industryId, organizationId: bodyOrgId, organizationId, id: bodyId, ...payloadData } = req.body || {};
 
     // Validate image file size (max 20MB)
     const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
@@ -193,9 +193,9 @@ router.delete('/:resource_key/:id', authenticate, async (req, res, next) => {
 
     if (req.user.role !== 'superAdmin') {
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const userOrgId = org ? (org.organizationId || org.organization_id) : null;
-      if (!userOrgId || String(doc.organizationId || doc.organization_id) !== String(userOrgId)) {
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      const userOrgId = org ? (org.organizationId || org.organizationId) : null;
+      if (!userOrgId || String(doc.organizationId || doc.organizationId) !== String(userOrgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot delete resource from another organization' });
       }
     }

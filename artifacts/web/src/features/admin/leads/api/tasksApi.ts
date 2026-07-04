@@ -20,7 +20,7 @@ export interface TasksApiResponse {
 }
 
 export interface FetchTasksParams {
-  industry_id: string
+  industryId: string
   page?: number          // 0-based (converted to 1-based before sending)
   limit?: number
   search?: string
@@ -35,7 +35,7 @@ export interface FetchTasksParams {
  */
 export async function fetchTasks(params: FetchTasksParams): Promise<TasksApiResponse> {
   const {
-    industry_id,
+    industryId,
     page = 0,
     limit = 10,
     search = '',
@@ -46,7 +46,7 @@ export async function fetchTasks(params: FetchTasksParams): Promise<TasksApiResp
 
   // Build query params
   const queryParams: Record<string, string> = {
-    industry_id,
+    industryId,
     page: String(page), // backend is 0-based
     pageSize: String(limit), // backend uses pageSize
   }

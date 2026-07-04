@@ -89,8 +89,8 @@ export default function PermissionsMatrixPage() {
     void (async () => {
       try {
         const perms = await getPermissions({
-          industry_id: industryId,
-          role_id: roleId,
+          industryId: industryId,
+          roleId: roleId,
           visibleOnly: true,
         })
         if (cancelled) return
@@ -153,8 +153,8 @@ export default function PermissionsMatrixPage() {
     setSaving(true)
     try {
       await bulkSetPermissions({
-        industry_id: industryId,
-        role_id: roleId,
+        industryId: industryId,
+        roleId: roleId,
         menu_ids: [...enabled],
       })
       setToast({ open: true, msg: 'Permissions updated', sev: 'success' })

@@ -11,8 +11,8 @@ router.get('/', authenticate, async (req, res, next) => {
 
     let query = {};
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      const orgId = org ? (org.organizationId || org.organization_id) : null;
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      const orgId = org ? (org.organizationId || org.organizationId) : null;
       query = {
         $or: [
           { organizationId: null },
@@ -47,7 +47,7 @@ router.get('/', authenticate, async (req, res, next) => {
               name: item.name,
               link: item.link,
               status: item.status,
-              created_by: item.created_by,
+              createdBy: item.createdBy,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
               organizationId: doc.organizationId
@@ -75,8 +75,8 @@ router.post('/', authenticate, async (req, res, next) => {
 
     let orgId = null;
     if (req.user.role === 'admin') {
-      const org = await Organization.findOne({ industryId: req.user.industry_id }).exec();
-      orgId = org ? (org.organizationId || org.organization_id) : null;
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      orgId = org ? (org.organizationId || org.organizationId) : null;
     } else if (req.user.role === 'superAdmin') {
       orgId = req.body.organizationId || null;
     }
@@ -94,7 +94,7 @@ router.post('/', authenticate, async (req, res, next) => {
         name: duplicate.name,
         link: duplicate.link,
         status: duplicate.status,
-        created_by: duplicate.created_by,
+        createdBy: duplicate.createdBy,
         organizationId: doc.organizationId
       });
     }
@@ -103,7 +103,7 @@ router.post('/', authenticate, async (req, res, next) => {
       name: req.body.name,
       link: req.body.link,
       status: req.body.status || 'Active',
-      created_by: req.user.id
+      createdBy: req.user.id
     });
 
     await doc.save();
@@ -114,7 +114,7 @@ router.post('/', authenticate, async (req, res, next) => {
       name: createdItem.name,
       link: createdItem.link,
       status: createdItem.status,
-      created_by: createdItem.created_by,
+      createdBy: createdItem.createdBy,
       organizationId: doc.organizationId
     });
   } catch (err) {
@@ -137,7 +137,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
 
     const item = doc.news.id(req.params.id);
     if (req.user.role === 'admin') {
-      if (String(item.created_by) !== req.user.id) {
+      if (String(item.createdBy) !== req.user.id) {
         return res.status(403).json({ message: 'Forbidden: You can only edit news articles that you created' });
       }
     }
@@ -154,7 +154,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
       name: item.name,
       link: item.link,
       status: item.status,
-      created_by: item.created_by,
+      createdBy: item.createdBy,
       organizationId: doc.organizationId
     });
   } catch (err) {
@@ -177,7 +177,7 @@ router.delete('/:id', authenticate, async (req, res, next) => {
 
     const item = doc.news.id(req.params.id);
     if (req.user.role === 'admin') {
-      if (String(item.created_by) !== req.user.id) {
+      if (String(item.createdBy) !== req.user.id) {
         return res.status(403).json({ message: 'Forbidden: You can only delete news articles that you created' });
       }
     }

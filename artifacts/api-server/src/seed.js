@@ -17,7 +17,7 @@ const DEFAULT_INDUSTRIES = [
 const DEFAULT_SIDEBAR_CONFIGS = [
   {
     _id: new mongoose.Types.ObjectId('69e9f26fbc82449fb2eb7be6'),
-    industry_id: 'temp0001',
+    industryId: 'temp0001',
     is_ready_to_launch: true,
     roles: {
       admin: [
@@ -106,15 +106,15 @@ function capitalize(s) {
 async function seedUsers() {
   const User = mongoose.model('User');
   const bcrypt = require('bcryptjs');
-  const hashedDevPassword = bcrypt.hashSync('rubix1234', 10);
+  const hashedDevPassword = bcrypt.hashSync('lead@1221', 10);
 
-  // Ensure all existing users in the database are updated to password 'rubix1234'
+  // Ensure all existing users in the database are updated to password 'lead@1221'
   const list = await User.find({});
   for (const u of list) {
-    const match = await bcrypt.compare('rubix1234', u.password);
+    const match = await bcrypt.compare('lead@1221', u.password);
     if (!match) {
       await User.updateOne({ _id: u._id }, { $set: { password: hashedDevPassword } });
-      console.log(`[seed] reset password for user ${u.email} to 'rubix1234'`);
+      console.log(`[seed] reset password for user ${u.email} to 'lead@1221'`);
     }
   }
 
@@ -142,9 +142,9 @@ async function ensureDevAdmin() {
     existing.password = 'lead@1221';
     existing.role = 'superAdmin';
     existing.industryId = undefined;
-    existing.industry_id = undefined;
+    existing.industryId = undefined;
     existing.isActive = undefined;
-    existing.is_active = undefined;
+    existing.isActive = undefined;
     existing.reportingTo = undefined;
     existing.reporting_to = undefined;
     existing.needsPasswordChange = undefined;
@@ -209,7 +209,7 @@ async function migrateAndSeedSidebar() {
     sources = DEFAULT_SIDEBAR_CONFIGS;
   }
 
-  sources = sources.filter(src => String(src.industry_id || '').toLowerCase().trim() === 'temp0001');
+  sources = sources.filter(src => String(src.industryId || '').toLowerCase().trim() === 'temp0001');
 
   if (!sources.length) {
     console.log('[seed] no legacy sidebar data found for temp0001 — skipping migration');
@@ -220,12 +220,12 @@ async function migrateAndSeedSidebar() {
   let permCount = 0;
 
   for (const src of sources) {
-    const industryCode = String(src.industry_id || 'default').toLowerCase().trim();
+    const industryCode = String(src.industryId || 'default').toLowerCase().trim();
 
     // Industry
     const industry = await Industry.findOneAndUpdate(
       { code: industryCode },
-      { $setOnInsert: { code: industryCode, name: industryCode, is_active: true } },
+      { $setOnInsert: { code: industryCode, name: industryCode, isActive: true } },
       { upsert: true, new: true },
     );
 
@@ -233,13 +233,13 @@ async function migrateAndSeedSidebar() {
     for (const [roleKey, menuList] of Object.entries(rolesObj)) {
       // Role
       const role = await Role.findOneAndUpdate(
-        { industry_id: industry._id, key: roleKey },
+        { industryId: industry._id, key: roleKey },
         {
           $setOnInsert: {
-            industry_id: industry._id,
+            industryId: industry._id,
             key: roleKey,
             name: ROLE_DISPLAY_NAMES[roleKey] || roleKey,
-            is_active: true,
+            isActive: true,
           },
         },
         { upsert: true, new: true },
@@ -268,7 +268,7 @@ async function migrateAndSeedSidebar() {
                 module: moduleKey,
                 parent_id: null,
                 order: 0,
-                is_active: true,
+                isActive: true,
               },
             },
             { upsert: true, new: true },
@@ -288,7 +288,7 @@ async function migrateAndSeedSidebar() {
               parent_id: parentId,
               module: moduleKey,
               order: i,
-              is_active: true,
+              isActive: true,
             },
           },
           { upsert: true, new: true },
@@ -296,12 +296,12 @@ async function migrateAndSeedSidebar() {
         menuCount++;
 
         await SidebarPermission.updateOne(
-          { role_id: role._id, industry_id: industry._id, menu_id: menu._id },
+          { roleId: role._id, industryId: industry._id, menu_id: menu._id },
           {
             $set: { is_visible: true, order_override: i },
             $setOnInsert: {
-              role_id: role._id,
-              industry_id: industry._id,
+              roleId: role._id,
+              industryId: industry._id,
               menu_id: menu._id,
             },
           },
@@ -543,7 +543,7 @@ async function seedScreens() {
   for (const spec of SCREEN_DEFAULTS) {
     const screen = await Screen.findOneAndUpdate(
       { key: spec.key },
-      { $set: { name: spec.name, description: spec.description, is_active: true } },
+      { $set: { name: spec.name, description: spec.description, isActive: true } },
       { upsert: true, new: true },
     );
     const fieldDocs = [];
@@ -559,7 +559,7 @@ async function seedScreens() {
             is_required: !!f.is_required,
             sortable: true,
             order: f.order || 0,
-            is_active: true,
+            isActive: true,
             dropdown_source: f.dropdown_source || 'none',
             dropdown_api: f.dropdown_api || '',
             default_value: f.default_value !== undefined ? f.default_value : null,
@@ -578,28 +578,28 @@ async function seedScreens() {
 
   // Enable all fields for every (industry × role) combo we know about, so the
   // existing ContactsList / TasksList pages have data out of the box.
-  const industries = await Industry.find({ is_active: true }).lean().exec();
-  const roles = await Role.find({ is_active: true }).lean().exec();
+  const industries = await Industry.find({ isActive: true }).lean().exec();
+  const roles = await Role.find({ isActive: true }).lean().exec();
 
   let permCount = 0;
   for (const [, { screen, fields }] of fieldsByScreen) {
     for (const industry of industries) {
-      const industryRoles = roles.filter((r) => String(r.industry_id) === String(industry._id));
+      const industryRoles = roles.filter((r) => String(r.industryId) === String(industry._id));
       for (const role of industryRoles) {
         for (const field of fields) {
           await ScreenPermission.updateOne(
             {
               screen_id: screen._id,
-              role_id: role._id,
-              industry_id: industry._id,
+              roleId: role._id,
+              industryId: industry._id,
               field_id: field._id,
             },
             {
               $set: { is_enabled: true },
               $setOnInsert: {
                 screen_id: screen._id,
-                role_id: role._id,
-                industry_id: industry._id,
+                roleId: role._id,
+                industryId: industry._id,
                 field_id: field._id,
               },
             },
@@ -621,7 +621,7 @@ async function seedScreens() {
  *
  * - Inserts any missing entries (matched by `code` = lowercased seed `id`).
  * - Refreshes `name` on existing rows so display names stay in sync with the
- *   curated list, but never flips `is_active` (admins may have disabled one).
+ *   curated list, but never flips `isActive` (admins may have disabled one).
  * - Always runs on boot — it's a no-op once the rows already match.
  */
 async function seedIndustries() {
@@ -638,7 +638,7 @@ async function seedIndustries() {
       { code },
       {
         $set: { name: String(name) },
-        $setOnInsert: { code, is_active: true, status: 'Launched' },
+        $setOnInsert: { code, isActive: true, status: 'Launched' },
       },
       { upsert: true, new: false, includeResultMetadata: true },
     );
@@ -659,13 +659,13 @@ async function seedIndustries() {
   for (const ind of allIndustries) {
     for (const key of DEFAULT_ROLES) {
       const r = await Role.findOneAndUpdate(
-        { industry_id: ind._id, key },
+        { industryId: ind._id, key },
         {
           $setOnInsert: {
-            industry_id: ind._id,
+            industryId: ind._id,
             key,
             name: ROLE_DISPLAY_NAMES[key] || capitalize(key),
-            is_active: true,
+            isActive: true,
           },
         },
         { upsert: true, new: false, includeResultMetadata: true },

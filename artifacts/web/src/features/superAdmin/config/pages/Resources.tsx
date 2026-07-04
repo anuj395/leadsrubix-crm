@@ -101,7 +101,7 @@ export default function ResourcesPage() {
         }
         
         // Filter screens starting with resource_
-        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.is_active)
+        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive)
         const orderMap: Record<string, number> = {
           'resourceCarousel': 10,
           'resourceLocations': 20,
@@ -126,8 +126,8 @@ export default function ResourcesPage() {
 
   // Load configuration and data for selected screen / organization
   const activeScreen = resourceScreens[activeTab]
-  const activeOrg = organizations.find((o) => (o.organizationId || o.organization_id) === selectedOrgId)
-  const selectedIndustry = activeOrg?.industry_id || selectedIndustryState || 'temp0001'
+  const activeOrg = organizations.find((o) => (o.organizationId || o.organizationId) === selectedOrgId)
+  const selectedIndustry = activeOrg?.industryId || selectedIndustryState || 'temp0001'
 
   useEffect(() => {
     setSelectedRowIds([])

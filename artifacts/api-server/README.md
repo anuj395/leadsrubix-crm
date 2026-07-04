@@ -35,7 +35,7 @@ tests/           # automated tests (Jest + supertest)
 
 - Add databases/ORMS as needed (Sequelize, Mongoose, etc.)
 - Authentication has been added via JWT with roles (`superAdmin`, `admin`, `leadManager`, `teamLead`, `sales`).
-  - POST `/api/auth/signup` accepts `email`, `password`, `role`. Optional: `industry_id`.
+  - POST `/api/auth/signup` accepts `email`, `password`, `role`. Optional: `industryId`.
   - POST `/api/auth/login` accepts `email`, `password`.
   - Protected routes require `Authorization: Bearer <token>` header.
 - Use ESLint to enforce coding style: `npm run lint` or `npm run fix`

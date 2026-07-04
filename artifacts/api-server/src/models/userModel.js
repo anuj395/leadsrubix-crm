@@ -13,14 +13,14 @@ exports.ROLES = ['sales', 'teamLead', 'leadManager', 'admin', 'superAdmin'];
 
 const userSchema = new mongoose.Schema(
   {
-    organizationName: { type: String, alias: 'organization_name' },
+    organizationName: { type: String },
     firstName: { type: String, default: '' },
     lastName: { type: String, default: '' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, enum: exports.ROLES, default: 'sales' },
-    organizationId: { type: String, default: null, alias: 'organization_id' },
-    industryId: { type: String, alias: 'industry_id' },
+    organizationId: { type: String, default: null },
+    industryId: { type: String },
     contactNumber: { type: String, default: '', alias: 'contact_no' },
     userImage: { type: String, default: '', alias: 'user_image' },
     designation: { type: String, default: '' },
@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
     branch: { type: String, default: '' },
     branchPermission: { type: [String], default: [] },
     status: { type: String, default: 'active' },
-    isActive: { type: Boolean, default: true, alias: 'is_active' },
+    isActive: { type: Boolean, default: true },
     reportingTo: { type: String, default: '', alias: 'reporting_to' },
     fields: { type: mongoose.Schema.Types.Mixed, default: {} },
     needsPasswordChange: { type: Boolean, default: false, alias: 'needs_password_change' },
@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
     latestUpdateProfile: { type: Boolean, default: false, alias: 'latest_update_profile' },
     activatedAt: { type: Date, default: null, alias: 'activated_at' },
     deactivatedAt: { type: Date, default: null, alias: 'deactivated_at' },
-    createdBy: { type: String, default: null, alias: 'created_by' },
+    createdBy: { type: String, default: null },
   },
   { 
     timestamps: true, 
@@ -84,10 +84,10 @@ function shapePublic(u) {
     name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
     email: u.email,
     role: u.role,
-    industryId: u.industryId || u.industry_id,
-    industry_id: u.industryId || u.industry_id,
-    isActive: u.isActive !== false && u.is_active !== false,
-    is_active: u.isActive !== false && u.is_active !== false,
+    industryId: u.industryId || u.industryId,
+    industryId: u.industryId || u.industryId,
+    isActive: u.isActive !== false && u.isActive !== false,
+    isActive: u.isActive !== false && u.isActive !== false,
     reportingTo: u.reportingTo || u.reporting_to || '',
     reporting_to: u.reportingTo || u.reporting_to || '',
     fields: u.fields || {},
@@ -104,9 +104,9 @@ exports.findAll = async () => {
   return list.map(shapePublic);
 };
 
-exports.list = async ({ industry_id } = {}) => {
+exports.list = async ({ industryId } = {}) => {
   const q = {};
-  if (industry_id) q.industry_id = industry_id;
+  if (industryId) q.industryId = industryId;
   const list = await User.find(q).select('-password').sort({ createdAt: -1 }).lean().exec();
   return list.map(shapePublic);
 };
@@ -117,14 +117,14 @@ exports.list = async ({ industry_id } = {}) => {
  * drive server-side pagination.
  */
 exports.listPaged = async ({
-  industry_id,
+  industryId,
   q: search,
   page = 0,
   pageSize = 25,
   sort,
 } = {}) => {
   const filter = {};
-  if (industry_id) filter.industry_id = industry_id;
+  if (industryId) filter.industryId = industryId;
   if (search) {
     const safe = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rx = new RegExp(safe, 'i');
@@ -170,15 +170,15 @@ exports.update = async (id, patch) => {
   if (patch.lastName !== undefined || patch.last_name !== undefined) {
     $set.lastName = patch.lastName !== undefined ? patch.lastName : patch.last_name;
   }
-  if (patch.organizationName !== undefined || patch.organization_name !== undefined) {
-    $set.organizationName = patch.organizationName !== undefined ? patch.organizationName : patch.organization_name;
+  if (patch.organizationName !== undefined || patch.organizationName !== undefined) {
+    $set.organizationName = patch.organizationName !== undefined ? patch.organizationName : patch.organizationName;
   }
   if (patch.role !== undefined) $set.role = patch.role;
-  if (patch.industryId !== undefined || patch.industry_id !== undefined) {
-    $set.industryId = patch.industryId !== undefined ? patch.industryId : patch.industry_id;
+  if (patch.industryId !== undefined || patch.industryId !== undefined) {
+    $set.industryId = patch.industryId !== undefined ? patch.industryId : patch.industryId;
   }
-  if (patch.isActive !== undefined || patch.is_active !== undefined) {
-    $set.isActive = !!(patch.isActive !== undefined ? patch.isActive : patch.is_active);
+  if (patch.isActive !== undefined || patch.isActive !== undefined) {
+    $set.isActive = !!(patch.isActive !== undefined ? patch.isActive : patch.isActive);
   }
   if (patch.reportingTo !== undefined || patch.reporting_to !== undefined) {
     $set.reportingTo = String(patch.reportingTo !== undefined ? patch.reportingTo : (patch.reporting_to || ''));

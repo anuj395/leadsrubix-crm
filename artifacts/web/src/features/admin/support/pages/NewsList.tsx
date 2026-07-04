@@ -32,7 +32,7 @@ export interface NewsArticle {
   name: string
   link: string
   status: 'Active' | 'Draft'
-  created_by?: string
+  createdBy?: string
   organizationId?: string | null
 }
 
@@ -146,8 +146,8 @@ export default function NewsListPage() {
         name: n.name,
         link: n.link,
         status: n.status,
-        created_by: n.created_by || '',
-        organizationId: n.organizationId || n.organization_id || null,
+        createdBy: n.createdBy || '',
+        organizationId: n.organizationId || n.organizationId || null,
       }))
       setItems(mapped)
     } catch (e: any) {
@@ -293,7 +293,7 @@ export default function NewsListPage() {
           sortable: false,
           filterable: false,
           renderCell: (p) => {
-            const canModify = p.row.created_by === user?.id
+            const canModify = p.row.createdBy === user?.id
             return (
               <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
                 {canModify && (

@@ -62,9 +62,9 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   const fetchMenu = useCallback(async () => {
     if (!user || isSuperAdmin) return
 
-    const industryId = user.industry_id
+    const industryId = user.industryId
     if (!industryId) {
-      console.warn('[useSidebarMenu] user.industry_id is missing — skipping API fetch.')
+      console.warn('[useSidebarMenu] user.industryId is missing — skipping API fetch.')
       return
     }
 

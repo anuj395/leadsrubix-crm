@@ -5,7 +5,7 @@
  * Accepts all table-control params (page, sort, search, filters) and
  * returns paginated rows from the backend API.
  *
- * Falls back to a client-side mock when industry_id is absent,
+ * Falls back to a client-side mock when industryId is absent,
  * matching the pattern already used by useTableConfig.
  */
 import { useState, useEffect, useCallback } from 'react'
@@ -183,7 +183,7 @@ function applyMockClientSide(
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 interface UseContactsOptions {
-  industry_id?: string
+  industryId?: string
   pagination: PaginationState
   sort: SortState
   search: string
@@ -199,7 +199,7 @@ interface UseContactsResult {
 }
 
 export function useContacts({
-  industry_id,
+  industryId,
   pagination,
   sort,
   search,
@@ -218,10 +218,10 @@ export function useContacts({
 
     async function load() {
       try {
-        if (industry_id) {
+        if (industryId) {
           // ── Real API ──────────────────────────────────────────────────────
           const result = await fetchContacts({
-            industry_id,
+            industryId,
             page: pagination.page,
             limit: pagination.rowsPerPage,
             search,
@@ -278,7 +278,7 @@ export function useContacts({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    industry_id,
+    industryId,
     pagination.page,
     pagination.rowsPerPage,
     sort.field,

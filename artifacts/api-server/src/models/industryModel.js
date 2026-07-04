@@ -5,7 +5,7 @@ const industrySchema = new mongoose.Schema(
     code: { type: String, required: true, unique: true, trim: true, lowercase: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
-    is_active: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true },
     status: { type: String, enum: ['Launched', 'Pre-Launched', 'Pending'], default: 'Launched' },
   },
   { timestamps: true },
@@ -20,7 +20,7 @@ exports.Industry = Industry;
 exports.list = async ({ activeOnly = false } = {}) => {
   const q = {};
   if (activeOnly) {
-    q.is_active = true;
+    q.isActive = true;
     q.status = 'Launched';
   }
   return Industry.find(q).sort({ code: 1 }).lean().exec();
@@ -38,12 +38,12 @@ exports.findByCode = async (code) => {
   return doc;
 };
 
-exports.create = async ({ code, name, description, is_active, status }) => {
+exports.create = async ({ code, name, description, isActive, status }) => {
   const doc = await Industry.create({
     code: String(code).toLowerCase().trim(),
     name: String(name).trim(),
     description: description || '',
-    is_active: is_active !== false,
+    isActive: isActive !== false,
     status: status || 'Launched',
   });
   return doc.toObject();
@@ -54,7 +54,7 @@ exports.update = async (id, patch) => {
   if (patch.code !== undefined) update.code = String(patch.code).toLowerCase().trim();
   if (patch.name !== undefined) update.name = String(patch.name).trim();
   if (patch.description !== undefined) update.description = String(patch.description);
-  if (patch.is_active !== undefined) update.is_active = !!patch.is_active;
+  if (patch.isActive !== undefined) update.isActive = !!patch.isActive;
   if (patch.status !== undefined) update.status = String(patch.status);
   return Industry.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec();
 };

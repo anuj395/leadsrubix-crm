@@ -61,20 +61,20 @@ const CORE_COLUMNS: ResolvedTableHeader[] = [
   { key: 'name',        label: 'Name',     type: 'text',   sortable: true,  order: -100, options: [], visible: true },
   { key: 'email',       label: 'Email',    type: 'email',  sortable: true,  order: -90,  options: [], visible: true },
   { key: 'role',        label: 'Role',     type: 'badge',  sortable: true,  order: -80,  options: [], visible: true },
-  { key: 'industry_id', label: 'Industry', type: 'text',   sortable: false, order: -70,  options: [], visible: true },
-  { key: 'is_active',   label: 'Status',   type: 'badge',  sortable: true,  order: -60,  options: [], visible: true },
+  { key: 'industryId', label: 'Industry', type: 'text',   sortable: false, order: -70,  options: [], visible: true },
+  { key: 'isActive',   label: 'Status',   type: 'badge',  sortable: true,  order: -60,  options: [], visible: true },
 ]
 
 // Sortable columns the API will accept; everything else sorts client-side.
-const SERVER_SORTABLE = new Set(['name', 'email', 'role', 'is_active', 'createdAt', 'updatedAt'])
+const SERVER_SORTABLE = new Set(['name', 'email', 'role', 'isActive', 'createdAt', 'updatedAt'])
 
 interface CoreFormState {
   name: string
   email: string
   password: string
   role: string
-  industry_id: string
-  is_active: boolean
+  industryId: string
+  isActive: boolean
   reporting_to: string
 }
 
@@ -83,8 +83,8 @@ const emptyCore: CoreFormState = {
   email: '',
   password: '',
   role: 'sales',
-  industry_id: '',
-  is_active: true,
+  industryId: '',
+  isActive: true,
   reporting_to: '',
 }
 
@@ -162,8 +162,8 @@ export default function UserListPage() {
           const realEstate = list.find((i) => i.code === 'temp0001')
           const defaultCode = realEstate ? realEstate.code : (list[0]?.code ?? '')
           setFilterIndustry((cur) => cur || defaultCode)
-        } else if (authedUser?.industry_id) {
-          setFilterIndustry(authedUser.industry_id)
+        } else if (authedUser?.industryId) {
+          setFilterIndustry(authedUser.industryId)
         }
       } catch (e) {
         const err = e as { response?: { data?: { message?: string } } }
@@ -171,7 +171,7 @@ export default function UserListPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [isSuperAdmin, authedUser?.industry_id])
+  }, [isSuperAdmin, authedUser?.industryId])
 
   // ── Load roles for the selected industry (drives Add User Role dropdown).
   useEffect(() => {
@@ -252,9 +252,9 @@ export default function UserListPage() {
 
   const gridColumns = useMemo<GridColDef<AdminUser>[]>(() => {
     const cols: GridColDef<AdminUser>[] = allColumns.map((c) => {
-      const isFixed = ['role', 'is_active', 'industry_id', 'phone', 'employee_id', 'department', 'designation'].includes(c.key)
+      const isFixed = ['role', 'isActive', 'industryId', 'phone', 'employee_id', 'department', 'designation'].includes(c.key)
       const columnWidthProps = isFixed
-        ? { width: c.key === 'role' ? 160 : c.key === 'is_active' ? 130 : c.key === 'industry_id' ? 120 : 150 }
+        ? { width: c.key === 'role' ? 160 : c.key === 'isActive' ? 130 : c.key === 'industryId' ? 120 : 150 }
         : { flex: 1, minWidth: 140 }
 
       return {
@@ -272,8 +272,8 @@ export default function UserListPage() {
           return (row.fields as Record<string, unknown>)?.[c.key]
         },
         renderCell: (params: GridRenderCellParams<AdminUser>) => {
-          if (c.key === 'is_active') {
-            return <StatusBadge value={params.row.is_active ? 'Active' : 'Inactive'} />
+          if (c.key === 'isActive') {
+            return <StatusBadge value={params.row.isActive ? 'Active' : 'Inactive'} />
           }
           if (c.key === 'role') return <StatusBadge value={params.row.role} hideDot />
           const v = params.value
@@ -320,7 +320,7 @@ export default function UserListPage() {
     setEditing(null)
     setCore({
       ...emptyCore,
-      industry_id: filterIndustry || authedUser?.industry_id || '',
+      industryId: filterIndustry || authedUser?.industryId || '',
       role: roles[0]?.key || 'sales',
     })
     setDynamicValues({})
@@ -335,8 +335,8 @@ export default function UserListPage() {
       email: row.email,
       password: '',
       role: row.role,
-      industry_id: row.industry_id ?? '',
-      is_active: row.is_active,
+      industryId: row.industryId ?? '',
+      isActive: row.isActive,
       reporting_to: row.reporting_to ?? '',
     })
     setDynamicValues((row.fields as Record<string, unknown>) ?? {})
@@ -357,7 +357,7 @@ export default function UserListPage() {
       try {
         const list = await listManagerCandidates(
           core.role,
-          isSuperAdmin ? core.industry_id || undefined : undefined,
+          isSuperAdmin ? core.industryId || undefined : undefined,
         )
         if (cancelled) return
         setManagers(list)
@@ -374,7 +374,7 @@ export default function UserListPage() {
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, core.role, core.industry_id, isSuperAdmin])
+  }, [dialogOpen, core.role, core.industryId, isSuperAdmin])
 
   const closeDialog = () => {
     if (saving) return
@@ -387,7 +387,7 @@ export default function UserListPage() {
     if (!core.email.trim()) { setFormError('Email is required'); return }
     if (!editing && !core.password) { setFormError('Password is required for a new user'); return }
     if (!core.role) { setFormError('Role is required'); return }
-    if (isSuperAdmin && !core.industry_id) { setFormError('Industry is required'); return }
+    if (isSuperAdmin && !core.industryId) { setFormError('Industry is required'); return }
 
     setSaving(true)
     try {
@@ -400,8 +400,8 @@ export default function UserListPage() {
         await updateUser(editing._id, {
           name: core.name.trim(),
           role: core.role,
-          industry_id: core.industry_id || undefined,
-          is_active: core.is_active,
+          industryId: core.industryId || undefined,
+          isActive: core.isActive,
           password: core.password || undefined,
           reporting_to,
           fields: dynVals,
@@ -413,8 +413,8 @@ export default function UserListPage() {
           email: core.email.trim().toLowerCase(),
           password: core.password,
           role: core.role,
-          industry_id: core.industry_id || undefined,
-          is_active: core.is_active,
+          industryId: core.industryId || undefined,
+          isActive: core.isActive,
           reporting_to: reporting_to || undefined,
           fields: dynVals,
         })
@@ -521,7 +521,7 @@ export default function UserListPage() {
         <DialogContent dividers>
           <DynamicForm
             screen="users"
-            industry_code={isSuperAdmin ? core.industry_id : undefined}
+            industry_code={isSuperAdmin ? core.industryId : undefined}
             role_key={core.role}
             initialValues={dynamicValues as Record<string, string | number | boolean | null>}
             onSubmit={async (vals) => { await handleSubmit(vals as Record<string, unknown>) }}
@@ -584,8 +584,8 @@ export default function UserListPage() {
                       select
                       size="small"
                       label="Industry *"
-                      value={core.industry_id}
-                      onChange={(e) => setCore({ ...core, industry_id: e.target.value })}
+                      value={core.industryId}
+                      onChange={(e) => setCore({ ...core, industryId: e.target.value })}
                       disabled={!!editing}
                       fullWidth
                     >
@@ -600,8 +600,8 @@ export default function UserListPage() {
                     select
                     size="small"
                     label="Status"
-                    value={core.is_active ? 'active' : 'inactive'}
-                    onChange={(e) => setCore({ ...core, is_active: e.target.value === 'active' })}
+                    value={core.isActive ? 'active' : 'inactive'}
+                    onChange={(e) => setCore({ ...core, isActive: e.target.value === 'active' })}
                     fullWidth
                   >
                     <MenuItem value="active">Active</MenuItem>

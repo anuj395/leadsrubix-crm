@@ -6,7 +6,7 @@ const ScreenSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   description: { type: String, default: '' },
-  is_active: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const ScreenFieldSchema = new mongoose.Schema({
@@ -22,13 +22,13 @@ const ScreenFieldSchema = new mongoose.Schema({
   is_required: { type: Boolean, default: false },
   sortable: { type: Boolean, default: true },
   order: { type: Number, default: 0 },
-  is_active: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const ScreenPermissionSchema = new mongoose.Schema({
   screen_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true },
-  role_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
-  industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
+  roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
+  industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
   field_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ScreenField', required: true },
   is_enabled: { type: Boolean, default: true }
 }, { timestamps: true });
@@ -36,18 +36,18 @@ const ScreenPermissionSchema = new mongoose.Schema({
 const IndustrySchema = new mongoose.Schema({
   code: { type: String, required: true },
   name: { type: String, required: true },
-  is_active: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const RoleSchema = new mongoose.Schema({
-  industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
+  industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
   key: { type: String, required: true },
   name: { type: String, required: true },
-  is_active: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const ResourceItemSchema = new mongoose.Schema({
-  industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
+  industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
   resource_key: { type: String, required: true },
   data: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { timestamps: true });
@@ -164,7 +164,7 @@ async function main() {
   await mongoose.connect(uri);
   console.log('Connected to DB');
 
-  // Perform database migration to rename organization_id to organizationId in resource_items
+  // Perform database migration to rename organizationId to organizationId in resource_items
   const db = mongoose.connection.db;
   const collection = db.collection('resource_items');
 
@@ -174,18 +174,18 @@ async function main() {
     console.log(`Cleaned up ${deleteLegacyRes.deletedCount} legacy resource documents.`);
   }
 
-  const cursor = collection.find({ organization_id: { $exists: true } });
+  const cursor = collection.find({ organizationId: { $exists: true } });
   while (await cursor.hasNext()) {
     const doc = await cursor.next();
     await collection.updateOne(
       { _id: doc._id },
       {
-        $set: { organizationId: doc.organization_id },
-        $unset: { organization_id: "" }
+        $set: { organizationId: doc.organizationId },
+        $unset: { organizationId: "" }
       }
     );
   }
-  console.log('Database migration of organization_id completed successfully!');
+  console.log('Database migration of organizationId completed successfully!');
 
   // Resolve Real Estate industry (code: temp0001)
   const realEstate = await Industry.findOne({ code: 'temp0001' });
@@ -212,7 +212,7 @@ async function main() {
   console.log(`Resolved Real Estate Industry ID: ${realEstate._id}`);
 
   // Fetch all roles for Real Estate
-  const roles = await Role.find({ industry_id: realEstate._id });
+  const roles = await Role.find({ industryId: realEstate._id });
   console.log(`Found ${roles.length} roles for Real Estate`);
 
   // Clean up deprecated resource_carousel and other snake_case screens
@@ -227,7 +227,7 @@ async function main() {
     console.log(`Seeding Screen: ${spec.key}...`);
     const screen = await Screen.findOneAndUpdate(
       { key: spec.key },
-      { name: spec.name, description: spec.description, is_active: true },
+      { name: spec.name, description: spec.description, isActive: true },
       { upsert: true, new: true }
     );
 
@@ -246,7 +246,7 @@ async function main() {
           is_required: !!f.is_required,
           sortable: true,
           order: f.order || 0,
-          is_active: true
+          isActive: true
         },
         { upsert: true, new: true }
       );
@@ -259,8 +259,8 @@ async function main() {
         await ScreenPermission.updateOne(
           {
             screen_id: screen._id,
-            role_id: role._id,
-            industry_id: realEstate._id,
+            roleId: role._id,
+            industryId: realEstate._id,
             field_id: field._id
           },
           { $set: { is_enabled: true } },
@@ -270,12 +270,12 @@ async function main() {
     }
 
     // Seed initial items if none exist
-    const count = await ResourceItem.countDocuments({ resource_key: spec.key, industry_id: realEstate._id });
+    const count = await ResourceItem.countDocuments({ resource_key: spec.key, industryId: realEstate._id });
     if (count === 0) {
       console.log(`Seeding ${spec.items.length} initial items for ${spec.key}`);
       for (const itemData of spec.items) {
         await ResourceItem.create({
-          industry_id: realEstate._id,
+          industryId: realEstate._id,
           resource_key: spec.key,
           data: itemData
         });

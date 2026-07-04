@@ -11,7 +11,7 @@ backend, matching the diagram you attached.
 2. **Signup**
    - New users can register using the `/api/auth/signup` endpoint.
    - Required fields: `email`, `password`, `role`.
-   - Optional fields: `industry_id` (string) — used to associate users with an industry or tenant.
+   - Optional fields: `industryId` (string) — used to associate users with an industry or tenant.
    - The backend verifies the role is allowed and email is unique.
    - Passwords are hashed and a JWT is returned along with basic user info.
 

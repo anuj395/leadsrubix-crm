@@ -24,7 +24,7 @@ router.post('/resolve', authenticate, validateResolve, resolve);
 //   - upsert is a write path → superAdmin only
 //   - read endpoints just need a logged-in user
 router.post('/', authenticate, permit('superAdmin'), validateUpsert, upsert);
-router.get('/:industry_id', authenticate, validateGet, getByIndustry);
+router.get('/:industryId', authenticate, validateGet, getByIndustry);
 router.post('/user', authenticate, validateUserRequest, getForUser);
 
 module.exports = router;

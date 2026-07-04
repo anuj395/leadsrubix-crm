@@ -10,28 +10,28 @@ const ACTIONS = ['view', 'add', 'edit', 'delete'];
 
 exports.ACTIONS = ACTIONS;
 
-exports.list = ({ role_id, industry_id, screen_id }) =>
-  model.list({ role_id, industry_id, screen_id });
+exports.list = ({ roleId, industryId, screen_id }) =>
+  model.list({ roleId, industryId, screen_id });
 
-exports.upsert = async ({ role_id, industry_id, screen_id, can_view, can_add, can_edit, can_delete }) => {
-  if (!role_id || !industry_id || !screen_id) {
-    const e = new Error('role_id, industry_id and screen_id are required'); e.status = 400; throw e;
+exports.upsert = async ({ roleId, industryId, screen_id, can_view, can_add, can_edit, can_delete }) => {
+  if (!roleId || !industryId || !screen_id) {
+    const e = new Error('roleId, industryId and screen_id are required'); e.status = 400; throw e;
   }
-  if (!isObjectId(role_id) || !isObjectId(industry_id) || !isObjectId(screen_id)) {
-    const e = new Error('role_id, industry_id and screen_id must be valid ObjectIds'); e.status = 400; throw e;
+  if (!isObjectId(roleId) || !isObjectId(industryId) || !isObjectId(screen_id)) {
+    const e = new Error('roleId, industryId and screen_id must be valid ObjectIds'); e.status = 400; throw e;
   }
   // Ensure referenced docs actually exist and that the role belongs to the
   // requested industry — prevents orphan / cross-industry rows from direct API calls.
   const [role, screen] = await Promise.all([
-    roleModel.findById(role_id),
+    roleModel.findById(roleId),
     screenModel.findById(screen_id),
   ]);
   if (!role)   { const e = new Error('Role not found');   e.status = 404; throw e; }
   if (!screen) { const e = new Error('Screen not found'); e.status = 404; throw e; }
-  if (String(role.industry_id) !== String(industry_id)) {
+  if (String(role.industryId) !== String(industryId)) {
     const e = new Error('Role does not belong to the specified industry'); e.status = 400; throw e;
   }
-  return model.upsert({ role_id, industry_id, screen_id, can_view, can_add, can_edit, can_delete });
+  return model.upsert({ roleId, industryId, screen_id, can_view, can_add, can_edit, can_delete });
 };
 
 /**
@@ -43,16 +43,16 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
   if (!authedUser) return false;
   if (!ACTIONS.includes(action)) return false;
   if (authedUser.role === 'superAdmin' || authedUser.role === 'admin') return true;
-  if (!authedUser.industry_id) return false;
+  if (!authedUser.industryId) return false;
 
   const screen = await screenModel.findByKey(screen_key);
-  if (!screen || !screen.is_active) return false;
-  const role = await roleModel.findByIndustryAndKey(authedUser.industry_id, authedUser.role);
+  if (!screen || !screen.isActive) return false;
+  const role = await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role);
   if (!role) return false;
 
   const row = await model.findFor({
-    role_id: role._id,
-    industry_id: authedUser.industry_id,
+    roleId: role._id,
+    industryId: authedUser.industryId,
     screen_id: screen._id,
   });
   if (!row) return false;

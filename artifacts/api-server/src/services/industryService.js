@@ -47,7 +47,7 @@ exports.create = async (payload) => {
     code: nextCode,
     name: payload.name,
     description: payload.description,
-    is_active: payload.is_active,
+    isActive: payload.isActive,
     status: payload.status,
   });
 };
@@ -83,14 +83,14 @@ exports.remove = async (id) => {
     throw err;
   }
 
-  const roles = await roleModel.list({ industry_id: id });
+  const roles = await roleModel.list({ industryId: id });
   const roleIds = roles.map((r) => String(r._id));
 
   // 1. delete every permission row for this industry (covers all roles + menus).
   if (typeof permissionModel.removeByIndustry === 'function') {
     await permissionModel.removeByIndustry(id);
   } else if (typeof permissionModel.deleteMany === 'function') {
-    await permissionModel.deleteMany({ industry_id: id });
+    await permissionModel.deleteMany({ industryId: id });
   } else {
     // Fallback: per-role cleanup
     for (const rid of roleIds) {
@@ -105,7 +105,7 @@ exports.remove = async (id) => {
   if (typeof screenPermissionModel.removeByIndustry === 'function') {
     await screenPermissionModel.removeByIndustry(id);
   } else if (typeof screenPermissionModel.deleteMany === 'function') {
-    await screenPermissionModel.deleteMany({ industry_id: id });
+    await screenPermissionModel.deleteMany({ industryId: id });
   }
 
   // 1c. cascade role-action permissions for this industry.

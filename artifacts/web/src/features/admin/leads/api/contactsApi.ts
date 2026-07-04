@@ -20,7 +20,7 @@ export interface ContactsApiResponse {
 }
 
 export interface FetchContactsParams {
-  industry_id: string
+  industryId: string
   page?: number          // 0-based (converted to 1-based before sending)
   limit?: number
   search?: string
@@ -35,7 +35,7 @@ export interface FetchContactsParams {
  */
 export async function fetchContacts(params: FetchContactsParams): Promise<ContactsApiResponse> {
   const {
-    industry_id,
+    industryId,
     page = 0,
     limit = 10,
     search = '',
@@ -46,7 +46,7 @@ export async function fetchContacts(params: FetchContactsParams): Promise<Contac
 
   // Build query params
   const queryParams: Record<string, string> = {
-    industry_id,
+    industryId,
     page: String(page + 1), // backend is 1-based
     limit: String(limit),
   }

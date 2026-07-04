@@ -8,11 +8,11 @@ const mongoose = require('mongoose');
 
 const branchSchema = new mongoose.Schema(
   {
-    industry_id: { type: String, default: null, index: true },
+    industryId: { type: String, default: null, index: true },
     name:        { type: String, required: true, trim: true },
     code:        { type: String, default: '', trim: true },
-    is_active:   { type: Boolean, default: true },
-    created_by:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    isActive:   { type: Boolean, default: true },
+    createdBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true, strict: false, minimize: false },
 );

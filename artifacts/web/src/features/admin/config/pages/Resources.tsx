@@ -46,7 +46,7 @@ import { useConfirm } from '@/components/common/ConfirmContext'
 
 export default function ResourcesPage() {
   const user = useAppSelector((s) => s.auth.user)
-  const userIndustryCode = user?.industry_id
+  const userIndustryCode = user?.industryId
 
   const [resourceScreens, setResourceScreens] = useState<Screen[]>([])
   const [activeTab, setActiveTab] = useState(0)
@@ -91,7 +91,7 @@ export default function ResourcesPage() {
         const scrs = await getScreens()
         
         // Filter screens starting with resource_
-        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.is_active)
+        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive)
         const orderMap: Record<string, number> = {
           'resourceCarousel': 10,
           'resourceLocations': 20,

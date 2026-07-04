@@ -23,7 +23,7 @@ const TABLE_TYPES = new Set(['text', 'badge', 'avatar', 'date', 'number'])
 
 export function useTableConfig(
   screen: string,
-  industry_id?: string,
+  industryId?: string,
 ): UseTableConfigResult {
   const [columns, setColumns] = useState<DbColumnConfig[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,17 +37,17 @@ export function useTableConfig(
 
     async function fetchConfig() {
       try {
-        if (!industry_id) {
+        if (!industryId) {
           if (!cancelled) {
             setColumns([])
-            setError('Missing industry_id — cannot load table configuration')
+            setError('Missing industryId — cannot load table configuration')
           }
           return
         }
 
         const data = await resolveScreen({
           screen_key: screen,
-          industry_code: industry_id,
+          industry_code: industryId,
         })
 
         const cols: DbColumnConfig[] = data.table_headers.map((h) => ({
@@ -74,7 +74,7 @@ export function useTableConfig(
     return () => {
       cancelled = true
     }
-  }, [screen, industry_id, tick])
+  }, [screen, industryId, tick])
 
   const reload = useCallback(() => setTick((t) => t + 1), [])
 

@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(
   {
-    industryId:     { type: String, default: null, index: true, alias: 'industry_id' },
+    industryId:     { type: String, default: null, index: true },
     // Optional reference to the contact this booking originated from.
     contactId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true, alias: 'contact_id' },
     customerName:   { type: String, default: '', alias: 'customer_name' },
@@ -23,8 +23,8 @@ const bookingSchema = new mongoose.Schema(
     notes:          { type: [mongoose.Schema.Types.Mixed], default: [] },
     attachments:    { type: [mongoose.Schema.Types.Mixed], default: [] },
     callLogs:       { type: [mongoose.Schema.Types.Mixed], default: [] },
-    isActive:       { type: Boolean, default: true, alias: 'is_active' },
-    createdBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, alias: 'created_by' },
+    isActive:       { type: Boolean, default: true },
+    createdBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { 
     timestamps: true, 

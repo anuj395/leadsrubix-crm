@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const apiTokenSchema = new mongoose.Schema(
   {
     api_key: { type: String, required: true, unique: true },
-    organizationId: { type: String, required: true, alias: 'organization_id' },
+    organizationId: { type: String, required: true },
     source: { type: String, required: true }, // e.g. "Webhook", "Facebook"
     leadSourceId: { type: String, default: null }, // camelCase matching Firebase
     countryCode: { type: String, default: '+91', alias: 'country_code' },

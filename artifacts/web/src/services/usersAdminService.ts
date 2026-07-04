@@ -6,8 +6,8 @@ export interface AdminUser {
   name?: string
   email: string
   role: string
-  industry_id?: string
-  is_active: boolean
+  industryId?: string
+  isActive: boolean
   reporting_to?: string
   fields: Record<string, unknown>
   createdAt?: string
@@ -19,8 +19,8 @@ export interface CreateUserInput {
   password: string
   name?: string
   role: string
-  industry_id?: string
-  is_active?: boolean
+  industryId?: string
+  isActive?: boolean
   reporting_to?: string
   fields?: Record<string, unknown>
 }
@@ -28,8 +28,8 @@ export interface CreateUserInput {
 export interface UpdateUserInput {
   name?: string
   role?: string
-  industry_id?: string
-  is_active?: boolean
+  industryId?: string
+  isActive?: boolean
   password?: string
   reporting_to?: string
   fields?: Record<string, unknown>
@@ -53,7 +53,7 @@ export async function listManagerCandidates(
   industryId?: string,
 ): Promise<ManagerCandidate[]> {
   const params = new URLSearchParams({ profile })
-  if (industryId) params.set('industry_id', industryId)
+  if (industryId) params.set('industryId', industryId)
   const res = await api.get(`users/managers?${params.toString()}`)
   return (res.data?.items ?? []) as ManagerCandidate[]
 }
@@ -66,7 +66,7 @@ async function safeList(path: string): Promise<AdminUser[]> {
 }
 
 export async function listUsers(industryId?: string): Promise<AdminUser[]> {
-  const qs = industryId ? `?industry_id=${encodeURIComponent(industryId)}` : ''
+  const qs = industryId ? `?industryId=${encodeURIComponent(industryId)}` : ''
   return safeList(`users${qs}`)
 }
 
@@ -90,7 +90,7 @@ export interface ListUsersPagedArgs {
  */
 export async function listUsersPaged(args: ListUsersPagedArgs): Promise<PagedUsers> {
   const params = new URLSearchParams()
-  if (args.industryId) params.set('industry_id', args.industryId)
+  if (args.industryId) params.set('industryId', args.industryId)
   params.set('page', String(args.page))
   params.set('pageSize', String(args.pageSize))
   if (args.q) params.set('q', args.q)

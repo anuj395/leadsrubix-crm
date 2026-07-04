@@ -6,7 +6,7 @@ const faqItemSchema = new mongoose.Schema(
     answer: { type: String, required: true },
     status: { type: String, enum: ['Active', 'Draft'], default: 'Active' },
     videoUrl: { type: String, default: '' },
-    created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true },
 );

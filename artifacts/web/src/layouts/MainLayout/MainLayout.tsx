@@ -42,13 +42,13 @@ export function MainLayout() {
 
     void (async () => {
       try {
-        const res = await api.get(`/organizations?industry_id=${user.industry_id}`)
+        const res = await api.get(`/organizations?industryId=${user.industryId}`)
         console.log('[MainLayout] Organization fetch response:', res.data);
         const orgs = res.data?.items ?? []
         const org = orgs[0]
         if (org) {
           console.log('[MainLayout] Matching organization found:', org);
-          setOrgName((org.organization_name || org.name || 'Your Organization') as string)
+          setOrgName((org.organizationName || org.name || 'Your Organization') as string)
           const now = Date.now()
 
           if (org.trialPeriod === true || org.trialPeriod === 'true') {
@@ -75,7 +75,7 @@ export function MainLayout() {
             }
           }
         } else {
-          console.log('[MainLayout] No organization document matching user industry_id:', user.industry_id);
+          console.log('[MainLayout] No organization document matching user industryId:', user.industryId);
         }
       } catch (err) {
         console.error('[MainLayout] Failed to load organization status details', err)

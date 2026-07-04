@@ -35,14 +35,14 @@ import { useConfirm } from '@/components/common/ConfirmContext'
 import { AppModal } from '@/components/common/Modal'
 import { api } from '@/services/api'
 
-const SERVER_SORTABLE = new Set(['createdAt', 'updatedAt', 'is_active'])
+const SERVER_SORTABLE = new Set(['createdAt', 'updatedAt', 'isActive'])
 
 type FormValue = string | number | boolean | null
 
 function toFormValues(row: Organization): Record<string, FormValue> {
   const out: Record<string, FormValue> = {}
   for (const [k, v] of Object.entries(row)) {
-    if (k.startsWith('_') || k === 'createdAt' || k === 'updatedAt' || k === 'created_by') continue
+    if (k.startsWith('_') || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy') continue
     if (v === null) { out[k] = null; continue }
     const t = typeof v
     if (t === 'string' || t === 'number' || t === 'boolean') out[k] = v as FormValue
@@ -83,7 +83,7 @@ export default function OrganizationsListPage() {
 
   const openEditDialog = (org: Organization) => {
     setEditing(org)
-    const industryForForm = org.industryId || org.industry_id || selectedFilterIndustry || industries[0]?.code || ''
+    const industryForForm = org.industryId || org.industryId || selectedFilterIndustry || industries[0]?.code || ''
     setSelectedIndustry(String(industryForForm))
     setDialogOpen(true)
   }
@@ -192,7 +192,7 @@ export default function OrganizationsListPage() {
 
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
         const lowerKey = c.key.toLowerCase()
-        if (lowerKey === 'is_active' || lowerKey === 'status' || typeof v === 'boolean') {
+        if (lowerKey === 'isActive' || lowerKey === 'status' || typeof v === 'boolean') {
           return <StatusBadge value={v} />
         }
         return String(v)
@@ -384,7 +384,7 @@ export default function OrganizationsListPage() {
                 screen="organization"
                 industry_code={selectedIndustry}
                 role_key="admin"
-                initialValues={editing ? toFormValues(editing) : { industryId: selectedIndustry, industry_id: selectedIndustry }}
+                initialValues={editing ? toFormValues(editing) : { industryId: selectedIndustry }}
                 onCancel={closeDialog}
                 submitLabel={editing ? 'Save' : 'Create'}
                 onSubmit={async (values) => {

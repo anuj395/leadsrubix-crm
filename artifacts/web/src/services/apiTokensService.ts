@@ -5,9 +5,7 @@ export interface ApiTokenConfig {
   _id?: string
   api_key: string
   organizationId?: string
-  organization_id: string
   organizationName?: string
-  organization_name?: string
   source: string
   leadSourceId?: string
   countryCode: string

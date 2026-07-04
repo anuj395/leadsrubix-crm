@@ -8,7 +8,7 @@ const permModel = require('../models/sidebarPermissionModel');
 
 /**
  * Resolves the sidebar for a (industry_code, role_key) pair.
- * Returns { industry_id, industry_code, role, menus } where `menus` is a
+ * Returns { industryId, industry_code, role, menus } where `menus` is a
  * flat array; each item carries `parent_id` so the client can build a tree.
  */
 async function resolveSidebar({ industry_code, role_key }) {
@@ -17,14 +17,14 @@ async function resolveSidebar({ industry_code, role_key }) {
   }
 
   const industry = await industryModel.findByCode(industry_code);
-  if (!industry || industry.is_active === false) {
+  if (!industry || industry.isActive === false) {
     return { industry_code, role: role_key, menus: [] };
   }
 
   const role = await roleModel.findByIndustryAndKey(industry._id, role_key);
-  if (!role || role.is_active === false) {
+  if (!role || role.isActive === false) {
     return {
-      industry_id: String(industry._id),
+      industryId: String(industry._id),
       industry_code,
       role: role_key,
       menus: [],
@@ -32,13 +32,13 @@ async function resolveSidebar({ industry_code, role_key }) {
   }
 
   const perms = await permModel.list({
-    role_id: role._id,
-    industry_id: industry._id,
+    roleId: role._id,
+    industryId: industry._id,
     visibleOnly: true,
   });
   if (!perms.length) {
     return {
-      industry_id: String(industry._id),
+      industryId: String(industry._id),
       industry_code,
       role: role_key,
       menus: [],
@@ -47,7 +47,7 @@ async function resolveSidebar({ industry_code, role_key }) {
 
   const menus = await menuModel.findByIds(perms.map((p) => p.menu_id));
   const menuById = new Map(
-    menus.filter((m) => m.is_active !== false).map((m) => [String(m._id), m]),
+    menus.filter((m) => m.isActive !== false).map((m) => [String(m._id), m]),
   );
 
   // Ensure all parents referenced by visible children are included so
@@ -64,7 +64,7 @@ async function resolveSidebar({ industry_code, role_key }) {
   if (parentIdsToFetch.length) {
     const parents = await menuModel.findByIds(parentIdsToFetch);
     for (const p of parents) {
-      if (p.is_active !== false) menuById.set(String(p._id), p);
+      if (p.isActive !== false) menuById.set(String(p._id), p);
     }
   }
 
@@ -93,7 +93,7 @@ async function resolveSidebar({ industry_code, role_key }) {
     .sort((a, b) => a.order - b.order);
 
   return {
-    industry_id: String(industry._id),
+    industryId: String(industry._id),
     industry_code,
     role: role_key,
     menus: items,
@@ -110,7 +110,7 @@ exports.resolveSidebar = resolveSidebar;
  */
 exports.getRoleMenus = async (industry_code, role_key) => {
   if (!industry_code || !role_key) {
-    const err = new Error('industry_id and role are required');
+    const err = new Error('industryId and role are required');
     err.status = 400;
     throw err;
   }
@@ -124,7 +124,7 @@ exports.getRoleMenus = async (industry_code, role_key) => {
  */
 exports.getByIndustry = async (industry_code) => {
   if (!industry_code) {
-    const err = new Error('industry_id is required');
+    const err = new Error('industryId is required');
     err.status = 400;
     throw err;
   }
@@ -132,9 +132,9 @@ exports.getByIndustry = async (industry_code) => {
   if (!industry) return null;
 
   const [roles, menus, perms] = await Promise.all([
-    roleModel.list({ industry_id: industry._id }),
+    roleModel.list({ industryId: industry._id }),
     menuModel.list(),
-    permModel.list({ industry_id: industry._id, visibleOnly: true }),
+    permModel.list({ industryId: industry._id, visibleOnly: true }),
   ]);
 
   const menuById = new Map(menus.map((m) => [String(m._id), m]));
@@ -143,7 +143,7 @@ exports.getByIndustry = async (industry_code) => {
 
   const grouped = new Map();
   for (const p of perms) {
-    const key = String(p.role_id);
+    const key = String(p.roleId);
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key).push(p);
   }
@@ -165,7 +165,7 @@ exports.getByIndustry = async (industry_code) => {
     });
     rolesObj[r.key] = list
       .map((p) => menuById.get(String(p.menu_id)))
-      .filter((m) => m && m.is_active !== false)
+      .filter((m) => m && m.isActive !== false)
       .map((m) => ({
         key: m.key,
         name: m.name,
@@ -176,31 +176,31 @@ exports.getByIndustry = async (industry_code) => {
   }
 
   return {
-    industry_id: industry.code,
-    is_ready_to_launch: !!industry.is_active,
+    industryId: industry.code,
+    is_ready_to_launch: !!industry.isActive,
     roles: rolesObj,
   };
 };
 
 /**
- * Legacy upsert — accepts {industry_id (= code), role, menus[]} and writes
+ * Legacy upsert — accepts {industryId (= code), role, menus[]} and writes
  * to the new normalized tables. Used by the old SidebarConfig page until it
  * migrates to the new permission-matrix UI.
  */
-exports.upsertRole = async ({ industry_id, role, menus }) => {
-  if (!industry_id || !role) {
-    const err = new Error('industry_id and role are required');
+exports.upsertRole = async ({ industryId, role, menus }) => {
+  if (!industryId || !role) {
+    const err = new Error('industryId and role are required');
     err.status = 400;
     throw err;
   }
   const arr = Array.isArray(menus) ? menus : [];
 
   // upsert industry by code
-  let industry = await industryModel.findByCode(industry_id);
+  let industry = await industryModel.findByCode(industryId);
   if (!industry) {
     industry = await industryModel.create({
-      code: industry_id,
-      name: industry_id,
+      code: industryId,
+      name: industryId,
     });
   }
 
@@ -208,7 +208,7 @@ exports.upsertRole = async ({ industry_id, role, menus }) => {
   let roleDoc = await roleModel.findByIndustryAndKey(industry._id, role);
   if (!roleDoc) {
     roleDoc = await roleModel.create({
-      industry_id: industry._id,
+      industryId: industry._id,
       key: role,
       name: role,
     });
@@ -245,17 +245,17 @@ exports.upsertRole = async ({ industry_id, role, menus }) => {
 
   // bulk-set permissions for this role+industry
   await permModel.bulkSetForRoleIndustry({
-    role_id: roleDoc._id,
-    industry_id: industry._id,
+    roleId: roleDoc._id,
+    industryId: industry._id,
     menu_ids: menuIds,
   });
 
   // return legacy-shaped doc
   const full = await exports.getByIndustry(industry.code);
   return {
-    industry_id: industry.code,
+    industryId: industry.code,
     roles: full?.roles || {},
-    is_ready_to_launch: !!industry.is_active,
+    is_ready_to_launch: !!industry.isActive,
     created: false,
     fullDocument: full,
   };

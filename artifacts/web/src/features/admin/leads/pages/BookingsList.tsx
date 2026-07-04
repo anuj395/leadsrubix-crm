@@ -31,7 +31,7 @@ export interface Booking {
 function toFormValues(row: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
   for (const [k, v] of Object.entries(row)) {
-    if (k.startsWith('_') || k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'created_by' || k === 'industry_id' || k === 'role_id') continue
+    if (k.startsWith('_') || k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'industryId' || k === 'roleId') continue
     if (v === null || v === undefined) continue
     const t = typeof v
     if (t === 'string' || t === 'number' || t === 'boolean') out[k] = v
@@ -41,7 +41,7 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
 
 export default function BookingsListPage() {
   const { user } = useAppSelector(selectAuth)
-  const industry_id = user?.industry_id
+  const industryId = user?.industryId
 
   const [items, setItems] = useState<Booking[]>([])
   const [loading, setLoading] = useState(false)
@@ -55,7 +55,7 @@ export default function BookingsListPage() {
 
   // Load screen config using useTableConfig
   const { columns: dbColumns, loading: configLoading } =
-    useTableConfig('bookings', industry_id)
+    useTableConfig('bookings', industryId)
 
   const refresh = async () => {
     setLoading(true)

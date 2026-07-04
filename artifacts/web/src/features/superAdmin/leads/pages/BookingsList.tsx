@@ -30,7 +30,7 @@ export interface Booking {
 function toFormValues(row: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
   for (const [k, v] of Object.entries(row)) {
-    if (k.startsWith('_') || k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'created_by' || k === 'industry_id' || k === 'role_id') continue
+    if (k.startsWith('_') || k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'industryId' || k === 'roleId') continue
     if (v === null || v === undefined) continue
     const t = typeof v
     if (t === 'string' || t === 'number' || t === 'boolean') out[k] = v

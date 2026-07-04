@@ -75,19 +75,19 @@ type ToastSev = 'success' | 'error'
 
 interface RoleFormState {
   _id?: string
-  industry_id: string
+  industryId: string
   key: string
   name: string
   description: string
-  is_active: boolean
+  isActive: boolean
 }
 
 const emptyRoleForm: RoleFormState = {
-  industry_id: '',
+  industryId: '',
   key: '',
   name: '',
   description: '',
-  is_active: true,
+  isActive: true,
 }
 
 interface FieldFormState {
@@ -167,7 +167,7 @@ export default function RolesAndPermissionsPage() {
           if (realEstate) setFilterIndustry(realEstate._id)
           else if (inds[0]) setFilterIndustry(inds[0]._id)
         }
-        setAllScreens(screens.filter((s) => s.is_active))
+        setAllScreens(screens.filter((s) => s.isActive))
         const u = screens.find((s) => s.key === 'users')
         if (!u) {
           showToast('The "users" screen has not been seeded yet', 'error')
@@ -233,8 +233,8 @@ export default function RolesAndPermissionsPage() {
       try {
         const perms = await getScreenPermissions({
           screen_id: usersScreen._id,
-          role_id: selectedRoleId,
-          industry_id: filterIndustry,
+          roleId: selectedRoleId,
+          industryId: filterIndustry,
           enabledOnly: true,
         })
         if (cancelled) return
@@ -251,22 +251,22 @@ export default function RolesAndPermissionsPage() {
 
   // ── Roles CRUD handlers ───────────────────────────────────────────────────
   const openRoleCreate = () => {
-    setRoleForm({ ...emptyRoleForm, industry_id: filterIndustry })
+    setRoleForm({ ...emptyRoleForm, industryId: filterIndustry })
     setRoleDialogOpen(true)
   }
   const openRoleEdit = (r: AdminRole) => {
     setRoleForm({
       _id: r._id,
-      industry_id: r.industry_id,
+      industryId: r.industryId,
       key: r.key,
       name: r.name,
       description: r.description ?? '',
-      is_active: r.is_active,
+      isActive: r.isActive,
     })
     setRoleDialogOpen(true)
   }
   const saveRole = async () => {
-    if (!roleForm.industry_id || !roleForm.key || !roleForm.name.trim()) {
+    if (!roleForm.industryId || !roleForm.key || !roleForm.name.trim()) {
       showToast('Industry, key and name are required', 'error'); return
     }
     setRoleSaving(true)
@@ -276,15 +276,15 @@ export default function RolesAndPermissionsPage() {
           key: roleForm.key,
           name: roleForm.name,
           description: roleForm.description,
-          is_active: roleForm.is_active,
+          isActive: roleForm.isActive,
         })
       } else {
         await createRoleRecord({
-          industry_id: roleForm.industry_id,
+          industryId: roleForm.industryId,
           key: roleForm.key,
           name: roleForm.name,
           description: roleForm.description,
-          is_active: roleForm.is_active,
+          isActive: roleForm.isActive,
         })
       }
       setRoleDialogOpen(false)
@@ -331,8 +331,8 @@ export default function RolesAndPermissionsPage() {
     try {
       await bulkSetScreenPermissions({
         screen_id: usersScreen._id,
-        role_id: selectedRoleId,
-        industry_id: filterIndustry,
+        roleId: selectedRoleId,
+        industryId: filterIndustry,
         field_ids: Array.from(enabledFieldIds),
       })
       showToast('Permissions saved')
@@ -429,8 +429,8 @@ export default function RolesAndPermissionsPage() {
     void (async () => {
       try {
         const list = await listRoleActionPermissions({
-          role_id: actionRoleId,
-          industry_id: filterIndustry,
+          roleId: actionRoleId,
+          industryId: filterIndustry,
         })
         if (!cancelled) setActionRows(list)
       } catch (e) {
@@ -472,8 +472,8 @@ export default function RolesAndPermissionsPage() {
     setActionSaving(screen_id)
     try {
       const saved = await upsertRoleActionPermission({
-        role_id: actionRoleId,
-        industry_id: filterIndustry,
+        roleId: actionRoleId,
+        industryId: filterIndustry,
         screen_id,
         ...next,
       })
@@ -500,7 +500,7 @@ export default function RolesAndPermissionsPage() {
       { field: 'name', headerName: 'Display Name', flex: 1.2 },
       { field: 'description', headerName: 'Description', flex: 1.5, renderCell: (p) => p.value || '—' },
       {
-        field: 'is_active',
+        field: 'isActive',
         headerName: 'Status',
         width: 100,
         renderCell: (p) => (
@@ -886,8 +886,8 @@ export default function RolesAndPermissionsPage() {
             <TextField
               select
               label="Industry"
-              value={roleForm.industry_id}
-              onChange={(e) => setRoleForm({ ...roleForm, industry_id: e.target.value })}
+              value={roleForm.industryId}
+              onChange={(e) => setRoleForm({ ...roleForm, industryId: e.target.value })}
               disabled={!!roleForm._id}
               fullWidth
             >
@@ -925,8 +925,8 @@ export default function RolesAndPermissionsPage() {
             <FormControlLabel
               control={
                 <Switch
-                  checked={roleForm.is_active}
-                  onChange={(e) => setRoleForm({ ...roleForm, is_active: e.target.checked })}
+                  checked={roleForm.isActive}
+                  onChange={(e) => setRoleForm({ ...roleForm, isActive: e.target.checked })}
                 />
               }
               label="Active"

@@ -33,7 +33,7 @@ export interface FaqItem {
   answer: string
   status: 'Active' | 'Draft'
   videoUrl?: string
-  created_by?: string
+  createdBy?: string
   organizationId?: string | null
 }
 
@@ -147,8 +147,8 @@ export default function FaqListPage() {
         answer: f.answer,
         status: f.status,
         videoUrl: f.videoUrl || '',
-        created_by: f.created_by || '',
-        organizationId: f.organizationId || f.organization_id || null,
+        createdBy: f.createdBy || '',
+        organizationId: f.organizationId || f.organizationId || null,
       }))
       setItems(mapped)
     } catch (e: any) {

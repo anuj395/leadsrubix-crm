@@ -4,8 +4,8 @@ exports.list = async (req, res, next) => {
   try {
     const items = await service.list({
       screen_id: req.query.screen_id,
-      role_id: req.query.role_id,
-      industry_id: req.query.industry_id,
+      roleId: req.query.roleId,
+      industryId: req.query.industryId,
       field_id: req.query.field_id,
       enabledOnly: req.query.enabled === 'true',
     });

@@ -45,13 +45,13 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
       targetIndustry = industryIdQuery;
     }
   } else {
-    targetIndustry = authedUser.industry_id;
+    targetIndustry = authedUser.industryId;
   }
 
   // 2. Fetch list of organizations (Super Admin only)
   let organizationsList = [];
   if (isSuperAdmin) {
-    organizationsList = await Industry.find({ is_active: { $ne: false } }).select('code name').lean().exec();
+    organizationsList = await Industry.find({ isActive: { $ne: false } }).select('code name').lean().exec();
   }
 
   // 3. Resolve role-based visibility filter
@@ -59,16 +59,16 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
 
   // 4. Build filters
   const contactFilter = {};
-  const bookingFilter = { is_active: { $ne: false } };
+  const bookingFilter = { isActive: { $ne: false } };
 
   if (targetIndustry) {
-    contactFilter.industry_id = targetIndustry;
-    bookingFilter.industry_id = targetIndustry;
+    contactFilter.industryId = targetIndustry;
+    bookingFilter.industryId = targetIndustry;
   }
 
   if (visibleUserIds !== null) {
-    contactFilter.created_by = { $in: visibleUserIds };
-    bookingFilter.created_by = { $in: visibleUserIds };
+    contactFilter.createdBy = { $in: visibleUserIds };
+    bookingFilter.createdBy = { $in: visibleUserIds };
   }
 
   const dateFilter = getDateFilter(startDate, endDate);
@@ -81,7 +81,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
   const [contacts, bookings, usersList] = await Promise.all([
     Contact.find(contactFilter).lean().exec(),
     Booking.find(bookingFilter).lean().exec(),
-    User.find(targetIndustry ? { industry_id: targetIndustry } : {}).select('_id name email role').lean().exec()
+    User.find(targetIndustry ? { industryId: targetIndustry } : {}).select('_id name email role').lean().exec()
   ]);
 
   // Create lookups
@@ -158,7 +158,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
       key = b?.team || 'Unknown Team';
     } else {
       // Default: group by associate owner
-      const uid = String(c.created_by);
+      const uid = String(c.createdBy);
       key = userMap.get(uid) || 'System / Unassigned';
     }
 
@@ -191,7 +191,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
       } else if (groupBy === 'teamWise') {
         key = b.team || 'Unknown Team';
       } else {
-        key = userMap.get(String(b.created_by)) || 'System / Unassigned';
+        key = userMap.get(String(b.createdBy)) || 'System / Unassigned';
       }
 
       if (contactsGroupMap.has(key)) {
@@ -241,7 +241,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
     } else if (groupBy === 'teamWise') {
       key = b.team || 'Unknown Team';
     } else {
-      key = userMap.get(String(b.created_by)) || 'System / Unassigned';
+      key = userMap.get(String(b.createdBy)) || 'System / Unassigned';
     }
 
     const type = b.task_type || 'Call';
@@ -306,7 +306,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
     } else if (groupBy === 'teamWise') {
       key = b.team || 'Unknown Team';
     } else {
-      key = userMap.get(String(b.created_by)) || 'System / Unassigned';
+      key = userMap.get(String(b.createdBy)) || 'System / Unassigned';
     }
 
     if (!callLogSummaryMap.has(key)) {

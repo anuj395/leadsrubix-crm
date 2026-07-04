@@ -23,7 +23,7 @@ export function ProtectedRoute() {
 
     void (async () => {
       try {
-        const res = await api.get(`/organizations?industry_id=${user.industry_id}`)
+        const res = await api.get(`/organizations?industryId=${user.industryId}`)
         const orgs = res.data?.items ?? []
         const org = orgs[0]
         if (org) {

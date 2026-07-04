@@ -56,10 +56,10 @@ interface CoreFormState {
   name: string
   email: string
   password: string
-  is_active: boolean
+  isActive: boolean
 }
 
-const emptyCore: CoreFormState = { name: '', email: '', password: '', is_active: true }
+const emptyCore: CoreFormState = { name: '', email: '', password: '', isActive: true }
 
 export default function AdminRolesPage() {
   const authedUser = useAppSelector((s) => s.auth.user)
@@ -96,7 +96,7 @@ export default function AdminRolesPage() {
         const [inds, scr] = await Promise.all([getIndustries(), getScreens()])
         if (cancelled) return
         setIndustries(inds)
-        setScreens(scr.filter((s) => s.is_active))
+        setScreens(scr.filter((s) => s.isActive))
         const realEstate = inds.find((i) => i.code === 'temp0001')
         const defaultCode = realEstate ? realEstate.code : (inds[0]?.code ?? '')
         setFilterIndustry((cur) => cur || defaultCode)
@@ -151,7 +151,7 @@ export default function AdminRolesPage() {
     setPermsLoading(true)
     try {
       const perms = await getScreenPermissions({
-        role_id: adminRole._id, industry_id: ind._id, enabledOnly: true,
+        roleId: adminRole._id, industryId: ind._id, enabledOnly: true,
       })
       const byScreen: Record<string, boolean> = {}
       for (const s of screens) byScreen[s._id] = false
@@ -177,10 +177,10 @@ export default function AdminRolesPage() {
     setModuleSaving((m) => ({ ...m, [screen._id]: true }))
     try {
       const fields: ScreenField[] = next ? await getScreenFields(screen._id) : []
-      const fieldIds = fields.filter((f) => f.is_active).map((f) => f._id)
+      const fieldIds = fields.filter((f) => f.isActive).map((f) => f._id)
       await bulkSetScreenPermissions({
-        screen_id: screen._id, role_id: adminRole._id,
-        industry_id: currentIndustry._id, field_ids: next ? fieldIds : [],
+        screen_id: screen._id, roleId: adminRole._id,
+        industryId: currentIndustry._id, field_ids: next ? fieldIds : [],
       })
       setModuleAccess((m) => ({ ...m, [screen._id]: next }))
       showToast(`${screen.name}: ${next ? 'enabled' : 'disabled'} for admins`)
@@ -197,7 +197,7 @@ export default function AdminRolesPage() {
   }
   const openEdit = (row: AdminUser) => {
     setEditing(row)
-    setCore({ name: row.name ?? '', email: row.email, password: '', is_active: row.is_active })
+    setCore({ name: row.name ?? '', email: row.email, password: '', isActive: row.isActive })
     setFormError(null); setDialogOpen(true)
   }
   const closeDialog = () => { if (!saving) setDialogOpen(false) }
@@ -211,7 +211,7 @@ export default function AdminRolesPage() {
     try {
       if (editing) {
         await updateUser(editing._id, {
-          name: core.name.trim(), is_active: core.is_active,
+          name: core.name.trim(), isActive: core.isActive,
           password: core.password || undefined,
         })
         showToast('Admin updated')
@@ -219,7 +219,7 @@ export default function AdminRolesPage() {
         await createUser({
           name: core.name.trim(), email: core.email.trim().toLowerCase(),
           password: core.password, role: 'admin',
-          industry_id: filterIndustry, is_active: core.is_active,
+          industryId: filterIndustry, isActive: core.isActive,
         })
         showToast('Admin created')
       }
@@ -257,7 +257,7 @@ export default function AdminRolesPage() {
     { field: 'name', headerName: 'Name', flex: 1, minWidth: 160,
       renderCell: (p) => p.value || <Box sx={{ color: 'text.secondary' }}>—</Box> },
     { field: 'email', headerName: 'Email', flex: 1.2, minWidth: 200 },
-    { field: 'is_active', headerName: 'Status', minWidth: 110,
+    { field: 'isActive', headerName: 'Status', minWidth: 110,
       renderCell: (p) => <StatusBadge value={p.value ? 'Active' : 'Inactive'} />,
     },
     { field: '__actions', headerName: 'Actions', sortable: false, filterable: false, disableColumnMenu: true,
@@ -368,8 +368,8 @@ export default function AdminRolesPage() {
               type="password" value={core.password}
               onChange={(e) => setCore({ ...core, password: e.target.value })} />
             <TextField select size="small" label="Status"
-              value={core.is_active ? 'active' : 'inactive'}
-              onChange={(e) => setCore({ ...core, is_active: e.target.value === 'active' })} fullWidth>
+              value={core.isActive ? 'active' : 'inactive'}
+              onChange={(e) => setCore({ ...core, isActive: e.target.value === 'active' })} fullWidth>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
             </TextField>

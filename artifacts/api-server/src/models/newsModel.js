@@ -5,7 +5,7 @@ const newsItemSchema = new mongoose.Schema(
     name: { type: String, required: true },
     link: { type: String, required: true },
     status: { type: String, enum: ['Active', 'Draft'], default: 'Active' },
-    created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true },
 );

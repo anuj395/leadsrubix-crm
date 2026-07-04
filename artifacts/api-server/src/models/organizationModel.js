@@ -8,12 +8,12 @@ const mongoose = require('mongoose');
  */
 const organizationSchema = new mongoose.Schema(
   {
-    organizationId: { type: String, alias: 'organization_id' },
-    organizationName: { type: String, alias: 'organization_name' },
+    organizationId: { type: String },
+    organizationName: { type: String },
     contactNumber: { type: String, default: '', alias: 'contact_no' },
-    industryId: { type: String, default: null, alias: 'industry_id' }, // industry code, mirrors user.industry_id
-    isActive: { type: Boolean, default: true, alias: 'is_active' },
-    createdBy: { type: String, default: null, alias: 'created_by' },
+    industryId: { type: String, default: null }, // industry code, mirrors user.industryId
+    isActive: { type: Boolean, default: true },
+    createdBy: { type: String, default: null },
   },
   { 
     timestamps: true, 
@@ -32,10 +32,10 @@ function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const ALLOWED_SORT = new Set(['createdAt', 'updatedAt', 'is_active']);
+const ALLOWED_SORT = new Set(['createdAt', 'updatedAt', 'isActive']);
 
 exports.listPaged = async ({
-  industry_id,
+  industryId,
   q,
   page = 0,
   pageSize = 25,
@@ -44,7 +44,7 @@ exports.listPaged = async ({
   searchKeys = [],
 } = {}) => {
   const filter = {};
-  if (industry_id) filter.industryId = industry_id;
+  if (industryId) filter.industryId = industryId;
   if (q && String(q).trim()) {
     const re = new RegExp(escapeRegex(String(q).trim()), 'i');
     // Match against any of the screen-config field keys the caller exposes,
@@ -74,29 +74,29 @@ exports.create = async (payload) => {
 
 exports.update = async (id, patch) => {
   const $set = { ...patch };
-  if (patch.organization_id !== undefined) {
-    $set.organizationId = patch.organization_id;
-    delete $set.organization_id;
+  if (patch.organizationId !== undefined) {
+    $set.organizationId = patch.organizationId;
+    delete $set.organizationId;
   }
-  if (patch.organization_name !== undefined) {
-    $set.organizationName = patch.organization_name;
-    delete $set.organization_name;
+  if (patch.organizationName !== undefined) {
+    $set.organizationName = patch.organizationName;
+    delete $set.organizationName;
   }
   if (patch.contact_no !== undefined) {
     $set.contactNumber = patch.contact_no;
     delete $set.contact_no;
   }
-  if (patch.industry_id !== undefined) {
-    $set.industryId = patch.industry_id;
-    delete $set.industry_id;
+  if (patch.industryId !== undefined) {
+    $set.industryId = patch.industryId;
+    delete $set.industryId;
   }
-  if (patch.is_active !== undefined) {
-    $set.isActive = patch.is_active;
-    delete $set.is_active;
+  if (patch.isActive !== undefined) {
+    $set.isActive = patch.isActive;
+    delete $set.isActive;
   }
-  if (patch.created_by !== undefined) {
-    $set.createdBy = patch.created_by;
-    delete $set.created_by;
+  if (patch.createdBy !== undefined) {
+    $set.createdBy = patch.createdBy;
+    delete $set.createdBy;
   }
   return Organization.findByIdAndUpdate(id, { $set }, { new: true }).lean().exec();
 };

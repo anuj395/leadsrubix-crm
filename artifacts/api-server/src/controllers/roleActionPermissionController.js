@@ -3,8 +3,8 @@ const svc = require('../services/roleActionPermissionService');
 exports.list = async (req, res, next) => {
   try {
     const items = await svc.list({
-      role_id: req.query.role_id,
-      industry_id: req.query.industry_id,
+      roleId: req.query.roleId,
+      industryId: req.query.industryId,
       screen_id: req.query.screen_id,
     });
     res.json({ items });

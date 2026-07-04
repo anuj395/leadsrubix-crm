@@ -47,7 +47,8 @@ exports.list = async ({ organizationId, industryId, resource_key, all = false } 
     const orgs = await Organization.find({}).lean().exec();
     const orgMap = {};
     orgs.forEach(o => {
-      orgMap[o.organizationId || o._id.toString()] = o.name || o.organization_name || '';
+      const oid = o.organizationId || o.organizationId || o._id.toString();
+      orgMap[oid] = o.organizationName || o.name || o.organizationName || '';
     });
 
     docs.forEach(doc => {
@@ -57,7 +58,7 @@ exports.list = async ({ organizationId, industryId, resource_key, all = false } 
         doc.projects.forEach(p => {
           allProjects.push({
             organizationId: orgId,
-            organization_name: orgName,
+            organizationName: orgName,
             ...p,
           });
         });
@@ -130,7 +131,7 @@ exports.create = async ({ organizationId, industryId, resource_key, data }) => {
       const Organization = mongoose.model('Organization');
       const org = await Organization.findOne({ organizationId }).lean().exec();
       if (org) {
-        const orgIndustry = org.industryId || org.industry_id;
+        const orgIndustry = org.industryId || org.industryId;
         if (orgIndustry) {
           const Industry = mongoose.model('Industry');
           const ind = await Industry.findOne({ code: orgIndustry }).lean().exec();

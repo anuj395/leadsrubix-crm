@@ -8,7 +8,7 @@ const cache = new Map<string, CacheEntry>()
 
 /**
  * Fetches sidebar menu items for the given industry + role.
- * POST /sidebar/user  →  { industry_id, role, menus: [...] }
+ * POST /sidebar/user  →  { industryId, role, menus: [...] }
  */
 export async function fetchSidebarMenu(
   industryId: string,
@@ -20,7 +20,7 @@ export async function fetchSidebarMenu(
   if (hit && now - hit.ts < CACHE_TTL_MS) return hit.data
 
   const response = await axiosInstance.post<SidebarApiResponse>('/sidebar/user', {
-    industry_id: industryId,
+    industryId: industryId,
     role,
   })
 
