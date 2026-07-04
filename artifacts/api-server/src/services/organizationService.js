@@ -294,7 +294,7 @@ exports.create = async ({ payload, authedUser }) => {
     lastName: cleaned.lastName || cleaned.last_name || 'Admin',
     email: adminEmail.toLowerCase().trim(),
     password: adminPassword,
-    role: 'admin',
+    role: isSuperAdmin ? 'superAdmin' : 'admin',
     organizationId: orgDoc.organizationId || orgDoc.organizationId,
     industryId: industryId,
     contactNumber: cleaned.contactNumber || cleaned.contact_no || cleaned.contact || '',

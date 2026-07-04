@@ -36,6 +36,7 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material'
 
+import { useAuth } from '@/hooks/useAuth'
 import { AppCard } from '@/components/ui/AppCard'
 import {
   getIndustries,
@@ -69,7 +70,7 @@ import {
 import Checkbox from '@mui/material/Checkbox'
 import { useConfirm } from '@/components/common/ConfirmContext'
 
-const ROLE_KEYS = ['superAdmin', 'admin', 'leadManager', 'teamLead', 'sales']
+const ROLE_KEYS = ['admin', 'leadManager', 'teamLead', 'sales']
 
 type ToastSev = 'success' | 'error'
 
@@ -118,6 +119,8 @@ const emptyFieldForm: FieldFormState = {
 }
 
 export default function RolesAndPermissionsPage() {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
   const [tab, setTab] = useState<0 | 1 | 2>(0)
   const { confirmDelete } = useConfirm()
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: ToastSev }>({
@@ -194,6 +197,16 @@ export default function RolesAndPermissionsPage() {
         setRoles(list)
         // Default the role selector on the field tab.
         if (!selectedRoleId && list[0]) setSelectedRoleId(list[0]._id)
+        // Default the role selector on the action tab to leadManager.
+        const leadManagerRole = list.find((r) => r.key === 'leadManager')
+        const currentSelectedRoleStillExists = list.some((r) => r._id === actionRoleId)
+        if (!actionRoleId || !currentSelectedRoleStillExists) {
+          if (leadManagerRole) {
+            setActionRoleId(leadManagerRole._id)
+          } else if (list[0]) {
+            setActionRoleId(list[0]._id)
+          }
+        }
       } catch (e) {
         const err = e as { response?: { data?: { message?: string } } }
         if (!cancelled) showToast(err?.response?.data?.message ?? 'Failed to load roles', 'error')
@@ -515,16 +528,19 @@ export default function RolesAndPermissionsPage() {
         align: 'right',
         headerAlign: 'right',
         width: 110,
-        renderCell: (p) => (
-          <>
-            <IconButton size="small" onClick={() => openRoleEdit(p.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-            <IconButton size="small" color="error" onClick={() => removeRole(p.row)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </>
-        ),
+        renderCell: (p) => {
+          const isSuperAdminRole = p.row.key === 'superAdmin'
+          return (
+            <>
+              <IconButton size="small" onClick={() => openRoleEdit(p.row)} disabled={isSuperAdminRole}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" color="error" onClick={() => void removeRole(p.row)} disabled={isSuperAdminRole}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </>
+          )
+        },
       },
     ],
     [openRoleEdit, removeRole],
@@ -844,7 +860,7 @@ export default function RolesAndPermissionsPage() {
               sx={{ minWidth: 260 }}
               disabled={roles.length === 0}
             >
-              {roles.map((r) => (
+              {roles.filter((r) => isSuperAdmin || r.key !== 'admin').map((r) => (
                 <MenuItem key={r._id} value={r._id}>{r.name} ({r.key})</MenuItem>
               ))}
             </TextField>

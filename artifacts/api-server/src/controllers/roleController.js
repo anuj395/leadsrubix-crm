@@ -3,7 +3,12 @@ const service = require('../services/roleService');
 exports.list = async (req, res, next) => {
   try {
     const { industryId, active } = req.query;
-    const docs = await service.list({ industryId, activeOnly: active === 'true' });
+    const excludeRole = req.user?.role === 'admin' ? 'admin' : undefined;
+    const docs = await service.list({
+      industryId,
+      activeOnly: active === 'true',
+      excludeRole,
+    });
     res.json({ items: docs });
   } catch (err) {
     next(err);

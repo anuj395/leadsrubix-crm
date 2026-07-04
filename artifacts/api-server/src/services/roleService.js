@@ -38,6 +38,18 @@ exports.create = async (payload) => {
 };
 
 exports.update = async (id, patch) => {
+  const existing = await roleModel.findById(id);
+  if (!existing) {
+    const err = new Error('Role not found');
+    err.status = 404;
+    throw err;
+  }
+  if (existing.key === 'superAdmin') {
+    const err = new Error('Forbidden: The Super Admin role cannot be edited or deactivated.');
+    err.status = 403;
+    throw err;
+  }
+
   if (patch?.industryId && patch?.key) {
     const dup = await roleModel.findByIndustryAndKey(patch.industryId, patch.key);
     if (dup && String(dup._id) !== String(id)) {
@@ -61,6 +73,11 @@ exports.remove = async (id) => {
   if (!doc) {
     const err = new Error('Role not found');
     err.status = 404;
+    throw err;
+  }
+  if (doc.key === 'superAdmin') {
+    const err = new Error('Forbidden: The Super Admin role cannot be deleted.');
+    err.status = 403;
     throw err;
   }
 

@@ -1,5 +1,6 @@
 import AnalyticsPage from '@/features/admin/pages/Analytics'
 import UserListPage from '@/features/admin/pages/UserList'
+import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
 
 import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
 import TasksListPage from '@/features/admin/leads/pages/TasksList'
@@ -33,6 +34,7 @@ import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
   "/users": UserListPage,
+  "/users/roles": RolesAndPermissionsPage,
 
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/new": AddContactPage,

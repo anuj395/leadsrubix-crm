@@ -96,7 +96,23 @@ exports.fetchAll = async ({ authedUser, industryId } = {}) => {
     // Defense-in-depth: don't fall back to "no filter" for tenant callers.
     return [];
   }
-  return userModel.list({ industryId: industryFilter });
+  const items = await userModel.list({
+    industryId: industryFilter,
+    excludeRole: ['admin', 'superAdmin'],
+  });
+
+  const orgIds = [...new Set(items.map(u => u.organizationId).filter(Boolean))];
+  const Organization = mongoose.model('Organization');
+  const orgs = await Organization.find({ organizationId: { $in: orgIds } }).lean().exec();
+  const orgMap = {};
+  orgs.forEach(o => {
+    orgMap[o.organizationId] = o.organizationName || o.name || '';
+  });
+
+  return items.map(u => ({
+    ...u,
+    organizationName: u.organizationName || orgMap[u.organizationId] || (u.role === 'superAdmin' ? 'Global/Super Admin' : '')
+  }));
 };
 
 /**
@@ -123,7 +139,29 @@ exports.fetchPaged = async ({
   if (sortField && ALLOWED_SORT.has(String(sortField))) {
     sort = { [String(sortField)]: sortDir === 'asc' ? 1 : -1 };
   }
-  return userModel.listPaged({ industryId: industryFilter, q, page, pageSize, sort });
+  const { items, total } = await userModel.listPaged({
+    industryId: industryFilter,
+    excludeRole: ['admin', 'superAdmin'],
+    q,
+    page,
+    pageSize,
+    sort,
+  });
+
+  const orgIds = [...new Set(items.map(u => u.organizationId).filter(Boolean))];
+  const Organization = mongoose.model('Organization');
+  const orgs = await Organization.find({ organizationId: { $in: orgIds } }).lean().exec();
+  const orgMap = {};
+  orgs.forEach(o => {
+    orgMap[o.organizationId] = o.organizationName || o.name || '';
+  });
+
+  const enrichedItems = items.map(u => ({
+    ...u,
+    organizationName: u.organizationName || orgMap[u.organizationId] || (u.role === 'superAdmin' ? 'Global/Super Admin' : '')
+  }));
+
+  return { items: enrichedItems, total };
 };
 
 /**
@@ -157,6 +195,11 @@ exports.fetchById = async ({ id, authedUser }) => {
  */
 exports.create = async ({ payload, authedUser }) => {
   const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (isSuperAdmin) {
+    const e = new Error('Forbidden: Super Admin cannot create users. Only Organization Admin can add users.');
+    e.status = 403;
+    throw e;
+  }
   const email = String(payload.email || '').trim().toLowerCase();
   let password = String(payload.password || '').trim();
   if (!password) {

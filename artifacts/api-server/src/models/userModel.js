@@ -91,7 +91,8 @@ function shapePublic(u) {
     reportingTo: u.reportingTo || u.reporting_to || '',
     reporting_to: u.reportingTo || u.reporting_to || '',
     fields: u.fields || {},
-    needsPasswordChange: !!(u.needsPasswordChange || u.needs_password_change),
+    organizationName: u.organizationName || '',
+    needsPasswordChange: !!u.needsPasswordChange,
     needs_password_change: !!(u.needsPasswordChange || u.needs_password_change),
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
@@ -104,9 +105,17 @@ exports.findAll = async () => {
   return list.map(shapePublic);
 };
 
-exports.list = async ({ industryId } = {}) => {
+exports.list = async ({ industryId, role, excludeRole } = {}) => {
   const q = {};
   if (industryId) q.industryId = industryId;
+  if (role) q.role = role;
+  if (excludeRole) {
+    if (Array.isArray(excludeRole)) {
+      q.role = { $nin: excludeRole };
+    } else {
+      q.role = { $ne: excludeRole };
+    }
+  }
   const list = await User.find(q).select('-password').sort({ createdAt: -1 }).lean().exec();
   return list.map(shapePublic);
 };
@@ -118,6 +127,8 @@ exports.list = async ({ industryId } = {}) => {
  */
 exports.listPaged = async ({
   industryId,
+  role,
+  excludeRole,
   q: search,
   page = 0,
   pageSize = 25,
@@ -125,6 +136,14 @@ exports.listPaged = async ({
 } = {}) => {
   const filter = {};
   if (industryId) filter.industryId = industryId;
+  if (role) filter.role = role;
+  if (excludeRole) {
+    if (Array.isArray(excludeRole)) {
+      filter.role = { $nin: excludeRole };
+    } else {
+      filter.role = { $ne: excludeRole };
+    }
+  }
   if (search) {
     const safe = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rx = new RegExp(safe, 'i');

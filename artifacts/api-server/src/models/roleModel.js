@@ -20,10 +20,13 @@ const Role = mongoose.model('Role', roleSchema, 'roles');
 exports.Role = Role;
 exports.ROLE_KEYS = ROLE_KEYS;
 
-exports.list = async ({ industryId, activeOnly = false } = {}) => {
-  const q = {};
+exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
+  const q = { key: { $ne: 'superAdmin' } };
   if (industryId) q.industryId = industryId;
   if (activeOnly) q.isActive = true;
+  if (excludeRole) {
+    q.key = { $nin: ['superAdmin', excludeRole] };
+  }
   return Role.find(q).sort({ key: 1 }).lean().exec();
 };
 

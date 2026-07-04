@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 import { superAdminMenuConfig } from '@/config/menuConfig'
 import { useAuth } from '@/hooks/useAuth'
@@ -23,10 +23,7 @@ function persistMenu(items: SidebarNavItem[]) {
 }
 
 function loadPersistedMenu(): SidebarNavItem[] | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    return raw ? (JSON.parse(raw) as SidebarNavItem[]) : null
-  } catch { return null }
+  return null;
 }
 
 function clearPersistedMenu() {
@@ -97,8 +94,34 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, isAuthenticated])
 
-  const menu: SidebarNavItem[] = isSuperAdmin ? mapSuperAdminConfig() : reduxItems 
-  console.log("reduxItems",menu);
+  const menu = useMemo(() => {
+    let list = isSuperAdmin ? mapSuperAdminConfig() : reduxItems
+
+    if (user?.role === 'admin') {
+      list = list.filter((item) => item.id !== 'users' && item.module !== 'users')
+      const usersItem: SidebarNavItem = {
+        id: 'users',
+        name: 'Users',
+        icon: 'users',
+        module: 'users',
+        children: [
+          { id: 'users.list', name: 'Users List', route: '/users', icon: 'users' },
+          { id: 'users.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'shield' }
+        ]
+      }
+      const analyticsIndex = list.findIndex((item) => item.id === 'analytics' || item.module === 'analytics')
+      if (analyticsIndex !== -1) {
+        list = [
+          ...list.slice(0, analyticsIndex + 1),
+          usersItem,
+          ...list.slice(analyticsIndex + 1)
+        ]
+      } else {
+        list = [usersItem, ...list]
+      }
+    }
+    return list
+  }, [isSuperAdmin, reduxItems, user?.role])
 
   return {
     menu,

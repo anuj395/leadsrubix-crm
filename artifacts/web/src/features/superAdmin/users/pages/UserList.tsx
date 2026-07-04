@@ -58,10 +58,10 @@ import {
 
 // Core columns we always want visible regardless of dynamic field config.
 const CORE_COLUMNS: ResolvedTableHeader[] = [
+  { key: 'organizationName', label: 'Organization Name', type: 'text', sortable: false, order: -110, options: [], visible: true },
   { key: 'name',        label: 'Name',     type: 'text',   sortable: true,  order: -100, options: [], visible: true },
   { key: 'email',       label: 'Email',    type: 'email',  sortable: true,  order: -90,  options: [], visible: true },
   { key: 'role',        label: 'Role',     type: 'badge',  sortable: true,  order: -80,  options: [], visible: true },
-  { key: 'industryId', label: 'Industry', type: 'text',   sortable: false, order: -70,  options: [], visible: true },
   { key: 'isActive',   label: 'Status',   type: 'badge',  sortable: true,  order: -60,  options: [], visible: true },
 ]
 
@@ -252,9 +252,9 @@ export default function UserListPage() {
 
   const gridColumns = useMemo<GridColDef<AdminUser>[]>(() => {
     const cols: GridColDef<AdminUser>[] = allColumns.map((c) => {
-      const isFixed = ['role', 'isActive', 'industryId', 'phone', 'employee_id', 'department', 'designation'].includes(c.key)
+      const isFixed = ['role', 'isActive', 'phone', 'employee_id', 'department', 'designation'].includes(c.key)
       const columnWidthProps = isFixed
-        ? { width: c.key === 'role' ? 160 : c.key === 'isActive' ? 130 : c.key === 'industryId' ? 120 : 150 }
+        ? { width: c.key === 'role' ? 160 : c.key === 'isActive' ? 130 : 150 }
         : { flex: 1, minWidth: 140 }
 
       return {
@@ -463,7 +463,7 @@ export default function UserListPage() {
         title="Users"
         subtitle="Add, edit, and manage users. Per-role custom fields are configured in Users → Roles & Permissions."
         action={
-          perms.can_add ? (
+          perms.can_add && !isSuperAdmin ? (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
