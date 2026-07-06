@@ -261,7 +261,19 @@ router.get('/:key', (req, res, next) => {
   if (key === 'teams') {
     try {
       const Team = mongoose.model('Team');
-      const targetIndustry = req.query.industryId || req.query.industry_code || req.body.industryId || req.body.industry_code || req.user.industryId;
+      let targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
+      if (!targetIndustry && req.query.organizationId) {
+        const Organization = mongoose.model('Organization');
+        const org = await Organization.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(req.query.organizationId) ? req.query.organizationId : null },
+            { organizationId: req.query.organizationId }
+          ]
+        }).lean().exec();
+        if (org) {
+          targetIndustry = org.industryId;
+        }
+      }
       let query = { isActive: true };
       if (targetIndustry) {
         const Industry = mongoose.model('Industry');
@@ -284,7 +296,19 @@ router.get('/:key', (req, res, next) => {
   if (key === 'branches') {
     try {
       const Branch = mongoose.model('Branch');
-      const targetIndustry = req.query.industryId || req.query.industry_code || req.body.industryId || req.body.industry_code || req.user.industryId;
+      let targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
+      if (!targetIndustry && req.query.organizationId) {
+        const Organization = mongoose.model('Organization');
+        const org = await Organization.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(req.query.organizationId) ? req.query.organizationId : null },
+            { organizationId: req.query.organizationId }
+          ]
+        }).lean().exec();
+        if (org) {
+          targetIndustry = org.industryId;
+        }
+      }
       let query = { isActive: true };
       if (targetIndustry) {
         const Industry = mongoose.model('Industry');
@@ -314,7 +338,8 @@ router.get('/:key', (req, res, next) => {
     } catch (err) {
       console.error('Failed to load designations option list', err);
     }
-    return res.json({ items: [] });
+    const staticData = SOURCES['designations'] || [];
+    return res.json({ items: staticData });
   }
 
   try {
