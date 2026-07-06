@@ -27,10 +27,10 @@ exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
   if (excludeRole) {
     q.key = { $nin: ['superAdmin', excludeRole] };
   }
-  return Role.find(q).sort({ key: 1 }).lean().exec();
+  return Role.find(q).populate('industryId').sort({ key: 1 }).lean().exec();
 };
 
-exports.findById = async (id) => Role.findById(id).lean().exec();
+exports.findById = async (id) => Role.findById(id).populate('industryId').lean().exec();
 
 exports.findByIndustryAndKey = async (industryId, key) =>
   Role.findOne({ industryId, key: String(key).trim() }).lean().exec();

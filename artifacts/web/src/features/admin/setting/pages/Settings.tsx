@@ -40,6 +40,8 @@ interface SettingItem {
   industryId?: string
   description?: string
   isActive?: boolean
+  label?: string
+  value?: string
 }
 
 interface Industry {
@@ -48,9 +50,7 @@ interface Industry {
   name: string
 }
 
-type TabType = 'teams' | 'branches' | 'designations' | 'roles'
-
-const ROLE_KEYS = ['admin', 'leadManager', 'teamLead', 'sales']
+type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<TabType>(isSuperAdmin ? 'roles' : 'teams')
   const [items, setItems] = useState<SettingItem[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [roleKeys, setRoleKeys] = useState<{ _id: string; value: string; label: string }[]>([])
   const [selectedIndustryId, setSelectedIndustryId] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const { confirmDelete } = useConfirm()
@@ -113,9 +114,19 @@ export default function SettingsPage() {
     }
   }
 
+  const loadRoleKeys = async () => {
+    try {
+      const res = await api.get('role-keys')
+      setRoleKeys(res.data?.items || res.data || [])
+    } catch {
+      showToast('Failed to load role keys', 'error')
+    }
+  }
+
   useEffect(() => {
     if (isSuperAdmin) {
       void loadIndustries()
+      void loadRoleKeys()
     }
   }, [isSuperAdmin])
 
@@ -127,7 +138,7 @@ export default function SettingsPage() {
     setEditingItem(null)
     setNameVal('')
     setCodeVal('')
-    setKeyVal('sales')
+    setKeyVal(roleKeys[0]?.value || 'sales')
     setIndustryVal(industries[0]?._id || '')
     setDescVal('')
     setIsActiveVal(true)
@@ -136,7 +147,7 @@ export default function SettingsPage() {
 
   const openEdit = (item: SettingItem) => {
     setEditingItem(item)
-    setNameVal(item.name)
+    setNameVal(item.name || item.label || item.value || '')
     setCodeVal(item.code || '')
     setKeyVal(item.key || 'sales')
     setIndustryVal(typeof item.industryId === 'object' ? (item.industryId as any)?._id || '' : item.industryId || '')
@@ -148,12 +159,15 @@ export default function SettingsPage() {
   const handleDelete = (item: SettingItem) => {
     confirmDelete({
       title: 'Delete Item',
-      message: `Are you sure you want to delete "${item.name}"? This action cannot be undone.`,
+      message: `Are you sure you want to delete "${item.label || item.value || item.name}"? This action cannot be undone.`,
       onConfirm: async () => {
         try {
           await api.delete(`${tab}/${item._id}`)
           showToast('Item deleted successfully')
           void loadItems(tab)
+          if (tab === 'role-keys') {
+            void loadRoleKeys()
+          }
         } catch {
           showToast('Failed to delete item', 'error')
         }
@@ -182,6 +196,16 @@ export default function SettingsPage() {
           await api.post('roles', payload)
           showToast('Role created successfully')
         }
+      } else if (tab === 'role-keys') {
+        const payload = { name: nameVal.trim() }
+        if (editingItem) {
+          await api.put(`role-keys/${editingItem._id}`, payload)
+          showToast('Role key updated successfully')
+        } else {
+          await api.post('role-keys', payload)
+          showToast('Role key created successfully')
+        }
+        void loadRoleKeys()
       } else {
         const payload = tab === 'designations'
           ? { name: nameVal.trim() }
@@ -263,6 +287,7 @@ export default function SettingsPage() {
               }}
             >
               <Tab label="Roles" value="roles" />
+              <Tab label="Role Keys" value="role-keys" />
             </Tabs>
           ) : (
             <Tabs
@@ -296,7 +321,7 @@ export default function SettingsPage() {
               '&:hover': { boxShadow: 'none' },
             }}
           >
-            Add {tab === 'roles' ? 'Role' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
+            Add {tab === 'roles' ? 'Role' : tab === 'role-keys' ? 'Role Key' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
           </Button>
         </Stack>
 
@@ -313,21 +338,21 @@ export default function SettingsPage() {
                   {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Key</TableCell>}
                   {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Industry</TableCell>}
                   {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>}
-                  {tab !== 'designations' && tab !== 'roles' && <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>}
+                  {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>}
                   <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={tab === 'roles' ? 5 : tab === 'designations' ? 2 : 3} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    <TableCell colSpan={tab === 'roles' ? 5 : tab === 'designations' || tab === 'role-keys' ? 2 : 3} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                       No items found. Click Add to create one.
                     </TableCell>
                   </TableRow>
                 ) : (
                   items.map((item) => (
                     <TableRow key={item._id} hover>
-                      <TableCell sx={{ fontWeight: 500 }}>{item.name}</TableCell>
+                      <TableCell sx={{ fontWeight: 500 }}>{item.label || item.value || item.name}</TableCell>
                       {tab === 'roles' && <TableCell sx={{ fontFamily: 'monospace' }}>{item.key}</TableCell>}
                       {tab === 'roles' && <TableCell>{typeof item.industryId === 'object' ? (item.industryId as any)?.name || '—' : item.industryId || '—'}</TableCell>}
                       {tab === 'roles' && (
@@ -337,7 +362,7 @@ export default function SettingsPage() {
                           </Alert>
                         </TableCell>
                       )}
-                      {tab !== 'designations' && tab !== 'roles' && <TableCell>{item.code || '—'}</TableCell>}
+                      {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && <TableCell>{item.code || '—'}</TableCell>}
                       <TableCell align="right" sx={{ pr: 2 }}>
                         <IconButton size="small" color="primary" onClick={() => openEdit(item)} sx={{ mr: 1 }}>
                           <EditIcon fontSize="small" />
@@ -360,7 +385,7 @@ export default function SettingsPage() {
         <form onSubmit={(e) => void handleSave(e)}>
           <DialogTitle>
             {editingItem ? 'Edit' : 'Add'}{' '}
-            {tab === 'roles' ? 'Role' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
+            {tab === 'roles' ? 'Role' : tab === 'role-keys' ? 'Role Key' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
           </DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2} sx={{ pt: 1 }}>
@@ -394,9 +419,9 @@ export default function SettingsPage() {
                   onChange={(e) => setKeyVal(e.target.value)}
                   disabled={saving || !!editingItem}
                 >
-                  {ROLE_KEYS.map((rk) => (
-                    <MenuItem key={rk} value={rk}>
-                      {rk}
+                  {roleKeys.map((rk) => (
+                    <MenuItem key={rk.value} value={rk.value}>
+                      {rk.label}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -436,7 +461,7 @@ export default function SettingsPage() {
                 />
               )}
 
-              {tab !== 'designations' && tab !== 'roles' && (
+              {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && (
                 <TextField
                   fullWidth
                   size="small"

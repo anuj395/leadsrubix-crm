@@ -913,8 +913,24 @@ const DROPDOWN_OPTION_DEFAULTS = {
 
 async function seedDropdownOptions() {
   const DropdownOption = mongoose.model('DropdownOption');
+  
+  // Seed default role keys unconditionally
+  const defaultRoleKeys = [
+    { value: 'admin', label: 'admin' },
+    { value: 'leadManager', label: 'leadManager' },
+    { value: 'teamLead', label: 'teamLead' },
+    { value: 'sales', label: 'sales' }
+  ];
+  for (const opt of defaultRoleKeys) {
+    await DropdownOption.updateOne(
+      { key: 'role_keys', value: opt.value },
+      { $set: { label: opt.label } },
+      { upsert: true }
+    );
+  }
+
   const count = await DropdownOption.estimatedDocumentCount();
-  if (count === 0) {
+  if (count <= 4) {
     console.log('[seed] seeding database-driven dropdown options...');
     for (const [key, options] of Object.entries(DROPDOWN_OPTION_DEFAULTS)) {
       for (const opt of options) {

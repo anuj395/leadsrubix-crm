@@ -69,8 +69,9 @@ import {
 } from '@/services/roleActionPermissionsService'
 import Checkbox from '@mui/material/Checkbox'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { api } from '@/services/api'
 
-const ROLE_KEYS = ['admin', 'leadManager', 'teamLead', 'sales']
+
 
 type ToastSev = 'success' | 'error'
 
@@ -131,8 +132,20 @@ export default function RolesAndPermissionsPage() {
 
   // ── Shared state ──────────────────────────────────────────────────────────
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [roleKeys, setRoleKeys] = useState<{ _id: string; value: string; label: string }[]>([])
   const [filterIndustry, setFilterIndustry] = useState<string>('') // industry _id
   const [roles, setRoles] = useState<AdminRole[]>([])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await api.get('role-keys')
+        setRoleKeys(res.data?.items || res.data || [])
+      } catch {
+        // Fallback
+      }
+    })()
+  }, [])
 
   // ── Roles tab state ───────────────────────────────────────────────────────
   const [rolesLoading, setRolesLoading] = useState(false)
@@ -922,7 +935,11 @@ export default function RolesAndPermissionsPage() {
               fullWidth
               helperText="Must match user.role values used in the app"
             >
-              {ROLE_KEYS.map((k) => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+              {roleKeys.map((rk) => (
+                <MenuItem key={rk.value} value={rk.value}>
+                  {rk.label}
+                </MenuItem>
+              ))}
             </TextField>
             <TextField
               label="Display Name"

@@ -184,7 +184,7 @@ export default function UserListPage() {
         const allIndustries = isSuperAdmin
           ? industries
           : await getIndustries().catch(() => [] as Industry[])
-        const ind = allIndustries.find((i) => i.code === filterIndustry)
+        const ind = allIndustries.find((i) => i.code === filterIndustry || i._id === filterIndustry)
         if (!ind) { if (!cancelled) setRoles([]); return }
         const list = await getRoles(ind._id)
         if (cancelled) return
