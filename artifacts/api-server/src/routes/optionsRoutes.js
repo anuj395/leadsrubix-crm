@@ -266,7 +266,7 @@ router.get('/:key', (req, res, next) => {
         const Industry = mongoose.model('Industry');
         const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
         if (ind) {
-          query.industryId = String(ind._id);
+          query.industryId = { $in: [String(ind._id), ind.code] };
         } else {
           query.industryId = targetIndustry;
         }
@@ -289,7 +289,7 @@ router.get('/:key', (req, res, next) => {
         const Industry = mongoose.model('Industry');
         const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
         if (ind) {
-          query.industryId = String(ind._id);
+          query.industryId = { $in: [String(ind._id), ind.code] };
         } else {
           query.industryId = targetIndustry;
         }
