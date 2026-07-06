@@ -1,5 +1,5 @@
 // src/index.js
-// Entry point for the application. Loads config, creates server. Enforce secure tenant and industry manager filtering with persistence.
+// Entry point for the application. Loads config, creates server. Enforce secure tenant, industry, teams and branches option matching.
 const app = require('./app');
 const config = require('./config');
 const db = require('./db');
