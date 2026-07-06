@@ -92,6 +92,7 @@ function shapePublic(u) {
     reporting_to: u.reportingTo || u.reporting_to || '',
     fields: u.fields || {},
     organizationName: u.organizationName || '',
+    organizationId: u.organizationId || '',
     needsPasswordChange: !!u.needsPasswordChange,
     needs_password_change: !!(u.needsPasswordChange || u.needs_password_change),
     createdAt: u.createdAt,

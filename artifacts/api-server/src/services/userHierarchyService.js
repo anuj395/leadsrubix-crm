@@ -74,12 +74,33 @@ const MANAGER_OF = {
   admin: 'superAdmin',
 };
 
-async function listManagerCandidates({ role, industryId }) {
+async function listManagerCandidates({ role, industryId, organizationId }) {
   const managerRole = MANAGER_OF[role];
   if (!managerRole) return [];
   const filter = { role: managerRole, isActive: { $ne: false } };
+  if (organizationId) {
+    filter.organizationId = organizationId;
+  }
   // SuperAdmin is global; all other roles are tenant-scoped.
-  if (managerRole !== 'superAdmin' && industryId) filter.industryId = industryId;
+  if (managerRole !== 'superAdmin') {
+    if (industryId) {
+      const mongoose = require('mongoose');
+      const Industry = mongoose.model('Industry');
+      const ind = await Industry.findOne({
+        $or: [
+          { code: industryId },
+          ...(mongoose.Types.ObjectId.isValid(industryId) ? [{ _id: industryId }] : [])
+        ]
+      }).lean().exec();
+      if (ind) {
+        filter.industryId = { $in: [String(ind._id), ind.code] };
+      } else {
+        filter.industryId = industryId;
+      }
+    } else {
+      filter.industryId = 'NONE';
+    }
+  }
   const list = await User.find(filter).select('_id name email role').lean().exec();
   return list.map((u) => ({
     _id: String(u._id),

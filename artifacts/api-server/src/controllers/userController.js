@@ -10,6 +10,7 @@ const { listManagerCandidates, MANAGER_OF } = require('../services/userHierarchy
  */
 exports.getManagerCandidates = async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const role = req.query.profile || req.query.role;
     if (!role || !MANAGER_OF[role]) {
       return res.status(400).json({
@@ -20,7 +21,8 @@ exports.getManagerCandidates = async (req, res, next) => {
       req.user?.role === 'superAdmin'
         ? req.query.industryId || req.user?.industryId
         : req.user?.industryId;
-    const items = await listManagerCandidates({ role, industryId });
+    const organizationId = req.user?.role !== 'superAdmin' ? req.user?.organizationId : undefined;
+    const items = await listManagerCandidates({ role, industryId, organizationId });
     res.json({ items });
   } catch (err) {
     next(err);
