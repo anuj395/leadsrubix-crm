@@ -450,9 +450,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                 sx={{
                   width: '2.5rem',
                   height: '2.5rem',
-                  background: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.08)',
+                  background: isDark ? 'rgba(39, 41, 68, 0.25)' : 'rgba(39, 41, 68, 0.08)',
+                  color: isDark ? '#b4b7db' : '#272944',
                   '&:hover': {
-                    background: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.15)',
+                    background: isDark ? 'rgba(39, 41, 68, 0.35)' : 'rgba(39, 41, 68, 0.15)',
                   }
                 }}
               >
@@ -470,10 +471,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    background: 'linear-gradient(135deg, #3b3e66 0%, #272944 100%)',
                     color: '#ffffff',
                     flexShrink: 0,
-                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
+                    boxShadow: '0 2px 8px rgba(39, 41, 68, 0.3)',
                   }}
                 >
                   <HourglassEmptyIcon sx={{ fontSize: 16 }} />
@@ -500,10 +501,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                   py: 0.5,
                   mt: 0.5,
                   borderRadius: '6px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  boxShadow: '0 2px 6px rgba(59, 130, 246, 0.25)',
+                  background: 'linear-gradient(135deg, #3b3e66 0%, #272944 100%)',
+                  boxShadow: '0 2px 6px rgba(39, 41, 68, 0.25)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+                    background: 'linear-gradient(135deg, #2f3254 0%, #1b1d31 100%)',
                   }
                 }}
               >
