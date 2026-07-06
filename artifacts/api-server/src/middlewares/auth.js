@@ -29,6 +29,7 @@ module.exports.authenticate = async (req, res, next) => {
       role: fresh.role,
       industryId: fresh.industryId,
       organizationId: fresh.organizationId,
+      organizationName: fresh.organizationName,
       email: fresh.email,
     };
 

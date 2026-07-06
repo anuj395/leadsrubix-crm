@@ -122,7 +122,7 @@ const emptyFieldForm: FieldFormState = {
 export default function RolesAndPermissionsPage() {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
-  const [tab, setTab] = useState<0 | 1 | 2>(0)
+  const [activeTabId, setActiveTabId] = useState<string>('roles')
   const { confirmDelete } = useConfirm()
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: ToastSev }>({
     open: false, msg: '', sev: 'success',
@@ -172,6 +172,13 @@ export default function RolesAndPermissionsPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [actionSaving, setActionSaving] = useState<string | null>(null) // screen_id being saved
 
+  // ── Permission Fields (Field-level config) inside Tab 3 ──────────────────
+  const [selectedScreenForPerms, setSelectedScreenForPerms] = useState<Screen | null>(null)
+  const [permFields, setPermFields] = useState<ScreenField[]>([])
+  const [permFieldsLoading, setPermFieldsLoading] = useState(false)
+  const [enabledPermFieldIds, setEnabledPermFieldIds] = useState<Set<string>>(new Set())
+  const [permFieldsSaving, setPermFieldsSaving] = useState(false)
+
   // ── Initial loads ─────────────────────────────────────────────────────────
   useEffect(() => {
     void (async () => {
@@ -209,15 +216,21 @@ export default function RolesAndPermissionsPage() {
         if (cancelled) return
         setRoles(list)
         // Default the role selector on the field tab.
-        if (!selectedRoleId && list[0]) setSelectedRoleId(list[0]._id)
+        const currentSelectedRoleExists = list.some((r) => r._id === selectedRoleId)
+        if (!selectedRoleId || !currentSelectedRoleExists) {
+          if (list[0]) setSelectedRoleId(list[0]._id)
+          else setSelectedRoleId('')
+        }
         // Default the role selector on the action tab to leadManager.
         const leadManagerRole = list.find((r) => r.key === 'leadManager')
-        const currentSelectedRoleStillExists = list.some((r) => r._id === actionRoleId)
-        if (!actionRoleId || !currentSelectedRoleStillExists) {
+        const currentActionRoleExists = list.some((r) => r._id === actionRoleId)
+        if (!actionRoleId || !currentActionRoleExists) {
           if (leadManagerRole) {
             setActionRoleId(leadManagerRole._id)
           } else if (list[0]) {
             setActionRoleId(list[0]._id)
+          } else {
+            setActionRoleId('')
           }
         }
       } catch (e) {
@@ -515,6 +528,67 @@ export default function RolesAndPermissionsPage() {
     }
   }
 
+  // ── Load permission fields and state for selected module inside Tab 3 ────
+  useEffect(() => {
+    if (!selectedScreenForPerms || !actionRoleId || !filterIndustry) {
+      setPermFields([])
+      setEnabledPermFieldIds(new Set())
+      return
+    }
+    let cancelled = false
+    setPermFieldsLoading(true)
+    void (async () => {
+      try {
+        const [fieldsList, existingPerms] = await Promise.all([
+          getScreenFields(selectedScreenForPerms._id),
+          getScreenPermissions({
+            screen_id: selectedScreenForPerms._id,
+            roleId: actionRoleId,
+            industryId: filterIndustry,
+            enabledOnly: true,
+          })
+        ])
+        if (cancelled) return
+        setPermFields(fieldsList.sort((a, b) => a.order - b.order))
+        setEnabledPermFieldIds(new Set(existingPerms.map((p) => p.field_id)))
+      } catch (e) {
+        const err = e as { response?: { data?: { message?: string } } }
+        if (!cancelled) showToast(err?.response?.data?.message ?? 'Failed to load permissions', 'error')
+      } finally {
+        if (!cancelled) setPermFieldsLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [selectedScreenForPerms, actionRoleId, filterIndustry])
+
+  const savePermFields = async () => {
+    if (!selectedScreenForPerms || !actionRoleId || !filterIndustry) return
+    setPermFieldsSaving(true)
+    try {
+      await bulkSetScreenPermissions({
+        screen_id: selectedScreenForPerms._id,
+        roleId: actionRoleId,
+        industryId: filterIndustry,
+        field_ids: [...enabledPermFieldIds],
+      })
+      showToast('Permissions updated')
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } }
+      showToast(err?.response?.data?.message ?? 'Save failed', 'error')
+    } finally {
+      setPermFieldsSaving(false)
+    }
+  }
+
+  const togglePermField = (fieldId: string) => {
+    setEnabledPermFieldIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(fieldId)) next.delete(fieldId)
+      else next.add(fieldId)
+      return next
+    })
+  }
+
   const industryById = useMemo(
     () => new Map(industries.map((i) => [i._id, i])),
     [industries],
@@ -628,7 +702,7 @@ export default function RolesAndPermissionsPage() {
       ...(['view', 'add', 'edit', 'delete'] as const).map((a) => ({
         field: `can_${a}`,
         headerName: a.charAt(0).toUpperCase() + a.slice(1),
-        width: 100,
+        width: 90,
         align: 'center' as const,
         headerAlign: 'center' as const,
         sortable: false,
@@ -647,8 +721,80 @@ export default function RolesAndPermissionsPage() {
           )
         },
       })),
+      {
+        field: 'permissions',
+        headerName: 'Permissions',
+        width: 120,
+        align: 'center' as const,
+        headerAlign: 'center' as const,
+        sortable: false,
+        filterable: false,
+        renderCell: (p: GridRenderCellParams<Screen>) => {
+          const s = p.row
+          const isSelected = selectedScreenForPerms?._id === s._id
+          return (
+            <Button
+              size="small"
+              variant={isSelected ? "contained" : "text"}
+              onClick={() => setSelectedScreenForPerms(s)}
+              sx={{ py: 0.25, px: 1, minWidth: 0, textTransform: 'none' }}
+            >
+              Permissions
+            </Button>
+          )
+        },
+      },
     ],
-    [actionByScreen, actionSaving, isPrivilegedRole, toggleAction],
+    [actionByScreen, actionSaving, isPrivilegedRole, toggleAction, selectedScreenForPerms],
+  )
+
+  const permFieldsColumns = useMemo<GridColDef<ScreenField>[]>(
+    () => [
+      {
+        field: 'order',
+        headerName: 'Order',
+        width: 85,
+        type: 'number',
+      },
+      {
+        field: 'field_key',
+        headerName: 'Field Key',
+        flex: 1,
+        renderCell: (p) => <code>{p.value}</code>,
+      },
+      {
+        field: 'label',
+        headerName: 'Display Label',
+        flex: 1.2,
+      },
+      {
+        field: 'type',
+        headerName: 'Field Type',
+        width: 120,
+        renderCell: (p) => <StatusBadge value={p.value} hideDot />,
+      },
+      {
+        field: 'enabled',
+        headerName: 'Access / Visibility',
+        width: 150,
+        align: 'center' as const,
+        headerAlign: 'center' as const,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => {
+          const f = p.row
+          return (
+            <Checkbox
+              size="small"
+              checked={enabledPermFieldIds.has(f._id)}
+              disabled={isPrivilegedRole}
+              onChange={() => togglePermField(f._id)}
+            />
+          )
+        },
+      },
+    ],
+    [enabledPermFieldIds, isPrivilegedRole],
   )
 
   const perRoleColumns = useMemo<GridColDef<ScreenField>[]>(
@@ -699,23 +845,39 @@ export default function RolesAndPermissionsPage() {
     [enabledFieldIds],
   )
 
+  const visibleTabs = useMemo(() => {
+    const list = [{ id: 'roles', label: 'Roles' }]
+    if (isSuperAdmin) {
+      list.push(
+        { id: 'fields', label: 'Fields Configuration' },
+        { id: 'visibility', label: 'Per-Role Visibility' }
+      )
+    }
+    list.push({ id: 'actions', label: 'Action Permissions' })
+    return list
+  }, [isSuperAdmin])
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, flexShrink: 0 }}>
-        <Tab label="Roles" />
-        <Tab label="Field Configuration" />
-        <Tab label="Action Permissions" />
+      <Tabs value={activeTabId} onChange={(_, v) => setActiveTabId(v as string)} sx={{ mb: 2, flexShrink: 0 }}>
+        {visibleTabs.map((t) => (
+          <Tab key={t.id} value={t.id} label={t.label} />
+        ))}
       </Tabs>
 
-      {/* Industry selector — shared by both tabs */}
+      {/* Industry selector — shared by tabs */}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5, flexShrink: 0 }}>
         <TextField
           select
           size="small"
           label="Industry"
           value={filterIndustry}
-          onChange={(e) => { setFilterIndustry(e.target.value); setSelectedRoleId('') }}
+          onChange={(e) => {
+            setFilterIndustry(e.target.value)
+            setSelectedRoleId('')
+            setActionRoleId('')
+          }}
           sx={{ minWidth: 260 }}
         >
           {industries.map((i) => (
@@ -727,7 +889,7 @@ export default function RolesAndPermissionsPage() {
       </Stack>
 
       {/* ── Tab 1: Roles ───────────────────────────────────────────────────── */}
-      {tab === 0 && (
+      {activeTabId === 'roles' && (
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <AppCard
             title="Roles"
@@ -765,12 +927,12 @@ export default function RolesAndPermissionsPage() {
         </Box>
       )}
 
-      {/* ── Tab 2: Field Configuration ────────────────────────────────────── */}
-      {tab === 1 && (
-        <Stack spacing={2} sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+      {/* ── Tab 2: Fields Configuration ────────────────────────────────────── */}
+      {activeTabId === 'fields' && isSuperAdmin && (
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <AppCard
             title="User Form Fields"
-            subtitle="Master catalog of dynamic fields shown on Add/Edit User. Per-role visibility is configured below."
+            subtitle="Master catalog of dynamic fields shown on Add/Edit User."
             action={
               <Button
                 variant="contained"
@@ -781,6 +943,7 @@ export default function RolesAndPermissionsPage() {
                 Add Field
               </Button>
             }
+            fullHeight
           >
             {fieldsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -792,7 +955,7 @@ export default function RolesAndPermissionsPage() {
               </Typography>
             ) : (
               <AppDataGrid
-                height="300px"
+                height="100%"
                 rows={fields}
                 columns={fieldsColumns}
                 loading={fieldsLoading}
@@ -805,7 +968,12 @@ export default function RolesAndPermissionsPage() {
               />
             )}
           </AppCard>
+        </Box>
+      )}
 
+      {/* ── Tab 3: Per-Role Visibility ────────────────────────────────────── */}
+      {activeTabId === 'visibility' && isSuperAdmin && (
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <AppCard
             title="Per-Role Visibility"
             subtitle="Pick a role to control which fields appear on that role's Add/Edit User form."
@@ -818,6 +986,7 @@ export default function RolesAndPermissionsPage() {
                 {permsSaving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Save Permissions'}
               </Button>
             }
+            fullHeight
           >
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5 }}>
               <TextField
@@ -849,7 +1018,7 @@ export default function RolesAndPermissionsPage() {
               </Typography>
             ) : (
               <AppDataGrid
-                height="300px"
+                height="100%"
                 rows={fields}
                 columns={perRoleColumns}
                 loading={permsLoading}
@@ -857,11 +1026,11 @@ export default function RolesAndPermissionsPage() {
               />
             )}
           </AppCard>
-        </Stack>
+        </Box>
       )}
 
-      {/* ── Tab 3: Action Permissions ─────────────────────────────────────── */}
-      {tab === 2 && (
+      {/* ── Tab 4: Action Permissions ─────────────────────────────────────── */}
+      {activeTabId === 'actions' && (
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <AppCard
             title="Action Permissions"
@@ -874,7 +1043,10 @@ export default function RolesAndPermissionsPage() {
                 size="small"
                 label="Role"
                 value={actionRoleId}
-                onChange={(e) => setActionRoleId(e.target.value)}
+                onChange={(e) => {
+                  setActionRoleId(e.target.value)
+                  setSelectedScreenForPerms(null)
+                }}
                 sx={{ minWidth: 260 }}
                 disabled={roles.length === 0}
               >
@@ -1066,6 +1238,52 @@ export default function RolesAndPermissionsPage() {
           <Button onClick={() => setFieldDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={saveField} disabled={fieldSaving}>
             {fieldSaving ? <CircularProgress size={18} /> : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={!!selectedScreenForPerms}
+        onClose={() => setSelectedScreenForPerms(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          Permission Fields — {selectedScreenForPerms?.name || selectedScreenForPerms?.key}
+        </DialogTitle>
+        <DialogContent sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Configure field-level visibility permissions for this module.
+          </Typography>
+          {permFieldsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : permFields.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              No dynamic fields are configured for this module.
+            </Typography>
+          ) : (
+            <AppDataGrid
+              height="400px"
+              rows={permFields}
+              columns={permFieldsColumns}
+              loading={permFieldsLoading}
+              getRowId={(f) => f._id}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedScreenForPerms(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              await savePermFields();
+              setSelectedScreenForPerms(null);
+            }}
+            disabled={permFieldsSaving || isPrivilegedRole}
+          >
+            {permFieldsSaving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Save Fields'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -251,6 +251,7 @@ export function DynamicForm({
     if (activeOrg && !url.includes('options/organizations')) {
       url = `${url}${url.includes('?') ? '&' : '?'}organizationId=${encodeURIComponent(String(activeOrg))}`
     }
+    url = `${url}${url.includes('?') ? '&' : '?'}_cb=${Date.now()}`
     return url
   }
 

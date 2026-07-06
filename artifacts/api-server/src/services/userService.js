@@ -72,6 +72,7 @@ function pickAllowedFields(payloadFields, allowedFieldDefs) {
  * escalation). superAdmin role can only be granted by another superAdmin.
  */
 function ensureCanAssignRole({ authedUser, targetRole }) {
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
   if (targetRole === 'superAdmin') {
     const e = new Error('Only one Super Admin account is allowed in the system.');
     e.status = 403;
@@ -256,6 +257,8 @@ exports.create = async ({ payload, authedUser }) => {
     password,
     role,
     industryId,
+    organizationId: authedUser?.organizationId || '',
+    organizationName: authedUser?.organizationName || '',
     isActive: payload.isActive !== false,
     reporting_to: payload.reporting_to || '',
     fields: cleanedFields,

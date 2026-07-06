@@ -247,10 +247,12 @@ export default function UserListPage() {
   }, [filterIndustry, paginationModel.page, paginationModel.pageSize, sortModel, searchQuery])
 
   // ── Build DataGrid columns from core + dynamic field defs ──────────────
-  const allColumns = useMemo(
-    () => [...CORE_COLUMNS, ...dynamicCols].sort((a, b) => a.order - b.order),
-    [dynamicCols],
-  )
+  const allColumns = useMemo(() => {
+    const cols = isSuperAdmin
+      ? CORE_COLUMNS
+      : CORE_COLUMNS.filter((c) => c.key !== 'organizationName')
+    return [...cols, ...dynamicCols].sort((a, b) => a.order - b.order)
+  }, [dynamicCols, isSuperAdmin])
 
   const gridColumns = useMemo<GridColDef<AdminUser>[]>(() => {
     const cols: GridColDef<AdminUser>[] = allColumns.map((c) => {

@@ -44,7 +44,8 @@ exports.bulkSet = async ({ screen_id, roleId, industryId, field_ids }) => {
   if (!role) {
     const err = new Error('Role not found'); err.status = 404; throw err;
   }
-  if (String(role.industryId) !== String(industryId)) {
+  const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
+  if (roleIndustryId !== String(industryId)) {
     const err = new Error('Role does not belong to the given industry');
     err.status = 400;
     throw err;

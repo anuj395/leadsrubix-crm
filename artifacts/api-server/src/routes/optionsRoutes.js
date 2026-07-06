@@ -82,6 +82,7 @@ router.get('/:key', (req, res, next) => {
   return authenticate(req, res, next);
 }, async (req, res) => {
   const { key } = req.params;
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   
   if (key === 'countries') {
     try {

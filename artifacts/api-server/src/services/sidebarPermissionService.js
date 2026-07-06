@@ -22,7 +22,8 @@ exports.upsert = async (payload) => {
     err.status = 404;
     throw err;
   }
-  if (String(role.industryId) !== String(industry._id)) {
+  const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
+  if (roleIndustryId !== String(industry._id)) {
     const err = new Error('role does not belong to the given industry');
     err.status = 400;
     throw err;
@@ -45,7 +46,8 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids }) => {
     err.status = 404;
     throw err;
   }
-  if (String(role.industryId) !== String(industry._id)) {
+  const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
+  if (roleIndustryId !== String(industry._id)) {
     const err = new Error('role does not belong to the given industry');
     err.status = 400;
     throw err;
