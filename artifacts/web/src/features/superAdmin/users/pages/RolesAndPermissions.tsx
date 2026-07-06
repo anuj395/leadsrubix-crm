@@ -701,15 +701,15 @@ export default function RolesAndPermissionsPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', overflowY: 'auto' }}>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, flexShrink: 0 }}>
         <Tab label="Roles" />
         <Tab label="Field Configuration" />
         <Tab label="Action Permissions" />
       </Tabs>
 
       {/* Industry selector — shared by both tabs */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5, flexShrink: 0 }}>
         <TextField
           select
           size="small"
@@ -728,43 +728,46 @@ export default function RolesAndPermissionsPage() {
 
       {/* ── Tab 1: Roles ───────────────────────────────────────────────────── */}
       {tab === 0 && (
-        <AppCard
-          title="Roles"
-          subtitle="Each user inherits sidebar + dynamic-form permissions from their (industry, role) pair."
-          action={
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={openRoleCreate}
-              disabled={!filterIndustry}
-            >
-              Add Role
-            </Button>
-          }
-        >
-          {rolesLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : roles.length === 0 ? (
-            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-              No roles for this industry yet.
-            </Typography>
-          ) : (
-            <AppDataGrid
-              height="60vh"
-              rows={roles}
-              columns={rolesColumns}
-              loading={rolesLoading}
-              getRowId={(r) => r._id}
-            />
-          )}
-        </AppCard>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <AppCard
+            title="Roles"
+            subtitle="Each user inherits sidebar + dynamic-form permissions from their (industry, role) pair."
+            action={
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={openRoleCreate}
+                disabled={!filterIndustry}
+              >
+                Add Role
+              </Button>
+            }
+            fullHeight
+          >
+            {rolesLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : roles.length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                No roles for this industry yet.
+              </Typography>
+            ) : (
+              <AppDataGrid
+                height="100%"
+                rows={roles}
+                columns={rolesColumns}
+                loading={rolesLoading}
+                getRowId={(r) => r._id}
+              />
+            )}
+          </AppCard>
+        </Box>
       )}
 
       {/* ── Tab 2: Field Configuration ────────────────────────────────────── */}
       {tab === 1 && (
-        <Stack spacing={2}>
+        <Stack spacing={2} sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           <AppCard
             title="User Form Fields"
             subtitle="Master catalog of dynamic fields shown on Add/Edit User. Per-role visibility is configured below."
@@ -789,7 +792,7 @@ export default function RolesAndPermissionsPage() {
               </Typography>
             ) : (
               <AppDataGrid
-                height="60vh"
+                height="300px"
                 rows={fields}
                 columns={fieldsColumns}
                 loading={fieldsLoading}
@@ -846,7 +849,7 @@ export default function RolesAndPermissionsPage() {
               </Typography>
             ) : (
               <AppDataGrid
-                height="45vh"
+                height="300px"
                 rows={fields}
                 columns={perRoleColumns}
                 loading={permsLoading}
@@ -859,52 +862,55 @@ export default function RolesAndPermissionsPage() {
 
       {/* ── Tab 3: Action Permissions ─────────────────────────────────────── */}
       {tab === 2 && (
-        <AppCard
-          title="Action Permissions"
-          subtitle="Pick a role to grant View / Add / Edit / Delete on each module. SuperAdmin and admin always have full access."
-        >
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5 }}>
-            <TextField
-              select
-              size="small"
-              label="Role"
-              value={actionRoleId}
-              onChange={(e) => setActionRoleId(e.target.value)}
-              sx={{ minWidth: 260 }}
-              disabled={roles.length === 0}
-            >
-              {roles.filter((r) => isSuperAdmin || r.key !== 'admin').map((r) => (
-                <MenuItem key={r._id} value={r._id}>{r.name} ({r.key})</MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <AppCard
+            title="Action Permissions"
+            subtitle="Pick a role to grant View / Add / Edit / Delete on each module. SuperAdmin and admin always have full access."
+            fullHeight
+          >
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5, flexShrink: 0 }}>
+              <TextField
+                select
+                size="small"
+                label="Role"
+                value={actionRoleId}
+                onChange={(e) => setActionRoleId(e.target.value)}
+                sx={{ minWidth: 260 }}
+                disabled={roles.length === 0}
+              >
+                {roles.filter((r) => isSuperAdmin || r.key !== 'admin').map((r) => (
+                  <MenuItem key={r._id} value={r._id}>{r.name} ({r.key})</MenuItem>
+                ))}
+              </TextField>
+            </Stack>
 
-          {!actionRoleId ? (
-            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-              Select a role to configure its action permissions.
-            </Typography>
-          ) : isPrivilegedRole ? (
-            <Alert severity="info">
-              The "{selectedRoleObj?.key}" role has implicit full access on every module — no per-screen configuration is needed or applied.
-            </Alert>
-          ) : actionLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : allScreens.length === 0 ? (
-            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-              No active modules.
-            </Typography>
-          ) : (
-            <AppDataGrid
-              height="60vh"
-              rows={allScreens}
-              columns={actionsColumns}
-              loading={actionLoading}
-              getRowId={(r) => r._id}
-            />
-          )}
-        </AppCard>
+            {!actionRoleId ? (
+              <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                Select a role to configure its action permissions.
+              </Typography>
+            ) : isPrivilegedRole ? (
+              <Alert severity="info">
+                The "{selectedRoleObj?.key}" role has implicit full access on every module — no per-screen configuration is needed or applied.
+              </Alert>
+            ) : actionLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : allScreens.length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                No active modules.
+              </Typography>
+            ) : (
+              <AppDataGrid
+                height="100%"
+                rows={allScreens}
+                columns={actionsColumns}
+                loading={actionLoading}
+                getRowId={(r) => r._id}
+              />
+            )}
+          </AppCard>
+        </Box>
       )}
 
       {/* ── Role create/edit dialog ──────────────────────────────────────── */}
