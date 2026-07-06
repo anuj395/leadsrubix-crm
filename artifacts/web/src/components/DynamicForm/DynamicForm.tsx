@@ -251,7 +251,6 @@ export function DynamicForm({
     if (activeOrg && !url.includes('options/organizations')) {
       url = `${url}${url.includes('?') ? '&' : '?'}organizationId=${encodeURIComponent(String(activeOrg))}`
     }
-    url = `${url}${url.includes('?') ? '&' : '?'}_cb=${Date.now()}`
     return url
   }
 
@@ -275,9 +274,10 @@ export function DynamicForm({
       //   - "/api/..."           → strip the leading "/api/" since axios baseURL already includes it
       //   - "/foo/..."           → strip the leading slash
       const isAbsolute = /^https?:\/\//i.test(url)
+      const urlWithCb = `${url}${url.includes('?') ? '&' : '?'}_cb=${Date.now()}`
       const path = isAbsolute
-        ? url
-        : url.replace(/^\/+/, '').replace(/^api\//, '')
+        ? urlWithCb
+        : urlWithCb.replace(/^\/+/, '').replace(/^api\//, '')
       setDropdownLoading((prev) => ({ ...prev, [url]: true }))
       void api
         .get(path)

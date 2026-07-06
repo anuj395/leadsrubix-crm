@@ -25,6 +25,8 @@ require('./models/whatsappConfigModel');
 require('./models/resourceItemModel');
 require('./models/apiTokenModel');
 require('./models/dropdownOptionModel');
+require('./models/teamModel');
+require('./models/branchModel');
 
 const {
   seedUsers,

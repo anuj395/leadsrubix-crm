@@ -51,12 +51,13 @@ exports.resolve = async (req, res, next) => {
     const { screen_key, industry_code, role_key } = req.body || {};
 
     const isSuperAdmin = req.user?.role === 'superAdmin';
+    const isAdmin = req.user?.role === 'admin';
     const isGuestSignup = !req.user && screen_key === 'organization';
 
     const out = await permissionService.resolve({
       screen_key,
-      industry_code: (isSuperAdmin || isGuestSignup) ? industry_code : undefined,
-      role_key: (isSuperAdmin || isGuestSignup) ? (role_key || 'admin') : undefined,
+      industry_code: (isSuperAdmin || isGuestSignup) ? industry_code : req.user?.industryId,
+      role_key: (isSuperAdmin || isAdmin || isGuestSignup) ? (role_key || 'admin') : undefined,
       authedUser: req.user,
     });
     res.json(out);

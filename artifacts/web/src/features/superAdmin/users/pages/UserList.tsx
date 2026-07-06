@@ -391,7 +391,6 @@ export default function UserListPage() {
     setFormError(null)
     if (!core.firstName.trim()) { setFormError('First Name is required'); return }
     if (!core.email.trim()) { setFormError('Email is required'); return }
-    if (!editing && !core.password) { setFormError('Password is required for a new user'); return }
     if (!core.role) { setFormError('Role is required'); return }
     if (isSuperAdmin && !core.industryId) { setFormError('Industry is required'); return }
 

@@ -30,7 +30,6 @@ const userSchema = new mongoose.Schema(
     status: { type: String, default: 'active' },
     isActive: { type: Boolean, default: true },
     reportingTo: { type: String, default: '', alias: 'reporting_to' },
-    fields: { type: mongoose.Schema.Types.Mixed, default: {} },
     needsPasswordChange: { type: Boolean, default: false, alias: 'needs_password_change' },
     deviceId: { type: String, default: '', alias: 'device_id' },
     uid: { type: String, unique: true, index: true },
@@ -42,6 +41,7 @@ const userSchema = new mongoose.Schema(
   { 
     timestamps: true, 
     minimize: false,
+    strict: false,
     toObject: { virtuals: true, getters: true },
     toJSON: { virtuals: true, getters: true }
   },
@@ -77,6 +77,7 @@ exports.User = User;
 function shapePublic(u) {
   if (!u) return null;
   return {
+    ...u,
     _id: u._id,
     id: u._id,
     firstName: u.firstName || '',
@@ -84,17 +85,19 @@ function shapePublic(u) {
     name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
     email: u.email,
     role: u.role,
-    industryId: u.industryId || u.industryId,
-    industryId: u.industryId || u.industryId,
-    isActive: u.isActive !== false && u.isActive !== false,
-    isActive: u.isActive !== false && u.isActive !== false,
+    industryId: u.industryId || '',
+    isActive: u.isActive !== false,
     reportingTo: u.reportingTo || u.reporting_to || '',
     reporting_to: u.reportingTo || u.reporting_to || '',
-    fields: u.fields || {},
     organizationName: u.organizationName || '',
     organizationId: u.organizationId || '',
-    needsPasswordChange: !!u.needsPasswordChange,
+    needsPasswordChange: !!(u.needsPasswordChange || u.needs_password_change),
     needs_password_change: !!(u.needsPasswordChange || u.needs_password_change),
+    contactNumber: u.contactNumber || u.contact_no || '',
+    designation: u.designation || '',
+    team: u.team || '',
+    branch: u.branch || '',
+    branchPermission: u.branchPermission || [],
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
