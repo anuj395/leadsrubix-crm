@@ -68,21 +68,22 @@ async function getVisibleUserIds(authedUser) {
  *   admin         → superAdmin
  */
 const MANAGER_OF = {
-  sales: 'teamLead',
-  teamLead: 'leadManager',
-  leadManager: 'admin',
-  admin: 'superAdmin',
+  sales: ['teamLead', 'leadManager'],
+  teamLead: ['leadManager', 'admin'],
+  leadManager: ['admin'],
+  admin: ['superAdmin'],
 };
 
 async function listManagerCandidates({ role, industryId, organizationId }) {
-  const managerRole = MANAGER_OF[role];
-  if (!managerRole) return [];
-  const filter = { role: managerRole, isActive: { $ne: false } };
+  const managerRoles = MANAGER_OF[role];
+  if (!managerRoles) return [];
+  const filter = { role: { $in: managerRoles }, isActive: { $ne: false } };
   if (organizationId) {
     filter.organizationId = organizationId;
   }
-  // SuperAdmin is global; all other roles are tenant-scoped.
-  if (managerRole !== 'superAdmin') {
+  // If any manager role is not superAdmin, we need to scope to the industry
+  const hasNonSuperAdmin = managerRoles.some(r => r !== 'superAdmin');
+  if (hasNonSuperAdmin) {
     if (industryId) {
       const mongoose = require('mongoose');
       const Industry = mongoose.model('Industry');

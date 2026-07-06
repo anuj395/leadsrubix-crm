@@ -15,6 +15,36 @@ const { sendCredentialsEmail } = require('../utils/mailer');
 
 const USERS_SCREEN_KEY = 'users';
 
+function enrichUserFields(userDoc) {
+  if (!userDoc) return null;
+  const u = userDoc.toObject ? userDoc.toObject() : { ...userDoc };
+  
+  // Standard schema keys to exclude from the dynamic fields object
+  const standardKeys = new Set([
+    '_id', 'id', 'firstName', 'lastName', 'email', 'password', 'role', 'organizationId', 'industryId',
+    'contactNumber', 'userImage', 'designation', 'team', 'branch', 'branchPermission', 'status', 'isActive',
+    'reportingTo', 'reporting_to', 'fields', 'needsPasswordChange', 'needs_password_change', 'deviceId', 'uid',
+    'latestUpdateProfile', 'activatedAt', 'deactivatedAt', 'createdBy', 'createdAt', 'updatedAt', '__v'
+  ]);
+
+  const dynamicFields = {};
+  
+  if (u.designation !== undefined) dynamicFields.designation = u.designation;
+  if (u.team !== undefined) dynamicFields.team = u.team;
+  if (u.branch !== undefined) dynamicFields.branch = u.branch;
+  if (u.contactNumber !== undefined) dynamicFields.phone = u.contactNumber;
+
+  // Include any other non-standard fields stored at root level
+  for (const [k, v] of Object.entries(u)) {
+    if (!standardKeys.has(k)) {
+      dynamicFields[k] = v;
+    }
+  }
+
+  u.fields = dynamicFields;
+  return u;
+}
+
 /**
  * Resolve which dynamic fields a (role × industry) is allowed to set on a
  * User document. SuperAdmin sees every is_form_visible field.
@@ -111,7 +141,7 @@ exports.fetchAll = async ({ authedUser, industryId } = {}) => {
   });
 
   return items.map(u => ({
-    ...u,
+    ...enrichUserFields(u),
     organizationName: u.organizationName || orgMap[u.organizationId] || (u.role === 'superAdmin' ? 'Global/Super Admin' : '')
   }));
 };
@@ -158,7 +188,7 @@ exports.fetchPaged = async ({
   });
 
   const enrichedItems = items.map(u => ({
-    ...u,
+    ...enrichUserFields(u),
     organizationName: u.organizationName || orgMap[u.organizationId] || (u.role === 'superAdmin' ? 'Global/Super Admin' : '')
   }));
 
@@ -175,19 +205,22 @@ exports.fetchById = async ({ id, authedUser }) => {
   const target = await userModel.findById(id);
   if (!target) return null;
   const isSuperAdmin = authedUser?.role === 'superAdmin';
-  if (isSuperAdmin) return target;
 
   const sameIndustry = String(target.industryId) === String(authedUser?.industryId);
   const isSelf = String(target._id) === String(authedUser?.id);
-  if (!sameIndustry && !isSelf) {
-    const e = new Error('Forbidden'); e.status = 403; throw e;
+
+  if (!isSuperAdmin) {
+    if (!sameIndustry && !isSelf) {
+      const e = new Error('Forbidden'); e.status = 403; throw e;
+    }
+    // Inside the tenant, only admins (and self) may read another user record.
+    const isAdmin = roles.hasAtLeast(authedUser?.role, 'admin');
+    if (!isAdmin && !isSelf) {
+      const e = new Error('Forbidden'); e.status = 403; throw e;
+    }
   }
-  // Inside the tenant, only admins (and self) may read another user record.
-  const isAdmin = roles.hasAtLeast(authedUser?.role, 'admin');
-  if (!isAdmin && !isSelf) {
-    const e = new Error('Forbidden'); e.status = 403; throw e;
-  }
-  return target;
+
+  return enrichUserFields(target);
 };
 
 /**
@@ -227,18 +260,17 @@ exports.create = async ({ payload, authedUser }) => {
   if (payload.reporting_to) {
     const manager = await userModel.findById(payload.reporting_to);
     if (manager) {
-      if (role === 'leadManager') {
-        if (manager.role === 'sales' || manager.role === 'teamLead') {
-          const err = new Error('Lead Manager cannot report to lower roles (Sales, Team Lead).');
-          err.status = 400;
-          throw err;
-        }
-      } else if (role === 'teamLead') {
-        if (manager.role === 'sales') {
-          const err = new Error('Team Lead cannot report to lower roles (Sales).');
-          err.status = 400;
-          throw err;
-        }
+      const allowedManagers = {
+        sales: ['teamLead', 'leadManager'],
+        teamLead: ['leadManager', 'admin'],
+        leadManager: ['admin'],
+        admin: ['superAdmin']
+      };
+      const allowed = allowedManagers[role];
+      if (allowed && !allowed.includes(manager.role)) {
+        const err = new Error(`A user with role "${role}" cannot report to a manager with role "${manager.role}".`);
+        err.status = 400;
+        throw err;
       }
     }
   }
@@ -249,8 +281,18 @@ exports.create = async ({ payload, authedUser }) => {
     isSuperAdmin: false, // honour the *new user's* role permissions
   });
   const cleanedFields = pickAllowedFields(payload.fields, allowed);
+  const designation = cleanedFields.designation || '';
+  const team = cleanedFields.team || '';
+  const branch = cleanedFields.branch || '';
+  const contactNumber = cleanedFields.phone || cleanedFields.contactNumber || '';
 
-  const createdUser = await userModel.create({
+  delete cleanedFields.designation;
+  delete cleanedFields.team;
+  delete cleanedFields.branch;
+  delete cleanedFields.phone;
+  delete cleanedFields.contactNumber;
+
+  const payloadData = {
     firstName,
     lastName,
     email,
@@ -261,16 +303,28 @@ exports.create = async ({ payload, authedUser }) => {
     organizationName: authedUser?.organizationName || '',
     isActive: payload.isActive !== false,
     reporting_to: payload.reporting_to || '',
-    fields: cleanedFields,
+    designation,
+    team,
+    branch,
+    contactNumber,
     needs_password_change: true,
-  });
+    ...cleanedFields,
+  };
+  delete payloadData.fields;
+
+  const createdUser = await userModel.create(payloadData);
 
   // Fetch organization to get organization name
   void (async () => {
     try {
       const Organization = mongoose.model('Organization');
       const org = await Organization.findOne({ industryId: industryId }).exec();
-      const orgName = org ? (org.name || org.organizationName) : 'Leads Rubix Workspace';
+      let orgName = org ? (org.name || org.organizationName) : '';
+      if (!orgName) {
+        const Industry = mongoose.model('Industry');
+        const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(industryId) ? industryId : null }, { code: industryId }] }).lean().exec();
+        orgName = ind ? `${ind.name} Workspace` : 'CRM Workspace';
+      }
       await sendCredentialsEmail({
         orgName,
         userName: `${firstName} ${lastName}`.trim() || email,
@@ -311,18 +365,17 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (nextReportingTo) {
     const manager = await userModel.findById(nextReportingTo);
     if (manager) {
-      if (nextRole === 'leadManager') {
-        if (manager.role === 'sales' || manager.role === 'teamLead') {
-          const err = new Error('Lead Manager cannot report to lower roles (Sales, Team Lead).');
-          err.status = 400;
-          throw err;
-        }
-      } else if (nextRole === 'teamLead') {
-        if (manager.role === 'sales') {
-          const err = new Error('Team Lead cannot report to lower roles (Sales).');
-          err.status = 400;
-          throw err;
-        }
+      const allowedManagers = {
+        sales: ['teamLead', 'leadManager'],
+        teamLead: ['leadManager', 'admin'],
+        leadManager: ['admin'],
+        admin: ['superAdmin']
+      };
+      const allowed = allowedManagers[nextRole];
+      if (allowed && !allowed.includes(manager.role)) {
+        const err = new Error(`A user with role "${nextRole}" cannot report to a manager with role "${manager.role}".`);
+        err.status = 400;
+        throw err;
       }
     }
   }
@@ -342,13 +395,56 @@ exports.update = async ({ id, payload, authedUser }) => {
   const roleOrIndustryChanging =
     (payload.fields && payload.fields.designation) !== undefined || payload.role !== undefined || (isSuperAdmin && payload.industryId !== undefined);
   if (payload.fields !== undefined || roleOrIndustryChanging) {
-    const merged = { ...(target.fields || {}), ...(payload.fields || {}) };
+    const targetObj = target.toObject ? target.toObject() : target;
+    const standardKeys = new Set([
+      '_id', 'id', 'firstName', 'lastName', 'email', 'password', 'role', 'organizationId', 'industryId',
+      'contactNumber', 'userImage', 'designation', 'team', 'branch', 'branchPermission', 'status', 'isActive',
+      'reportingTo', 'reporting_to', 'fields', 'needsPasswordChange', 'needs_password_change', 'deviceId', 'uid',
+      'latestUpdateProfile', 'activatedAt', 'deactivatedAt', 'createdBy', 'createdAt', 'updatedAt', '__v'
+    ]);
+
+    const existingDynamicFields = {};
+    if (target.contactNumber) existingDynamicFields.phone = target.contactNumber;
+    if (target.designation) existingDynamicFields.designation = target.designation;
+    if (target.team) existingDynamicFields.team = target.team;
+    if (target.branch) existingDynamicFields.branch = target.branch;
+
+    for (const [k, v] of Object.entries(targetObj)) {
+      if (!standardKeys.has(k)) {
+        existingDynamicFields[k] = v;
+      }
+    }
+
+    const merged = {
+      ...existingDynamicFields,
+      ...(payload.fields || {})
+    };
+
     const { fields: allowed } = await resolveAllowedFields({
       industry_code: nextIndustry,
       role_key: nextRole,
       isSuperAdmin: false,
     });
-    patch.fields = pickAllowedFields(merged, allowed);
+    const cleaned = pickAllowedFields(merged, allowed);
+
+    if (cleaned.phone !== undefined || cleaned.contactNumber !== undefined) {
+      patch.contactNumber = cleaned.phone || cleaned.contactNumber;
+    }
+    if (cleaned.designation !== undefined) patch.designation = cleaned.designation;
+    if (cleaned.team !== undefined) patch.team = cleaned.team;
+    if (cleaned.branch !== undefined) patch.branch = cleaned.branch;
+
+    delete cleaned.designation;
+    delete cleaned.team;
+    delete cleaned.branch;
+    delete cleaned.phone;
+    delete cleaned.contactNumber;
+
+    for (const [k, v] of Object.entries(cleaned)) {
+      patch[k] = v;
+    }
+
+    patch.$unset = { fields: 1 };
   }
 
   return userModel.update(id, patch);

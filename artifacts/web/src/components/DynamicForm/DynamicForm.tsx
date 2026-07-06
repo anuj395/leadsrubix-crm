@@ -60,8 +60,7 @@ function normalizeOptions(raw: unknown): DropdownOption[] {
   })
 }
 
-// Module-level cache so re-mounting the form doesn't refetch the same dropdown.
-const dropdownCache = new Map<string, DropdownOption[]>()
+// Dropdowns are fetched fresh on mount to ensure real-time settings parity.
 
 const DIALING_CODES = [
   { code: '+91', flag: '🇮🇳', label: '🇮🇳 +91 (India)' },
@@ -264,11 +263,6 @@ export function DynamicForm({
       const url = getDropdownUrl(f)
       if (!url) continue
       
-      if (dropdownCache.has(url)) {
-        // already cached — hydrate immediately
-        setDropdowns((prev) => (prev[url] ? prev : { ...prev, [url]: dropdownCache.get(url)! }))
-        continue
-      }
       // Resolve the URL:
       //   - absolute (http/https) → call axios with the full URL (skips baseURL)
       //   - "/api/..."           → strip the leading "/api/" since axios baseURL already includes it
@@ -284,7 +278,6 @@ export function DynamicForm({
         .then((res) => {
           if (cancelled) return
           const opts = normalizeOptions(res.data)
-          dropdownCache.set(url, opts)
           setDropdowns((prev) => ({ ...prev, [url]: opts }))
         })
         .catch((err) => {
