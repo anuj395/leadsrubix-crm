@@ -43,7 +43,9 @@ import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 
 import LeadDistributionListPage from '@/features/admin/leaddistribution/pages/LeadDistributionList'
+import LeadDistributionLogicPage from '@/features/admin/leaddistribution/pages/LeadDistributionLogic'
 import ReassignListPage from '@/features/admin/leaddistribution/pages/ReassignList'
+import ReassignLogicPage from '@/features/admin/leaddistribution/pages/ReassignLogic'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
@@ -94,5 +96,7 @@ export const routeComponentMap: Record<string, any> = {
   "/tool/emi-calculator": EmiCalculatorPage,
 
   "/leadDistribution/list": LeadDistributionListPage,
+  "/leadDistribution/logic": LeadDistributionLogicPage,
   "/reassign/list": ReassignListPage,
+  "/reassign/logic": ReassignLogicPage,
 }

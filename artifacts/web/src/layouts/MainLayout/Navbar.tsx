@@ -61,7 +61,9 @@ const breadcrumbMap: Record<string, string[]> = {
     '/integrations/website': ['Home', 'Integrations', 'Website'],
     '/integrations/housing': ['Home', 'Integrations', 'Housing.com'],
     '/leadDistribution/list': ['Home', 'Lead Distribution', 'Lead Distribution List'],
+    '/leadDistribution/logic': ['Home', 'Lead Distribution', 'Lead Distribution Logic'],
     '/reassign/list': ['Home', 'Lead Distribution', 'Reassign List'],
+    '/reassign/logic': ['Home', 'Lead Distribution', 'Reassign Logic'],
 }
 
 interface NavbarProps {
