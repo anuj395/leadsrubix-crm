@@ -18,6 +18,16 @@ import DaysConfigPage from '@/features/admin/config/pages/DaysConfig'
 import IntegrationsPage from '@/features/admin/integrations/pages/Integrations'
 import IntegrationsApiPage from '@/features/admin/integrations/pages/IntegrationsApi'
 import IntegrationsApiDataPage from '@/features/admin/integrations/pages/IntegrationsApiData'
+import FacebookLeadsPage from '@/features/admin/integrations/pages/FacebookLeads'
+import AcresPage from '@/features/admin/integrations/pages/Acres'
+import MagicBricksPage from '@/features/admin/integrations/pages/MagicBricks'
+import JustDialPage from '@/features/admin/integrations/pages/JustDial'
+import SulekhaPage from '@/features/admin/integrations/pages/Sulekha'
+import WebsitePage from '@/features/admin/integrations/pages/Website'
+import HousingPage from '@/features/admin/integrations/pages/Housing'
+
+
+
 
 import NewsListPage from '@/features/admin/support/pages/NewsList'
 import FaqListPage from '@/features/admin/support/pages/FaqList'
@@ -55,6 +65,17 @@ export const routeComponentMap: Record<string, any> = {
   "/integrations": IntegrationsPage,
   "/integrations/api": ApiListPage,
   "/integrations/api-data": IntegrationsApiDataPage,
+  "/integrations/facebook": FacebookLeadsPage,
+  "/integrations/99acres": AcresPage,
+  "/integrations/magicbricks": MagicBricksPage,
+  "/integrations/justdial": JustDialPage,
+  "/integrations/sulekha": SulekhaPage,
+  "/integrations/website": WebsitePage,
+  "/integrations/housing": HousingPage,
+
+
+
+
 
   "/support/news": NewsListPage,
   "/support/faq": FaqListPage,

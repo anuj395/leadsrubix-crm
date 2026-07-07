@@ -31,6 +31,7 @@ import { api } from '@/services/api'
 import { getResources } from '@/services/resourcesService'
 import { useAppSelector } from '@/store/hooks'
 import { resolveScreen, type ResolvedScreen, type ResolvedFormField } from '@/services/screenAdminService'
+import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 
 export interface Project {
   id: string
@@ -47,17 +48,9 @@ export interface Project {
   createdAt?: string
 }
 
-const PROPERTY_STATUS_OPTIONS = [
-  { label: 'Launched', value: 'Launched' },
-  { label: 'Pre Launch', value: 'Pre Launch' },
-  { label: 'Intermediate Occupation', value: 'Intermediate Occupation' }
-]
-
 export default function ProjectsListPage() {
   const user = useAppSelector((s) => s.auth.user)
   const [items, setItems] = useState<Project[]>([])
-  const [propertyTypes, setPropertyTypes] = useState<any[]>([])
-  const [propertyStages, setPropertyStages] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
@@ -70,30 +63,14 @@ export default function ProjectsListPage() {
     sev: 'success',
   })
 
-  // Form state
-  const [form, setForm] = useState({
-    projectName: '',
-    developerName: '',
-    address: '',
-    reraLink: '',
-    walkthroughLink: '',
-    propertyType: '',
-    propertyStage: '',
-    projectStatus: 'Launched' as Project['projectStatus'],
-  })
-
   const loadData = async () => {
     setLoading(true)
     try {
-      const [resProjects, types, stages, resolved] = await Promise.all([
+      const [resProjects, resolved] = await Promise.all([
         api.get('/resources/resourceProjects'),
-        getResources('resourcePropertyTypes'),
-        getResources('resourcePropertyStages'),
-        resolveScreen({ screen_key: 'configProjects', industry_code: user?.industryId || user?.industryId })
+        resolveScreen({ screen_key: 'configProjects', industry_code: user?.industryId })
       ])
       setItems(resProjects.data || [])
-      setPropertyTypes(types)
-      setPropertyStages(stages)
       setResolvedScreen(resolved)
     } catch (e: any) {
       setToast({
@@ -114,31 +91,11 @@ export default function ProjectsListPage() {
 
   const openAddDialog = () => {
     setEditing(null)
-    setForm({
-      projectName: '',
-      developerName: '',
-      address: '',
-      reraLink: '',
-      walkthroughLink: '',
-      propertyType: '',
-      propertyStage: '',
-      projectStatus: 'Launched',
-    })
     setDialogOpen(true)
   }
 
   const openEditDialog = (proj: Project) => {
     setEditing(proj)
-    setForm({
-      projectName: proj.projectName || '',
-      developerName: proj.developerName || '',
-      address: proj.address || '',
-      reraLink: proj.reraLink || '',
-      walkthroughLink: proj.walkthroughLink || '',
-      propertyType: proj.propertyType || '',
-      propertyStage: proj.propertyStage || '',
-      projectStatus: proj.projectStatus || 'Launched',
-    })
     setDialogOpen(true)
   }
 
@@ -154,27 +111,6 @@ export default function ProjectsListPage() {
       loadData()
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message || 'Failed to delete project', sev: 'error' })
-    }
-  }
-
-  const handleSave = async () => {
-    if (!form.projectName || !form.developerName) {
-      setToast({ open: true, msg: 'Developer Name and Project Name are required', sev: 'error' })
-      return
-    }
-
-    try {
-      if (editing) {
-        await api.put(`/resources/resourceProjects/${editing.id}`, form)
-        setToast({ open: true, msg: 'Project updated successfully', sev: 'success' })
-      } else {
-        await api.post('/resources/resourceProjects', form)
-        setToast({ open: true, msg: 'Project created successfully', sev: 'success' })
-      }
-      setDialogOpen(false)
-      loadData()
-    } catch (e: any) {
-      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save project', sev: 'error' })
     }
   }
 
@@ -278,148 +214,7 @@ export default function ProjectsListPage() {
     return cols
   }, [resolvedScreen, items])
 
-  const renderField = (field: ResolvedFormField) => {
-    // Admin does not render organizationId or organizationId input field
-    if (field.key === 'organizationId' || field.key === 'organizationId') return null
 
-    if (field.key === 'developerName' || field.key === 'developer_name') {
-      return (
-        <TextField
-          key={field.key}
-          fullWidth
-          label={field.label}
-          value={form.developerName}
-          onChange={(e) => setForm(prev => ({ ...prev, developerName: e.target.value }))}
-          required={field.required}
-        />
-      )
-    }
-
-    if (field.key === 'projectName' || field.key === 'project_name') {
-      return (
-        <TextField
-          key={field.key}
-          fullWidth
-          label={field.label}
-          value={form.projectName}
-          onChange={(e) => setForm(prev => ({ ...prev, projectName: e.target.value }))}
-          required={field.required}
-        />
-      )
-    }
-
-    if (field.key === 'propertyType') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.propertyType}
-          onChange={(e) => setForm(prev => ({ ...prev, propertyType: e.target.value }))}
-          required={field.required}
-        >
-          {propertyTypes.map((t) => (
-            <MenuItem key={t.id || t.name} value={t.name || t.value}>
-              {t.name || t.value}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    if (field.key === 'propertyStage' || field.key === 'property_stage') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.propertyStage}
-          onChange={(e) => setForm(prev => ({ ...prev, propertyStage: e.target.value }))}
-          required={field.required}
-        >
-          {propertyStages.map((s) => (
-            <MenuItem key={s.id || s.name} value={s.name || s.value}>
-              {s.name || s.value}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    if (field.key === 'projectStatus' || field.key === 'project_status') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.projectStatus}
-          onChange={(e) => setForm(prev => ({ ...prev, projectStatus: e.target.value as any }))}
-          required={field.required}
-        >
-          {PROPERTY_STATUS_OPTIONS.map((opt) => (
-            <MenuItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-
-
-    if (field.key === 'address') {
-      return (
-        <TextField
-          key={field.key}
-          fullWidth
-          label={field.label}
-          value={form.address}
-          onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
-          required={field.required}
-        />
-      )
-    }
-
-    if (field.key === 'reraLink' || field.key === 'rera_link') {
-      return (
-        <TextField
-          key={field.key}
-          fullWidth
-          label={field.label}
-          value={form.reraLink}
-          onChange={(e) => setForm(prev => ({ ...prev, reraLink: e.target.value }))}
-          required={field.required}
-        />
-      )
-    }
-
-    if (field.key === 'walkthroughLink' || field.key === 'walkthrough_link') {
-      return (
-        <TextField
-          key={field.key}
-          fullWidth
-          label={field.label}
-          value={form.walkthroughLink}
-          onChange={(e) => setForm(prev => ({ ...prev, walkthroughLink: e.target.value }))}
-          required={field.required}
-        />
-      )
-    }
-
-    return (
-      <TextField
-        key={field.key}
-        fullWidth
-        label={field.label}
-        value={form[field.key as keyof typeof form] || ''}
-        onChange={(e) => setForm(prev => ({ ...prev, [field.key]: e.target.value }))}
-        required={field.required}
-      />
-    )
-  }
 
   return (
     <Box
@@ -502,87 +297,30 @@ export default function ProjectsListPage() {
       >
         <DialogTitle>{editing ? 'Edit Project' : 'Add New Project'}</DialogTitle>
         <DialogContent dividers>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2.5,
-              pt: 1,
+          <DynamicForm
+            screen="configProjects"
+            industry_code={user?.industryId}
+            role_key="admin"
+            initialValues={editing ? (editing as any) : {}}
+            onCancel={() => setDialogOpen(false)}
+            submitLabel={editing ? 'Save' : 'Create'}
+            onSubmit={async (values) => {
+              try {
+                if (editing) {
+                  await api.put(`/resources/resourceProjects/${editing.id}`, values)
+                  setToast({ open: true, msg: 'Project updated successfully', sev: 'success' })
+                } else {
+                  await api.post('/resources/resourceProjects', values)
+                  setToast({ open: true, msg: 'Project created successfully', sev: 'success' })
+                }
+                setDialogOpen(false)
+                loadData()
+              } catch (e: any) {
+                setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save project', sev: 'error' })
+              }
             }}
-          >
-            {(() => {
-              const fields = resolvedScreen?.form_fields || []
-              const renderedKeys = new Set<string>()
-
-              return fields.map((field) => {
-                if (renderedKeys.has(field.key)) return null
-
-                if (field.key === 'developerName' || field.key === 'developer_name') {
-                  const sibling = fields.find(f => f.key === 'projectName' || f.key === 'project_name')
-                  if (sibling) {
-                    renderedKeys.add('projectName')
-                    renderedKeys.add('project_name')
-                    return (
-                      <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                        {renderField(field)}
-                        {renderField(sibling)}
-                      </Box>
-                    )
-                  }
-                }
-
-                if (field.key === 'propertyType') {
-                  const sibling = fields.find(f => f.key === 'propertyStage' || f.key === 'property_stage')
-                  if (sibling) {
-                    renderedKeys.add('propertyStage')
-                    renderedKeys.add('property_stage')
-                    return (
-                      <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                        {renderField(field)}
-                        {renderField(sibling)}
-                      </Box>
-                    )
-                  }
-                }
-
-                if (field.key === 'projectStatus' || field.key === 'project_status') {
-                  const sibling = fields.find(f => f.key === 'status')
-                  if (sibling) {
-                    renderedKeys.add('status')
-                    return (
-                      <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
-                        {renderField(field)}
-                        {renderField(sibling)}
-                      </Box>
-                    )
-                  }
-                }
-
-                if (field.key === 'reraLink' || field.key === 'rera_link') {
-                  const sibling = fields.find(f => f.key === 'walkthroughLink' || f.key === 'walkthrough_link')
-                  if (sibling) {
-                    renderedKeys.add('walkthroughLink')
-                    renderedKeys.add('walkthrough_link')
-                    return (
-                      <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                        {renderField(field)}
-                        {renderField(sibling)}
-                      </Box>
-                    )
-                  }
-                }
-
-                return renderField(field)
-              })
-            })()}
-          </Box>
+          />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            Save
-          </Button>
-        </DialogActions>
       </Dialog>
 
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} maxWidth="xs" fullWidth>

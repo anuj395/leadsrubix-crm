@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -6,40 +6,32 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
-import Chip from '@mui/material/Chip'
-import Snackbar from '@mui/material/Snackbar'
-import Alert from '@mui/material/Alert'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
+import Snackbar from '@mui/material/Snackbar'
+import Alert from '@mui/material/Alert'
+import LinearProgress from '@mui/material/LinearProgress'
 import { Edit as EditIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { api } from '@/services/api'
 
 export interface WorkingDay {
   id: string
   day: string
-  isWorking: boolean
-  startHour: string
-  endHour: string
+  closed: boolean
+  opensAt: string
+  closesAt: string
   notes: string
 }
 
-const INITIAL_DAYS: WorkingDay[] = [
-  { id: 'd1', day: 'Monday', isWorking: true, startHour: '09:00', endHour: '18:00', notes: 'Standard business hours' },
-  { id: 'd2', day: 'Tuesday', isWorking: true, startHour: '09:00', endHour: '18:00', notes: 'Standard business hours' },
-  { id: 'd3', day: 'Wednesday', isWorking: true, startHour: '09:00', endHour: '18:00', notes: 'Standard business hours' },
-  { id: 'd4', day: 'Thursday', isWorking: true, startHour: '09:00', endHour: '18:00', notes: 'Standard business hours' },
-  { id: 'd5', day: 'Friday', isWorking: true, startHour: '09:00', endHour: '18:00', notes: 'Standard business hours' },
-  { id: 'd6', day: 'Saturday', isWorking: false, startHour: '10:00', endHour: '14:00', notes: 'Weekend standby support' },
-  { id: 'd7', day: 'Sunday', isWorking: false, startHour: '—', endHour: '—', notes: 'Off-duty' },
-]
-
 export default function DaysConfigPage() {
-  const [items, setItems] = useState<WorkingDay[]>(INITIAL_DAYS)
+  const [items, setItems] = useState<WorkingDay[]>([])
+  const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<WorkingDay | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -50,41 +42,53 @@ export default function DaysConfigPage() {
 
   // Form state
   const [form, setForm] = useState({
-    isWorking: true,
-    startHour: '09:00',
-    endHour: '18:00',
+    closed: false,
+    opensAt: '09:00',
+    closesAt: '18:00',
     notes: '',
   })
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/working-days')
+      setItems(res.data?.items || [])
+    } catch (e: any) {
+      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to load working days', sev: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadData()
+  }, [])
 
   const openEditDialog = (day: WorkingDay) => {
     setEditing(day)
     setForm({
-      isWorking: day.isWorking,
-      startHour: day.startHour === '—' ? '09:00' : day.startHour,
-      endHour: day.endHour === '—' ? '18:00' : day.endHour,
-      notes: day.notes,
+      closed: day.closed,
+      opensAt: day.closed ? '09:00' : day.opensAt,
+      closesAt: day.closed ? '18:00' : day.closesAt,
+      notes: day.notes || '',
     })
     setDialogOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editing) return
 
-    setItems((prev) =>
-      prev.map((d) =>
-        d.id === editing.id
-          ? {
-              ...d,
-              isWorking: form.isWorking,
-              startHour: form.isWorking ? form.startHour : '—',
-              endHour: form.isWorking ? form.endHour : '—',
-              notes: form.notes,
-            }
-          : d,
-      ),
-    )
-    setToast({ open: true, msg: `${editing.day} configuration updated`, sev: 'success' })
-    setDialogOpen(false)
+    try {
+      setLoading(true)
+      await api.put(`/working-days/${editing.id}`, form)
+      setToast({ open: true, msg: `${editing.day} configuration updated`, sev: 'success' })
+      setDialogOpen(false)
+      void loadData()
+    } catch (e: any) {
+      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to update working day', sev: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const columns = useMemo<GridColDef<WorkingDay>[]>(
@@ -97,11 +101,11 @@ export default function DaysConfigPage() {
         renderCell: (p) => <Box sx={{ fontWeight: 600 }}>{p.value}</Box>,
       },
       {
-        field: 'isWorking',
+        field: 'closed',
         headerName: 'Status',
         width: 150,
         renderCell: (p) => (
-          <StatusBadge value={p.value ? 'Working' : 'Non-Working'} />
+          <StatusBadge value={p.value ? 'Closed' : 'Open'} />
         ),
       },
       {
@@ -110,8 +114,8 @@ export default function DaysConfigPage() {
         flex: 1,
         minWidth: 160,
         valueGetter: (_v, row) => {
-          if (!row.isWorking && row.startHour === '—') return 'Closed'
-          return `${row.startHour} - ${row.endHour}`
+          if (row.closed) return 'Closed'
+          return `${row.opensAt} - ${row.closesAt}`
         },
       },
       { field: 'notes', headerName: 'Notes / Remarks', flex: 1.5, minWidth: 200 },
@@ -152,7 +156,14 @@ export default function DaysConfigPage() {
         subtitle="Configure standard business working days and operating hours for lead assignment SLAs."
         fullHeight
       >
-        <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} />
+        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
+          {loading && (
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+              <LinearProgress />
+            </Box>
+          )}
+          <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} />
+        </Box>
       </AppCard>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
@@ -170,29 +181,29 @@ export default function DaysConfigPage() {
               select
               fullWidth
               label="Working Status"
-              value={form.isWorking ? 'true' : 'false'}
-              onChange={(e) => setForm({ ...form, isWorking: e.target.value === 'true' })}
+              value={form.closed ? 'true' : 'false'}
+              onChange={(e) => setForm({ ...form, closed: e.target.value === 'true' })}
             >
-              <MenuItem value="true">Working Day</MenuItem>
-              <MenuItem value="false">Non-Working</MenuItem>
+              <MenuItem value="false">Open</MenuItem>
+              <MenuItem value="true">Closed</MenuItem>
             </TextField>
 
-            {form.isWorking && (
+            {!form.closed && (
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                 <TextField
                   fullWidth
                   type="time"
                   label="Start Hour"
-                  value={form.startHour}
-                  onChange={(e) => setForm({ ...form, startHour: e.target.value })}
+                  value={form.opensAt}
+                  onChange={(e) => setForm({ ...form, opensAt: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
                 <TextField
                   fullWidth
                   type="time"
                   label="End Hour"
-                  value={form.endHour}
-                  onChange={(e) => setForm({ ...form, endHour: e.target.value })}
+                  value={form.closesAt}
+                  onChange={(e) => setForm({ ...form, closesAt: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
               </Box>

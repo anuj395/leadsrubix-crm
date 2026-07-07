@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { getApiTokens, createApiToken, updateApiToken, deleteApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
 import { getResources } from '@/services/resourcesService'
 import { resolveScreen, type ResolvedScreen, type ResolvedFormField } from '@/services/screenAdminService'
+import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { useConfirm } from '@/components/common/ConfirmContext'
 
 const COUNTRY_CODES = [
@@ -49,14 +50,6 @@ export default function ApiListPage() {
     open: false,
     msg: '',
     sev: 'success',
-  })
-
-  // Form state
-  const [form, setForm] = useState({
-    leadSourceId: '',
-    source: '',
-    countryCode: '+91',
-    status: 'ACTIVE' as ApiTokenConfig['status'],
   })
 
   const loadData = async () => {
@@ -93,23 +86,11 @@ export default function ApiListPage() {
 
   const openAddDialog = () => {
     setEditing(null)
-    setForm({
-      leadSourceId: '',
-      source: '',
-      countryCode: '+91',
-      status: 'ACTIVE',
-    })
     setDialogOpen(true)
   }
 
   const openEditDialog = (apiE: ApiTokenConfig) => {
     setEditing(apiE)
-    setForm({
-      leadSourceId: apiE.leadSourceId || '',
-      source: apiE.source || '',
-      countryCode: apiE.countryCode || apiE.country_code || '+91',
-      status: apiE.status || 'ACTIVE',
-    })
     setDialogOpen(true)
   }
 
@@ -134,49 +115,9 @@ export default function ApiListPage() {
     })
   }
 
-  const handleSave = async () => {
-    if (!form.source) {
-      setToast({ open: true, msg: 'Source is required', sev: 'error' })
-      return
-    }
-
-    try {
-      setLoading(true)
-      const payload = {
-        ...form,
-        organizationId: '', // Backend resolves Admin's organization ID automatically
-      }
-
-      if (editing) {
-        await updateApiToken(editing.id, payload)
-        setToast({ open: true, msg: 'API integration updated successfully', sev: 'success' })
-      } else {
-        await createApiToken(payload)
-        setToast({ open: true, msg: 'API integration added successfully', sev: 'success' })
-      }
-      setDialogOpen(false)
-      loadData()
-    } catch (e: any) {
-      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save configuration', sev: 'error' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleCopy = (txt: string) => {
     navigator.clipboard.writeText(txt)
     setToast({ open: true, msg: 'API Key copied to clipboard!', sev: 'success' })
-  }
-
-  const handleSourceChange = (val: string) => {
-    const matched = leadSources.find(s => s.id === val || String(s.name || s.value || s.leadSource || '') === val)
-    const sourceName = matched ? String(matched.name || matched.value || matched.leadSource || '') : val
-    const sourceId = matched ? String(matched.id || '') : ''
-    setForm(prev => ({
-      ...prev,
-      leadSourceId: sourceId,
-      source: sourceName
-    }))
   }
 
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
@@ -251,82 +192,7 @@ export default function ApiListPage() {
     return cols
   }, [resolvedScreen, items, leadSources])
 
-  const renderField = (field: ResolvedFormField) => {
-    if (field.key === 'organizationId' || field.key === 'organizationId') {
-      return null
-    }
 
-    if (field.key === 'source') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.leadSourceId || form.source}
-          onChange={(e) => handleSourceChange(e.target.value)}
-          required={field.required}
-        >
-          {leadSources.map((src) => (
-            <MenuItem key={src.id} value={src.id}>
-              {String(src.name || src.value || src.leadSource || '')}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    if (field.key === 'countryCode' || field.key === 'country_code') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.countryCode}
-          onChange={(e) => setForm(prev => ({ ...prev, countryCode: e.target.value }))}
-          required={field.required}
-        >
-          {COUNTRY_CODES.map((item) => (
-            <MenuItem key={item.code} value={item.code}>
-              {item.label}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    if (field.key === 'status') {
-      return (
-        <TextField
-          key={field.key}
-          select
-          fullWidth
-          label={field.label}
-          value={form.status}
-          onChange={(e) => setForm(prev => ({ ...prev, status: e.target.value as ApiTokenConfig['status'] }))}
-          required={field.required}
-        >
-          {(!field.options || field.options.length === 0 ? ['ACTIVE', 'INACTIVE'] : field.options).map((opt) => (
-            <MenuItem key={opt} value={opt}>
-              {opt}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    return (
-      <TextField
-        key={field.key}
-        fullWidth
-        label={field.label}
-        value={form[field.key as keyof typeof form] || ''}
-        onChange={(e) => setForm(prev => ({ ...prev, [field.key]: e.target.value }))}
-        required={field.required}
-      />
-    )
-  }
 
   return (
     <Box
@@ -376,46 +242,37 @@ export default function ApiListPage() {
           {editing ? 'Edit API Connection' : 'Create API'}
         </DialogTitle>
         <DialogContent dividers>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2.5,
-              pt: 1
-            }}
-          >
-            {(() => {
-              const fields = resolvedScreen?.form_fields || []
-              const renderedKeys = new Set<string>()
-
-              return fields.map((field) => {
-                if (renderedKeys.has(field.key)) return null
-
-                if (field.key === 'source') {
-                  const countryField = fields.find(f => f.key === 'countryCode' || f.key === 'country_code')
-                  if (countryField) {
-                    renderedKeys.add('countryCode')
-                    renderedKeys.add('country_code')
-                    return (
-                      <Box key={field.key} sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
-                        {renderField(field)}
-                        {renderField(countryField)}
-                      </Box>
-                    )
-                  }
+          <DynamicForm
+            screen="configApi"
+            industry_code={undefined}
+            role_key="admin"
+            initialValues={editing ? (editing as any) : {}}
+            onCancel={() => setDialogOpen(false)}
+            submitLabel={editing ? 'Save' : 'Create'}
+            onSubmit={async (values) => {
+              try {
+                setLoading(true)
+                const payload = {
+                  ...values,
+                  organizationId: '', // Backend resolves Admin's organization ID automatically
                 }
-
-                return renderField(field)
-              })
-            })()}
-          </Box>
+                if (editing) {
+                  await updateApiToken(editing.id, payload as any)
+                  setToast({ open: true, msg: 'API integration updated successfully', sev: 'success' })
+                } else {
+                  await createApiToken(payload as any)
+                  setToast({ open: true, msg: 'API integration added successfully', sev: 'success' })
+                }
+                setDialogOpen(false)
+                loadData()
+              } catch (e: any) {
+                setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save configuration', sev: 'error' })
+              } finally {
+                setLoading(false)
+              }
+            }}
+          />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            Submit
-          </Button>
-        </DialogActions>
       </Dialog>
 
       <Snackbar

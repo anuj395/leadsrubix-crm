@@ -1,290 +1,101 @@
-import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
+import Grid from '@mui/material/Grid'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
 import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
-import TextField from '@mui/material/TextField'
-import Snackbar from '@mui/material/Snackbar'
-import Alert from '@mui/material/Alert'
-import Stack from '@mui/material/Stack'
-import Tooltip from '@mui/material/Tooltip'
-import IconButton from '@mui/material/IconButton'
-import Switch from '@mui/material/Switch'
 import Typography from '@mui/material/Typography'
-import { Settings as SettingsIcon, Sync as SyncIcon } from '@mui/icons-material'
-import type { GridColDef } from '@mui/x-data-grid'
+import Chip from '@mui/material/Chip'
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
+import FacebookIcon from '@mui/icons-material/Facebook'
+import WebIcon from '@mui/icons-material/Web'
+import ContactPageIcon from '@mui/icons-material/ContactPage'
+import BusinessIcon from '@mui/icons-material/Business'
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { AppCard } from '@/components/ui/AppCard'
-import { AppDataGrid } from '@/components/ui/AppDataGrid'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 
-export interface IntegrationApp {
-  id: string
+interface IntegrationItem {
+  key: string
   name: string
-  category: string
-  status: 'Active' | 'Inactive'
-  lastSynced: string
   description: string
-  apiKey?: string
-  clientId?: string
-  syncInterval?: string
-  webhookUrl?: string
+  icon: React.ReactNode
+  comingSoon?: boolean
 }
 
-const INITIAL_INTEGRATIONS: IntegrationApp[] = [
+const INTEGRATION_ITEMS: IntegrationItem[] = [
   {
-    id: 'int_1',
-    name: 'Facebook Lead Ads',
-    category: 'Lead Generation',
-    status: 'Active',
-    lastSynced: '2 minutes ago',
-    description: 'Capture leads directly from your Facebook Ads campaigns in real time.',
-    apiKey: 'fb_live_9a2f1b8c3d...',
-    clientId: '7849203817402',
-    syncInterval: 'Real-time',
-    webhookUrl: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+    key: 'facebook',
+    name: 'Facebook',
+    description: 'Receive new leads from Facebook in your Leads Rubix account.',
+    icon: <FacebookIcon sx={{ fontSize: 32, color: '#1877F2' }} />,
   },
   {
-    id: 'int_2',
-    name: 'Google Sheets Exporter',
-    category: 'Data Storage',
-    status: 'Active',
-    lastSynced: '15 minutes ago',
-    description: 'Automatically export qualified leads to designated Google Spreadsheets.',
-    apiKey: 'gapi_sec_8d29a0e1c2...',
-    clientId: 'sheets-sync-sheet-001',
-    syncInterval: 'Every 15 minutes',
-    webhookUrl: 'https://script.google.com/macros/s/AKfycbz.../exec',
+    key: '99acres',
+    name: '99Acres',
+    description: 'Receive new leads from 99Acres in your Leads Rubix account.',
+    icon: <BusinessIcon sx={{ fontSize: 32, color: '#FF8F00' }} />,
   },
   {
-    id: 'int_3',
-    name: 'Salesforce CRM Sync',
-    category: 'CRM Sync',
-    status: 'Inactive',
-    lastSynced: 'Never',
-    description: 'Push closed bookings and verified lead contacts straight into your Salesforce pipeline.',
-    apiKey: '',
-    clientId: 'sf_client_sandbox_v2',
-    syncInterval: 'Hourly',
-    webhookUrl: 'https://login.salesforce.com/services/oauth2/token',
+    key: 'magicbricks',
+    name: 'MagicBricks',
+    description: 'Receive new leads from MagicBricks in your Leads Rubix account.',
+    icon: <ContactPageIcon sx={{ fontSize: 32, color: '#E53935' }} />,
   },
   {
-    id: 'int_4',
-    name: 'HubSpot Integration',
-    category: 'Marketing Automation',
-    status: 'Inactive',
-    lastSynced: 'Never',
-    description: 'Synchronize marketing contacts and subscriber lists with HubSpot lists.',
-    apiKey: '',
-    clientId: '',
-    syncInterval: 'Daily',
-    webhookUrl: '',
+    key: 'housing',
+    name: 'Housing.com',
+    description: 'Receive new leads from Housing.com in your Leads Rubix account.',
+    icon: <BusinessIcon sx={{ fontSize: 32, color: '#00ACC1' }} />,
   },
   {
-    id: 'int_5',
-    name: 'Slack Alerts',
-    category: 'Notifications',
-    status: 'Active',
-    lastSynced: 'Just now',
-    description: 'Send instant team notifications in designated channels when new leads are booked.',
-    apiKey: 'xoxb-9283017263-827...',
-    clientId: 'general-notifications',
-    syncInterval: 'Instant',
-    webhookUrl: 'https://hooks.slack.com/services/T000/B000/XXXX',
+    key: 'justdial',
+    name: 'JustDial',
+    description: 'Receive new leads from JustDial in your Leads Rubix account.',
+    icon: <ContactPageIcon sx={{ fontSize: 32, color: '#F4511E' }} />,
   },
   {
-    id: 'int_6',
-    name: 'Zapier Webhooks',
-    category: 'Automation Broker',
-    status: 'Active',
-    lastSynced: '1 hour ago',
-    description: 'Bridge lead events to over 5,000 external applications and workflows.',
-    apiKey: 'zap_auth_token_90182',
-    clientId: 'zapier_catch_hook_v1',
-    syncInterval: 'Instant',
-    webhookUrl: 'https://hooks.zapier.com/hooks/catch/12345/abcde/',
+    key: 'sulekha',
+    name: 'Sulekha',
+    description: 'Receive new leads from Sulekha in your Leads Rubix account.',
+    icon: <ContactPageIcon sx={{ fontSize: 32, color: '#3949AB' }} />,
+  },
+  {
+    key: 'website',
+    name: 'Website',
+    description: 'Receive new leads from your website’s contact form in your Leads Rubix account.',
+    icon: <WebIcon sx={{ fontSize: 32, color: '#43A047' }} />,
+  },
+  {
+    key: 'whatsapp',
+    name: 'WhatsApp',
+    description: 'Receive new leads from your WhatsApp contact form in your Leads Rubix account.',
+    icon: <WhatsAppIcon sx={{ fontSize: 32, color: '#25D366' }} />,
+    comingSoon: true,
   },
 ]
 
 export default function IntegrationsPage() {
-  const [items, setItems] = useState<IntegrationApp[]>(INITIAL_INTEGRATIONS)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<IntegrationApp | null>(null)
-  const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
-    open: false,
-    msg: '',
-    sev: 'success',
-  })
+  const navigate = useNavigate()
 
-  // Dialog Form state
-  const [form, setForm] = useState({
-    apiKey: '',
-    clientId: '',
-    syncInterval: 'Instant',
-    webhookUrl: '',
-  })
-
-  const openConfigDialog = (integration: IntegrationApp) => {
-    setEditing(integration)
-    setForm({
-      apiKey: integration.apiKey || '',
-      clientId: integration.clientId || '',
-      syncInterval: integration.syncInterval || 'Instant',
-      webhookUrl: integration.webhookUrl || '',
-    })
-    setDialogOpen(true)
+  const handleConfigure = (key: string) => {
+    if (key === 'facebook') {
+      navigate('/integrations/facebook')
+    } else if (key === '99acres') {
+      navigate('/integrations/99acres')
+    } else if (key === 'magicbricks') {
+      navigate('/integrations/magicbricks')
+    } else if (key === 'housing') {
+      navigate('/integrations/housing')
+    } else if (key === 'justdial') {
+      navigate('/integrations/justdial')
+    } else if (key === 'sulekha') {
+      navigate('/integrations/sulekha')
+    } else if (key === 'website') {
+      navigate('/integrations/website')
+    } else {
+      navigate('/integrations/api')
+    }
   }
-
-  const handleSave = () => {
-    if (!editing) return
-
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === editing.id
-          ? {
-               ...item,
-               apiKey: form.apiKey,
-               clientId: form.clientId,
-               syncInterval: form.syncInterval,
-               webhookUrl: form.webhookUrl,
-               status: form.apiKey || form.webhookUrl ? 'Active' : item.status,
-             }
-          : item,
-      ),
-    )
-    setToast({ open: true, msg: `${editing.name} configuration updated successfully`, sev: 'success' })
-    setDialogOpen(false)
-  }
-
-  const handleToggleStatus = (id: string) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nextStatus = item.status === 'Active' ? 'Inactive' : 'Active'
-          setToast({
-            open: true,
-            msg: `${item.name} is now ${nextStatus}`,
-            sev: 'success',
-          })
-          return { ...item, status: nextStatus }
-        }
-        return item
-      }),
-    )
-  }
-
-  const handleForceSync = (id: string, name: string) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          return { ...item, lastSynced: 'Just now' }
-        }
-        return item
-      }),
-    )
-    setToast({ open: true, msg: `Triggered manual synchronization for ${name}`, sev: 'success' })
-  }
-
-  const columns = useMemo<GridColDef<IntegrationApp>[]>(
-    () => [
-      {
-        field: 'name',
-        headerName: 'Integration Name',
-        flex: 1.2,
-        minWidth: 180,
-        renderCell: (p) => (
-          <Box sx={{ display: 'flex', flexDirection: 'column', py: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {p.value}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ lineClamp: 1, textOverflow: 'ellipsis', overflow: 'hidden' }}>
-              {p.row.description}
-            </Typography>
-          </Box>
-        ),
-      },
-      {
-        field: 'category',
-        headerName: 'Category',
-        width: 160,
-        renderCell: (p) => <StatusBadge value={p.value} />,
-      },
-      {
-        field: 'lastSynced',
-        headerName: 'Last Synced',
-        width: 140,
-        renderCell: (p) => (
-          <Typography variant="body2" color="text.secondary">
-            {p.value}
-          </Typography>
-        ),
-      },
-      {
-        field: 'status',
-        headerName: 'Connection Status',
-        width: 170,
-        renderCell: (p) => {
-          const isActive = p.value === 'Active'
-          return (
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
-              <Switch
-                size="small"
-                checked={isActive}
-                sx={{
-                  '& .MuiSwitch-switchBase': {
-                    color: '#fff',
-                    '&.Mui-checked': {
-                      color: '#fff',
-                      '& + .MuiSwitch-track': {
-                        backgroundColor: '#22c55e',
-                        opacity: 1,
-                      },
-                    },
-                  },
-                  '& .MuiSwitch-track': {
-                    backgroundColor: '#e0e0e0',
-                    opacity: 1,
-                  },
-                }}
-                onChange={() => handleToggleStatus(p.row.id)}
-              />
-              <StatusBadge value={p.value} />
-            </Stack>
-          )
-        },
-      },
-      {
-        field: '__actions',
-        headerName: 'Actions',
-        width: 120,
-        sortable: false,
-        filterable: false,
-        renderCell: (p) => (
-          <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-            <Tooltip title="Trigger Sync">
-              <span>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  disabled={p.row.status !== 'Active'}
-                  onClick={() => handleForceSync(p.row.id, p.row.name)}
-                >
-                  <SyncIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title="Configure Credentials">
-              <IconButton size="small" onClick={() => openConfigDialog(p.row)}>
-                <SettingsIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        ),
-      },
-    ],
-    [],
-  )
 
   return (
     <Box
@@ -295,89 +106,74 @@ export default function IntegrationsPage() {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
+        overflow: 'auto',
       }}
     >
       <AppCard
         title="Third-Party Integrations"
-        subtitle="Manage and configure active data streams with external SaaS tools, advertising engines, and spreadsheet platforms."
-        fullHeight
+        subtitle="Manage and configure active incoming data lead streams with advertising engines, listing portals, and messaging platforms."
       >
-        <AppDataGrid
-          height="100%"
-          rows={items}
-          columns={columns}
-          getRowId={(r) => r.id}
-          rowHeight={65}
-        />
+        <Grid container spacing={3} sx={{ mt: 1 }}>
+          {INTEGRATION_ITEMS.map((item) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.key}>
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  borderRadius: 2,
+                  boxShadow: 'rgba(100, 100, 111, 0.15) 0px 7px 29px 0px',
+                  border: '1px solid #f0f0f0',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                  },
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {item.icon}
+                      <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                        {item.name}
+                      </Typography>
+                    </Box>
+                    {item.comingSoon && (
+                      <Chip
+                        label="Coming Soon"
+                        size="small"
+                        sx={{
+                          bgcolor: '#FFF3CD',
+                          color: '#856404',
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    )}
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: 48, mb: 2 }}>
+                    {item.description}
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      size="small"
+                      color="primary"
+                      disabled={item.comingSoon}
+                      endIcon={<ArrowForwardIosIcon sx={{ fontSize: '10px !important' }} />}
+                      onClick={() => handleConfigure(item.key)}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                      Configure
+                    </Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
       </AppCard>
-
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Configure {editing?.name}</DialogTitle>
-        <DialogContent dividers>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Enter authenticating credentials or endpoint destinations to configure this active CRM link.
-            </Typography>
-
-            <TextField
-              fullWidth
-              label="API Key / Auth Token"
-              type="password"
-              value={form.apiKey}
-              onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-              placeholder="e.g. key_live_..."
-            />
-
-            <TextField
-              fullWidth
-              label="Client ID / App Account Identifier"
-              value={form.clientId}
-              onChange={(e) => setForm({ ...form, clientId: e.target.value })}
-              placeholder="e.g. client_abc123"
-            />
-
-            <TextField
-              fullWidth
-              label="Integration Webhook URL"
-              value={form.webhookUrl}
-              onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })}
-              placeholder="https://hooks.yourdomain.com/..."
-            />
-
-            <TextField
-              select
-              fullWidth
-              label="Data Sync Frequency"
-              value={form.syncInterval}
-              onChange={(e) => setForm({ ...form, syncInterval: e.target.value })}
-              SelectProps={{ native: true }}
-            >
-              <option value="Real-time">Real-time / Instant</option>
-              <option value="Every 15 minutes">Every 15 minutes</option>
-              <option value="Hourly">Hourly</option>
-              <option value="Daily">Daily</option>
-            </TextField>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            Save Configuration
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={3000}
-        onClose={() => setToast({ ...toast, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity={toast.sev} variant="filled" onClose={() => setToast({ ...toast, open: false })}>
-          {toast.msg}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

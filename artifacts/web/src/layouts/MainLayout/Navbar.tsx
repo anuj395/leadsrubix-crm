@@ -50,6 +50,16 @@ const breadcrumbMap: Record<string, string[]> = {
     '/support/faq': ['Home', 'Support', 'FAQ'],
     '/account/subscription-details': ['Home', 'Account', 'Subscription Details'],
     '/account/update-password': ['Home', 'Account', 'Update Password'],
+    '/integrations': ['Home', 'Integrations'],
+    '/integrations/api': ['Home', 'Integrations', 'API'],
+    '/integrations/api-data': ['Home', 'Integrations', 'API Data'],
+    '/integrations/facebook': ['Home', 'Integrations', 'Facebook'],
+    '/integrations/99acres': ['Home', 'Integrations', '99Acres'],
+    '/integrations/magicbricks': ['Home', 'Integrations', 'MagicBricks'],
+    '/integrations/justdial': ['Home', 'Integrations', 'JustDial'],
+    '/integrations/sulekha': ['Home', 'Integrations', 'Sulekha'],
+    '/integrations/website': ['Home', 'Integrations', 'Website'],
+    '/integrations/housing': ['Home', 'Integrations', 'Housing.com'],
 }
 
 interface NavbarProps {
@@ -71,7 +81,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
         setTimeout(() => setIsRotating(false), 500)
     }
 
-    const breadcrumbs = breadcrumbMap[location.pathname] ?? ['Home', 'Workspace', 'Overview']
+    const breadcrumbs = breadcrumbMap[location.pathname] ?? ['Home', 'Overview']
     const initials =
         user?.name
             ?.split(' ')

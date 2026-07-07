@@ -33,10 +33,9 @@ export function AppCard({ action, children, subtitle, title, sx, fullHeight = fa
     >
       <CardContent
         sx={{
-          height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          ...(fullHeight ? { minHeight: 0, overflow: 'hidden' } : {}),
+          ...(fullHeight ? { height: '100%', minHeight: 0, overflow: 'hidden' } : {}),
         }}
       >
         <Stack

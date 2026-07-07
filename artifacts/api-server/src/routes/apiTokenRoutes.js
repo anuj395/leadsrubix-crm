@@ -213,4 +213,123 @@ router.delete('/:id', authenticate, async (req, res, next) => {
   }
 });
 
+// --- Facebook Integration Endpoints ---
+
+router.get('/facebook', authenticate, async (req, res, next) => {
+  try {
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    if (!orgId) return res.status(400).json({ message: 'Organization not found' });
+    
+    let doc = await ApiToken.findOne({ organizationId: orgId, source: { $regex: /^facebook$/i } }).exec();
+    if (!doc) {
+      doc = await ApiToken.create({
+        organizationId: orgId,
+        source: 'Facebook',
+        api_key: generateApiKey(),
+        status: 'ACTIVE',
+      });
+    }
+    res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/facebook/token', authenticate, async (req, res, next) => {
+  try {
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    
+    const { access_token, app_id, app_secret } = req.body;
+    const doc = await ApiToken.findOneAndUpdate(
+      { organizationId: orgId, source: { $regex: /^facebook$/i } },
+      { access_token, app_id, app_secret },
+      { new: true, upsert: true }
+    );
+    res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/facebook/pages', authenticate, async (req, res, next) => {
+  try {
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    
+    const { facebook_pages } = req.body;
+    const doc = await ApiToken.findOneAndUpdate(
+      { organizationId: orgId, source: { $regex: /^facebook$/i } },
+      { facebook_pages },
+      { new: true, upsert: true }
+    );
+    res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
+  try {
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    
+    const { page_id } = req.body;
+    const doc = await ApiToken.findOneAndUpdate(
+      { organizationId: orgId, source: { $regex: /^facebook$/i } },
+      { $addToSet: { page_id: { $each: Array.isArray(page_id) ? page_id : [page_id] } } },
+      { new: true, upsert: true }
+    );
+    res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
+  try {
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    
+    const { page_id } = req.body;
+    const doc = await ApiToken.findOneAndUpdate(
+      { organizationId: orgId, source: { $regex: /^facebook$/i } },
+      { $pull: { page_id: page_id } },
+      { new: true }
+    );
+    res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/facebook/token', authenticate, async (req, res, next) => {
+  try {
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    
+    const doc = await ApiToken.findOneAndUpdate(
+      { organizationId: orgId, source: { $regex: /^facebook$/i } },
+      { access_token: '', facebook_pages: [], page_id: [] },
+      { new: true }
+    );
+    res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

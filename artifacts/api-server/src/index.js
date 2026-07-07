@@ -27,6 +27,9 @@ require('./models/apiTokenModel');
 require('./models/dropdownOptionModel');
 require('./models/teamModel');
 require('./models/branchModel');
+require('./models/holidayModel');
+require('./models/workingDayModel');
+
 
 const {
   seedUsers,

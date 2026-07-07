@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -19,6 +19,8 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { api } from '@/services/api'
+
 
 export interface Holiday {
   id: string
@@ -29,67 +31,11 @@ export interface Holiday {
   description: string
 }
 
-const INITIAL_HOLIDAYS: Holiday[] = [
-  {
-    id: 'h1',
-    name: "New Year's Day",
-    date: '2026-01-01',
-    dayOfWeek: 'Thursday',
-    type: 'National',
-    description: 'First day of the calendar year.',
-  },
-  {
-    id: 'h2',
-    name: 'Memorial Day',
-    date: '2026-05-25',
-    dayOfWeek: 'Monday',
-    type: 'National',
-    description: 'Federal holiday remembering fallen soldiers.',
-  },
-  {
-    id: 'h3',
-    name: 'Independence Day',
-    date: '2026-07-04',
-    dayOfWeek: 'Saturday',
-    type: 'National',
-    description: 'Celebration of American Independence.',
-  },
-  {
-    id: 'h4',
-    name: 'Labor Day',
-    date: '2026-09-07',
-    dayOfWeek: 'Monday',
-    type: 'National',
-    description: 'Tribute to the contributions of workers.',
-  },
-  {
-    id: 'h5',
-    name: 'Thanksgiving Day',
-    date: '2026-11-26',
-    dayOfWeek: 'Thursday',
-    type: 'National',
-    description: 'Day of giving thanks.',
-  },
-  {
-    id: 'h6',
-    name: 'Christmas Day',
-    date: '2026-12-25',
-    dayOfWeek: 'Friday',
-    type: 'National',
-    description: 'Christian celebration of the birth of Jesus.',
-  },
-  {
-    id: 'h7',
-    name: 'Founder Day',
-    date: '2026-10-15',
-    dayOfWeek: 'Thursday',
-    type: 'Company Holiday',
-    description: 'Annual corporate founding celebration.',
-  },
-]
+
 
 export default function HolidayConfigPage() {
-  const [items, setItems] = useState<Holiday[]>(INITIAL_HOLIDAYS)
+  const [items, setItems] = useState<Holiday[]>([])
+  const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Holiday | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -106,6 +52,22 @@ export default function HolidayConfigPage() {
     type: 'National' as Holiday['type'],
     description: '',
   })
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/holidays')
+      setItems(res.data?.items || [])
+    } catch (e: any) {
+      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to load holidays', sev: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadData()
+  }, [])
 
   const openAddDialog = () => {
     setEditing(null)
@@ -137,44 +99,43 @@ export default function HolidayConfigPage() {
     confirmDelete({
       title: 'Confirm Deletion',
       message: 'Are you sure you want to delete this holiday? This action cannot be undone.',
-      onConfirm: () => {
-        setItems((prev) => prev.filter((h) => h.id !== id))
-        setToast({ open: true, msg: 'Holiday deleted successfully', sev: 'success' })
+      onConfirm: async () => {
+        try {
+          setLoading(true)
+          await api.delete(`/holidays/${id}`)
+          setToast({ open: true, msg: 'Holiday deleted successfully', sev: 'success' })
+          void loadData()
+        } catch (e: any) {
+          setToast({ open: true, msg: e?.response?.data?.message || 'Failed to delete holiday', sev: 'error' })
+        } finally {
+          setLoading(false)
+        }
       }
     })
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name || !form.date) {
       setToast({ open: true, msg: 'Name and Date are required', sev: 'error' })
       return
     }
 
-    const dayName = new Date(form.date).toLocaleDateString('en-US', { weekday: 'long' })
-
-    if (editing) {
-      setItems((prev) =>
-        prev.map((h) =>
-          h.id === editing.id
-            ? {
-                ...h,
-                ...form,
-                dayOfWeek: dayName,
-              }
-            : h,
-        ),
-      )
-      setToast({ open: true, msg: 'Holiday updated successfully', sev: 'success' })
-    } else {
-      const newHol: Holiday = {
-        id: `h_${Date.now()}`,
-        ...form,
-        dayOfWeek: dayName,
+    try {
+      setLoading(true)
+      if (editing) {
+        await api.put(`/holidays/${editing.id}`, form)
+        setToast({ open: true, msg: 'Holiday updated successfully', sev: 'success' })
+      } else {
+        await api.post('/holidays', form)
+        setToast({ open: true, msg: 'Holiday added successfully', sev: 'success' })
       }
-      setItems((prev) => [newHol, ...prev])
-      setToast({ open: true, msg: 'Holiday added successfully', sev: 'success' })
+      setDialogOpen(false)
+      void loadData()
+    } catch (e: any) {
+      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save holiday', sev: 'error' })
+    } finally {
+      setLoading(false)
     }
-    setDialogOpen(false)
   }
 
   const columns = useMemo<GridColDef<Holiday>[]>(
