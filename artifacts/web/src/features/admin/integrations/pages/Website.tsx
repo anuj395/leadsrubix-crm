@@ -29,7 +29,11 @@ export default function WebsitePage() {
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedJson, setCopiedJson] = useState(false)
 
+  const loadingRef = React.useRef(false)
+
   const loadData = async () => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
     try {
       const resTokens = await api.get('/api-tokens')
@@ -50,6 +54,7 @@ export default function WebsitePage() {
       setToast({ open: true, msg: 'Failed to configure Website integration', sev: 'error' })
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
   }
 
@@ -232,7 +237,12 @@ export default function WebsitePage() {
         </Box>
       </AppCard>
 
-      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={3000}
+        onClose={() => setToast({ ...toast, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
         <Alert severity={toast.sev} variant="filled" onClose={() => setToast({ ...toast, open: false })}>
           {toast.msg}
         </Alert>

@@ -29,18 +29,38 @@ export default function HousingPage() {
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedJson, setCopiedJson] = useState(false)
 
+  const loadingRef = React.useRef(false)
+
   const loadData = async () => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
     try {
+      const resResources = await api.get('/resources/resourceLeadSources')
+      const resources = resResources.data || []
+      const sourceExists = resources.some(
+        (item: any) => String(item.leadSource).toLowerCase() === 'housing.com'
+      )
+
+      if (!sourceExists) {
+        setToast({
+          open: true,
+          msg: "Before configuring the lead source in 'Housing.com,' ensure it is added to the resources!!",
+          sev: 'error',
+        })
+        setLoading(false)
+        return
+      }
+
       const resTokens = await api.get('/api-tokens')
       const tokens = resTokens.data || []
       
-      const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === 'housing')
+      const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === 'housing.com')
       if (filtered) {
         setApiKey(filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
-          source: 'Housing',
+          source: 'Housing.com',
           countryCode: '+91',
           status: 'ACTIVE',
         })
@@ -50,6 +70,7 @@ export default function HousingPage() {
       setToast({ open: true, msg: 'Failed to configure Housing integration', sev: 'error' })
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
   }
 
@@ -242,7 +263,12 @@ export default function HousingPage() {
         </Box>
       </AppCard>
 
-      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={3000}
+        onClose={() => setToast({ ...toast, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
         <Alert severity={toast.sev} variant="filled" onClose={() => setToast({ ...toast, open: false })}>
           {toast.msg}
         </Alert>

@@ -32,13 +32,13 @@ router.get('/', authenticate, async (req, res, next) => {
         }
       });
     } else {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      const orgId = org ? (org.organizationId || org.organizationId) : null;
+      const orgId = req.user.organizationId || req.user.organization_id;
       if (!orgId) {
         return res.json([]);
       }
       query = { organizationId: orgId };
-      orgMap[orgId] = org.name || org.organizationName || orgId;
+      const org = await Organization.findOne({ organizationId: orgId }).exec();
+      orgMap[orgId] = org ? (org.name || org.organizationName || orgId) : orgId;
     }
 
     const tokens = await ApiToken.find(query).sort({ createdAt: -1 }).lean().exec();
@@ -69,10 +69,19 @@ router.post('/', authenticate, async (req, res, next) => {
     let orgId = req.body.organizationId || req.body.organizationId || null;
 
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      orgId = org ? (org.organizationId || org.organizationId) : null;
+      orgId = req.user.organizationId || req.user.organization_id;
       if (!orgId) {
         return res.status(400).json({ message: 'Organization ID is mandatory for Admin users' });
+      }
+    }
+
+    if (req.body.source) {
+      const existing = await ApiToken.findOne({
+        organizationId: orgId,
+        source: { $regex: new RegExp(`^${req.body.source}$`, 'i') }
+      }).exec();
+      if (existing) {
+        return res.status(400).json({ message: `API Token for source '${req.body.source}' already exists` });
       }
     }
 

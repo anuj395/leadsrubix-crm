@@ -123,14 +123,16 @@ export default function ApiListPage() {
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers.map((header) => {
-      const col: GridColDef<ApiTokenConfig> = {
-        field: header.key as keyof ApiTokenConfig,
-        headerName: header.label,
-        flex: 1,
-        minWidth: 120,
-        sortable: header.sortable,
-      }
+    const cols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
+      .filter((h) => h.key !== 'organizationId' && h.key !== 'organizationName')
+      .map((header) => {
+        const col: GridColDef<ApiTokenConfig> = {
+          field: header.key as keyof ApiTokenConfig,
+          headerName: header.label,
+          flex: 1,
+          minWidth: 120,
+          sortable: header.sortable,
+        }
 
       if (header.key === 'organizationId' || header.key === 'organizationId') {
         col.field = 'organizationName' as any
@@ -151,17 +153,21 @@ export default function ApiListPage() {
         col.field = 'created_at' as any
         col.width = 180
         col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
-      } else if (header.key === 'api_key') {
+      } else if (header.key === 'api_key' || header.key === 'apiKey') {
+        col.field = 'api_key' as any
         col.flex = 1.2
         col.minWidth = 200
-        col.renderCell = (p) => (
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <code style={{ fontSize: '0.85rem' }}>{p.value as string}</code>
-            <IconButton size="small" onClick={() => handleCopy(p.value as string)}>
-              <ContentCopyIcon fontSize="inherit" />
-            </IconButton>
-          </Stack>
-        )
+        col.renderCell = (p) => {
+          const val = p.row.api_key || (p.row as any).apiKey || ''
+          return (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <code style={{ fontSize: '0.85rem' }}>{val}</code>
+              <IconButton size="small" onClick={() => handleCopy(val)}>
+                <ContentCopyIcon fontSize="inherit" />
+              </IconButton>
+            </Stack>
+          )
+        }
       }
 
       return col

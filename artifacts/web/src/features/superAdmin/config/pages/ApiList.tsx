@@ -161,17 +161,21 @@ export default function ApiListPage() {
         col.field = 'created_at' as any
         col.width = 180
         col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
-      } else if (header.key === 'api_key') {
+      } else if (header.key === 'api_key' || header.key === 'apiKey') {
+        col.field = 'api_key' as any
         col.flex = 1.2
         col.minWidth = 200
-        col.renderCell = (p) => (
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <code style={{ fontSize: '0.85rem' }}>{p.value as string}</code>
-            <IconButton size="small" onClick={() => handleCopy(p.value as string)}>
-              <ContentCopyIcon fontSize="inherit" />
-            </IconButton>
-          </Stack>
-        )
+        col.renderCell = (p) => {
+          const val = p.row.api_key || (p.row as any).apiKey || ''
+          return (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <code style={{ fontSize: '0.85rem' }}>{val}</code>
+              <IconButton size="small" onClick={() => handleCopy(val)}>
+                <ContentCopyIcon fontSize="inherit" />
+              </IconButton>
+            </Stack>
+          )
+        }
       }
 
       return col
