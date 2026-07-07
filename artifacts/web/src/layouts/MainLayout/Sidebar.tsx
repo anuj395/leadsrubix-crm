@@ -24,6 +24,11 @@ import SwitchAccountOutlinedIcon from '@mui/icons-material/SwitchAccountOutlined
 import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined'
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
+import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined'
+import FormatListBulletedOutlinedIcon from '@mui/icons-material/FormatListBulletedOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import ContactsOutlinedIcon from '@mui/icons-material/ContactsOutlined'
+import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined'
 
 import Button from '@mui/material/Button'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
@@ -76,6 +81,8 @@ const iconMap: Partial<Record<MenuIconKey, typeof AppsOutlinedIcon>> = {
   tasks: AssignmentOutlinedIcon,
   users: Groups2OutlinedIcon,
   whatsapp: WhatsAppIcon,
+  leadDistribution: AssignmentIndOutlinedIcon,
+  reassignList: ContactsOutlinedIcon,
 }
 
 function getIcon(iconKey?: MenuIconKey) {

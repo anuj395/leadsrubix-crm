@@ -30,6 +30,7 @@ const newsRoutes = require('./newsRoutes');
 const whatsappRoutes = require('./whatsappRoutes');
 const resourceItemRoutes = require('./resourceItemRoutes');
 const apiTokenRoutes = require('./apiTokenRoutes');
+const leadDistributionRoutes = require('./leadDistributionRoutes');
 const holidayRoutes = require('./holidayRoutes');
 const workingDayRoutes = require('./workingDayRoutes');
 const screenController = require('../controllers/screenController');
@@ -67,6 +68,7 @@ router.use('/analytics', analyticsRoutes);
 router.use('/whatsapp-config', whatsappRoutes);
 router.use('/resources', resourceItemRoutes);
 router.use('/api-tokens', apiTokenRoutes);
+router.use('/lead-distribution', leadDistributionRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
 

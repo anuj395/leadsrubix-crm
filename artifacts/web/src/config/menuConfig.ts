@@ -37,6 +37,9 @@ export type MenuIconKey =
   | 'areaConverter'
   | 'calculator'
   | 'emiCalculator'
+  | 'leadDistribution'
+  | 'reassignList'
+  | 'list'
 
 export interface MenuChildItem {
   badge?: string
@@ -324,16 +327,30 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "configuration.holidayConfig",
     name: "Holiday Config",
-    route: "/configuration/holiday-config",
+    route: "/configuration/holidayConfig",
     icon: "holiday",
     module: "Configuration"
   },
   {
     key: "configuration.daysConfig",
     name: "Days Config",
-    route: "/configuration/days-config",
+    route: "/configuration/daysConfig",
     icon: "days",
     module: "Configuration"
+  },
+  {
+    key: "leadDistribution.list",
+    name: "Lead Distribution List",
+    route: "/leadDistribution/list",
+    icon: "list",
+    module: "leadDistribution"
+  },
+  {
+    key: "leadDistribution.reassignList",
+    name: "Reassign List",
+    route: "/reassign/list",
+    icon: "reassignList",
+    module: "leadDistribution"
   },
   {
     key: "integrations.integrations",

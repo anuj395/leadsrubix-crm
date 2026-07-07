@@ -19,6 +19,8 @@ const MODULE_TO_SCREEN = {
   bookings: 'bookings',
   organization: 'organization',
   organizations: 'organization',
+  leadDistribution: 'leadDistribution',
+  reassign: 'leadRotation',
 };
 
 function projectColumns(fields) {

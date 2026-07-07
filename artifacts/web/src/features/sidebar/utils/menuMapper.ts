@@ -12,6 +12,8 @@ const ICON_MAP: Record<string, MenuIconKey> = {
   projects: 'projects', resources: 'resources', settings: 'settings',
   shield: 'shield', sidebar: 'sidebar', sort: 'sort',
   support: 'support', tasks: 'tasks', users: 'users', whatsapp: 'whatsapp',
+  leaddistribution: 'leadDistribution',
+  reassignlist: 'reassignList',
 }
 
 export function toIconKey(icon?: string): MenuIconKey {

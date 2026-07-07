@@ -43,8 +43,8 @@ const breadcrumbMap: Record<string, string[]> = {
     '/configuration/booking-form': ['Home', 'Configuration', 'Booking Form'],
     '/configuration/resources': ['Home', 'Configuration', 'Resources'],
     '/configuration/whatsapp': ['Home', 'Configuration', 'WhatsApp API'],
-    '/configuration/holiday-config': ['Home', 'Configuration', 'Holiday Config'],
-    '/configuration/days-config': ['Home', 'Configuration', 'Days Config'],
+    '/configuration/holidayConfig': ['Home', 'Configuration', 'Holiday Config'],
+    '/configuration/daysConfig': ['Home', 'Configuration', 'Days Config'],
 
     '/support/news': ['Home', 'Support', 'News'],
     '/support/faq': ['Home', 'Support', 'FAQ'],
@@ -60,6 +60,8 @@ const breadcrumbMap: Record<string, string[]> = {
     '/integrations/sulekha': ['Home', 'Integrations', 'Sulekha'],
     '/integrations/website': ['Home', 'Integrations', 'Website'],
     '/integrations/housing': ['Home', 'Integrations', 'Housing.com'],
+    '/leadDistribution/list': ['Home', 'Lead Distribution', 'Lead Distribution List'],
+    '/reassign/list': ['Home', 'Lead Distribution', 'Reassign List'],
 }
 
 interface NavbarProps {

@@ -42,6 +42,9 @@ import AreaConverterPage from '@/features/admin/tool/pages/AreaConverter'
 import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 
+import LeadDistributionListPage from '@/features/admin/leaddistribution/pages/LeadDistributionList'
+import ReassignListPage from '@/features/admin/leaddistribution/pages/ReassignList'
+
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
   "/users": UserListPage,
@@ -59,7 +62,9 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
   "/configuration/whatsapp": WhatsappApiPage,
+  "/configuration/holidayConfig": HolidayConfigPage,
   "/configuration/holiday-config": HolidayConfigPage,
+  "/configuration/daysConfig": DaysConfigPage,
   "/configuration/days-config": DaysConfigPage,
 
   "/integrations": IntegrationsPage,
@@ -87,4 +92,7 @@ export const routeComponentMap: Record<string, any> = {
   "/tool/areaConverter": AreaConverterPage,
   "/tool/calculator": CalculatorPage,
   "/tool/emi-calculator": EmiCalculatorPage,
+
+  "/leadDistribution/list": LeadDistributionListPage,
+  "/reassign/list": ReassignListPage,
 }

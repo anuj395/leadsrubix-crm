@@ -29,15 +29,17 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'configuration.projects', name: 'Projects List', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
         { key: 'configuration.whatsapp', name: 'Whatsapp API', route: '/configuration/whatsapp', icon: 'whatsapp', module: 'configuration' },
         { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
-        { key: 'configuration.holiday', name: 'Holiday Config', route: '/configuration/holiday-config', icon: 'holiday', module: 'configuration' },
-        { key: 'configuration.days', name: 'Days Config', route: '/configuration/days-config', icon: 'days', module: 'configuration' },
+        { key: 'configuration.holiday', name: 'Holiday Config', route: '/configuration/holidayConfig', icon: 'holiday', module: 'configuration' },
+        { key: 'configuration.days', name: 'Days Config', route: '/configuration/daysConfig', icon: 'days', module: 'configuration' },
         { key: 'integrations.integrations', name: 'Integrations', route: '/integrations', icon: 'integrations', module: 'integrations' },
         { key: 'integrations.api', name: 'API List', route: '/integrations/api', icon: 'api', module: 'integrations' },
         { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', module: 'integrations' },
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
         { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
-        { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' }
+        { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' },
+        { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list', module: 'leadDistribution' },
+        { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' }
       ],
       leadManager: [
         { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', module: 'analytics' },
@@ -514,6 +516,31 @@ const SCREEN_DEFAULTS = [
       { field_key: 'propertyType', label: 'Property Type', type: 'select', dropdown_source: 'api', dropdown_api: '/api/options/resourcePropertyTypes?display=propertyType', is_required: true, order: 1 },
       { field_key: 'propertySubType', label: 'Property Sub Type', type: 'text', is_required: true, order: 2 },
     ]
+  },
+  {
+    key: 'leadDistribution',
+    name: 'Lead Distribution',
+    description: 'Dynamic table headers & form fields configuration for Lead Distribution',
+    fields: [
+      { field_key: 'source', label: 'Lead Source', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourceLeadSources?display=leadSource', is_required: true, order: 1 },
+      { field_key: 'project', label: 'Project', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourceProjects?display=projectName', is_required: false, order: 2 },
+      { field_key: 'location', label: 'Location', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourceLocations?display=locationName', is_required: false, order: 3 },
+      { field_key: 'budget', label: 'Budget', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourceBudgets?display=budget', is_required: false, order: 4 },
+      { field_key: 'property_type', label: 'Property Type', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourcePropertyTypes?display=propertyType', is_required: false, order: 5 },
+      { field_key: 'distribution_type', label: 'Distribution Type', type: 'select', dropdown_source: 'static', options: ['Normal', 'Roundrobin'], is_required: true, order: 6 },
+      { field_key: 'users', label: 'Assigned Users', type: 'text', is_required: true, order: 7 }
+    ]
+  },
+  {
+    key: 'leadRotation',
+    name: 'Lead Rotation',
+    description: 'Dynamic table headers & form fields configuration for Reassign Logic',
+    fields: [
+      { field_key: 'source', label: 'Lead Source', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourceLeadSources?display=leadSource', is_required: true, order: 1 },
+      { field_key: 'project', label: 'Project', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourceProjects?display=projectName', is_required: false, order: 2 },
+      { field_key: 'rotation_time', label: 'Rotation Time (mins)', type: 'number', is_required: true, order: 3 },
+      { field_key: 'users', label: 'Assigned Users', type: 'text', is_required: true, order: 4 }
+    ]
   }
 ];
 
@@ -769,6 +796,101 @@ async function fixIntegrationsSidebar() {
   }
 }
 
+async function seedLeadDistributionSidebar() {
+  const SidebarMenu = mongoose.model('SidebarMenu');
+  const SidebarPermission = mongoose.model('SidebarPermission');
+  const Industry = mongoose.model('Industry');
+  const Role = mongoose.model('Role');
+
+  // 1. Get industry temp0001
+  const industry = await Industry.findOne({ code: 'temp0001' });
+  if (!industry) return;
+
+  // 2. Get admin role
+  const adminRole = await Role.findOne({ industryId: industry._id, key: 'admin' });
+  if (!adminRole) return;
+
+  // Fix other parent menus orders in database for stable sorting
+  await SidebarMenu.updateOne({ key: 'analytics' }, { $set: { order: 0 } });
+  await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 1 } });
+  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 5 } });
+  await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 10 } });
+  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 13 } });
+  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 15 } });
+
+  // 3. Upsert parent menu: leadDistribution
+  const parentMenu = await SidebarMenu.findOneAndUpdate(
+    { key: 'leadDistribution' },
+    {
+      $set: {
+        name: 'Lead Distribution',
+        icon: 'leadDistribution',
+        module: 'leadDistribution',
+        parent_id: null,
+        route: '',
+        isActive: true,
+        order: 9.1,
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  // 4. Define child menus
+  const children = [
+    { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list' },
+    { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList' },
+  ];
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const childMenu = await SidebarMenu.findOneAndUpdate(
+      { key: child.key },
+      {
+        $set: {
+          name: child.name,
+          route: child.route,
+          icon: child.icon,
+          parent_id: parentMenu._id,
+          module: 'leadDistribution',
+          isActive: true,
+          order: 9.2 + (i * 0.1),
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    // Ensure permissions exist for the admin role
+    await SidebarPermission.updateOne(
+      { roleId: adminRole._id, industryId: industry._id, menu_id: childMenu._id },
+      {
+        $set: { is_visible: true, order_override: 9.2 + (i * 0.1) },
+        $setOnInsert: {
+          roleId: adminRole._id,
+          industryId: industry._id,
+          menu_id: childMenu._id,
+        }
+      },
+      { upsert: true }
+    );
+  }
+
+  // Ensure the parent menu has permission
+  await SidebarPermission.updateOne(
+    { roleId: adminRole._id, industryId: industry._id, menu_id: parentMenu._id },
+    {
+      $set: { is_visible: true, order_override: 9.1 },
+      $setOnInsert: {
+        roleId: adminRole._id,
+        industryId: industry._id,
+        menu_id: parentMenu._id,
+      }
+    },
+    { upsert: true }
+  );
+
+  console.log('[seed] initialized Lead Distribution sidebar menus and permissions for Admin role');
+}
+
 const DROPDOWN_OPTION_DEFAULTS = {
   'lead-types': [
     { value: 'hot',  label: 'Hot' },
@@ -957,4 +1079,5 @@ module.exports = {
   seedBookings,
   fixIntegrationsSidebar,
   seedDropdownOptions,
+  seedLeadDistributionSidebar,
 };

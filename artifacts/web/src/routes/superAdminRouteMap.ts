@@ -75,7 +75,9 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/industries": IndustriesPage,
   "/configuration/menus": MenusPage,
   "/configuration/permissions": PermissionsMatrixPage,
+  "/configuration/holidayConfig": HolidayConfigPage,
   "/configuration/holiday-config": HolidayConfigPage,
+  "/configuration/daysConfig": DaysConfigPage,
   "/configuration/days-config": DaysConfigPage,
 
   "/integrations": IntegrationsPage,

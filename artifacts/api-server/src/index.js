@@ -24,6 +24,7 @@ require('./models/newsModel');
 require('./models/whatsappConfigModel');
 require('./models/resourceItemModel');
 require('./models/apiTokenModel');
+require('./models/leadDistributionModel');
 require('./models/dropdownOptionModel');
 require('./models/teamModel');
 require('./models/branchModel');
@@ -41,6 +42,7 @@ const {
   seedBookings,
   fixIntegrationsSidebar,
   seedDropdownOptions,
+  seedLeadDistributionSidebar,
 } = require('./seed');
 
 const PORT = config.port || 3001;
@@ -64,6 +66,12 @@ const PORT = config.port || 3001;
     await fixIntegrationsSidebar();
   } catch (err) {
     console.error('[seed] failed to fix integrations sidebar routes:', err.message || err);
+  }
+
+  try {
+    await seedLeadDistributionSidebar();
+  } catch (err) {
+    console.error('[seed] failed to seed lead distribution sidebar:', err.message || err);
   }
 
   try {
