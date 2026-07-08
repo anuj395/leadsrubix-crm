@@ -74,7 +74,7 @@ export default function ProjectsListPage() {
 
       const [resProjects, orgsResult, resolved] = await Promise.all([
         api.get('/resources/resourceProjects'),
-        listOrganizationsPaged({ page: 1, pageSize: 1000 }),
+        listOrganizationsPaged({ page: 0, pageSize: 1000 }),
         resolveScreen({
           screen_key: 'configProjects',
           industry_code: activeIndustry,
@@ -119,15 +119,15 @@ export default function ProjectsListPage() {
     if (!selectedIndustry) return items
     const selectedOrgIds = organizations
       .filter((o) => o.industryId === selectedIndustry)
-      .map((o) => o.id)
+      .map((o) => o.organizationId || o.id)
     return items.filter((item) => !item.organizationId || selectedOrgIds.includes(item.organizationId))
   }, [items, selectedIndustry, organizations])
 
   const columns = useMemo<GridColDef<Project>[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
-      if (header.key === 'organizationId' || header.key === 'organizationId') return null
+    const baseCols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
+      if (header.key === 'organizationId' || header.key === 'organizationName') return null
 
       const col: GridColDef<Project> = {
         field: header.key as keyof Project,
@@ -152,6 +152,17 @@ export default function ProjectsListPage() {
 
       return col
     }).filter(Boolean) as GridColDef<Project>[]
+
+    const cols: GridColDef<Project>[] = [
+      {
+        field: 'organizationName',
+        headerName: 'Organization Name',
+        flex: 1.2,
+        minWidth: 180,
+        renderCell: (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || <em>Global Default</em>}</Box>,
+      },
+      ...baseCols
+    ]
 
     cols.push({
       field: '__actions' as any,

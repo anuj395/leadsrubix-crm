@@ -59,7 +59,7 @@ router.get('/:resource_key', authenticate, async (req, res, next) => {
       resource_key,
       organizationId: orgId,
       industryId,
-      all: req.query.all === 'true',
+      all: req.query.all === 'true' || (req.user.role === 'superAdmin' && !orgId),
     });
 
     const formatted = items.map(item => ({
