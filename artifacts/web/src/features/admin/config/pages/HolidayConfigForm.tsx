@@ -16,10 +16,6 @@ import type { Holiday } from './HolidayConfig'
 
 const inputSx = {
   width: '100%',
-  '& .MuiOutlinedInput-root': {
-    minHeight: '40px',
-    height: '40px',
-  },
 }
 
 const HOLIDAY_TYPES = ['National', 'State', 'Company Holiday']
@@ -136,7 +132,8 @@ export default function HolidayConfigFormPage() {
               <Grid container spacing={3}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
-                    label="Holiday Name *"
+                    size="small"
+                    label="Holiday Name"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     required
@@ -147,7 +144,8 @@ export default function HolidayConfigFormPage() {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     select
-                    label="Holiday Type *"
+                    size="small"
+                    label="Holiday Type"
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value as any })}
                     required
@@ -163,7 +161,8 @@ export default function HolidayConfigFormPage() {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
-                    label="Date *"
+                    size="small"
+                    label="Date"
                     type="date"
                     InputLabelProps={{ shrink: true }}
                     value={form.date}
@@ -175,6 +174,7 @@ export default function HolidayConfigFormPage() {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
+                    size="small"
                     label="Day of Week"
                     value={form.dayOfWeek}
                     disabled
@@ -184,6 +184,7 @@ export default function HolidayConfigFormPage() {
 
                 <Grid size={{ xs: 12 }}>
                   <TextField
+                    size="small"
                     label="Description"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}

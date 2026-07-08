@@ -19,17 +19,10 @@ import { createRotationRule } from '@/services/leadDistributionService'
 
 const inputSx = {
   width: '100%',
-  '& .MuiOutlinedInput-root': {
-    minHeight: '56px',
-    height: '56px',
-  },
 }
 
 const multiInputSx = {
   width: '100%',
-  '& .MuiOutlinedInput-root': {
-    minHeight: '56px',
-  },
 }
 
 export default function ReassignLogicPage() {
@@ -173,6 +166,7 @@ export default function ReassignLogicPage() {
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   select
+                  size="small"
                   label="Lead Source"
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
@@ -190,17 +184,19 @@ export default function ReassignLogicPage() {
               <Grid size={{ xs: 12, sm: 4 }}>
                 <Autocomplete
                   multiple
+                  size="small"
                   options={projects}
                   getOptionLabel={(p) => p.projectName || p.name || p}
                   value={selectedProjects}
                   onChange={(_, val) => setSelectedProjects(val)}
                   sx={multiInputSx}
-                  renderInput={(params) => <TextField {...params} label="Project" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                  renderInput={(params) => <TextField {...params} label="Project" fullWidth />}
                 />
               </Grid>
 
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
+                  size="small"
                   label="Rotation Time (in mins)"
                   type="number"
                   value={rotationTime}
@@ -213,24 +209,26 @@ export default function ReassignLogicPage() {
               <Grid size={{ xs: 12, sm: 4 }}>
                 <Autocomplete
                   multiple
+                  size="small"
                   options={leadManagersList}
                   getOptionLabel={(u) => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
                   value={selectedLeadManagers}
                   onChange={(_, val) => setSelectedLeadManagers(val)}
                   sx={multiInputSx}
-                  renderInput={(params) => <TextField {...params} label="Lead Manager" required fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                  renderInput={(params) => <TextField {...params} label="Lead Manager" required fullWidth />}
                 />
               </Grid>
 
               <Grid size={{ xs: 12, sm: 4 }}>
                 <Autocomplete
                   multiple
+                  size="small"
                   options={filteredAssociatesList}
                   getOptionLabel={(u) => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
                   value={selectedAssociates}
                   onChange={(_, val) => setSelectedAssociates(val)}
                   sx={multiInputSx}
-                  renderInput={(params) => <TextField {...params} label="Associate" required fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                  renderInput={(params) => <TextField {...params} label="Associate" required fullWidth />}
                 />
               </Grid>
 

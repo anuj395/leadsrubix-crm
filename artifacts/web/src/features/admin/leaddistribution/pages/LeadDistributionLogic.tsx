@@ -20,17 +20,10 @@ import { createDistributionRule } from '@/services/leadDistributionService'
 
 const inputSx = {
   width: '100%',
-  '& .MuiOutlinedInput-root': {
-    minHeight: '56px',
-    height: '56px',
-  },
 }
 
 const multiInputSx = {
   width: '100%',
-  '& .MuiOutlinedInput-root': {
-    minHeight: '56px',
-  },
 }
 
 export default function LeadDistributionLogicPage() {
@@ -241,6 +234,7 @@ export default function LeadDistributionLogicPage() {
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
                     select
+                    size="small"
                     label="Lead Source"
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
@@ -258,59 +252,64 @@ export default function LeadDistributionLogicPage() {
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={projects}
                     getOptionLabel={(p) => p.projectName || p.name || p}
                     value={selectedProjects}
                     onChange={(_, val) => setSelectedProjects(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Project" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Project" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={locations}
                     getOptionLabel={(l) => l.locationName || l.name || l}
                     value={selectedLocations}
                     onChange={(_, val) => setSelectedLocations(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Location" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Location" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={budgets}
                     getOptionLabel={(b) => b.budgetValue || b.name || b}
                     value={selectedBudgets}
                     onChange={(_, val) => setSelectedBudgets(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Budget" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Budget" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={propertyTypes}
                     getOptionLabel={(pt) => pt.propertyType || pt.name || pt}
                     value={selectedPropertyTypes}
                     onChange={(_, val) => setSelectedPropertyTypes(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Property Type" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Property Type" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
+                    size="small"
                     options={associatesList}
                     getOptionLabel={(u) => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
                     value={associate}
                     onChange={(_, val) => setAssociate(val)}
                     sx={inputSx}
-                    renderInput={(params) => <TextField {...params} label="Associate" required fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px', height: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Associate" required fullWidth />}
                   />
                 </Grid>
 
@@ -337,6 +336,7 @@ export default function LeadDistributionLogicPage() {
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
                     select
+                    size="small"
                     label="Lead Source"
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
@@ -354,72 +354,78 @@ export default function LeadDistributionLogicPage() {
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={projects}
                     getOptionLabel={(p) => p.projectName || p.name || p}
                     value={selectedProjects}
                     onChange={(_, val) => setSelectedProjects(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Project" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Project" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={locations}
                     getOptionLabel={(l) => l.locationName || l.name || l}
                     value={selectedLocations}
                     onChange={(_, val) => setSelectedLocations(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Location" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Location" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={budgets}
                     getOptionLabel={(b) => b.budgetValue || b.name || b}
                     value={selectedBudgets}
                     onChange={(_, val) => setSelectedBudgets(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Budget" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Budget" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={propertyTypes}
                     getOptionLabel={(pt) => pt.propertyType || pt.name || pt}
                     value={selectedPropertyTypes}
                     onChange={(_, val) => setSelectedPropertyTypes(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Property Type" fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Property Type" fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={leadManagersList}
                     getOptionLabel={(u) => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
                     value={selectedLeadManagers}
                     onChange={(_, val) => setSelectedLeadManagers(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Lead Manager" required fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Lead Manager" required fullWidth />}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Autocomplete
                     multiple
+                    size="small"
                     options={roundRobinAssociatesList}
                     getOptionLabel={(u) => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
                     value={roundRobinAssociates}
                     onChange={(_, val) => setRoundRobinAssociates(val)}
                     sx={multiInputSx}
-                    renderInput={(params) => <TextField {...params} label="Associate" required fullWidth sx={{ '& .MuiOutlinedInput-root': { minHeight: '56px' } }} />}
+                    renderInput={(params) => <TextField {...params} label="Associate" required fullWidth />}
                   />
                 </Grid>
 
