@@ -17,12 +17,21 @@ roleSchema.index({ industryId: 1, key: 1 }, { unique: true, name: 'idx_role_indu
 
 const Role = mongoose.model('Role', roleSchema, 'roles');
 
+const industryModel = require('./industryModel');
+
 exports.Role = Role;
 exports.ROLE_KEYS = ROLE_KEYS;
 
 exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
   const q = { key: { $ne: 'superAdmin' } };
-  if (industryId) q.industryId = industryId;
+  if (industryId) {
+    const industryDoc = await industryModel.findByCode(industryId);
+    if (industryDoc) {
+      q.industryId = industryDoc._id;
+    } else {
+      q.industryId = industryId;
+    }
+  }
   if (activeOnly) q.isActive = true;
   if (excludeRole) {
     q.key = { $nin: ['superAdmin', excludeRole] };
@@ -32,8 +41,14 @@ exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
 
 exports.findById = async (id) => Role.findById(id).populate('industryId').lean().exec();
 
-exports.findByIndustryAndKey = async (industryId, key) =>
-  Role.findOne({ industryId, key: String(key).trim() }).lean().exec();
+exports.findByIndustryAndKey = async (industryId, key) => {
+  let targetId = industryId;
+  const industryDoc = await industryModel.findByCode(industryId);
+  if (industryDoc) {
+    targetId = industryDoc._id;
+  }
+  return Role.findOne({ industryId: targetId, key: String(key).trim() }).lean().exec();
+};
 
 exports.create = async ({ industryId, key, name, description, isActive }) => {
   const doc = await Role.create({

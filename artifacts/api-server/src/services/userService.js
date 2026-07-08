@@ -9,6 +9,7 @@ const fieldModel = require('../models/screenFieldModel');
 const permissionModel = require('../models/screenPermissionModel');
 const industryModel = require('../models/industryModel');
 const roleModel = require('../models/roleModel');
+const organizationModel = require('../models/organizationModel');
 const roles = require('../config/roles');
 const mongoose = require('mongoose');
 const { sendCredentialsEmail } = require('../utils/mailer');
@@ -32,7 +33,10 @@ function enrichUserFields(userDoc) {
   if (u.designation !== undefined) dynamicFields.designation = u.designation;
   if (u.team !== undefined) dynamicFields.team = u.team;
   if (u.branch !== undefined) dynamicFields.branch = u.branch;
-  if (u.contactNumber !== undefined) dynamicFields.phone = u.contactNumber;
+  if (u.contactNumber !== undefined) {
+    dynamicFields.phone = u.contactNumber;
+    dynamicFields.contactNumber = u.contactNumber;
+  }
 
   // Include any other non-standard fields stored at root level
   for (const [k, v] of Object.entries(u)) {
@@ -404,7 +408,10 @@ exports.update = async ({ id, payload, authedUser }) => {
     ]);
 
     const existingDynamicFields = {};
-    if (target.contactNumber) existingDynamicFields.phone = target.contactNumber;
+    if (target.contactNumber) {
+      existingDynamicFields.phone = target.contactNumber;
+      existingDynamicFields.contactNumber = target.contactNumber;
+    }
     if (target.designation) existingDynamicFields.designation = target.designation;
     if (target.team) existingDynamicFields.team = target.team;
     if (target.branch) existingDynamicFields.branch = target.branch;

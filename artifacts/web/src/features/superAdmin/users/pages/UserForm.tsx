@@ -52,7 +52,6 @@ export default function UserFormPage() {
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
     role: isSuperAdmin ? 'admin' : 'sales',
     industryId: isSuperAdmin ? '' : (authedUser?.industryId || ''),
     isActive: true,
@@ -70,16 +69,12 @@ export default function UserFormPage() {
     sev: 'success',
   })
 
-  // Load industries and roles
+  // Load industries and edit-mode user details
   useEffect(() => {
     void (async () => {
       try {
-        const [inds, rls] = await Promise.all([
-          isSuperAdmin ? getIndustries(true) : Promise.resolve([]),
-          getRoles()
-        ])
+        const inds = isSuperAdmin ? await getIndustries(true) : []
         setIndustries(inds)
-        setRoles(rls)
 
         if (id) {
           const allUsers = await listUsers(isSuperAdmin ? undefined : authedUser?.industryId)
@@ -90,7 +85,6 @@ export default function UserFormPage() {
               firstName: match.firstName ?? '',
               lastName: match.lastName ?? '',
               email: match.email,
-              password: '',
               role: match.role,
               industryId: match.industryId ?? '',
               isActive: !!match.isActive,
@@ -108,6 +102,23 @@ export default function UserFormPage() {
       }
     })()
   }, [id, isSuperAdmin, authedUser])
+
+  // Load roles dynamically when industry changes
+  useEffect(() => {
+    const targetIndustry = isSuperAdmin ? core.industryId : authedUser?.industryId
+    if (!targetIndustry) {
+      setRoles([])
+      return
+    }
+    void (async () => {
+      try {
+        const rls = await getRoles(targetIndustry)
+        setRoles(rls)
+      } catch (err) {
+        console.error('Failed to load roles:', err)
+      }
+    })()
+  }, [core.industryId, authedUser?.industryId, isSuperAdmin])
 
   // Fetch managers dynamically when role or industry changes
   useEffect(() => {
@@ -160,12 +171,10 @@ export default function UserFormPage() {
       }
 
       if (id) {
-        if (core.password) payload.password = core.password
         await updateUser(id, payload)
         setToast({ open: true, msg: 'User updated successfully', sev: 'success' })
       } else {
         payload.email = core.email.trim().toLowerCase()
-        payload.password = core.password
         await createUser(payload)
         setToast({ open: true, msg: 'User created successfully', sev: 'success' })
       }
@@ -246,18 +255,6 @@ export default function UserFormPage() {
                       onChange={(e) => setCore({ ...core, email: e.target.value })}
                       disabled={!!id}
                       required
-                      sx={inputSx}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
-                      size="small"
-                      label={id ? 'New Password (Optional)' : 'Password'}
-                      type="password"
-                      value={core.password}
-                      onChange={(e) => setCore({ ...core, password: e.target.value })}
-                      required={!id}
                       sx={inputSx}
                     />
                   </Grid>

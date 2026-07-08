@@ -154,7 +154,7 @@ exports.listPaged = async ({
     filter.$or = [{ email: rx }, { firstName: rx }, { lastName: rx }];
   }
   const sortSpec = sort && Object.keys(sort).length ? sort : { createdAt: -1 };
-  const safePage = Math.max(0, Number(page) || 0);
+  const safePage = Math.max(0, (Number(page) || 1) - 1);
   const safeSize = Math.min(200, Math.max(1, Number(pageSize) || 25));
 
   const [list, total] = await Promise.all([
@@ -206,6 +206,12 @@ exports.update = async (id, patch) => {
   if (patch.reportingTo !== undefined || patch.reporting_to !== undefined) {
     $set.reportingTo = String(patch.reportingTo !== undefined ? patch.reportingTo : (patch.reporting_to || ''));
   }
+  if (patch.contactNumber !== undefined || patch.contact_no !== undefined) {
+    $set.contactNumber = patch.contactNumber !== undefined ? patch.contactNumber : patch.contact_no;
+  }
+  if (patch.designation !== undefined) $set.designation = patch.designation;
+  if (patch.team !== undefined) $set.team = patch.team;
+  if (patch.branch !== undefined) $set.branch = patch.branch;
   if (patch.fields !== undefined) $set.fields = patch.fields || {};
   // Password change goes through a separate flow (pre-save hook would not run
   // with findByIdAndUpdate). Allow it here only by hashing manually.

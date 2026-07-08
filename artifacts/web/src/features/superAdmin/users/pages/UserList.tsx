@@ -158,8 +158,9 @@ export default function UserListPage() {
   }
 
   useEffect(() => {
+    if (isSuperAdmin && !filterIndustry) return
     void refresh()
-  }, [paginationModel, sortModel, searchQuery, filterIndustry])
+  }, [paginationModel, sortModel, searchQuery, filterIndustry, isSuperAdmin])
 
   const { confirmDelete } = useConfirm()
 

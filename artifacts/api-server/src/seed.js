@@ -369,7 +369,7 @@ const SCREEN_DEFAULTS = [
     name: 'Users',
     description: 'Per-role custom fields shown on the Add/Edit User form',
     fields: [
-      { field_key: 'phone',         label: 'Contact Number', type: 'text',   is_required: true,  order: 1 },
+      { field_key: 'contactNumber', label: 'Contact Number', type: 'phone',  is_required: true,  order: 1 },
       { field_key: 'designation',   label: 'Designation',   type: 'select', is_required: true,  order: 2,
         dropdown_source: 'api', dropdown_api: '/api/options/designations' },
       { field_key: 'team',          label: 'Team',          type: 'select', is_required: true,  order: 3,
@@ -816,6 +816,7 @@ async function seedLeadDistributionSidebar() {
   await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 5 } });
   await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 10 } });
   await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 13 } });
+  await SidebarMenu.updateOne({ key: 'tool' }, { $set: { order: 14 } });
   await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 15 } });
 
   // 3. Upsert parent menu: leadDistribution
