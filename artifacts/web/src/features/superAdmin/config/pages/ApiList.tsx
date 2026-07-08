@@ -118,14 +118,14 @@ export default function ApiListPage() {
     if (!selectedIndustry) return items
     const selectedOrgIds = organizations
       .filter((o) => o.industryId === selectedIndustry)
-      .map((o) => o.id)
+      .map((o) => o.organizationId || o.id)
     return items.filter((item) => !item.organizationId || selectedOrgIds.includes(item.organizationId))
   }, [items, selectedIndustry, organizations])
 
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
+    const baseCols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
       .filter((h) => h.key !== 'organizationId' && h.key !== 'organizationName')
       .map((header) => {
         const col: GridColDef<ApiTokenConfig> = {
@@ -136,44 +136,50 @@ export default function ApiListPage() {
           sortable: header.sortable,
         }
 
-      if (header.key === 'organizationId' || header.key === 'organizationId') {
-        col.field = 'organizationName' as any
-        col.flex = 1.2
-        col.minWidth = 180
-        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || p.row.organizationName || p.value || <em>Global Default</em>}</Box>
-      } else if (header.key === 'source') {
-        col.flex = 1.2
-        col.minWidth = 180
-        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value || <em>Not Mapped</em>}</Box>
-      } else if (header.key === 'status') {
-        col.width = 120
-        col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
-      } else if (header.key === 'countryCode' || header.key === 'country_code') {
-        col.width = 120
-        col.renderCell = (p) => p.value || '+91'
-      } else if (header.key === 'createdAt') {
-        col.field = 'created_at' as any
-        col.width = 180
-        col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
-      } else if (header.key === 'api_key' || header.key === 'apiKey') {
-        col.field = 'api_key' as any
-        col.flex = 1.2
-        col.minWidth = 200
-        col.renderCell = (p) => {
-          const val = p.row.api_key || (p.row as any).apiKey || ''
-          return (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <code style={{ fontSize: '0.85rem' }}>{val}</code>
-              <IconButton size="small" onClick={() => handleCopy(val)}>
-                <ContentCopyIcon fontSize="inherit" />
-              </IconButton>
-            </Stack>
-          )
+        if (header.key === 'source') {
+          col.flex = 1.2
+          col.minWidth = 180
+          col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value || <em>Not Mapped</em>}</Box>
+        } else if (header.key === 'status') {
+          col.width = 120
+          col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
+        } else if (header.key === 'countryCode' || header.key === 'country_code') {
+          col.width = 120
+          col.renderCell = (p) => p.value || '+91'
+        } else if (header.key === 'createdAt') {
+          col.field = 'created_at' as any
+          col.width = 180
+          col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
+        } else if (header.key === 'api_key' || header.key === 'apiKey') {
+          col.field = 'api_key' as any
+          col.flex = 1.2
+          col.minWidth = 200
+          col.renderCell = (p) => {
+            const val = p.row.api_key || (p.row as any).apiKey || ''
+            return (
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <code style={{ fontSize: '0.85rem' }}>{val}</code>
+                <IconButton size="small" onClick={() => handleCopy(val)}>
+                  <ContentCopyIcon fontSize="inherit" />
+                </IconButton>
+              </Stack>
+            )
+          }
         }
-      }
 
-      return col
-    })
+        return col
+      })
+
+    const cols: GridColDef<ApiTokenConfig>[] = [
+      {
+        field: 'organizationName',
+        headerName: 'Organization Name',
+        flex: 1.2,
+        minWidth: 180,
+        renderCell: (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || <em>Global Default</em>}</Box>,
+      },
+      ...baseCols
+    ]
 
     cols.push({
       field: '__actions' as any,
