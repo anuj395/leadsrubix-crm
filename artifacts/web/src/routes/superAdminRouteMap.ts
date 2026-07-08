@@ -1,5 +1,6 @@
 import AnalyticsPage from '@/features/superAdmin/pages/Analytics'
 import OrganizationsListPage from '@/features/superAdmin/organization/pages/Organizations'
+import OrganizationFormPage from '@/features/superAdmin/organization/pages/OrganizationForm'
 import UserListPage from '@/features/superAdmin/users/pages/UserList'
 import UserFormPage from '@/features/superAdmin/users/pages/UserForm'
 import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
@@ -58,6 +59,8 @@ import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
   "/organization/list": OrganizationsListPage,
+  "/organization/new": OrganizationFormPage,
+  "/organization/:id/edit": OrganizationFormPage,
   "/users": UserListPage,
   "/users/new": UserFormPage,
   "/users/:id/edit": UserFormPage,

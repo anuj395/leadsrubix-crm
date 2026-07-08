@@ -6,6 +6,31 @@ const resourceItemModel = require('../models/resourceItemModel');
 
 const router = express.Router();
 
+async function resolveTenantList(Model, arrayKey, targetIndustry, targetOrganization) {
+  let query = {};
+  if (targetOrganization) {
+    query.organizationId = targetOrganization;
+  }
+  if (targetIndustry) {
+    const Industry = mongoose.model('Industry');
+    const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
+    if (ind) {
+      query.industryId = { $in: [String(ind._id), ind.code] };
+    } else {
+      query.industryId = targetIndustry;
+    }
+  }
+  
+  let doc = await Model.findOne(query).lean().exec();
+  if (!doc && query.organizationId) {
+    const fallbackQuery = { ...query };
+    delete fallbackQuery.organizationId;
+    doc = await Model.findOne({ ...fallbackQuery, $or: [{ organizationId: null }, { organizationId: { $exists: false } }] }).lean().exec();
+  }
+  const raw = doc ? doc[arrayKey] || [] : [];
+  return raw.filter(item => item.isActive !== false);
+}
+
 /**
  * Demo dropdown sources for the dynamic-form system.
  * Real deployments will replace these with project-specific endpoints; the
@@ -274,17 +299,8 @@ router.get('/:key', (req, res, next) => {
           targetIndustry = org.industryId;
         }
       }
-      let query = { isActive: true };
-      if (targetIndustry) {
-        const Industry = mongoose.model('Industry');
-        const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
-        if (ind) {
-          query.industryId = { $in: [String(ind._id), ind.code] };
-        } else {
-          query.industryId = targetIndustry;
-        }
-      }
-      const list = await Team.find(query).sort({ name: 1 }).lean().exec();
+      const targetOrganization = req.query.organizationId || req.user?.organizationId;
+      const list = await resolveTenantList(Team, 'teams', targetIndustry, targetOrganization);
       const options = list.map(t => ({ value: t.name, label: t.name }));
       return res.json({ items: options });
     } catch (err) {
@@ -309,17 +325,8 @@ router.get('/:key', (req, res, next) => {
           targetIndustry = org.industryId;
         }
       }
-      let query = { isActive: true };
-      if (targetIndustry) {
-        const Industry = mongoose.model('Industry');
-        const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
-        if (ind) {
-          query.industryId = { $in: [String(ind._id), ind.code] };
-        } else {
-          query.industryId = targetIndustry;
-        }
-      }
-      const list = await Branch.find(query).sort({ name: 1 }).lean().exec();
+      const targetOrganization = req.query.organizationId || req.user?.organizationId;
+      const list = await resolveTenantList(Branch, 'branches', targetIndustry, targetOrganization);
       const options = list.map(b => ({ value: b.name, label: b.name }));
       return res.json({ items: options });
     } catch (err) {
@@ -330,8 +337,22 @@ router.get('/:key', (req, res, next) => {
 
   if (key === 'designations') {
     try {
-      const DropdownOption = mongoose.model('DropdownOption');
-      const list = await DropdownOption.find({ key: 'designations' }).lean().exec();
+      const Designation = mongoose.model('Designation');
+      let targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
+      if (!targetIndustry && req.query.organizationId) {
+        const Organization = mongoose.model('Organization');
+        const org = await Organization.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(req.query.organizationId) ? req.query.organizationId : null },
+            { organizationId: req.query.organizationId }
+          ]
+        }).lean().exec();
+        if (org) {
+          targetIndustry = org.industryId;
+        }
+      }
+      const targetOrganization = req.query.organizationId || req.user?.organizationId;
+      const list = await resolveTenantList(Designation, 'designations', targetIndustry, targetOrganization);
       if (list && list.length > 0) {
         return res.json({ items: list.map(item => ({ value: item.value, label: item.label })) });
       }

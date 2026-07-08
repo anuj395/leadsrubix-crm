@@ -16,19 +16,22 @@ const DEFAULT_DAYS = [
 router.get('/', authenticate, async (req, res) => {
   try {
     const WorkingDay = mongoose.model('WorkingDay');
-    let items = await WorkingDay.find({ organizationId: req.user.organizationId }).sort({ createdAt: 1 }).lean().exec();
+    let doc = await WorkingDay.findOne({ organizationId: req.user.organizationId }).exec();
     
     // If not seeded yet, seed default days
-    if (items.length === 0) {
-      const docs = DEFAULT_DAYS.map(d => ({
-        ...d,
+    if (!doc) {
+      doc = await WorkingDay.create({
         organizationId: req.user.organizationId,
-      }));
-      await WorkingDay.insertMany(docs);
-      items = await WorkingDay.find({ organizationId: req.user.organizationId }).sort({ createdAt: 1 }).lean().exec();
+        days: DEFAULT_DAYS,
+      });
     }
     
-    res.json({ items: items.map(d => ({ ...d, id: d._id })) });
+    const items = doc.days.map(d => ({
+      ...d.toObject(),
+      id: d._id,
+    }));
+    
+    res.json({ items });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch working days schedule' });
   }
@@ -38,12 +41,20 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const { closed, opensAt, closesAt, notes } = req.body;
     const WorkingDay = mongoose.model('WorkingDay');
-    const item = await WorkingDay.findByIdAndUpdate(
-      req.params.id,
-      { closed, opensAt, closesAt, notes },
-      { new: true }
-    );
-    res.json({ ...item.toObject(), id: item._id });
+    const doc = await WorkingDay.findOne({ organizationId: req.user.organizationId });
+    if (!doc) return res.status(404).json({ message: 'Working days configuration not found' });
+    
+    const subDoc = doc.days.id(req.params.id);
+    if (!subDoc) return res.status(404).json({ message: 'Day schedule not found' });
+    
+    if (closed !== undefined) subDoc.closed = closed;
+    if (opensAt !== undefined) subDoc.opensAt = opensAt;
+    if (closesAt !== undefined) subDoc.closesAt = closesAt;
+    if (notes !== undefined) subDoc.notes = notes;
+    
+    await doc.save();
+    
+    res.json({ ...subDoc.toObject(), id: subDoc._id });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update working day schedule' });
   }

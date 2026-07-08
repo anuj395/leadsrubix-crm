@@ -28,6 +28,7 @@ require('./models/leadDistributionModel');
 require('./models/dropdownOptionModel');
 require('./models/teamModel');
 require('./models/branchModel');
+require('./models/designationModel');
 require('./models/holidayModel');
 require('./models/workingDayModel');
 

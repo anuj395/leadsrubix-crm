@@ -1,18 +1,18 @@
-// src/models/teamModel.js
-// Team records owned by an industry tenant. Used by the User form (`team`).
-// Same freeform-schema approach as Branch / Organization.
-
 const mongoose = require('mongoose');
+
+const teamItemSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  code: { type: String, default: '', trim: true },
+  isActive: { type: Boolean, default: true }
+});
 
 const teamSchema = new mongoose.Schema(
   {
     industryId: { type: String, default: null, index: true },
-    name:        { type: String, required: true, trim: true },
-    code:        { type: String, default: '', trim: true },
-    isActive:   { type: Boolean, default: true },
-    createdBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    organizationId: { type: String, default: null, index: true },
+    teams: [teamItemSchema]
   },
-  { timestamps: true, strict: false, minimize: false },
+  { timestamps: true }
 );
 
 const Team = mongoose.model('Team', teamSchema, 'teams');

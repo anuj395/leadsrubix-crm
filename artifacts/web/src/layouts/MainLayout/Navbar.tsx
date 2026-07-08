@@ -32,6 +32,8 @@ import { paths } from '@/routes/paths'
 const breadcrumbMap: Record<string, string[]> = {
     '/': ['Home', 'Analytics', 'Overview'],
     '/analytics': ['Home', 'Analytics'],
+    '/organization/list': ['Home', 'Organizations'],
+    '/organization/new': ['Home', 'Organizations', 'Add Organization'],
     '/users': ['Home', 'Users'],
     '/users/new': ['Home', 'Users', 'Add User'],
     '/leads/contacts': ['Home', 'Leads', 'Contact List'],
@@ -98,6 +100,8 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
             resolvedBreadcrumbs = ['Home', 'Configuration', 'Holiday Config', 'Edit Holiday']
         } else if (location.pathname.startsWith('/users/') && location.pathname.endsWith('/edit')) {
             resolvedBreadcrumbs = ['Home', 'Users', 'Edit User']
+        } else if (location.pathname.startsWith('/organization/') && location.pathname.endsWith('/edit')) {
+            resolvedBreadcrumbs = ['Home', 'Organizations', 'Edit Organization']
         } else if (location.pathname.startsWith('/configuration/projects/') && location.pathname.endsWith('/edit')) {
             resolvedBreadcrumbs = ['Home', 'Configuration', 'Edit Project']
         } else if (location.pathname.startsWith('/configuration/api/') && location.pathname.endsWith('/edit')) {

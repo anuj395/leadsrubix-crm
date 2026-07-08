@@ -6,8 +6,10 @@ const { authenticate } = require('../middlewares/auth');
 router.get('/', authenticate, async (req, res) => {
   try {
     const Holiday = mongoose.model('Holiday');
-    const items = await Holiday.find({ organizationId: req.user.organizationId }).sort({ date: 1 }).lean().exec();
-    res.json({ items: items.map(h => ({ ...h, id: h._id })) });
+    const doc = await Holiday.findOne({ organizationId: req.user.organizationId }).lean().exec();
+    const items = doc ? doc.holidays.map(h => ({ ...h, id: h._id })) : [];
+    items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    res.json({ items });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch holidays' });
   }
@@ -17,17 +19,29 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { name, date, type, description } = req.body;
     if (!name || !date) return res.status(400).json({ message: 'Name and Date are required' });
+
     const Holiday = mongoose.model('Holiday');
     const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
-    const item = await Holiday.create({
-      organizationId: req.user.organizationId,
+
+    let doc = await Holiday.findOne({ organizationId: req.user.organizationId });
+    if (!doc) {
+      doc = await Holiday.create({
+        organizationId: req.user.organizationId,
+        holidays: []
+      });
+    }
+
+    doc.holidays.push({
       name,
       date,
       dayOfWeek: dayName,
       type: type || 'Company Holiday',
-      description: description || '',
+      description: description || ''
     });
-    res.status(201).json({ ...item.toObject(), id: item._id });
+
+    await doc.save();
+    const created = doc.holidays[doc.holidays.length - 1];
+    res.status(201).json({ ...created.toObject(), id: created._id });
   } catch (err) {
     res.status(500).json({ message: 'Failed to create holiday' });
   }
@@ -37,14 +51,22 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const { name, date, type, description } = req.body;
     if (!name || !date) return res.status(400).json({ message: 'Name and Date are required' });
+
     const Holiday = mongoose.model('Holiday');
+    const doc = await Holiday.findOne({ 'holidays._id': req.params.id });
+    if (!doc) return res.status(404).json({ message: 'Holiday config not found' });
+
+    const subDoc = doc.holidays.id(req.params.id);
     const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
-    const item = await Holiday.findByIdAndUpdate(
-      req.params.id,
-      { name, date, dayOfWeek: dayName, type, description },
-      { new: true }
-    );
-    res.json({ ...item.toObject(), id: item._id });
+
+    subDoc.name = name;
+    subDoc.date = date;
+    subDoc.dayOfWeek = dayName;
+    subDoc.type = type || 'Company Holiday';
+    subDoc.description = description || '';
+
+    await doc.save();
+    res.json({ ...subDoc.toObject(), id: subDoc._id });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update holiday' });
   }
@@ -53,7 +75,11 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const Holiday = mongoose.model('Holiday');
-    await Holiday.findByIdAndDelete(req.params.id);
+    const doc = await Holiday.findOne({ 'holidays._id': req.params.id });
+    if (!doc) return res.status(404).json({ message: 'Holiday config not found' });
+
+    doc.holidays.pull(req.params.id);
+    await doc.save();
     res.json({ message: 'Holiday deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete holiday' });

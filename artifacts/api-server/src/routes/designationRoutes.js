@@ -3,11 +3,23 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
 
+function isSuperAdmin(user) {
+  return user?.role === 'superAdmin';
+}
+
 router.get('/', authenticate, async (req, res) => {
   try {
-    const DropdownOption = mongoose.model('DropdownOption');
-    const items = await DropdownOption.find({ key: 'designations' }).lean().exec();
-    res.json({ items });
+    const Designation = mongoose.model('Designation');
+    const industryId = isSuperAdmin(req.user) ? req.query.industryId : req.user?.industryId;
+    const organizationId = isSuperAdmin(req.user) ? req.query.organizationId : req.user?.organizationId;
+
+    const query = {};
+    if (industryId) query.industryId = industryId;
+    if (organizationId) query.organizationId = organizationId;
+
+    const doc = await Designation.findOne(query).exec();
+    const items = doc ? doc.designations.map(d => ({ ...d.toObject(), id: d._id })) : [];
+    res.json({ items, total: items.length });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch designations' });
   }
@@ -17,9 +29,29 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Name is required' });
-    const DropdownOption = mongoose.model('DropdownOption');
-    const item = await DropdownOption.create({ key: 'designations', value: name, label: name });
-    res.status(201).json(item);
+
+    const Designation = mongoose.model('Designation');
+    const industryId = isSuperAdmin(req.user) ? req.body.industryId || req.user?.industryId : req.user?.industryId;
+    const organizationId = isSuperAdmin(req.user) ? req.body.organizationId || req.user?.organizationId : req.user?.organizationId;
+
+    const query = {};
+    if (industryId) query.industryId = industryId;
+    if (organizationId) query.organizationId = organizationId;
+
+    let doc = await Designation.findOne(query);
+    if (!doc) {
+      doc = await Designation.create({
+        industryId,
+        organizationId,
+        designations: []
+      });
+    }
+
+    doc.designations.push({ name, value: name, label: name });
+    await doc.save();
+
+    const created = doc.designations[doc.designations.length - 1];
+    res.status(201).json({ ...created.toObject(), id: created._id });
   } catch (err) {
     res.status(500).json({ message: 'Failed to create designation' });
   }
@@ -29,9 +61,18 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Name is required' });
-    const DropdownOption = mongoose.model('DropdownOption');
-    const item = await DropdownOption.findByIdAndUpdate(req.params.id, { value: name, label: name }, { new: true });
-    res.json(item);
+
+    const Designation = mongoose.model('Designation');
+    const doc = await Designation.findOne({ 'designations._id': req.params.id });
+    if (!doc) return res.status(404).json({ message: 'Designation not found' });
+
+    const subDoc = doc.designations.id(req.params.id);
+    subDoc.name = name;
+    subDoc.value = name;
+    subDoc.label = name;
+
+    await doc.save();
+    res.json({ ...subDoc.toObject(), id: subDoc._id });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update designation' });
   }
@@ -39,8 +80,12 @@ router.put('/:id', authenticate, async (req, res) => {
 
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const DropdownOption = mongoose.model('DropdownOption');
-    await DropdownOption.findByIdAndDelete(req.params.id);
+    const Designation = mongoose.model('Designation');
+    const doc = await Designation.findOne({ 'designations._id': req.params.id });
+    if (!doc) return res.status(404).json({ message: 'Designation not found' });
+
+    doc.designations.pull(req.params.id);
+    await doc.save();
     res.json({ message: 'Designation deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete designation' });

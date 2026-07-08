@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -51,6 +52,7 @@ function toFormValues(row: Organization): Record<string, FormValue> {
 }
 
 export default function OrganizationsListPage() {
+  const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
   const isSuperAdmin = user?.role === 'superAdmin'
 
@@ -61,32 +63,15 @@ export default function OrganizationsListPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 })
   const [sortModel, setSortModel] = useState<GridSortModel>([{ field: 'createdAt', sort: 'desc' }])
   const [search, setSearch] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<Organization | null>(null)
   const [pwdDialog, setPwdDialog] = useState({ open: false, email: '', password: '' })
   const [savingPwd, setSavingPwd] = useState(false)
   const [industries, setIndustries] = useState<Industry[]>([])
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('')
   const { confirmDelete } = useConfirm()
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
   })
 
   const [selectedFilterIndustry, setSelectedFilterIndustry] = useState<string>('')
-
-  const openAddDialog = () => {
-    setEditing(null)
-    const industryForForm = selectedFilterIndustry || industries[0]?.code || ''
-    setSelectedIndustry(industryForForm)
-    setDialogOpen(true)
-  }
-
-  const openEditDialog = (org: Organization) => {
-    setEditing(org)
-    const industryForForm = org.industryId || org.industryId || selectedFilterIndustry || industries[0]?.code || ''
-    setSelectedIndustry(String(industryForForm))
-    setDialogOpen(true)
-  }
 
   useEffect(() => {
     getIndustries(true)
@@ -102,7 +87,6 @@ export default function OrganizationsListPage() {
   }, [isSuperAdmin])
 
   const refresh = useCallback(async () => {
-    if (isSuperAdmin && !selectedFilterIndustry) return
     setLoading(true)
     try {
       const sort = sortModel[0]
@@ -115,11 +99,11 @@ export default function OrganizationsListPage() {
           q: search || undefined,
           sortField,
           sortDir,
-          industryId: isSuperAdmin ? selectedFilterIndustry : undefined,
+          industryId: isSuperAdmin ? (selectedFilterIndustry || undefined) : undefined,
         }),
         resolveScreen({
           screen_key: 'organization',
-          industry_code: isSuperAdmin ? selectedFilterIndustry : undefined,
+          industry_code: isSuperAdmin ? (selectedFilterIndustry || undefined) : undefined,
           role_key: isSuperAdmin ? 'admin' : undefined,
         }).catch(() => ({ table_headers: [] as ResolvedTableHeader[], form_fields: [] })),
       ])
@@ -209,7 +193,7 @@ export default function OrganizationsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => openEditDialog(p.row)}>
+            <IconButton size="small" onClick={() => navigate(`/organization/${p.row._id}/edit`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -252,7 +236,7 @@ export default function OrganizationsListPage() {
     return [...dataCols, actions]
   }, [columns, isSuperAdmin, refresh])
 
-  const closeDialog = () => { setDialogOpen(false); setEditing(null); setSelectedIndustry('') }
+
 
   const submitChangePassword = async () => {
     if (!pwdDialog.email || !pwdDialog.password.trim()) {
@@ -281,7 +265,7 @@ export default function OrganizationsListPage() {
         title="Organizations"
         subtitle="Organization records. Columns and the Add/Edit form are driven by the Screen Configuration system (screen key: organization)."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/organization/new${selectedFilterIndustry ? `?industry=${selectedFilterIndustry}` : ''}`)}>
             Add Organization
           </Button>
         }
@@ -300,6 +284,9 @@ export default function OrganizationsListPage() {
               }}
               sx={{ minWidth: 240 }}
             >
+              <MenuItem value="">
+                <em>All Industries</em>
+              </MenuItem>
               {industries.map((ind) => (
                 <MenuItem key={ind.code} value={ind.code}>
                   {ind.name} ({ind.code})
@@ -309,7 +296,7 @@ export default function OrganizationsListPage() {
           </Stack>
         )}
 
-        {isSuperAdmin && !selectedFilterIndustry ? (
+        {loading && items.length === 0 ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress />
           </Box>
@@ -338,76 +325,6 @@ export default function OrganizationsListPage() {
           />
         )}
       </AppCard>
-
-      <AppModal
-        open={dialogOpen}
-        onClose={closeDialog}
-        maxWidth="md"
-        title={editing ? 'Edit Organization' : 'New Organization'}
-      >
-        <Stack spacing={3} sx={{ pt: 1, minHeight: editing ? 'auto' : '260px' }}>
-          {!editing && !selectedIndustry && (
-            <Box sx={{ maxWidth: 400, mx: 'auto', width: '100%', py: 4, textAlign: 'center' }}>
-              <Typography variant="body1" sx={{ mb: 3, fontWeight: 500, color: 'text.secondary' }}>
-                Select your business industry to initialize the form:
-              </Typography>
-              <TextField
-                select
-                size="medium"
-                label="Select Industry"
-                value={selectedIndustry}
-                onChange={(e) => setSelectedIndustry(e.target.value)}
-                fullWidth
-              >
-                {industries.map((ind) => (
-                  <MenuItem key={ind.code} value={ind.code}>
-                    {ind.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
-          )}
-
-          {(selectedIndustry || editing) && (
-            <>
-              {!editing && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px dashed', borderColor: 'divider' }}>
-                  <Typography variant="subtitle2" color="secondary" sx={{ fontWeight: 600 }}>
-                    Industry: {industries.find(i => i.code === selectedIndustry)?.name || selectedIndustry}
-                  </Typography>
-                  <Button size="small" onClick={() => setSelectedIndustry('')}>
-                    Change Industry
-                  </Button>
-                </Box>
-              )}
-              <DynamicForm
-                screen="organization"
-                industry_code={selectedIndustry}
-                role_key="admin"
-                initialValues={editing ? toFormValues(editing) : { industryId: selectedIndustry }}
-                onCancel={closeDialog}
-                submitLabel={editing ? 'Save' : 'Create'}
-                onSubmit={async (values) => {
-                  try {
-                    if (editing) {
-                      await updateOrganization(editing._id, { fields: values })
-                      setToast({ open: true, msg: 'Organization updated', sev: 'success' })
-                    } else {
-                      await createOrganization({ fields: { ...values, industryId: selectedIndustry } })
-                      setToast({ open: true, msg: 'Organization created', sev: 'success' })
-                    }
-                    closeDialog()
-                    await refresh()
-                  } catch (e: unknown) {
-                    const err = e as { response?: { data?: { message?: string } } }
-                    setToast({ open: true, msg: err?.response?.data?.message ?? 'Save failed', sev: 'error' })
-                  }
-                }}
-              />
-            </>
-          )}
-        </Stack>
-      </AppModal>
 
       <AppModal
         open={pwdDialog.open}

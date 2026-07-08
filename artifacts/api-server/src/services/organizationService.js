@@ -272,7 +272,9 @@ exports.create = async ({ payload, authedUser }) => {
     adminEmail = `admin-${Date.now()}@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   }
 
-  const adminName = `${orgName} Admin`;
+  const adminName = cleaned.firstName
+    ? `${cleaned.firstName} ${cleaned.lastName || ''}`.trim()
+    : `${orgName} Admin`;
   
   // Generate random 8-character temporary password or use custom password
   const customPassword = payload.password || payload.fields?.password || payload.customAdminPassword;
@@ -294,7 +296,7 @@ exports.create = async ({ payload, authedUser }) => {
     lastName: cleaned.lastName || cleaned.last_name || 'Admin',
     email: adminEmail.toLowerCase().trim(),
     password: adminPassword,
-    role: isSuperAdmin ? 'superAdmin' : 'admin',
+    role: 'admin',
     organizationId: orgDoc.organizationId || orgDoc.organizationId,
     industryId: industryId,
     contactNumber: cleaned.contactNumber || cleaned.contact_no || cleaned.contact || '',
@@ -558,11 +560,6 @@ exports.remove = async ({ id, authedUser }) => {
     const deleteUsersResult = await User.deleteMany({ organizationId: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteUsersResult.deletedCount} users for organization: ${orgId}`);
 
-    // 3. Cascade delete branches created by these users
-    const Branch = mongoose.model('Branch');
-    const deleteBranchesResult = await Branch.deleteMany({ createdBy: { $in: userIds } });
-    console.log(`[organizationService] Cascade deleted ${deleteBranchesResult.deletedCount} branches`);
-
     // 4. Cascade delete contacts created by these users
     const Contact = mongoose.model('Contact');
     const deleteContactsResult = await Contact.deleteMany({ createdBy: { $in: userIds } });
@@ -579,8 +576,8 @@ exports.remove = async ({ id, authedUser }) => {
     console.log(`[organizationService] Cascade deleted ${deleteTokensResult.deletedCount} API tokens`);
 
     // 7. Cascade delete WhatsApp configs for this organization
-    const WhatsappConfig = mongoose.model('WhatsappConfig');
-    const deleteWhatsappResult = await WhatsappConfig.deleteMany({ organizationId: orgId });
+    const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+    const deleteWhatsappResult = await WhatsAppConfig.deleteMany({ organizationId: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteWhatsappResult.deletedCount} WhatsApp configs`);
 
     // 8. Cascade delete news for this organization
@@ -597,6 +594,22 @@ exports.remove = async ({ id, authedUser }) => {
     const OrganizationResources = mongoose.model('OrganizationResources');
     const deleteResourcesResult = await OrganizationResources.deleteMany({ organizationId: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteResourcesResult.deletedCount} resource/catalog documents`);
+
+    // 11. Cascade delete working days configuration for this organization
+    const WorkingDay = mongoose.model('WorkingDay');
+    await WorkingDay.deleteMany({ organizationId: orgId });
+
+    // 12. Cascade delete Teams, Branches, and Designations configurations for this organization
+    const Team = mongoose.model('Team');
+    await Team.deleteMany({ organizationId: orgId });
+    const Branch = mongoose.model('Branch');
+    await Branch.deleteMany({ organizationId: orgId });
+    const Designation = mongoose.model('Designation');
+    await Designation.deleteMany({ organizationId: orgId });
+
+    // 13. Cascade delete Holiday configuration for this organization
+    const Holiday = mongoose.model('Holiday');
+    await Holiday.deleteMany({ organizationId: orgId });
   }
 
   return organizationModel.remove(id);

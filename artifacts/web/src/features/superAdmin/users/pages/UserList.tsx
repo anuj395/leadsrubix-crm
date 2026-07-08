@@ -292,7 +292,7 @@ export default function UserListPage() {
         fullHeight
       >
         {isSuperAdmin && (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2, pt: 1.5 }}>
             <TextField
               select
               size="small"
