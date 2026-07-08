@@ -397,7 +397,7 @@ export default function FaqListPage() {
             fullHeight
           >
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
+              <AppDataGrid onReload={refreshFaqs} height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
             </Box>
           </AppCard>
         </Box>

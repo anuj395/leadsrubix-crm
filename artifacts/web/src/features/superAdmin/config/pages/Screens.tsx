@@ -134,7 +134,7 @@ export default function ScreensPage() {
         action={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Add Screen</Button>}
         fullHeight
       >
-        <AppDataGrid rows={items} columns={gridColumns} loading={loading} getRowId={(r) => r._id} height="100%" />
+        <AppDataGrid rows={items} columns={gridColumns} loading={loading} getRowId={(r) => r._id} height="100%" onReload={refresh} />
       </AppCard>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>

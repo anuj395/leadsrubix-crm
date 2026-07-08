@@ -301,7 +301,7 @@ export default function OrganizationsListPage() {
             <CircularProgress />
           </Box>
         ) : (
-          <AppDataGrid
+          <AppDataGrid onReload={refresh}
             height="100%"
             rows={items}
             columns={gridColumns}

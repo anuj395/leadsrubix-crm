@@ -149,6 +149,7 @@ export default function LeadDistributionListPage() {
             columns={columns}
             getRowId={(row) => row._id}
             loading={loading}
+            onReload={loadData}
           />
         </Box>
       </AppCard>

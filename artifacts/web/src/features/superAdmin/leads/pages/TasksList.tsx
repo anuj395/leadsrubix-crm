@@ -164,7 +164,7 @@ export default function TasksListPage() {
         }
         fullHeight
       >
-        <AppDataGrid
+        <AppDataGrid onReload={refresh}
           height="100%"
           rows={items}
           columns={gridColumns}

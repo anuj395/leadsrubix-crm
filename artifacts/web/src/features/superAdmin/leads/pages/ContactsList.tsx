@@ -92,7 +92,7 @@ export default function ContactsListPage() {
         }
         fullHeight
       >
-        <AppDataGrid
+        <AppDataGrid onReload={refresh}
           height="100%"
           rows={items}
           columns={gridColumns}

@@ -1,10 +1,23 @@
 import { useMemo } from 'react'
 import Box from '@mui/material/Box'
-import { DataGrid, GridToolbar, type DataGridProps } from '@mui/x-data-grid'
+import {
+  DataGrid,
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarFilterButton,
+  GridToolbarDensitySelector,
+  GridToolbarExport,
+  GridToolbarQuickFilter,
+  type DataGridProps
+} from '@mui/x-data-grid'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
+import Tooltip from '@mui/material/Tooltip'
+import IconButton from '@mui/material/IconButton'
+import RefreshIcon from '@mui/icons-material/Refresh'
 
 export type AppDataGridProps = DataGridProps & {
+  onReload?: () => void
   /**
    * Height of the scroll container. Defaults to `80vh` so the column header
    * stays sticky and the body scrolls underneath, matching the MUI docs
@@ -38,6 +51,7 @@ export type AppDataGridProps = DataGridProps & {
 export function AppDataGrid({
   height = '80vh',
   hideToolbar = false,
+  onReload,
   sx,
   slots,
   slotProps,
@@ -49,6 +63,37 @@ export function AppDataGrid({
 }: AppDataGridProps) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
+  const CustomToolbar = useMemo(() => {
+    return () => {
+      const handleReload = () => {
+        if (onReload) {
+          onReload()
+        } else {
+          window.location.reload()
+        }
+      }
+
+      return (
+        <GridToolbarContainer sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <GridToolbarColumnsButton />
+            <GridToolbarFilterButton />
+            <GridToolbarDensitySelector />
+            <GridToolbarExport />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+            <GridToolbarQuickFilter />
+            <Tooltip title="Reload Table">
+              <IconButton onClick={handleReload} size="small" color="primary">
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </GridToolbarContainer>
+      )
+    }
+  }, [onReload])
 
   const totalCount = rest.rowCount ?? rest.rows?.length ?? 0
   const computedPageSizeOptions = useMemo(() => {
@@ -168,7 +213,7 @@ export function AppDataGrid({
         // The per-column three-dots menu is the DataGrid default; nothing to
         // wire here. Adding the toolbar gives Columns / Filter / Density /
         // Export and a quick search box.
-        slots={hideToolbar ? slots : { toolbar: GridToolbar, ...(slots ?? {}) }}
+        slots={hideToolbar ? slots : { toolbar: CustomToolbar, ...(slots ?? {}) }}
         slotProps={
           hideToolbar
             ? slotProps

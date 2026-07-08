@@ -325,6 +325,7 @@ export default function UserListPage() {
           onSortModelChange={setSortModel}
           onFilterModelChange={onFilterModelChange}
           getRowId={(r) => r._id}
+          onReload={refresh}
         />
       </AppCard>
 

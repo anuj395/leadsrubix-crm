@@ -288,7 +288,7 @@ export default function CouponsPage() {
         }
         fullHeight
       >
-        <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
+        <AppDataGrid onReload={refreshCoupons} height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
       </AppCard>
 
       <Dialog

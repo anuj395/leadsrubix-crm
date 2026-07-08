@@ -108,7 +108,7 @@ export default function SortedListPage() {
         subtitle="Leads automatically sorted and prioritized based on active interest and inbound conversion rules."
         fullHeight
       >
-        <AppDataGrid
+        <AppDataGrid onReload={refresh}
           height="100%"
           rows={sortedLeads}
           columns={columns}

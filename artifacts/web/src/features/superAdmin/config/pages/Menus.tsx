@@ -256,6 +256,7 @@ export default function MenusPage() {
             columns={gridColumns}
             loading={loading}
             getRowId={(r) => r._id}
+            onReload={refresh}
           />
         )}
       </AppCard>

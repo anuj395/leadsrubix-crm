@@ -162,7 +162,7 @@ export default function BookingsListPage() {
         }
         fullHeight
       >
-        <AppDataGrid
+        <AppDataGrid onReload={refresh}
           height="100%"
           rows={items}
           columns={gridColumns}

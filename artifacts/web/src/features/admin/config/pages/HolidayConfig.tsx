@@ -130,7 +130,7 @@ export default function HolidayConfigPage() {
         fullHeight
       >
         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-          <AppDataGrid rows={items} columns={columns} getRowId={(row) => row.id} loading={loading} />
+          <AppDataGrid rows={items} columns={columns} getRowId={(row) => row.id} loading={loading} onReload={loadData} />
         </Box>
       </AppCard>
 

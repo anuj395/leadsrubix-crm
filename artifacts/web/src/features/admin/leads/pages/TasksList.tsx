@@ -174,6 +174,7 @@ export default function TasksListPage() {
           columns={gridColumns}
           loading={loading || configLoading}
           getRowId={(r) => r._id}
+          onReload={refresh}
         />
       </AppCard>
 

@@ -237,7 +237,7 @@ export default function ProjectsListPage() {
               <LinearProgress />
             </Box>
           )}
-          <AppDataGrid height="100%" rows={filteredItems} columns={columns} getRowId={(r) => r.id} />
+          <AppDataGrid height="100%" rows={filteredItems} columns={columns} getRowId={(r) => r.id} onReload={loadData} />
         </Box>
       </AppCard>
 

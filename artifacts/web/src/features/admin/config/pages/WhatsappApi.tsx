@@ -128,54 +128,55 @@ export default function WhatsappApiPage() {
     sev: 'success',
   })
 
+  const loadConfig = async () => {
+    try {
+      const response = await api.get('/whatsapp-config')
+      const data = response.data
+      if (data) {
+        setConfigs({
+          simply_whatsapp: {
+            type: 'Simply WhatsApp',
+            url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
+            isActive: data.simply?.active || false,
+            incomingJson: data.simply?.incoming_json,
+            transferJson: data.simply?.transfer_json,
+            fields: {
+              instanceId: data.simply?.instanceId || '',
+              accessToken: data.simply?.accessToken || '',
+              url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
+            }
+          },
+          wapi: {
+            type: 'WHAPI',
+            url: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
+            isActive: data.wapi?.active || false,
+            incomingJson: data.wapi?.incoming_json,
+            transferJson: data.wapi?.transfer_json,
+            fields: {
+              wapiUrl: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
+              wapiToken: data.wapi?.wapi_token || '',
+            }
+          },
+          chatsimplified: {
+            type: 'ChatSimplified',
+            url: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
+            isActive: data.chatSimplified?.active || false,
+            incomingJson: data.chatSimplified?.incoming_json,
+            transferJson: data.chatSimplified?.transfer_json,
+            fields: {
+              apiKey: data.chatSimplified?.api_key || '',
+              baseUrl: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
+            }
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Error loading WhatsApp configs from server', e)
+    }
+  }
+
   // Load from API on mount
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const response = await api.get('/whatsapp-config')
-        const data = response.data
-        if (data) {
-          setConfigs({
-            simply_whatsapp: {
-              type: 'Simply WhatsApp',
-              url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
-              isActive: data.simply?.active || false,
-              incomingJson: data.simply?.incoming_json,
-              transferJson: data.simply?.transfer_json,
-              fields: {
-                instanceId: data.simply?.instanceId || '',
-                accessToken: data.simply?.accessToken || '',
-                url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
-              }
-            },
-            wapi: {
-              type: 'WHAPI',
-              url: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
-              isActive: data.wapi?.active || false,
-              incomingJson: data.wapi?.incoming_json,
-              transferJson: data.wapi?.transfer_json,
-              fields: {
-                wapiUrl: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
-                wapiToken: data.wapi?.wapi_token || '',
-              }
-            },
-            chatsimplified: {
-              type: 'ChatSimplified',
-              url: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
-              isActive: data.chatSimplified?.active || false,
-              incomingJson: data.chatSimplified?.incoming_json,
-              transferJson: data.chatSimplified?.transfer_json,
-              fields: {
-                apiKey: data.chatSimplified?.api_key || '',
-                baseUrl: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
-              }
-            }
-          })
-        }
-      } catch (e) {
-        console.error('Error loading WhatsApp configs from server', e)
-      }
-    }
     loadConfig()
   }, [])
 
@@ -727,7 +728,7 @@ export default function WhatsappApiPage() {
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', overflowY: 'auto' }}>
       <AppCard title="WhatsApp API List" subtitle="Enable, deactivate, or configure your integrations.">
         <Box sx={{ height: 350, width: '100%' }}>
-          <AppDataGrid
+          <AppDataGrid onReload={loadConfig}
             height="100%"
             rows={rows}
             columns={columns}

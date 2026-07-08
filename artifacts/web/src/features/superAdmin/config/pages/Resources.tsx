@@ -26,6 +26,7 @@ import {
   Delete as DeleteIcon,
   Download as DownloadIcon,
   Upload as UploadIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import {
   type GridColDef,
@@ -699,7 +700,40 @@ export default function ResourcesPage() {
                       </Button>
                     )}
                   </Box>
-                  <GridToolbarQuickFilter />
+                  <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                    <GridToolbarQuickFilter />
+                    <Tooltip title="Reload Table">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => {
+                          if (activeScreen) {
+                            setResolvedScreen(null)
+                            setRows([])
+                            void (async () => {
+                              try {
+                                setLoading(true)
+                                const [resolved, items] = await Promise.all([
+                                  resolveScreen({ screen_key: activeScreen.key }),
+                                  getResources(activeScreen.key)
+                                ])
+                                setResolvedScreensCache(prev => ({ ...prev, [activeScreen.key]: resolved }))
+                                setResourceDataCache(prev => ({ ...prev, [activeScreen.key]: items }))
+                                setResolvedScreen(resolved)
+                                setRows(items)
+                              } catch (e) {
+                                console.error('Failed to reload', e)
+                              } finally {
+                                setLoading(false)
+                              }
+                            })()
+                          }
+                        }}
+                      >
+                        <RefreshIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </GridToolbarContainer>
               )
 

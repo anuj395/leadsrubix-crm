@@ -915,7 +915,7 @@ export default function RolesAndPermissionsPage() {
                 No roles for this industry yet.
               </Typography>
             ) : (
-              <AppDataGrid
+              <AppDataGrid onReload={refreshFields}
                 height="100%"
                 rows={roles}
                 columns={rolesColumns}
@@ -954,7 +954,7 @@ export default function RolesAndPermissionsPage() {
                 No dynamic fields yet — click "Add Field" to define one.
               </Typography>
             ) : (
-              <AppDataGrid
+              <AppDataGrid onReload={refreshFields}
                 height="100%"
                 rows={fields}
                 columns={fieldsColumns}
@@ -1017,7 +1017,7 @@ export default function RolesAndPermissionsPage() {
                 No fields to assign yet.
               </Typography>
             ) : (
-              <AppDataGrid
+              <AppDataGrid onReload={refreshFields}
                 height="100%"
                 rows={fields}
                 columns={perRoleColumns}
@@ -1073,7 +1073,7 @@ export default function RolesAndPermissionsPage() {
                 No active modules.
               </Typography>
             ) : (
-              <AppDataGrid
+              <AppDataGrid onReload={refreshFields}
                 height="100%"
                 rows={allScreens}
                 columns={actionsColumns}
@@ -1264,7 +1264,7 @@ export default function RolesAndPermissionsPage() {
               No dynamic fields are configured for this module.
             </Typography>
           ) : (
-            <AppDataGrid
+            <AppDataGrid onReload={refreshFields}
               height="400px"
               rows={permFields}
               columns={permFieldsColumns}

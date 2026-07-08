@@ -243,7 +243,7 @@ export default function LicensesPage() {
         }
         fullHeight
       >
-        <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
+        <AppDataGrid onReload={refreshPlans} height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
       </AppCard>
 
       <Dialog

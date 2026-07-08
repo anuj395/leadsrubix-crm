@@ -292,7 +292,7 @@ export default function BookingFormPage() {
             No fields configured for the Booking Form yet.
           </Typography>
         ) : (
-          <AppDataGrid
+          <AppDataGrid onReload={refresh}
             height="100%"
             rows={items}
             columns={gridColumns}

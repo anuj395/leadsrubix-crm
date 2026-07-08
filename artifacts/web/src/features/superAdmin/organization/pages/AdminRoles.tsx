@@ -320,7 +320,7 @@ export default function AdminRolesPage() {
           </TextField>
         </Stack>
 
-        <AppDataGrid
+        <AppDataGrid onReload={refreshUsers}
           height="55vh"
           rows={items}
           columns={adminCols}
@@ -340,7 +340,7 @@ export default function AdminRolesPage() {
               Users → Roles & Permissions before assigning module access.
             </Alert>
           ) : (
-            <AppDataGrid
+            <AppDataGrid onReload={refreshUsers}
               height="55vh"
               rows={screens}
               columns={moduleCols}

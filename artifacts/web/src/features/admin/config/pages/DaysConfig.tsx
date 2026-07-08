@@ -162,7 +162,7 @@ export default function DaysConfigPage() {
               <LinearProgress />
             </Box>
           )}
-          <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} />
+          <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} onReload={loadData} />
         </Box>
       </AppCard>
 

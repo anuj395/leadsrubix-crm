@@ -356,7 +356,7 @@ export default function NewsListPage() {
           fullHeight
         >
           <Box sx={{ flex: 1, minHeight: 0 }}>
-            <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} />
+            <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} loading={loading} onReload={refreshNews} />
           </Box>
         </AppCard>
       </Box>

@@ -311,7 +311,7 @@ export default function ScreenFieldsPage() {
             No fields configured for this screen yet.
           </Typography>
         ) : (
-          <AppDataGrid
+          <AppDataGrid onReload={refresh}
             height="100%"
             rows={items}
             columns={gridColumns}
