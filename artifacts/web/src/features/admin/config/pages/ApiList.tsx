@@ -5,8 +5,6 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
-import TextField from '@mui/material/TextField'
-import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
@@ -16,34 +14,24 @@ import LinearProgress from '@mui/material/LinearProgress'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
+import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { getApiTokens, createApiToken, updateApiToken, deleteApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
+import { getApiTokens, deleteApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
 import { getResources } from '@/services/resourcesService'
-import { resolveScreen, type ResolvedScreen, type ResolvedFormField } from '@/services/screenAdminService'
-import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
+import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
 import { useConfirm } from '@/components/common/ConfirmContext'
-
-const COUNTRY_CODES = [
-  { code: '+91', label: '🇮🇳 India (+91)' },
-  { code: '+1', label: '🇺🇸 United States (+1)' },
-  { code: '+44', label: '🇬🇧 United Kingdom (+44)' },
-  { code: '+971', label: '🇦🇪 UAE (+971)' },
-  { code: '+65', label: '🇸🇬 Singapore (+65)' },
-  { code: '+61', label: '🇦🇺 Australia (+61)' },
-]
 
 // Stale-while-revalidate frontend caches for instant loading
 const tokensCache = { data: [] as ApiTokenConfig[], initialized: false }
 const leadSourcesCache = { data: [] as any[], initialized: false }
 
 export default function ApiListPage() {
+  const navigate = useNavigate()
   const [items, setItems] = useState<ApiTokenConfig[]>(tokensCache.data)
   const [leadSources, setLeadSources] = useState<any[]>(leadSourcesCache.data)
   const [loading, setLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<ApiTokenConfig | null>(null)
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
   
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -83,16 +71,6 @@ export default function ApiListPage() {
   useEffect(() => {
     loadData()
   }, [])
-
-  const openAddDialog = () => {
-    setEditing(null)
-    setDialogOpen(true)
-  }
-
-  const openEditDialog = (apiE: ApiTokenConfig) => {
-    setEditing(apiE)
-    setDialogOpen(true)
-  }
 
   const { confirmDelete } = useConfirm()
 
@@ -182,7 +160,7 @@ export default function ApiListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => openEditDialog(p.row)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -197,8 +175,6 @@ export default function ApiListPage() {
 
     return cols
   }, [resolvedScreen, items, leadSources])
-
-
 
   return (
     <Box
@@ -216,7 +192,7 @@ export default function ApiListPage() {
         title="API Integration Credentials"
         subtitle="Manage secure API connection credentials, country codes, and incoming webhook triggers."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/api/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Add API
           </Button>
         }
@@ -231,55 +207,6 @@ export default function ApiListPage() {
           <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} />
         </Box>
       </AppCard>
-
-      <Dialog 
-        open={dialogOpen} 
-        onClose={() => setDialogOpen(false)} 
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: {
-            width: '100%',
-            maxWidth: '750px'
-          }
-        }}
-      >
-        <DialogTitle>
-          {editing ? 'Edit API Connection' : 'Create API'}
-        </DialogTitle>
-        <DialogContent dividers>
-          <DynamicForm
-            screen="configApi"
-            industry_code={undefined}
-            role_key="admin"
-            initialValues={editing ? (editing as any) : {}}
-            onCancel={() => setDialogOpen(false)}
-            submitLabel={editing ? 'Save' : 'Create'}
-            onSubmit={async (values) => {
-              try {
-                setLoading(true)
-                const payload = {
-                  ...values,
-                  organizationId: '', // Backend resolves Admin's organization ID automatically
-                }
-                if (editing) {
-                  await updateApiToken(editing.id, payload as any)
-                  setToast({ open: true, msg: 'API integration updated successfully', sev: 'success' })
-                } else {
-                  await createApiToken(payload as any)
-                  setToast({ open: true, msg: 'API integration added successfully', sev: 'success' })
-                }
-                setDialogOpen(false)
-                loadData()
-              } catch (e: any) {
-                setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save configuration', sev: 'error' })
-              } finally {
-                setLoading(false)
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
 
       <Snackbar
         open={toast.open}

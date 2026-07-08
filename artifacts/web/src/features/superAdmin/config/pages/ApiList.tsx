@@ -12,34 +12,31 @@ import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
-import Typography from '@mui/material/Typography'
 import LinearProgress from '@mui/material/LinearProgress'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
+import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { getApiTokens, createApiToken, updateApiToken, deleteApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
+import { getApiTokens, deleteApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
 import { listOrganizationsPaged, type Organization } from '@/services/organizationsService'
-import { getResources } from '@/services/resourcesService'
-import { resolveScreen, type ResolvedScreen, type ResolvedFormField } from '@/services/screenAdminService'
+import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { getIndustries, type Industry } from '@/services/sidebarAdminService'
-import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 
 // Stale-while-revalidate frontend caches for instant loading
 const tokensCache = { data: [] as ApiTokenConfig[], initialized: false }
 const organizationsCache = { data: [] as Organization[], initialized: false }
 
 export default function ApiListPage() {
+  const navigate = useNavigate()
   const [items, setItems] = useState<ApiTokenConfig[]>(tokensCache.data)
   const [organizations, setOrganizations] = useState<Organization[]>(organizationsCache.data)
   const [industries, setIndustries] = useState<Industry[]>([])
   const [selectedIndustry, setSelectedIndustry] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<ApiTokenConfig | null>(null)
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
   
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -91,18 +88,6 @@ export default function ApiListPage() {
     loadData()
   }, [])
 
-
-
-  const openAddDialog = () => {
-    setEditing(null)
-    setDialogOpen(true)
-  }
-
-  const openEditDialog = (apiE: ApiTokenConfig) => {
-    setEditing(apiE)
-    setDialogOpen(true)
-  }
-
   const { confirmDelete } = useConfirm()
 
   const handleDelete = async (id: string) => {
@@ -129,19 +114,27 @@ export default function ApiListPage() {
     setToast({ open: true, msg: 'API Key copied to clipboard!', sev: 'success' })
   }
 
-
+  const filteredItems = useMemo(() => {
+    if (!selectedIndustry) return items
+    const selectedOrgIds = organizations
+      .filter((o) => o.industryId === selectedIndustry)
+      .map((o) => o.id)
+    return items.filter((item) => !item.organizationId || selectedOrgIds.includes(item.organizationId))
+  }, [items, selectedIndustry, organizations])
 
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers.map((header) => {
-      const col: GridColDef<ApiTokenConfig> = {
-        field: header.key as keyof ApiTokenConfig,
-        headerName: header.label,
-        flex: 1,
-        minWidth: 120,
-        sortable: header.sortable,
-      }
+    const cols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
+      .filter((h) => h.key !== 'organizationId' && h.key !== 'organizationName')
+      .map((header) => {
+        const col: GridColDef<ApiTokenConfig> = {
+          field: header.key as keyof ApiTokenConfig,
+          headerName: header.label,
+          flex: 1,
+          minWidth: 120,
+          sortable: header.sortable,
+        }
 
       if (header.key === 'organizationId' || header.key === 'organizationId') {
         col.field = 'organizationName' as any
@@ -149,13 +142,14 @@ export default function ApiListPage() {
         col.minWidth = 180
         col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || p.row.organizationName || p.value || <em>Global Default</em>}</Box>
       } else if (header.key === 'source') {
-        col.width = 160
-        col.renderCell = (p) => p.value || <em>Not Mapped</em>
+        col.flex = 1.2
+        col.minWidth = 180
+        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value || <em>Not Mapped</em>}</Box>
       } else if (header.key === 'status') {
-        col.width = 110
+        col.width = 120
         col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
       } else if (header.key === 'countryCode' || header.key === 'country_code') {
-        col.width = 100
+        col.width = 120
         col.renderCell = (p) => p.value || '+91'
       } else if (header.key === 'createdAt') {
         col.field = 'created_at' as any
@@ -190,7 +184,7 @@ export default function ApiListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => openEditDialog(p.row)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit?industry=${selectedIndustry}`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -204,13 +198,7 @@ export default function ApiListPage() {
     })
 
     return cols
-  }, [resolvedScreen, items])
-
-  const filteredItems = useMemo(() => {
-    if (!selectedIndustry) return items
-    const orgIds = new Set(organizations.filter(o => (o.industryId || o.industryId) === selectedIndustry).map(o => String(o.organizationId || o.organizationId || o._id)))
-    return items.filter(item => orgIds.has(String(item.organizationId || item.organizationId)))
-  }, [items, organizations, selectedIndustry])
+  }, [resolvedScreen, filteredItems, selectedIndustry])
 
   return (
     <Box
@@ -226,9 +214,9 @@ export default function ApiListPage() {
     >
       <AppCard
         title="API Integration Credentials"
-        subtitle="Manage incoming webhooks, country codes, and source triggers (Super Admin View)."
+        subtitle="Manage secure API connection credentials, country codes, and incoming webhook triggers."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/configuration/api/new?industry=${selectedIndustry}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Add API
           </Button>
         }
@@ -263,48 +251,6 @@ export default function ApiListPage() {
           <AppDataGrid height="100%" rows={filteredItems} columns={columns} getRowId={(r) => r.id} />
         </Box>
       </AppCard>
-
-      <Dialog 
-        open={dialogOpen} 
-        onClose={() => setDialogOpen(false)} 
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            width: '100%',
-            maxWidth: '750px'
-          }
-        }}
-      >
-        <DialogTitle>
-          {editing ? 'Edit API Connection' : 'Create API'}
-        </DialogTitle>
-        <DialogContent dividers>
-          <DynamicForm
-            screen="configApi"
-            industry_code={selectedIndustry}
-            role_key="admin"
-            initialValues={editing ? (editing as any) : { organizationId: '', status: 'ACTIVE' }}
-            onCancel={() => setDialogOpen(false)}
-            submitLabel={editing ? 'Save' : 'Create'}
-            onSubmit={async (values) => {
-              try {
-                if (editing) {
-                  await updateApiToken(editing.id, values as any)
-                  setToast({ open: true, msg: 'API integration updated successfully', sev: 'success' })
-                } else {
-                  await createApiToken(values as any)
-                  setToast({ open: true, msg: 'API integration added successfully', sev: 'success' })
-                }
-                setDialogOpen(false)
-                loadData()
-              } catch (e: any) {
-                setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save configuration', sev: 'error' })
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
 
       <Snackbar
         open={toast.open}

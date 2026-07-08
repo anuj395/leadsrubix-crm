@@ -32,6 +32,8 @@ import { paths } from '@/routes/paths'
 const breadcrumbMap: Record<string, string[]> = {
     '/': ['Home', 'Analytics', 'Overview'],
     '/analytics': ['Home', 'Analytics'],
+    '/users': ['Home', 'Users'],
+    '/users/new': ['Home', 'Users', 'Add User'],
     '/leads/contacts': ['Home', 'Leads', 'Contact List'],
     '/leads/contacts/new': ['Home', 'Leads', "Contacts List", 'Add Contact'],
     '/leads/tasks': ['Home', 'Leads', 'Task List'],
@@ -39,11 +41,14 @@ const breadcrumbMap: Record<string, string[]> = {
     '/leads/call-logs': ['Home', 'Leads', 'Call Logs'],
     '/leads/bookings': ['Home', 'Leads', 'Bookings'],
     '/configuration/projects': ['Home', 'Configuration', 'Projects'],
+    '/configuration/projects/new': ['Home', 'Configuration', 'Projects', 'Create Project'],
     '/configuration/api': ['Home', 'Configuration', 'API'],
+    '/configuration/api/new': ['Home', 'Configuration', 'API', 'Create API Connection'],
     '/configuration/booking-form': ['Home', 'Configuration', 'Booking Form'],
     '/configuration/resources': ['Home', 'Configuration', 'Resources'],
     '/configuration/whatsapp': ['Home', 'Configuration', 'WhatsApp API'],
     '/configuration/holidayConfig': ['Home', 'Configuration', 'Holiday Config'],
+    '/configuration/holidayConfig/new': ['Home', 'Configuration', 'Holiday Config', 'Create Holiday'],
     '/configuration/daysConfig': ['Home', 'Configuration', 'Days Config'],
 
     '/support/news': ['Home', 'Support', 'News'],
@@ -85,7 +90,21 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
         setTimeout(() => setIsRotating(false), 500)
     }
 
-    const breadcrumbs = breadcrumbMap[location.pathname] ?? ['Home', 'Overview']
+    let resolvedBreadcrumbs = breadcrumbMap[location.pathname]
+    if (!resolvedBreadcrumbs) {
+        if (location.pathname.startsWith('/leads/contacts/') && location.pathname.endsWith('/edit')) {
+            resolvedBreadcrumbs = ['Home', 'Leads', 'Contact List', 'Edit Contact']
+        } else if (location.pathname.startsWith('/configuration/holidayConfig/') && location.pathname.endsWith('/edit')) {
+            resolvedBreadcrumbs = ['Home', 'Configuration', 'Holiday Config', 'Edit Holiday']
+        } else if (location.pathname.startsWith('/users/') && location.pathname.endsWith('/edit')) {
+            resolvedBreadcrumbs = ['Home', 'Users', 'Edit User']
+        } else if (location.pathname.startsWith('/configuration/projects/') && location.pathname.endsWith('/edit')) {
+            resolvedBreadcrumbs = ['Home', 'Configuration', 'Edit Project']
+        } else if (location.pathname.startsWith('/configuration/api/') && location.pathname.endsWith('/edit')) {
+            resolvedBreadcrumbs = ['Home', 'Configuration', 'Edit API']
+        }
+    }
+    const breadcrumbs = resolvedBreadcrumbs ?? ['Home', 'Overview']
     const initials =
         user?.name
             ?.split(' ')

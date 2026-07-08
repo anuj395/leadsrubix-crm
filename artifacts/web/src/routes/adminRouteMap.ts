@@ -1,5 +1,6 @@
 import AnalyticsPage from '@/features/admin/pages/Analytics'
 import UserListPage from '@/features/admin/pages/UserList'
+import UserFormPage from '@/features/superAdmin/users/pages/UserForm'
 import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
 
 import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
@@ -8,11 +9,14 @@ import CallLogsListPage from '@/features/admin/leads/pages/CallLogsList'
 import BookingsListPage from '@/features/admin/leads/pages/BookingsList'
 
 import ProjectsListPage from '@/features/admin/config/pages/ProjectsList'
+import ProjectFormPage from '@/features/admin/config/pages/ProjectForm'
 import ApiListPage from '@/features/admin/config/pages/ApiList'
+import ApiFormPage from '@/features/admin/config/pages/ApiForm'
 import BookingFormPage from '@/features/admin/config/pages/BookingForm'
 import ResourcesPage from '@/features/admin/config/pages/Resources'
 import WhatsappApiPage from '@/features/admin/config/pages/WhatsappApi'
 import HolidayConfigPage from '@/features/admin/config/pages/HolidayConfig'
+import HolidayConfigFormPage from '@/features/admin/config/pages/HolidayConfigForm'
 import DaysConfigPage from '@/features/admin/config/pages/DaysConfig'
 
 import IntegrationsPage from '@/features/admin/integrations/pages/Integrations'
@@ -50,21 +54,30 @@ import ReassignLogicPage from '@/features/admin/leaddistribution/pages/ReassignL
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
   "/users": UserListPage,
+  "/users/new": UserFormPage,
+  "/users/:id/edit": UserFormPage,
   "/users/roles": RolesAndPermissionsPage,
 
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/new": AddContactPage,
+  "/leads/contacts/:id/edit": AddContactPage,
 
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
   "/leads/bookings": BookingsListPage,
 
   "/configuration/projects": ProjectsListPage,
+  "/configuration/projects/new": ProjectFormPage,
+  "/configuration/projects/:id/edit": ProjectFormPage,
   "/configuration/api": ApiListPage,
+  "/configuration/api/new": ApiFormPage,
+  "/configuration/api/:id/edit": ApiFormPage,
   "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
   "/configuration/whatsapp": WhatsappApiPage,
   "/configuration/holidayConfig": HolidayConfigPage,
+  "/configuration/holidayConfig/new": HolidayConfigFormPage,
+  "/configuration/holidayConfig/:id/edit": HolidayConfigFormPage,
   "/configuration/holiday-config": HolidayConfigPage,
   "/configuration/daysConfig": DaysConfigPage,
   "/configuration/days-config": DaysConfigPage,

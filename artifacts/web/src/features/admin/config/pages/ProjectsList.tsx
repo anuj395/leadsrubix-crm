@@ -5,33 +5,21 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
-import TextField from '@mui/material/TextField'
-import Chip from '@mui/material/Chip'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
-import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import LinearProgress from '@mui/material/LinearProgress'
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Download as DownloadIcon } from '@mui/icons-material'
-import {
-  type GridColDef,
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarFilterButton,
-  GridToolbarDensitySelector,
-  GridToolbarExport,
-  GridToolbarQuickFilter
-} from '@mui/x-data-grid'
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import type { GridColDef } from '@mui/x-data-grid'
+import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { api } from '@/services/api'
-import { getResources } from '@/services/resourcesService'
 import { useAppSelector } from '@/store/hooks'
-import { resolveScreen, type ResolvedScreen, type ResolvedFormField } from '@/services/screenAdminService'
-import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
+import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
 
 export interface Project {
   id: string
@@ -50,10 +38,9 @@ export interface Project {
 
 export default function ProjectsListPage() {
   const user = useAppSelector((s) => s.auth.user)
+  const navigate = useNavigate()
   const [items, setItems] = useState<Project[]>([])
   const [loading, setLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<Project | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
@@ -89,16 +76,6 @@ export default function ProjectsListPage() {
     }
   }, [user])
 
-  const openAddDialog = () => {
-    setEditing(null)
-    setDialogOpen(true)
-  }
-
-  const openEditDialog = (proj: Project) => {
-    setEditing(proj)
-    setDialogOpen(true)
-  }
-
   const handleDeleteClick = (id: string) => {
     setDeletingId(id)
     setDeleteConfirmOpen(true)
@@ -114,30 +91,10 @@ export default function ProjectsListPage() {
     }
   }
 
-  const handleExport = () => {
-    if (!resolvedScreen || items.length === 0) return
-    const headers = resolvedScreen.table_headers.map(h => h.label)
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(",")].concat(items.map(row => resolvedScreen.table_headers.map(h => `"${row[h.key as keyof Project] ?? ''}"`).join(","))).join("\n")
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `projects_export.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setToast({ open: true, msg: 'Exported successfully!', sev: 'success' })
-  }
-
-  const handleImport = () => {
-    setToast({ open: true, msg: `Import template ready!`, sev: 'success' })
-  }
-
   const columns = useMemo<GridColDef<Project>[]>(() => {
     if (!resolvedScreen) return []
 
     const cols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
-      // Admin doesn't need to see organization name/id column
       if (header.key === 'organizationId' || header.key === 'organizationId') return null
 
       const col: GridColDef<Project> = {
@@ -148,42 +105,17 @@ export default function ProjectsListPage() {
         sortable: header.sortable,
       }
 
-      if (header.key === 'projectName' || header.key === 'project_name') {
+      if (header.key === 'projectName') {
         col.flex = 1.2
-        col.minWidth = 160
+        col.minWidth = 180
         col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value}</Box>
-      } else if (header.key === 'developerName' || header.key === 'developer_name') {
-        col.flex = 1.2
-        col.minWidth = 150
-      } else if (header.key === 'propertyType') {
-        col.width = 140
-      } else if (header.key === 'propertyStage' || header.key === 'property_stage') {
-        col.width = 140
-      } else if (header.key === 'projectStatus' || header.key === 'project_status') {
-        col.width = 160
-        col.renderCell = (p) => <StatusBadge value={p.value} />
-      } else if (header.key === 'address') {
-        col.flex = 1.2
-        col.minWidth = 160
-      } else if (header.key === 'reraLink' || header.key === 'rera_link') {
-        col.width = 140
-        col.renderCell = (p) => p.value ? <a href={p.value} target="_blank" rel="noreferrer" style={{ color: '#1976d2', textDecoration: 'none' }}>View Link</a> : <em>N/A</em>
-      } else if (header.key === 'walkthroughLink' || header.key === 'walkthrough_link') {
-        col.width = 150
-        col.renderCell = (p) => p.value ? <a href={p.value} target="_blank" rel="noreferrer" style={{ color: '#1976d2', textDecoration: 'none' }}>View Link</a> : <em>N/A</em>
       } else if (header.key === 'status') {
-        col.width = 100
-        col.renderCell = (p) => (
-          <Chip
-            label={p.value}
-            size="small"
-            color={p.value === 'ACTIVE' ? 'success' : 'default'}
-            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-          />
-        )
+        col.width = 120
+        col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
       } else if (header.key === 'createdAt') {
-        col.width = 130
-        col.renderCell = (p) => p.value ? new Date(p.value).toLocaleDateString() : ''
+        col.field = 'created_at' as any
+        col.width = 180
+        col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
       }
 
       return col
@@ -198,7 +130,7 @@ export default function ProjectsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => openEditDialog(p.row)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id}/edit`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -214,8 +146,6 @@ export default function ProjectsListPage() {
     return cols
   }, [resolvedScreen, items])
 
-
-
   return (
     <Box
       sx={{
@@ -228,114 +158,38 @@ export default function ProjectsListPage() {
         overflow: 'hidden',
       }}
     >
-      {(() => {
-        const CustomToolbar = () => (
-          <GridToolbarContainer sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.5 }}>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              <GridToolbarColumnsButton />
-              <GridToolbarFilterButton />
-              <GridToolbarDensitySelector />
-              <GridToolbarExport />
-              <Button
-                color="primary"
-                size="small"
-                startIcon={<UploadIcon />}
-                onClick={handleImport}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  minHeight: 0,
-                  minWidth: 0,
-                  padding: '4px 5px',
-                }}
-              >
-                Import
-              </Button>
-            </Box>
-            <GridToolbarQuickFilter />
-          </GridToolbarContainer>
-        )
-
-        return (
-          <AppCard
-            title="Projects Catalog"
-            subtitle="Catalog of properties, real estate developments, and sales units."
-            action={
-              <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog}>Add Project</Button>
-            }
-            fullHeight
-          >
-            <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
-              {loading && (
-                <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
-                  <LinearProgress />
-                </Box>
-              )}
-              <AppDataGrid 
-                height="100%" 
-                rows={items} 
-                columns={columns} 
-                getRowId={(r) => r.id}
-                slots={{ toolbar: CustomToolbar }}
-              />
-            </Box>
-          </AppCard>
-        )
-      })()}
-
-      <Dialog 
-        open={dialogOpen} 
-        onClose={() => setDialogOpen(false)} 
-        maxWidth="lg" 
-        fullWidth
-        PaperProps={{
-          sx: {
-            width: '100%',
-            maxWidth: '750px'
-          }
-        }}
+      <AppCard
+        title="Projects List"
+        subtitle="Manage master project parameters, RERA configurations, and links."
+        action={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Add Project
+          </Button>
+        }
+        fullHeight
       >
-        <DialogTitle>{editing ? 'Edit Project' : 'Add New Project'}</DialogTitle>
-        <DialogContent dividers>
-          <DynamicForm
-            screen="configProjects"
-            industry_code={user?.industryId}
-            role_key="admin"
-            initialValues={editing ? (editing as any) : {}}
-            onCancel={() => setDialogOpen(false)}
-            submitLabel={editing ? 'Save' : 'Create'}
-            onSubmit={async (values) => {
-              try {
-                if (editing) {
-                  await api.put(`/resources/resourceProjects/${editing.id}`, values)
-                  setToast({ open: true, msg: 'Project updated successfully', sev: 'success' })
-                } else {
-                  await api.post('/resources/resourceProjects', values)
-                  setToast({ open: true, msg: 'Project created successfully', sev: 'success' })
-                }
-                setDialogOpen(false)
-                loadData()
-              } catch (e: any) {
-                setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save project', sev: 'error' })
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
+          {loading && (
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+              <LinearProgress />
+            </Box>
+          )}
+          <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} />
+        </Box>
+      </AppCard>
 
-      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 600 }}>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete this project? This action cannot be undone.
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 600 }}>Confirm Delete</DialogTitle>
+        <DialogContent>Are you sure you want to delete this project?</DialogContent>
+        <DialogActions>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button
-            onClick={() => {
+            onClick={async () => {
               if (deletingId) {
-                handleDelete(deletingId);
+                await handleDelete(deletingId)
               }
-              setDeleteConfirmOpen(false);
+              setDeleteConfirmOpen(false)
             }}
             color="error"
             variant="contained"

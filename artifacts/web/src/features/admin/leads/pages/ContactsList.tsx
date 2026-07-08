@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import IconButton from '@mui/material/IconButton'
@@ -11,35 +8,23 @@ import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
+import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
-import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { listContacts, createContact, updateContact, deleteContact, type Contact } from '@/services/contactsService'
+import { listContacts, deleteContact, type Contact } from '@/services/contactsService'
 import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { selectAuth } from '@/features/auth'
 
-function toFormValues(row: Record<string, any>): Record<string, any> {
-  const out: Record<string, any> = {}
-  for (const [k, v] of Object.entries(row)) {
-    if (k.startsWith('_') || k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'industryId' || k === 'roleId') continue
-    if (v === null || v === undefined) continue
-    const t = typeof v
-    if (t === 'string' || t === 'number' || t === 'boolean') out[k] = v
-  }
-  return out
-}
-
 export default function ContactsListPage() {
   const { user } = useAppSelector(selectAuth)
   const industryId = user?.industryId
+  const navigate = useNavigate()
 
   const [items, setItems] = useState<Contact[]>([])
   const [loading, setLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
   })
@@ -122,7 +107,7 @@ export default function ContactsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => setEditingContact(p.row)}>
+            <IconButton size="small" onClick={() => navigate(`/leads/contacts/${p.row._id}/edit`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -155,7 +140,7 @@ export default function ContactsListPage() {
         title="Contacts"
         subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
             Add Contact
           </Button>
         }
@@ -169,53 +154,6 @@ export default function ContactsListPage() {
           getRowId={(r) => r._id}
         />
       </AppCard>
-
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>New Contact</DialogTitle>
-        <DialogContent dividers>
-          <DynamicForm
-            screen="contacts"
-            onCancel={() => setDialogOpen(false)}
-            submitLabel="Create"
-            onSubmit={async (values) => {
-              try {
-                await createContact(values)
-                setDialogOpen(false)
-                setToast({ open: true, msg: 'Contact created successfully', sev: 'success' })
-                await refresh()
-              } catch (e: unknown) {
-                const err = e as { response?: { data?: { message?: string } } }
-                setToast({ open: true, msg: err?.response?.data?.message ?? 'Failed to create contact', sev: 'error' })
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(editingContact)} onClose={() => setEditingContact(null)} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Contact</DialogTitle>
-        <DialogContent dividers>
-          {editingContact && (
-            <DynamicForm
-              screen="contacts"
-              initialValues={toFormValues(editingContact)}
-              onCancel={() => setEditingContact(null)}
-              submitLabel="Save Changes"
-              onSubmit={async (values) => {
-                try {
-                  await updateContact(editingContact._id, values)
-                  setEditingContact(null)
-                  setToast({ open: true, msg: 'Contact updated successfully', sev: 'success' })
-                  await refresh()
-                } catch (e: unknown) {
-                  const err = e as { response?: { data?: { message?: string } } }
-                  setToast({ open: true, msg: err?.response?.data?.message ?? 'Failed to update contact', sev: 'error' })
-                }
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Snackbar
         open={toast.open}

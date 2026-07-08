@@ -1,6 +1,7 @@
 import AnalyticsPage from '@/features/superAdmin/pages/Analytics'
 import OrganizationsListPage from '@/features/superAdmin/organization/pages/Organizations'
 import UserListPage from '@/features/superAdmin/users/pages/UserList'
+import UserFormPage from '@/features/superAdmin/users/pages/UserForm'
 import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
 
 import ContactsListPage from '@/features/superAdmin/leads/pages/ContactsList'
@@ -13,7 +14,9 @@ import ScreensPage from '@/features/superAdmin/config/pages/Screens'
 import ScreenFieldsPage from '@/features/superAdmin/config/pages/ScreenFields'
 import ScreenPermissionsPage from '@/features/superAdmin/config/pages/ScreenPermissions'
 import ProjectsListPage from '@/features/superAdmin/config/pages/ProjectsList'
+import ProjectFormPage from '@/features/superAdmin/config/pages/ProjectForm'
 import ApiListPage from '@/features/superAdmin/config/pages/ApiList'
+import ApiFormPage from '@/features/superAdmin/config/pages/ApiForm'
 import BookingFormPage from '@/features/superAdmin/config/pages/BookingForm'
 import ResourcesPage from '@/features/superAdmin/config/pages/Resources'
 import WhatsappApiPage from '@/features/superAdmin/config/pages/WhatsappApi'
@@ -56,6 +59,8 @@ export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
   "/organization/list": OrganizationsListPage,
   "/users": UserListPage,
+  "/users/new": UserFormPage,
+  "/users/:id/edit": UserFormPage,
   "/users/roles": RolesAndPermissionsPage,
 
   "/leads/contacts": ContactsListPage,
@@ -68,7 +73,11 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/screen-fields": ScreenFieldsPage,
   "/configuration/screen-permissions": ScreenPermissionsPage,
   "/configuration/projects": ProjectsListPage,
+  "/configuration/projects/new": ProjectFormPage,
+  "/configuration/projects/:id/edit": ProjectFormPage,
   "/configuration/api": ApiListPage,
+  "/configuration/api/new": ApiFormPage,
+  "/configuration/api/:id/edit": ApiFormPage,
   "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
   "/configuration/whatsapp": WhatsappApiPage,
