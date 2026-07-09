@@ -38,27 +38,9 @@ async function resolveTenantList(Model, arrayKey, targetIndustry, targetOrganiza
  * (or plain strings, which the form treats as `value === label`).
  */
 const SOURCES = {
-  'lead-types':    [
-    { value: 'hot',  label: 'Hot' },
-    { value: 'warm', label: 'Warm' },
-    { value: 'cold', label: 'Cold' },
-  ],
-  'propertyStatus': [
-    { value: 'Launched',  label: 'Launched' },
-    { value: 'Pre Launch',  label: 'Pre Launch' },
-    { value: 'Intermediate Occupation',   label: 'Intermediate Occupation' },
-  ],
-  'lead-statuses': [
-    { value: 'new',         label: 'New' },
-    { value: 'contacted',   label: 'Contacted' },
-    { value: 'qualified',   label: 'Qualified' },
-    { value: 'unqualified', label: 'Unqualified' },
-    { value: 'converted',   label: 'Converted' },
-  ],
-  'projects': [
-    { value: 'gateway',  label: 'Gateway Towers' },
-    { value: 'horizon',  label: 'Horizon Heights' },
-    { value: 'meadow',   label: 'Meadow Greens' },
+  'leadType': [
+    { value: 'Data',  label: 'Data' },
+    { value: 'Leads', label: 'Leads' },
   ],
   'departments': [
     { value: 'sales',       label: 'Sales' },
@@ -200,7 +182,43 @@ router.get('/:key', (req, res, next) => {
     return res.json({ items: COUNTRY_CODES });
   }
 
-  if (key.startsWith('resource_') || key.startsWith('resource')) {
+  if (key === 'organizationUsers') {
+    try {
+      const User = mongoose.model('User');
+      let orgId = req.query.organizationId;
+      if (!orgId) {
+        orgId = req.user?.organizationId;
+      }
+      if (!orgId) {
+        const Organization = mongoose.model('Organization');
+        const org = await Organization.findOne({ industryId: req.user?.industryId }).exec();
+        orgId = org ? org.organizationId : null;
+      }
+      const query = {};
+      if (orgId) {
+        query.organizationId = orgId;
+      }
+      const usersList = await User.find(query).select('email').lean().exec();
+      const options = usersList.map(u => ({ value: u.email, label: u.email }));
+      return res.json({ items: options });
+    } catch (err) {
+      console.error('Failed to load organization users', err);
+      return res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  }
+
+  const keyMap = {
+    projectName: 'resourceProjects',
+    propertyType: 'resourcePropertyTypes',
+    propertyStage: 'resourcePropertyStages',
+    budget: 'resourceBudgets',
+    propertySubType: 'resourcePropertySubTypes',
+    source: 'resourceLeadSources',
+    location: 'resourceLocations',
+  };
+  const targetKey = keyMap[key] || key;
+
+  if (targetKey.startsWith('resource_') || targetKey.startsWith('resource')) {
     try {
       let orgId = null;
       let resolvedIndustryId = null;
@@ -220,12 +238,15 @@ router.get('/:key', (req, res, next) => {
           }
         }
       } else {
-        const Organization = mongoose.model('Organization');
-        const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-        orgId = org ? (org.organizationId || org.organizationId) : null;
-        if (org && org.industryId) {
+        orgId = req.user.organizationId;
+        if (!orgId) {
+          const Organization = mongoose.model('Organization');
+          const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+          orgId = org ? (org.organizationId || org.organizationId) : null;
+        }
+        if (req.user.industryId) {
           const Industry = mongoose.model('Industry');
-          const ind = await Industry.findOne({ code: org.industryId }).lean().exec();
+          const ind = await Industry.findOne({ code: req.user.industryId }).lean().exec();
           if (ind) resolvedIndustryId = ind._id;
         }
       }
@@ -233,12 +254,12 @@ router.get('/:key', (req, res, next) => {
       const list = await resourceItemModel.list({
         organizationId: orgId,
         industryId: resolvedIndustryId,
-        resource_key: key,
+        resource_key: targetKey,
       });
 
       let displayField = req.query.display;
       if (!displayField) {
-        const keyLower = key.toLowerCase();
+        const keyLower = targetKey.toLowerCase();
         if (keyLower.includes('propertytype')) {
           displayField = 'propertyType';
         } else if (keyLower.includes('propertystage') || keyLower.includes('stage')) {
@@ -247,6 +268,12 @@ router.get('/:key', (req, res, next) => {
           displayField = 'leadSource';
         } else if (keyLower.includes('location')) {
           displayField = 'locationName';
+        } else if (keyLower.includes('budget')) {
+          displayField = 'budget';
+        } else if (keyLower.includes('propertysubtype')) {
+          displayField = 'propertySubType';
+        } else if (keyLower.includes('project')) {
+          displayField = 'projectName';
         } else {
           displayField = 'name';
         }
@@ -255,8 +282,7 @@ router.get('/:key', (req, res, next) => {
       const displayFieldCamel = toCamelCase(displayField);
 
       const options = list.map(item => {
-        // Items are stored flattened in the array (e.g. { id, name, ... })
-        const val = item[displayField] || item[displayFieldCamel] || Object.values(item).filter(v => typeof v !== 'object')[0] || item.id;
+        const val = item[displayField] || item[displayFieldCamel] || item.name || item.value || Object.values(item).filter(v => typeof v !== 'object')[0] || item.id;
         return { value: String(val || ''), label: String(val || '') };
       });
 
