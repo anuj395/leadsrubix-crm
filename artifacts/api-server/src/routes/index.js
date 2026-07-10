@@ -32,6 +32,7 @@ const resourceItemRoutes = require('./resourceItemRoutes');
 const apiTokenRoutes = require('./apiTokenRoutes');
 const leadDistributionRoutes = require('./leadDistributionRoutes');
 const holidayRoutes = require('./holidayRoutes');
+const webhookRoutes = require('./webhookRoutes');
 const workingDayRoutes = require('./workingDayRoutes');
 const screenController = require('../controllers/screenController');
 const { authenticate } = require('../middlewares/auth');
@@ -71,6 +72,7 @@ router.use('/api-tokens', apiTokenRoutes);
 router.use('/lead-distribution', leadDistributionRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
+router.use('/webhook', webhookRoutes);
 
 
 // Compat alias: GET /api/form-config?screen=contacts → flat form_fields[]

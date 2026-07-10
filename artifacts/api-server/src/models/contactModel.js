@@ -7,8 +7,6 @@ const mongoose = require('mongoose');
  */
 const contactSchema = new mongoose.Schema(
   {
-    industryId: { type: String, default: null }, // industry code, mirrors user.industryId
-    roleId: { type: String, default: null },     // role key,    mirrors user.role
     createdBy: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { 

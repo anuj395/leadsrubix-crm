@@ -2,3 +2,6 @@
 - [x] Route public signup controller through organization creation service
 - [x] Integrate industry selector and DynamicForm into public Signup view
 - [x] Verify compilation and execution
+- [x] Port Legacy Add Contacts & Webhooks (MongoDB)
+- [x] Rename database fields (stage_change_at -> stageChangeAt, modified_at -> modifiedAt)
+- [x] Standardize name fields into customerName for manual/integrations leads

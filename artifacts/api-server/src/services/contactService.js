@@ -53,11 +53,9 @@ function fillExtraFields(aligned, user) {
   const now = new Date();
   
   if (user) {
-    aligned.uid = user.uid || '';
-    aligned.createdBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
-    aligned.organizationId = user.organizationId;
-    aligned.industryId = user.industryId;
-    aligned.roleId = user.role || '';
+    aligned.uid = aligned.uid || user.uid || '';
+    aligned.createdBy = aligned.createdBy || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    aligned.organizationId = aligned.organizationId || user.organizationId;
   }
   
   const mainPhone = aligned.contactNumber || '';
@@ -91,8 +89,8 @@ function fillExtraFields(aligned, user) {
   aligned.nextFollowUpType = aligned.nextFollowUpType || '';
   
   aligned.leadAssignTime = aligned.leadAssignTime || now;
-  aligned.stage_change_at = aligned.stage_change_at || now;
-  aligned.modified_at = aligned.modified_at || now;
+  aligned.stageChangeAt = aligned.stageChangeAt || now;
+  aligned.modifiedAt = aligned.modifiedAt || now;
 
   aligned.lostReason = aligned.lostReason || '';
   aligned.notIntReason = aligned.notIntReason || '';
@@ -140,7 +138,7 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
   }
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
-  const filter = isSuperAdmin ? {} : { industryId: user.industryId };
+  const filter = isSuperAdmin ? {} : { organizationId: user.organizationId };
 
   const visibleIds = await getVisibleUserIds({
     id: String(user._id),
@@ -207,7 +205,15 @@ exports.createForUser = async ({ payload, authedUser }) => {
     );
   }
 
-  const data = payload && typeof payload === 'object' ? payload : {};
+  const data = payload && typeof payload === 'object' ? { ...payload } : {};
+  if (data.customerName === undefined) {
+    if (data.customer_name !== undefined) {
+      data.customerName = data.customer_name;
+    } else if (data.name !== undefined) {
+      data.customerName = data.name;
+    }
+  }
+
   const cleaned = {};
   for (const f of allowedFormFields) {
     const k = f.field_key;
@@ -260,8 +266,6 @@ exports.createForUser = async ({ payload, authedUser }) => {
   const docPayload = fillExtraFields(
     {
       ...cleaned,
-      industryId: user.industryId,
-      roleId: user.role,
       organizationId: user.organizationId,
     },
     user
@@ -288,7 +292,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  if (!isSuperAdmin && existing.industryId !== user.industryId) {
+  if (!isSuperAdmin && String(existing.organizationId) !== String(user.organizationId)) {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
@@ -323,7 +327,15 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     );
   }
 
-  const data = payload && typeof payload === 'object' ? payload : {};
+  const data = payload && typeof payload === 'object' ? { ...payload } : {};
+  if (data.customerName === undefined) {
+    if (data.customer_name !== undefined) {
+      data.customerName = data.customer_name;
+    } else if (data.name !== undefined) {
+      data.customerName = data.name;
+    }
+  }
+
   const cleaned = {};
   for (const f of allowedFormFields) {
     const k = f.field_key;
@@ -344,7 +356,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     throw err;
   }
 
-  cleaned.modified_at = new Date();
+  cleaned.modifiedAt = new Date();
   
   delete cleaned.field_one;
   delete cleaned.field_two;
@@ -374,9 +386,11 @@ exports.deleteForUser = async ({ id, authedUser }) => {
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  if (!isSuperAdmin && existing.industryId !== user.industryId) {
+  if (!isSuperAdmin && String(existing.organizationId) !== String(user.organizationId)) {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
   await contactModel.findByIdAndDelete(id);
 };
+
+exports.fillExtraFields = fillExtraFields;

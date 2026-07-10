@@ -64,21 +64,19 @@ export default function ProjectsListPage() {
       if (currentIndustries.length === 0) {
         currentIndustries = await getIndustries(true)
         setIndustries(currentIndustries)
-        if (currentIndustries.length > 0 && !selectedIndustry && !targetIndustry) {
-          targetIndustry = currentIndustries[0].code
-          setSelectedIndustry(targetIndustry)
-        }
       }
 
-      const activeIndustry = targetIndustry || selectedIndustry
+      const activeIndustry = targetIndustry || selectedIndustry || currentIndustries[0]?.code || ''
+      if (activeIndustry && selectedIndustry !== activeIndustry) {
+        setSelectedIndustry(activeIndustry)
+      }
 
       const [resProjects, orgsResult, resolved] = await Promise.all([
         api.get('/resources/resourceProjects'),
         listOrganizationsPaged({ page: 0, pageSize: 1000 }),
         resolveScreen({
           screen_key: 'configProjects',
-          industry_code: activeIndustry,
-          role_key: 'admin',
+          industry_code: activeIndustry || undefined,
         }),
       ])
 
@@ -97,7 +95,7 @@ export default function ProjectsListPage() {
   }
 
   useEffect(() => {
-    void loadData()
+    loadData()
   }, [])
 
   const handleDeleteClick = (id: string) => {
