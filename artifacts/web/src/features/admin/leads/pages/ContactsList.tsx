@@ -107,12 +107,12 @@ export default function ContactsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/leads/contacts/${p.row._id}/edit`)}>
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/leads/contacts/${p.row._id}/edit`); }}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
+            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(p.row); }}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -153,6 +153,13 @@ export default function ContactsListPage() {
           loading={loading || configLoading}
           getRowId={(r) => r._id}
           onReload={refresh}
+          onRowClick={(params) => navigate(`/leads/contacts/${params.row._id}`)}
+          sx={{
+            cursor: 'pointer',
+            '& .MuiDataGrid-row:hover': {
+              cursor: 'pointer'
+            }
+          }}
         />
       </AppCard>
 

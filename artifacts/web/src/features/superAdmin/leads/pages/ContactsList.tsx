@@ -8,6 +8,7 @@ import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import { Add as AddIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
+import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
@@ -17,6 +18,7 @@ import { useAppSelector } from '@/store/hooks'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 
 export default function ContactsListPage() {
+  const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
   const [items, setItems] = useState<Contact[]>([])
   const [columns, setColumns] = useState<ResolvedTableHeader[]>([])
@@ -98,6 +100,13 @@ export default function ContactsListPage() {
           columns={gridColumns}
           loading={loading}
           getRowId={(r) => r._id}
+          onRowClick={(params) => navigate(`/leads/contacts/${params.row._id}`)}
+          sx={{
+            cursor: 'pointer',
+            '& .MuiDataGrid-row:hover': {
+              cursor: 'pointer'
+            }
+          }}
         />
       </AppCard>
 

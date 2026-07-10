@@ -55,6 +55,7 @@ import HousingPage from '@/features/admin/integrations/pages/Housing'
 import AreaConverterPage from '@/features/admin/tool/pages/AreaConverter'
 import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
+import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
@@ -67,6 +68,7 @@ export const routeComponentMap: Record<string, any> = {
   "/users/roles": RolesAndPermissionsPage,
 
   "/leads/contacts": ContactsListPage,
+  "/leads/contacts/:id": ContactDetailsPage,
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
   "/leads/bookings": BookingsListPage,
