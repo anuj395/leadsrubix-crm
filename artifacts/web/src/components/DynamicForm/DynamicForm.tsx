@@ -133,6 +133,7 @@ interface Props {
   readOnly?: boolean
   fullWidthSubmit?: boolean
   onChange?: (values: Record<string, Value>) => void
+  singleColumn?: boolean
 }
 
 export function DynamicForm({
@@ -148,6 +149,7 @@ export function DynamicForm({
   readOnly = false,
   fullWidthSubmit = false,
   onChange,
+  singleColumn = false,
 }: Props) {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -378,7 +380,7 @@ export function DynamicForm({
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
+          gridTemplateColumns: singleColumn ? '1fr' : { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
           gap: 2,
         }}
       >

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import { useNavigate, useParams } from 'react-router-dom'
-import { AppCard } from '@/components/ui/AppCard'
+import IconButton from '@mui/material/IconButton'
+import CloseIcon from '@mui/icons-material/Close'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { listContacts, updateContact, type Contact } from '@/services/contactsService'
 import { useAppSelector } from '@/store/hooks'
@@ -22,9 +23,14 @@ interface Booking {
   bookingDetails: any[]
 }
 
-export default function CallbackDetailsPage() {
-  const navigate = useNavigate()
-  const { id } = useParams<{ id: string }>()
+interface NotInterestedModalProps {
+  open: boolean
+  onClose: () => void
+  contactId: string
+  onSuccess: () => void
+}
+
+export default function NotInterestedModal({ open, onClose, contactId, onSuccess }: NotInterestedModalProps) {
   const { user } = useAppSelector(selectAuth)
 
   const [contact, setContact] = useState<Contact | null>(null)
@@ -38,50 +44,42 @@ export default function CallbackDetailsPage() {
   })
 
   useEffect(() => {
-    if (!id) return
+    if (!open || !contactId) return
+    setLoading(true)
     const loadContactData = async () => {
       try {
         const list = await listContacts()
-        const match = list.find((c) => c._id === id)
+        const match = list.find((c) => c._id === contactId)
         if (match) {
           setContact(match)
           
-          // Seed form initial values
           const initVals: Record<string, any> = {}
-          initVals.callBackReason = match.callBackReason || match.call_back_reason || ''
-          initVals.nextFollowUp = ''
+          initVals.notIntReason = match.notIntReason || ''
           initVals.notes = ''
           
           setInitialValues(initVals)
 
-          const bookingRes = await api.get('bookings', { params: { contactId: id } })
+          const bookingRes = await api.get('bookings', { params: { contactId: contactId } })
           const bookingsList = (bookingRes.data?.items ?? []) as Booking[]
           if (bookingsList.length > 0) {
             setBooking(bookingsList[0])
           }
-        } else {
-          setToast({ open: true, msg: 'Contact not found', sev: 'error' })
         }
       } catch (e) {
-        setToast({ open: true, msg: 'Failed to load details', sev: 'error' })
+        console.error('Failed to load contact data', e)
       } finally {
         setLoading(false)
       }
     }
     void loadContactData()
-  }, [id])
+  }, [open, contactId])
 
   const handleSubmit = async (values: Record<string, any>) => {
-    if (!id || !contact) return
+    if (!contactId || !contact) return
 
-    // Validate: Task cannot be scheduled in the past
-    if (values.nextFollowUp) {
-      const selectedDate = new Date(values.nextFollowUp)
-      const now = new Date()
-      if (selectedDate < now) {
-        setToast({ open: true, msg: 'Task Cannot be Schedule For Old Date & Time!', sev: 'error' })
-        return
-      }
+    if (!values.notIntReason) {
+      setToast({ open: true, msg: 'Please Select Not Interested Reason', sev: 'error' })
+      return
     }
 
     setSaving(true)
@@ -89,7 +87,7 @@ export default function CallbackDetailsPage() {
     const contactFields: Record<string, any> = {}
     const taskFields: Record<string, any> = {}
 
-    const taskKeys = ['nextFollowUp', 'notes']
+    const taskKeys = ['notes']
 
     Object.entries(values).forEach(([k, v]) => {
       if (taskKeys.includes(k)) {
@@ -99,13 +97,10 @@ export default function CallbackDetailsPage() {
       }
     })
 
-    // Set callback details
-    contactFields.stage = 'CALL BACK'
-    contactFields.callBackReason = values.callBackReason || ''
-    contactFields.nextFollowUpType = 'Call Back'
-    contactFields.nextFollowUpDateTime = values.nextFollowUp ? new Date(values.nextFollowUp) : new Date()
+    contactFields.stage = 'NOT INTERESTED'
+    contactFields.notIntReason = values.notIntReason || ''
+    contactFields.otherNotIntReason = ''
 
-    // Geolocation capture
     let lat = null
     let lng = null
     try {
@@ -124,25 +119,18 @@ export default function CallbackDetailsPage() {
     contactFields.stageChangeAt = new Date()
 
     try {
-      // 1. Update Contact in DB
-      await updateContact(id, contactFields)
+      await updateContact(contactId, contactFields)
 
-      // 2. Update Booking in DB
       const noteContent = String(taskFields.notes || '').trim()
       const newNotes = noteContent ? [
         ...(booking?.notes ?? []),
         { note: noteContent, created_at: new Date(), userEmail: user?.email || 'System' }
       ] : (booking?.notes ?? [])
 
-      const newTasks = [
-        ...(booking?.bookingDetails ?? []),
-        {
-          type: 'Call Back',
-          dueDate: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
-          status: 'PENDING',
-          callBackReason: values.callBackReason || ''
-        }
-      ]
+      const newTasks = (booking?.bookingDetails ?? []).map((t: any) => ({
+        ...t,
+        status: 'INACTIVE'
+      }))
 
       const bookingPayload = {
         notes: newNotes,
@@ -153,7 +141,7 @@ export default function CallbackDetailsPage() {
         await api.put(`bookings/${booking._id}`, { ...booking, ...bookingPayload })
       } else {
         await api.post('bookings', {
-          contactId: id,
+          contactId: contactId,
           customerName: contact.customerName || 'N/A',
           contactNumber: contact.contactNumber || '',
           ...bookingPayload
@@ -161,62 +149,56 @@ export default function CallbackDetailsPage() {
       }
 
       setToast({ open: true, msg: 'Lead Status Updated!!', sev: 'success' })
-      setTimeout(() => navigate(`/leads/contacts/${id}`), 1500)
+      setTimeout(() => {
+        onSuccess()
+        onClose()
+      }, 1000)
     } catch (err) {
-      setToast({ open: true, msg: 'Failed to save callback details', sev: 'error' })
+      setToast({ open: true, msg: 'Failed to save details', sev: 'error' })
     } finally {
       setSaving(false)
     }
   }
 
-  const isLoading = loading
-
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', py: 8 }}>
-        <CircularProgress />
-      </Box>
-    )
-  }
-
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
-      <AppCard
-        title="Call Back Details"
-        subtitle="Manage follow-up date and callback reasons."
-        action={
-          <Button
-            variant="text"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate(`/leads/contacts/${id}`)}
-            sx={{ textTransform: 'none', fontWeight: 600 }}
-          >
-            Back
-          </Button>
-        }
-      >
-        <Box sx={{ mt: 2 }}>
-          <DynamicForm
-            screen="callback"
-            initialValues={initialValues}
-            onSubmit={handleSubmit}
-            onCancel={() => navigate(`/leads/contacts/${id}`)}
-            submitLabel="Submit"
-            readOnly={saving}
-          />
-        </Box>
-      </AppCard>
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ m: 0, p: 2, fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Not Interested Details
+          <IconButton aria-label="close" onClick={onClose} sx={{ color: 'text.secondary' }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <DynamicForm
+              screen="notInterested"
+              initialValues={initialValues}
+              onSubmit={handleSubmit}
+              onCancel={onClose}
+              submitLabel="Submit"
+              readOnly={saving}
+              singleColumn={true}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Snackbar
         open={toast.open}
         autoHideDuration={3000}
         onClose={() => setToast({ ...toast, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ zIndex: 1400 }}
       >
         <Alert severity={toast.sev} variant="filled" onClose={() => setToast({ ...toast, open: false })}>
           {toast.msg}
         </Alert>
       </Snackbar>
-    </Box>
+    </>
   )
 }

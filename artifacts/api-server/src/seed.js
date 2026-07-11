@@ -463,8 +463,7 @@ const SCREEN_DEFAULTS = [
     description: 'Dynamic form fields shown when converting a lead to Not Interested',
     fields: [
       { field_key: 'notIntReason',         label: 'Not Interested Reason', type: 'select',   is_required: true,  order: 1, dropdown_source: 'static', options: ['Not Budget Fit', 'Requirement Changed', 'Purchased Elsewhere', 'No Response', 'Other'] },
-      { field_key: 'otherNotIntReason',    label: 'Enter Other Reason',   type: 'text',     is_required: false, order: 2 },
-      { field_key: 'notes',                label: 'Enter Note',           type: 'textarea', is_required: false, order: 3 },
+      { field_key: 'notes',                label: 'Enter Note',           type: 'textarea', is_required: false, order: 2 },
     ],
   },
   {

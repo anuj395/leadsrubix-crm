@@ -39,6 +39,8 @@ import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
+import CallbackModal from '../components/CallbackModal'
+import NotInterestedModal from '../components/NotInterestedModal'
 
 interface Booking {
   _id: string
@@ -73,7 +75,8 @@ export default function ContactDetailsPage() {
   const [attachUrl, setAttachUrl] = useState('')
   const [attachType, setAttachType] = useState('file')
 
-
+  const [callbackOpen, setCallbackOpen] = useState(false)
+  const [notInterestedOpen, setNotInterestedOpen] = useState(false)
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
@@ -234,15 +237,15 @@ export default function ContactDetailsPage() {
             {currentStage === 'FRESH' && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/callback`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Call Back</Button>
-                <Button variant="contained" color="error" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/not-interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Call Back</Button>
+                <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
             {currentStage === 'CALL BACK' && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/callback`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Callback</Button>
-                <Button variant="contained" color="error" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/not-interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Callback</Button>
+                <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
             {currentStage === 'INTERESTED' && (
@@ -600,7 +603,19 @@ export default function ContactDetailsPage() {
         </DialogActions>
       </Dialog>
 
+      <CallbackModal
+        open={callbackOpen}
+        onClose={() => setCallbackOpen(false)}
+        contactId={contact._id}
+        onSuccess={loadData}
+      />
 
+      <NotInterestedModal
+        open={notInterestedOpen}
+        onClose={() => setNotInterestedOpen(false)}
+        contactId={contact._id}
+        onSuccess={loadData}
+      />
 
       <Snackbar
         open={toast.open}

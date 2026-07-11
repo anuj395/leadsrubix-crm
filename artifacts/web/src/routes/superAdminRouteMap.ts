@@ -57,8 +57,6 @@ import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
 import InterestedDetailsPage from '@/features/admin/leads/pages/InterestedDetails'
-import CallbackDetailsPage from '@/features/admin/leads/pages/CallbackDetails'
-import NotInterestedDetailsPage from '@/features/admin/leads/pages/NotInterestedDetails'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
@@ -73,8 +71,6 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/:id": ContactDetailsPage,
   "/leads/contacts/:id/interested": InterestedDetailsPage,
-  "/leads/contacts/:id/callback": CallbackDetailsPage,
-  "/leads/contacts/:id/not-interested": NotInterestedDetailsPage,
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
   "/leads/bookings": BookingsListPage,
