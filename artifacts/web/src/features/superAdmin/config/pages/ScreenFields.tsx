@@ -289,6 +289,15 @@ export default function ScreenFieldsPage() {
             onChange={(e) => setScreenId(e.target.value)}
             sx={{ minWidth: 240 }}
             disabled={!screens.length}
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  style: {
+                    maxHeight: 400,
+                  },
+                },
+              },
+            }}
           >
             {screens.map((s) => (
               <MenuItem key={s._id} value={s._id}>

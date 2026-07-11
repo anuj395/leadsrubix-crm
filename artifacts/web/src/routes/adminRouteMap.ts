@@ -42,6 +42,8 @@ import SettingsPage from '@/features/admin/setting/pages/Settings'
 
 import AddContactPage from '@/features/admin/leads/pages/AddContact'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
+import InterestedDetailsPage from '@/features/admin/leads/pages/InterestedDetails'
+import CallbackDetailsPage from '@/features/admin/leads/pages/CallbackDetails'
 
 import AreaConverterPage from '@/features/admin/tool/pages/AreaConverter'
 import CalculatorPage from '@/features/admin/tool/pages/Calculator'
@@ -62,6 +64,8 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,
+  "/leads/contacts/:id/interested": InterestedDetailsPage,
+  "/leads/contacts/:id/callback": CallbackDetailsPage,
   "/leads/contacts/:id/edit": AddContactPage,
 
   "/leads/tasks": TasksListPage,

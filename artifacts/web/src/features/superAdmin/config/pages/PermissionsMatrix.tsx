@@ -287,6 +287,15 @@ export default function PermissionsMatrixPage() {
               value={industryId}
               onChange={(e) => setIndustryId(e.target.value)}
               sx={{ minWidth: 220 }}
+              SelectProps={{
+                MenuProps: {
+                  PaperProps: {
+                    style: {
+                      maxHeight: 400,
+                    },
+                  },
+                },
+              }}
             >
               {industries.map((i) => (
                 <MenuItem key={i._id} value={i._id}>
@@ -302,6 +311,15 @@ export default function PermissionsMatrixPage() {
               onChange={(e) => setRoleId(e.target.value)}
               sx={{ minWidth: 220 }}
               disabled={!roles.length}
+              SelectProps={{
+                MenuProps: {
+                  PaperProps: {
+                    style: {
+                      maxHeight: 400,
+                    },
+                  },
+                },
+              }}
             >
               {roles.map((r) => (
                 <MenuItem key={r._id} value={r._id}>

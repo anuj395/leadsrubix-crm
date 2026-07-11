@@ -254,6 +254,15 @@ export default function ScreenPermissionsPage() {
             value={screenId}
             onChange={(e) => setScreenId(e.target.value)}
             sx={{ minWidth: 200 }}
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  style: {
+                    maxHeight: 400,
+                  },
+                },
+              },
+            }}
           >
             {screens.map((s) => (
               <MenuItem key={s._id} value={s._id}>
@@ -268,6 +277,15 @@ export default function ScreenPermissionsPage() {
             value={industryId}
             onChange={(e) => setIndustryId(e.target.value)}
             sx={{ minWidth: 200 }}
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  style: {
+                    maxHeight: 400,
+                  },
+                },
+              },
+            }}
           >
             {industries.map((i) => (
               <MenuItem key={i._id} value={i._id}>
@@ -283,6 +301,15 @@ export default function ScreenPermissionsPage() {
             onChange={(e) => setRoleId(e.target.value)}
             sx={{ minWidth: 200 }}
             disabled={!roles.length}
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  style: {
+                    maxHeight: 400,
+                  },
+                },
+              },
+            }}
           >
             {roles.map((r) => (
               <MenuItem key={r._id} value={r._id}>
