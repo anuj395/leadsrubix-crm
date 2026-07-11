@@ -344,6 +344,14 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     }
   }
 
+  // Permit system and metadata updates
+  const systemFields = ['stage', 'latitude', 'longitude', 'modifiedAt', 'stageChangeAt', 'leadAssignTime'];
+  for (const k of systemFields) {
+    if (data[k] !== undefined) {
+      cleaned[k] = data[k];
+    }
+  }
+
   // Required-field validation on update if the field is present
   const presentKeys = new Set(Object.keys(cleaned));
   const missing = allowedFormFields

@@ -693,7 +693,7 @@ export function DynamicForm({
           const inputType =
             f.type === 'email' ? 'email' :
             f.type === 'number' ? 'number' :
-            f.type === 'date' ? 'date' :
+            f.type === 'date' ? 'datetime-local' :
             'text'
           return (
             <TextField
@@ -712,7 +712,7 @@ export function DynamicForm({
               helperText={err}
               fullWidth
               disabled={readOnly || f.key === 'industryId' || f.key === 'industryId'}
-              InputLabelProps={inputType === 'date' ? { shrink: true } : undefined}
+              InputLabelProps={inputType === 'datetime-local' ? { shrink: true } : undefined}
             />
           )
         })}

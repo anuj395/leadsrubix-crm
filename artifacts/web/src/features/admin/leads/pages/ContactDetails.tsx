@@ -23,6 +23,7 @@ import DialogActions from '@mui/material/DialogActions'
 import IconButton from '@mui/material/IconButton'
 import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
+import MenuItem from '@mui/material/MenuItem'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack'
@@ -71,6 +72,8 @@ export default function ContactDetailsPage() {
   const [attachName, setAttachName] = useState('')
   const [attachUrl, setAttachUrl] = useState('')
   const [attachType, setAttachType] = useState('file')
+
+
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
@@ -230,22 +233,24 @@ export default function ContactDetailsPage() {
             {/* Stage Action Buttons */}
             {currentStage === 'FRESH' && (
               <>
-                <Button variant="contained" color="success" size="small" onClick={() => handleStageChange('INTERESTED')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => handleStageChange('CALL BACK')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Call Back</Button>
-                <Button variant="contained" color="error" size="small" onClick={() => handleStageChange('NOT INTERESTED')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
+                <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/callback`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Call Back</Button>
+                <Button variant="contained" color="error" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/not-interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
             {currentStage === 'CALL BACK' && (
               <>
-                <Button variant="contained" color="success" size="small" onClick={() => handleStageChange('INTERESTED')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => handleStageChange('CALL BACK')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Callback</Button>
-                <Button variant="contained" color="error" size="small" onClick={() => handleStageChange('NOT INTERESTED')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
+                <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/callback`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Callback</Button>
+                <Button variant="contained" color="error" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/not-interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
             {currentStage === 'INTERESTED' && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => handleStageChange('WON')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Won</Button>
                 <Button variant="contained" color="error" size="small" onClick={() => handleStageChange('LOST')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Lost</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => { setTaskType('Re-Schedule'); setTaskOpen(true); }} sx={{ textTransform: 'none', fontWeight: 'bold', color: '#fff' }}>Re-Schedule</Button>
+                <Button variant="contained" color="secondary" size="small" onClick={() => { setTaskType(''); setTaskOpen(true); }} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Create</Button>
               </>
             )}
             <Button
@@ -594,6 +599,8 @@ export default function ContactDetailsPage() {
           <Button onClick={handleAddAttachment} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
+
+
 
       <Snackbar
         open={toast.open}

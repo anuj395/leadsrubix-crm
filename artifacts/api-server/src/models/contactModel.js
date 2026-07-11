@@ -31,5 +31,6 @@ exports.create = async (payload) => {
 };
 
 exports.findById = async (id) => Contact.findById(id).lean().exec();
+exports.findByIdAndUpdate = async (id, update, options = {}) => Contact.findByIdAndUpdate(id, update, options).lean().exec();
 
 exports.remove = async (id) => Contact.findByIdAndDelete(id).lean().exec();
