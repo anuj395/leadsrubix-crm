@@ -485,6 +485,14 @@ const SCREEN_DEFAULTS = [
     ],
   },
   {
+    key: 'notes',
+    name: 'Create New Note',
+    description: 'Dynamic form fields shown when creating a new note',
+    fields: [
+      { field_key: 'notes',                label: 'Notes',                 type: 'textarea', is_required: true,  order: 1 },
+    ],
+  },
+  {
     key: 'configApi',
     name: 'API Integration',
     description: 'Manage incoming webhooks, country codes, and source triggers.',

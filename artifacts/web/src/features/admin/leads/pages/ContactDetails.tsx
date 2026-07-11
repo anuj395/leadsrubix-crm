@@ -43,6 +43,7 @@ import CallbackModal from '../components/CallbackModal'
 import NotInterestedModal from '../components/NotInterestedModal'
 import LostModal from '../components/LostModal'
 import RescheduleModal from '../components/RescheduleModal'
+import NotesModal from '../components/NotesModal'
 
 interface Booking {
   _id: string
@@ -66,11 +67,6 @@ export default function ContactDetailsPage() {
 
   // Dialog controls
   const [noteOpen, setNoteOpen] = useState(false)
-  const [noteText, setNoteText] = useState('')
-
-  const [taskOpen, setTaskOpen] = useState(false)
-  const [taskType, setTaskType] = useState('')
-  const [taskDueDate, setTaskDueDate] = useState('')
 
   const [attachOpen, setAttachOpen] = useState(false)
   const [attachName, setAttachName] = useState('')
@@ -152,32 +148,8 @@ export default function ContactDetailsPage() {
     }
   }
 
-  const handleAddNote = async () => {
-    if (!noteText.trim()) return
-    const newNote = {
-      note: noteText,
-      created_at: new Date(),
-      userEmail: user?.email || 'System'
-    }
-    const currentNotes = booking?.notes ?? []
-    await saveBookingUpdate({ notes: [...currentNotes, newNote] })
-    setNoteOpen(false)
-    setNoteText('')
-  }
 
-  const handleAddTask = async () => {
-    if (!taskType.trim() || !taskDueDate) return
-    const newTask = {
-      type: taskType,
-      due_date: new Date(taskDueDate),
-      status: 'PENDING'
-    }
-    const currentTasks = booking?.bookingDetails ?? []
-    await saveBookingUpdate({ bookingDetails: [...currentTasks, newTask] })
-    setTaskOpen(false)
-    setTaskType('')
-    setTaskDueDate('')
-  }
+
 
   const handleAddAttachment = async () => {
     if (!attachName.trim() || !attachUrl.trim()) return
@@ -254,10 +226,8 @@ export default function ContactDetailsPage() {
             )}
             {currentStage === 'INTERESTED' && (
               <>
-                <Button variant="contained" color="success" size="small" onClick={() => handleStageChange('WON')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Won</Button>
                 <Button variant="contained" color="error" size="small" onClick={() => setLostOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Lost</Button>
                 <Button variant="contained" color="warning" size="small" onClick={() => setRescheduleOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold', color: '#fff' }}>Re-Schedule</Button>
-                <Button variant="contained" color="secondary" size="small" onClick={() => { setTaskType(''); setTaskOpen(true); }} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Create</Button>
               </>
             )}
             <Button
@@ -452,7 +422,6 @@ export default function ContactDetailsPage() {
                 <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="subtitle1" fontWeight="bold">Follow-up Tasks</Typography>
-                    <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => setTaskOpen(true)}>Add Task</Button>
                   </Stack>
                   <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
@@ -516,56 +485,15 @@ export default function ContactDetailsPage() {
         </Box>
       </AppCard>
 
-      {/* Note Dialog */}
-      <Dialog open={noteOpen} onClose={() => setNoteOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Note</DialogTitle>
-        <DialogContent dividers>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Note Description"
-            type="text"
-            fullWidth
-            multiline
-            rows={4}
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNoteOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddNote} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
+      <NotesModal
+        open={noteOpen}
+        onClose={() => setNoteOpen(false)}
+        contactId={contact?._id || ''}
+        customerName={contact?.customerName ? String(contact.customerName) : undefined}
+        contactNumber={contact?.contactNumber ? String(contact.contactNumber) : undefined}
+        onSuccess={loadData}
+      />
 
-      {/* Task Dialog */}
-      <Dialog open={taskOpen} onClose={() => setTaskOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Follow-up Task</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              autoFocus
-              label="Task Type (e.g. Call Back, Site Visit)"
-              type="text"
-              fullWidth
-              value={taskType}
-              onChange={(e) => setTaskType(e.target.value)}
-            />
-            <TextField
-              label="Due Date & Time"
-              type="datetime-local"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={taskDueDate}
-              onChange={(e) => setTaskDueDate(e.target.value)}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTaskOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddTask} variant="contained">Create</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Attachment Dialog */}
       <Dialog open={attachOpen} onClose={() => setAttachOpen(false)} maxWidth="sm" fullWidth>
