@@ -398,7 +398,7 @@ exports.deleteForUser = async ({ id, authedUser }) => {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
-  await contactModel.findByIdAndDelete(id);
+  await contactModel.remove(id);
 };
 
 exports.fillExtraFields = fillExtraFields;

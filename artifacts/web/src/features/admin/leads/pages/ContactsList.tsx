@@ -24,6 +24,7 @@ export default function ContactsListPage() {
   const navigate = useNavigate()
 
   const [items, setItems] = useState<Contact[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
@@ -69,6 +70,29 @@ export default function ContactsListPage() {
     })
   }
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    confirmDelete({
+      title: 'Confirm Bulk Deletion',
+      message: `Are you sure you want to delete the ${selectedIds.length} selected contacts? This action cannot be undone.`,
+      onConfirm: async () => {
+        setLoading(true)
+        try {
+          await Promise.all(selectedIds.map((id) => deleteContact(id)))
+          setToast({ open: true, msg: `${selectedIds.length} contacts deleted successfully`, sev: 'success' })
+          setSelectedIds([])
+          await refresh()
+        } catch (e: unknown) {
+          const err = e as { response?: { data?: { message?: string } } }
+          setToast({ open: true, msg: err?.response?.data?.message ?? 'Failed to delete contacts', sev: 'error' })
+          await refresh()
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+  }
+
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
     const dataCols = dbColumns.map((col): GridColDef<Contact> => ({
       field: col.key,
@@ -94,6 +118,26 @@ export default function ContactsListPage() {
         return String(v)
       },
     }))
+
+    const stageCol: GridColDef<Contact> = {
+      field: 'stage',
+      headerName: 'Stage',
+      flex: 1,
+      minWidth: 140,
+      valueGetter: (_v: unknown, row: Contact) => row.stage,
+      renderCell: (p) => {
+        const v = p.value
+        if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
+        return <StatusBadge value={v} />
+      }
+    }
+
+    const emailIdx = dataCols.findIndex((col) => col.field === 'emailId')
+    if (emailIdx !== -1) {
+      dataCols.splice(emailIdx + 1, 0, stageCol)
+    } else {
+      dataCols.push(stageCol)
+    }
 
     const actionsCol: GridColDef<Contact> = {
       field: '__actions__',
@@ -140,9 +184,21 @@ export default function ContactsListPage() {
         title="Contacts"
         subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
-            Add Contact
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            {selectedIds.length > 0 && (
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}
+              >
+                Delete Selected ({selectedIds.length})
+              </Button>
+            )}
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
+              Add Contact
+            </Button>
+          </Stack>
         }
         fullHeight
       >
@@ -154,6 +210,9 @@ export default function ContactsListPage() {
           getRowId={(r) => r._id}
           onReload={refresh}
           onRowClick={(params) => navigate(`/leads/contacts/${params.row._id}`)}
+          checkboxSelection
+          rowSelectionModel={selectedIds}
+          onRowSelectionModelChange={(newModel) => setSelectedIds(newModel as string[])}
           sx={{
             cursor: 'pointer',
             '& .MuiDataGrid-row:hover': {
