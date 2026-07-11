@@ -467,6 +467,24 @@ const SCREEN_DEFAULTS = [
     ],
   },
   {
+    key: 'lost',
+    name: 'Lost Details',
+    description: 'Dynamic form fields shown when converting a lead to Lost',
+    fields: [
+      { field_key: 'lostReason',           label: 'Lost Reason',          type: 'select',   is_required: true,  order: 1, dropdown_source: 'static', options: ['Not Budget Fit', 'Bought Competitor Property', 'Requirement Changed', 'Delayed Purchase', 'Other'] },
+      { field_key: 'notes',                label: 'Note',                 type: 'textarea', is_required: false, order: 2 },
+    ],
+  },
+  {
+    key: 'reschedule',
+    name: 'Reschedule Task',
+    description: 'Dynamic form fields shown when rescheduling a follow-up task',
+    fields: [
+      { field_key: 'nextFollowUp',         label: 'Next Follow Up Date & Time', type: 'date',     is_required: true,  order: 1 },
+      { field_key: 'notes',                label: 'Enter Note',                 type: 'textarea', is_required: false, order: 2 },
+    ],
+  },
+  {
     key: 'configApi',
     name: 'API Integration',
     description: 'Manage incoming webhooks, country codes, and source triggers.',

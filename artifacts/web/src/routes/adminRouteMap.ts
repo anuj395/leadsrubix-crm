@@ -42,7 +42,7 @@ import SettingsPage from '@/features/admin/setting/pages/Settings'
 
 import AddContactPage from '@/features/admin/leads/pages/AddContact'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
-import InterestedDetailsPage from '@/features/admin/leads/pages/InterestedDetails'
+import InterestedDetailsPage from '@/features/admin/leads/components/InterestedDetails'
 
 import AreaConverterPage from '@/features/admin/tool/pages/AreaConverter'
 import CalculatorPage from '@/features/admin/tool/pages/Calculator'

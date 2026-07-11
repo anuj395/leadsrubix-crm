@@ -56,7 +56,7 @@ import AreaConverterPage from '@/features/admin/tool/pages/AreaConverter'
 import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
-import InterestedDetailsPage from '@/features/admin/leads/pages/InterestedDetails'
+import InterestedDetailsPage from '@/features/admin/leads/components/InterestedDetails'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,

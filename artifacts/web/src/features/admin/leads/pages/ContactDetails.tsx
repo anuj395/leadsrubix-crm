@@ -41,6 +41,8 @@ import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 import CallbackModal from '../components/CallbackModal'
 import NotInterestedModal from '../components/NotInterestedModal'
+import LostModal from '../components/LostModal'
+import RescheduleModal from '../components/RescheduleModal'
 
 interface Booking {
   _id: string
@@ -77,6 +79,8 @@ export default function ContactDetailsPage() {
 
   const [callbackOpen, setCallbackOpen] = useState(false)
   const [notInterestedOpen, setNotInterestedOpen] = useState(false)
+  const [lostOpen, setLostOpen] = useState(false)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
@@ -251,8 +255,8 @@ export default function ContactDetailsPage() {
             {currentStage === 'INTERESTED' && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => handleStageChange('WON')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Won</Button>
-                <Button variant="contained" color="error" size="small" onClick={() => handleStageChange('LOST')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Lost</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => { setTaskType('Re-Schedule'); setTaskOpen(true); }} sx={{ textTransform: 'none', fontWeight: 'bold', color: '#fff' }}>Re-Schedule</Button>
+                <Button variant="contained" color="error" size="small" onClick={() => setLostOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Lost</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => setRescheduleOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold', color: '#fff' }}>Re-Schedule</Button>
                 <Button variant="contained" color="secondary" size="small" onClick={() => { setTaskType(''); setTaskOpen(true); }} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Create</Button>
               </>
             )}
@@ -613,6 +617,20 @@ export default function ContactDetailsPage() {
       <NotInterestedModal
         open={notInterestedOpen}
         onClose={() => setNotInterestedOpen(false)}
+        contactId={contact._id}
+        onSuccess={loadData}
+      />
+
+      <LostModal
+        open={lostOpen}
+        onClose={() => setLostOpen(false)}
+        contactId={contact._id}
+        onSuccess={loadData}
+      />
+
+      <RescheduleModal
+        open={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
         contactId={contact._id}
         onSuccess={loadData}
       />
