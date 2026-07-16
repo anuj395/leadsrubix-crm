@@ -58,7 +58,7 @@ export function useTableConfig(
           sortable: h.sortable,
         }))
 
-        if (!cancelled) setColumns(cols.filter((c) => c.visible !== false))
+        if (!cancelled) setColumns(cols)
       } catch (err) {
         if (!cancelled) {
           const msg = err instanceof Error ? err.message : 'Failed to load table config'

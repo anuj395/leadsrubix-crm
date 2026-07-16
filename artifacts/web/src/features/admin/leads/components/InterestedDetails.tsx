@@ -13,22 +13,12 @@ import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 
-interface Booking {
-  _id: string
-  contactId: string
-  notes: any[]
-  attachments: any[]
-  callLogs: any[]
-  bookingDetails: any[]
-}
-
 export default function InterestedDetailsPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { user } = useAppSelector(selectAuth)
 
   const [contact, setContact] = useState<Contact | null>(null)
-  const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [initialValues, setInitialValues] = useState<Record<string, any>>({})
@@ -64,12 +54,6 @@ export default function InterestedDetailsPage() {
           initVals.notes = ''
           
           setInitialValues(initVals)
-
-          const bookingRes = await api.get('bookings', { params: { contactId: id } })
-          const bookingsList = (bookingRes.data?.items ?? []) as Booking[]
-          if (bookingsList.length > 0) {
-            setBooking(bookingsList[0])
-          }
         } else {
           setToast({ open: true, msg: 'Contact not found', sev: 'error' })
         }
@@ -134,35 +118,32 @@ export default function InterestedDetailsPage() {
       // 1. Update Contact in DB
       await updateContact(id, contactFields)
 
-      // 2. Update Booking in DB
+      // 3. Save Note in DB (resourceNotes inside resource_items)
       const noteContent = String(taskFields.notes || '').trim()
-      const newNotes = noteContent ? [
-        ...(booking?.notes ?? []),
-        { note: noteContent, created_at: new Date(), userEmail: user?.email || 'System' }
-      ] : (booking?.notes ?? [])
 
-      const newTasks = [
-        ...(booking?.bookingDetails ?? []),
-        {
-          type: taskFields.taskType || 'Call Back',
-          due_date: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
-          status: 'PENDING'
-        }
-      ]
-
-      const bookingPayload = {
-        notes: newNotes,
-        bookingDetails: newTasks
-      }
-
-      if (booking) {
-        await api.put(`bookings/${booking._id}`, { ...booking, ...bookingPayload })
-      } else {
-        await api.post('bookings', {
+      // 2. Create Task in DB
+      await api.post('tasks', {
+        contactId: id,
+        type: taskFields.taskType || 'Call Back',
+        dueDate: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
+        status: 'PENDING',
+        customerName: contactFields.customerName || contact.customerName || '',
+        createdBy: user?.email || 'System',
+        latitude: lat,
+        longitude: lng,
+        stage: 'INTERESTED',
+        contactOwnerEmail: contact.contactOwnerEmail || (contact as any).contact_owner_email || user?.email || '',
+        projectName: contactFields.projectName || contact.projectName || '',
+        location: contactFields.location || contact.location || '',
+        budget: contactFields.budget || contact.budget || '',
+        source: contactFields.source || contact.source || '',
+        notes: noteContent,
+      })
+      if (noteContent) {
+        await api.post('resources/resourceNotes', {
           contactId: id,
-          customerName: contact.customerName || contactFields.customerName || 'N/A',
-          contactNumber: contact.contactNumber || '',
-          ...bookingPayload
+          note: noteContent,
+          userEmail: user?.email || 'System'
         })
       }
 

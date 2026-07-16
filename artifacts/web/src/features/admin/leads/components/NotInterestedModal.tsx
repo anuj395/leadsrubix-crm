@@ -14,27 +14,17 @@ import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 
-interface Booking {
-  _id: string
-  contactId: string
-  notes: any[]
-  attachments: any[]
-  callLogs: any[]
-  bookingDetails: any[]
-}
-
 interface NotInterestedModalProps {
-  open: boolean
-  onClose: () => void
-  contactId: string
-  onSuccess: () => void
+  open: boolean;
+  onClose: () => void;
+  contactId: string;
+  onSuccess: () => void;
 }
 
 export default function NotInterestedModal({ open, onClose, contactId, onSuccess }: NotInterestedModalProps) {
   const { user } = useAppSelector(selectAuth)
 
   const [contact, setContact] = useState<Contact | null>(null)
-  const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [initialValues, setInitialValues] = useState<Record<string, any>>({})
@@ -55,15 +45,10 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
           
           const initVals: Record<string, any> = {}
           initVals.notIntReason = match.notIntReason || ''
+          initVals.otherNotIntReason = match.otherNotIntReason || ''
           initVals.notes = ''
           
           setInitialValues(initVals)
-
-          const bookingRes = await api.get('bookings', { params: { contactId: contactId } })
-          const bookingsList = (bookingRes.data?.items ?? []) as Booking[]
-          if (bookingsList.length > 0) {
-            setBooking(bookingsList[0])
-          }
         }
       } catch (e) {
         console.error('Failed to load contact data', e)
@@ -99,7 +84,7 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
 
     contactFields.stage = 'NOT INTERESTED'
     contactFields.notIntReason = values.notIntReason || ''
-    contactFields.otherNotIntReason = ''
+    contactFields.otherNotIntReason = values.notIntReason === 'Other' ? values.otherNotIntReason || '' : ''
 
     let lat = null
     let lng = null
@@ -119,32 +104,24 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
     contactFields.stageChangeAt = new Date()
 
     try {
+      // 1. Update Contact stage
       await updateContact(contactId, contactFields)
 
-      const noteContent = String(taskFields.notes || '').trim()
-      const newNotes = noteContent ? [
-        ...(booking?.notes ?? []),
-        { note: noteContent, created_at: new Date(), userEmail: user?.email || 'System' }
-      ] : (booking?.notes ?? [])
-
-      const newTasks = (booking?.bookingDetails ?? []).map((t: any) => ({
-        ...t,
-        status: 'INACTIVE'
+      // 2. Update tasks associated with this contact
+      const tasksRes = await api.get('tasks', { params: { contactId } })
+      const allTasks = tasksRes.data?.items ?? []
+      await Promise.all(allTasks.map((t: any) => {
+        const nextStatus = t.status === 'PENDING' ? 'INACTIVE' : t.status
+        return api.put(`tasks/${t._id}`, { ...t, status: nextStatus, stage: 'NOT INTERESTED' })
       }))
 
-      const bookingPayload = {
-        notes: newNotes,
-        bookingDetails: newTasks
-      }
-
-      if (booking) {
-        await api.put(`bookings/${booking._id}`, { ...booking, ...bookingPayload })
-      } else {
-        await api.post('bookings', {
-          contactId: contactId,
-          customerName: contact.customerName || 'N/A',
-          contactNumber: contact.contactNumber || '',
-          ...bookingPayload
+      // 3. Save Note if exists
+      const noteContent = String(taskFields.notes || '').trim()
+      if (noteContent) {
+        await api.post('resources/resourceNotes', {
+          contactId,
+          note: noteContent,
+          userEmail: user?.email || 'System'
         })
       }
 

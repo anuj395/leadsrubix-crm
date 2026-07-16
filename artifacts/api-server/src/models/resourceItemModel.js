@@ -11,6 +11,7 @@ const KEY_MAP = {
   resourceCarousel: 'carousel',
   resourceProjects: 'projects',
   resourcePropertyStatus: 'propertyStatuses',
+  resourceNotes: 'notes',
 };
 
 function getFieldName(resourceKey) {
@@ -31,6 +32,7 @@ const organizationResourcesSchema = new mongoose.Schema(
     locations: { type: Array, default: [] },
     projects: { type: Array, default: [] },
     propertyStatuses: { type: Array, default: [] },
+    notes: { type: Array, default: [] },
   },
   { timestamps: true, strict: false }
 );

@@ -337,6 +337,12 @@ export function DynamicForm({
           next.num_employees = `Number of Employees (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
         }
       }
+      if (values.notIntReason === 'Other' && !String(values.otherNotIntReason || '').trim()) {
+        next.otherNotIntReason = 'Please Mention Other Not Interested Reason'
+      }
+      if (values.lostReason === 'Other' && !String(values.otherLostReason || '').trim()) {
+        next.otherLostReason = 'Please Mention Other Lost Reason'
+      }
       return next
     },
     [fields, values, trialPeriodLicenses, screen, isSuperAdmin],
@@ -386,6 +392,12 @@ export function DynamicForm({
       >
         {fields.map((f) => {
           if ((f.key === 'organizationId' || f.key === 'organizationId') && !isSuperAdmin) {
+            return null
+          }
+          if (f.key === 'otherNotIntReason' && values.notIntReason !== 'Other') {
+            return null
+          }
+          if (f.key === 'otherLostReason' && values.lostReason !== 'Other') {
             return null
           }
           const value = values[f.key]

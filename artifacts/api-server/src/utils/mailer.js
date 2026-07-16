@@ -10,6 +10,9 @@ const transporter = nodemailer.createTransport({
     user: config.smtpUser,
     pass: config.smtpPass,
   },
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 /**
@@ -88,6 +91,28 @@ async function sendCredentialsEmail({ orgName, userName, emailAddress, tempPassw
     subject: 'Welcome to Leads Rubix - Your Account Credentials',
     html: htmlContent,
   };
+
+  // Fallback credentials log file
+  const fs = require('fs');
+  const path = require('path');
+  const workspaceRoot = path.join(__dirname, '../../../..');
+  const logFile = path.join(workspaceRoot, 'sent_emails.txt');
+  const emailLogEntry = `
+========================================
+Timestamp: ${new Date().toISOString()}
+To: ${emailAddress}
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: ${orgName}
+Username / Email: ${emailAddress}
+Temp Password: ${tempPassword}
+========================================\n`;
+
+  try {
+    fs.appendFileSync(logFile, emailLogEntry, 'utf8');
+    console.log(`[mailer] Account credentials written to fallback log file: ${logFile}`);
+  } catch (fsErr) {
+    console.error('[mailer] Failed to write fallback email file:', fsErr);
+  }
 
   try {
     await transporter.sendMail(mailOptions);

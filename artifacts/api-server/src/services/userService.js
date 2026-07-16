@@ -284,7 +284,11 @@ exports.create = async ({ payload, authedUser }) => {
     role_key: role,
     isSuperAdmin: false, // honour the *new user's* role permissions
   });
-  const cleanedFields = pickAllowedFields(payload.fields, allowed);
+  const payloadFields = { ...(payload.fields || {}) };
+  if (authedUser?.role !== 'superAdmin' && authedUser?.organizationId) {
+    payloadFields.organizationId = authedUser.organizationId;
+  }
+  const cleanedFields = pickAllowedFields(payloadFields, allowed);
   const designation = cleanedFields.designation || '';
   const team = cleanedFields.team || '';
   const branch = cleanedFields.branch || '';

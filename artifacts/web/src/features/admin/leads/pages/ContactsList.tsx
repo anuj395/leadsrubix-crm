@@ -139,6 +139,19 @@ export default function ContactsListPage() {
       dataCols.push(stageCol)
     }
 
+    const sNoCol: GridColDef<Contact> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = items.findIndex((item) => item._id === row._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
     const actionsCol: GridColDef<Contact> = {
       field: '__actions__',
       headerName: 'Actions',
@@ -164,8 +177,8 @@ export default function ContactsListPage() {
       ),
     }
 
-    return [...dataCols, actionsCol]
-  }, [dbColumns])
+    return [sNoCol, ...dataCols, actionsCol]
+  }, [dbColumns, items])
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

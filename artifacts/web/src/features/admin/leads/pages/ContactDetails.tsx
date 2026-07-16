@@ -44,6 +44,7 @@ import NotInterestedModal from '../components/NotInterestedModal'
 import LostModal from '../components/LostModal'
 import RescheduleModal from '../components/RescheduleModal'
 import NotesModal from '../components/NotesModal'
+import CreateTaskModal from '../components/CreateTaskModal'
 
 interface Booking {
   _id: string
@@ -62,11 +63,13 @@ export default function ContactDetailsPage() {
 
   const [contact, setContact] = useState<Contact | null>(null)
   const [booking, setBooking] = useState<Booking | null>(null)
+  const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
 
   // Dialog controls
   const [noteOpen, setNoteOpen] = useState(false)
+  const [taskOpen, setTaskOpen] = useState(false)
 
   const [attachOpen, setAttachOpen] = useState(false)
   const [attachName, setAttachName] = useState('')
@@ -99,6 +102,9 @@ export default function ContactDetailsPage() {
         } else {
           setBooking(null)
         }
+
+        const tasksRes = await api.get('tasks', { params: { contactId: id } })
+        setTasks(tasksRes.data?.items ?? [])
       } else {
         setToast({ open: true, msg: 'Contact not found', sev: 'error' })
       }
@@ -217,10 +223,10 @@ export default function ContactDetailsPage() {
                 <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
-            {currentStage === 'CALL BACK' && (
+            {(currentStage === 'CALLBACK' || currentStage === 'CALL BACK') && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Callback</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Call Back</Button>
                 <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
@@ -228,6 +234,7 @@ export default function ContactDetailsPage() {
               <>
                 <Button variant="contained" color="error" size="small" onClick={() => setLostOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Lost</Button>
                 <Button variant="contained" color="warning" size="small" onClick={() => setRescheduleOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold', color: '#fff' }}>Re-Schedule</Button>
+                <Button variant="contained" color="secondary" size="small" onClick={() => setTaskOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Create</Button>
               </>
             )}
             <Button
@@ -434,18 +441,18 @@ export default function ContactDetailsPage() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {(booking?.bookingDetails ?? []).map((t: any, i: number) => {
-                          const taskDate = new Date(t.due_date)
+                        {tasks.map((t: any, i: number) => {
+                          const taskDate = new Date(t.dueDate || t.due_date)
                           return (
                             <TableRow key={i}>
-                              <TableCell>{String(t.type)}</TableCell>
+                              <TableCell>{String(t.type || t.taskType)}</TableCell>
                               <TableCell>{taskDate.toLocaleDateString()}</TableCell>
                               <TableCell>{taskDate.toLocaleTimeString()}</TableCell>
                               <TableCell><StatusBadge value={String(t.status)} /></TableCell>
                             </TableRow>
                           )
                         })}
-                        {(booking?.bookingDetails ?? []).length === 0 && (
+                        {tasks.length === 0 && (
                           <TableRow>
                             <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary', py: 4 }}>No tasks recorded</TableCell>
                           </TableRow>
@@ -491,6 +498,14 @@ export default function ContactDetailsPage() {
         contactId={contact?._id || ''}
         customerName={contact?.customerName ? String(contact.customerName) : undefined}
         contactNumber={contact?.contactNumber ? String(contact.contactNumber) : undefined}
+        onSuccess={loadData}
+      />
+
+      <CreateTaskModal
+        open={taskOpen}
+        onClose={() => setTaskOpen(false)}
+        contact={contact}
+        tasksData={tasks}
         onSuccess={loadData}
       />
 

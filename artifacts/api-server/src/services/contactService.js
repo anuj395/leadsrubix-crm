@@ -156,8 +156,39 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
     ];
   }
   const items = await contactModel.list({ filter, limit });
+  await enrichOrganizationNames(items);
   return items;
 };
+
+async function enrichOrganizationNames(items) {
+  if (!items || items.length === 0) return;
+  const Organization = mongoose.model('Organization');
+  const orgKeys = [...new Set(items.map(item => item.organizationId).filter(Boolean))];
+  if (orgKeys.length === 0) return;
+
+  const orgs = await Organization.find({
+    $or: [
+      { organizationId: { $in: orgKeys } },
+      { _id: { $in: orgKeys.filter(k => mongoose.Types.ObjectId.isValid(k)) } }
+    ]
+  }).lean().exec();
+
+  const orgMap = {};
+  orgs.forEach(o => {
+    const name = o.organizationName || o.name || '';
+    orgMap[String(o.organizationId)] = name;
+    orgMap[String(o._id)] = name;
+  });
+
+  items.forEach(item => {
+    if (item.organizationId) {
+      const lookup = String(item.organizationId);
+      if (orgMap[lookup]) {
+        item.organizationId = orgMap[lookup];
+      }
+    }
+  });
+}
 
 /**
  * Create a contact, validating the payload against the dynamic form config
@@ -179,9 +210,26 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
 
-  const industry = await industryModel.findByCode(user.industryId);
+  let resolvedIndustryId = user.industryId;
+  if (isSuperAdmin) {
+    const orgId = payload?.organizationId || payload?.fields?.organizationId || payload?.organization_id;
+    if (orgId) {
+      const Organization = mongoose.model('Organization');
+      const org = await Organization.findOne({
+        $or: [
+          { organizationId: orgId },
+          { _id: mongoose.Types.ObjectId.isValid(orgId) ? orgId : null }
+        ]
+      }).lean().exec();
+      if (org && org.industryId) {
+        resolvedIndustryId = org.industryId;
+      }
+    }
+  }
+
+  const industry = await industryModel.findByCode(resolvedIndustryId);
   if (!industry) {
-    const err = new Error(`Industry "${user.industryId}" not found`); err.status = 400; throw err;
+    const err = new Error(`Industry "${resolvedIndustryId}" not found`); err.status = 400; throw err;
   }
 
   const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
@@ -206,6 +254,9 @@ exports.createForUser = async ({ payload, authedUser }) => {
   }
 
   const data = payload && typeof payload === 'object' ? { ...payload } : {};
+  if (!isSuperAdmin) {
+    data.organizationId = user.organizationId;
+  }
   if (data.customerName === undefined) {
     if (data.customer_name !== undefined) {
       data.customerName = data.customer_name;
@@ -233,6 +284,8 @@ exports.createForUser = async ({ payload, authedUser }) => {
     throw err;
   }
 
+  const targetOrgId = isSuperAdmin ? (cleaned.organizationId || payload.organizationId || payload.fields?.organizationId || data.organizationId) : user.organizationId;
+
   // Check duplicates on contact number & alternate number
   if (cleaned.contactNumber) {
     const parsedMain = parsePhoneNumber(cleaned.contactNumber, cleaned.countryCode || '+91');
@@ -251,7 +304,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
     if (orConditions.length > 0) {
       const Contact = mongoose.model('Contact');
       const duplicate = await Contact.findOne({
-        organizationId: user.organizationId,
+        organizationId: targetOrgId,
         $or: orConditions
       }).lean().exec();
       
@@ -266,12 +319,13 @@ exports.createForUser = async ({ payload, authedUser }) => {
   const docPayload = fillExtraFields(
     {
       ...cleaned,
-      organizationId: user.organizationId,
+      organizationId: targetOrgId,
     },
     user
   );
 
   const created = await contactModel.create(docPayload);
+  await enrichOrganizationNames([created]);
   return created;
 };
 
@@ -374,6 +428,9 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   delete cleaned.field_six;
 
   const updated = await contactModel.findByIdAndUpdate(id, { $set: cleaned }, { new: true });
+  if (updated) {
+    await enrichOrganizationNames([updated]);
+  }
   return updated;
 };
 

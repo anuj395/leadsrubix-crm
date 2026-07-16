@@ -14,27 +14,17 @@ import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 
-interface Booking {
-  _id: string
-  contactId: string
-  notes: any[]
-  attachments: any[]
-  callLogs: any[]
-  bookingDetails: any[]
-}
-
 interface RescheduleModalProps {
-  open: boolean
-  onClose: () => void
-  contactId: string
-  onSuccess: () => void
+  open: boolean;
+  onClose: () => void;
+  contactId: string;
+  onSuccess: () => void;
 }
 
 export default function RescheduleModal({ open, onClose, contactId, onSuccess }: RescheduleModalProps) {
   const { user } = useAppSelector(selectAuth)
 
   const [contact, setContact] = useState<Contact | null>(null)
-  const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [initialValues, setInitialValues] = useState<Record<string, any>>({})
@@ -58,12 +48,6 @@ export default function RescheduleModal({ open, onClose, contactId, onSuccess }:
           initVals.notes = ''
           
           setInitialValues(initVals)
-
-          const bookingRes = await api.get('bookings', { params: { contactId: contactId } })
-          const bookingsList = (bookingRes.data?.items ?? []) as Booking[]
-          if (bookingsList.length > 0) {
-            setBooking(bookingsList[0])
-          }
         }
       } catch (e) {
         console.error('Failed to load contact data', e)
@@ -123,43 +107,48 @@ export default function RescheduleModal({ open, onClose, contactId, onSuccess }:
     contactFields.modifiedAt = new Date()
 
     try {
+      // 1. Update Contact properties
       await updateContact(contactId, contactFields)
 
+      // 3. Save Note if exists
       const noteContent = String(taskFields.notes || '').trim()
-      const newNotes = noteContent ? [
-        ...(booking?.notes ?? []),
-        { note: noteContent, created_at: new Date(), userEmail: user?.email || 'System' }
-      ] : (booking?.notes ?? [])
 
-      // Reschedule the latest/last task if it exists, otherwise add a new task
-      const currentTasks = [...(booking?.bookingDetails ?? [])]
-      if (currentTasks.length > 0) {
-        const lastIdx = currentTasks.length - 1
-        currentTasks[lastIdx] = {
-          ...currentTasks[lastIdx],
-          due_date: new Date(values.nextFollowUp)
-        }
+      // 2. Fetch and Reschedule tasks
+      const tasksRes = await api.get('tasks', { params: { contactId } })
+      const tasksList = (tasksRes.data?.items ?? [])
+      const pendingTasks = tasksList.filter((t: any) => t.status === 'PENDING')
+      if (pendingTasks.length > 0) {
+        pendingTasks.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        const latest = pendingTasks[0]
+        await api.put(`tasks/${latest._id}`, {
+          ...latest,
+          dueDate: new Date(values.nextFollowUp),
+          notes: noteContent || latest.notes || ''
+        })
       } else {
-        currentTasks.push({
+        await api.post('tasks', {
+          contactId,
           type: 'Call Back',
-          due_date: new Date(values.nextFollowUp),
-          status: 'PENDING'
+          dueDate: new Date(values.nextFollowUp),
+          status: 'PENDING',
+          customerName: contact.customerName || '',
+          createdBy: user?.email || 'System',
+          latitude: lat,
+          longitude: lng,
+          stage: contact.stage || '',
+          contactOwnerEmail: contact.contactOwnerEmail || (contact as any).contact_owner_email || user?.email || '',
+          projectName: contact.projectName || '',
+          location: contact.location || '',
+          budget: contact.budget || '',
+          source: contact.source || '',
+          notes: noteContent,
         })
       }
-
-      const bookingPayload = {
-        notes: newNotes,
-        bookingDetails: currentTasks
-      }
-
-      if (booking) {
-        await api.put(`bookings/${booking._id}`, { ...booking, ...bookingPayload })
-      } else {
-        await api.post('bookings', {
-          contactId: contactId,
-          customerName: contact.customerName || 'N/A',
-          contactNumber: contact.contactNumber || '',
-          ...bookingPayload
+      if (noteContent) {
+        await api.post('resources/resourceNotes', {
+          contactId,
+          note: noteContent,
+          userEmail: user?.email || 'System'
         })
       }
 

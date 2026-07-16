@@ -14,27 +14,18 @@ import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 
-interface Booking {
-  _id: string
-  contactId: string
-  notes: any[]
-  attachments: any[]
-  callLogs: any[]
-  bookingDetails: any[]
-}
 
 interface CallbackModalProps {
-  open: boolean
-  onClose: () => void
-  contactId: string
-  onSuccess: () => void
+  open: boolean;
+  onClose: () => void;
+  contactId: string;
+  onSuccess: () => void;
 }
 
 export default function CallbackModal({ open, onClose, contactId, onSuccess }: CallbackModalProps) {
   const { user } = useAppSelector(selectAuth)
 
   const [contact, setContact] = useState<Contact | null>(null)
-  const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [initialValues, setInitialValues] = useState<Record<string, any>>({})
@@ -59,12 +50,6 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
           initVals.notes = ''
           
           setInitialValues(initVals)
-
-          const bookingRes = await api.get('bookings', { params: { contactId: contactId } })
-          const bookingsList = (bookingRes.data?.items ?? []) as Booking[]
-          if (bookingsList.length > 0) {
-            setBooking(bookingsList[0])
-          }
         }
       } catch (e) {
         console.error('Failed to load contact data', e)
@@ -103,7 +88,7 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
       }
     })
 
-    contactFields.stage = 'CALL BACK'
+    contactFields.stage = 'CALLBACK'
     contactFields.callBackReason = values.callBackReason || ''
     contactFields.nextFollowUpType = 'Call Back'
     contactFields.nextFollowUpDateTime = values.nextFollowUp ? new Date(values.nextFollowUp) : new Date()
@@ -126,37 +111,36 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
     contactFields.stageChangeAt = new Date()
 
     try {
+      // 1. Update Contact stage
       await updateContact(contactId, contactFields)
 
+      // 3. Save Note if exists
       const noteContent = String(taskFields.notes || '').trim()
-      const newNotes = noteContent ? [
-        ...(booking?.notes ?? []),
-        { note: noteContent, created_at: new Date(), userEmail: user?.email || 'System' }
-      ] : (booking?.notes ?? [])
 
-      const newTasks = [
-        ...(booking?.bookingDetails ?? []),
-        {
-          type: 'Call Back',
-          due_date: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
-          status: 'PENDING',
-          callBackReason: values.callBackReason || ''
-        }
-      ]
-
-      const bookingPayload = {
-        notes: newNotes,
-        bookingDetails: newTasks
-      }
-
-      if (booking) {
-        await api.put(`bookings/${booking._id}`, { ...booking, ...bookingPayload })
-      } else {
-        await api.post('bookings', {
-          contactId: contactId,
-          customerName: contact.customerName || 'N/A',
-          contactNumber: contact.contactNumber || '',
-          ...bookingPayload
+      // 2. Create Task on separate endpoint
+      await api.post('tasks', {
+        contactId,
+        type: 'Call Back',
+        dueDate: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
+        status: 'PENDING',
+        callbackReason: values.callBackReason || '',
+        customerName: contact.customerName || '',
+        createdBy: user?.email || 'System',
+        latitude: lat,
+        longitude: lng,
+        stage: 'CALLBACK',
+        contactOwnerEmail: contact.contactOwnerEmail || (contact as any).contact_owner_email || user?.email || '',
+        projectName: contact.projectName || '',
+        location: contact.location || '',
+        budget: contact.budget || '',
+        source: contact.source || '',
+        notes: noteContent,
+      })
+      if (noteContent) {
+        await api.post('resources/resourceNotes', {
+          contactId,
+          note: noteContent,
+          userEmail: user?.email || 'System'
         })
       }
 

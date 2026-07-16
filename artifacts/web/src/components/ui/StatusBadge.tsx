@@ -11,8 +11,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ value, hideDot = false
     return <Box sx={{ color: 'text.secondary' }}>—</Box>
   }
 
-  const statusStr = String(value).trim()
-  const lowerVal = statusStr.toLowerCase()
+  const rawStr = String(value).trim()
+  const lowerVal = rawStr.toLowerCase()
+  const statusStr = lowerVal.charAt(0).toUpperCase() + lowerVal.slice(1)
 
   // Determine styling based on status string
   let color = '#9ca3af' // Default gray
@@ -126,7 +127,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ value, hideDot = false
     lowerVal === 'low' ||
     lowerVal === 'low priority' ||
     lowerVal === 'no' ||
-    lowerVal === 'false'
+    lowerVal === 'false' ||
+    lowerVal === 'overdue'
   ) {
     color = '#f43f5e' // Rose
     bg = 'rgba(244, 63, 94, 0.12)'
@@ -187,7 +189,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ value, hideDot = false
         borderRadius: '8px',
         fontSize: '0.75rem',
         fontWeight: 600,
-        textTransform: 'uppercase',
+        textTransform: 'none',
         letterSpacing: '0.05em',
         color,
         backgroundColor: bg,

@@ -13,28 +13,18 @@ import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 
-interface Booking {
-  _id: string
-  contactId: string
-  notes: any[]
-  attachments: any[]
-  callLogs: any[]
-  bookingDetails: any[]
-}
-
 interface NotesModalProps {
-  open: boolean
-  onClose: () => void
-  contactId: string
-  customerName?: string
-  contactNumber?: string
-  onSuccess: () => void
+  open: boolean;
+  onClose: () => void;
+  contactId: string;
+  customerName?: string;
+  contactNumber?: string;
+  onSuccess: () => void;
 }
 
 export default function NotesModal({ open, onClose, contactId, customerName = 'N/A', contactNumber = '', onSuccess }: NotesModalProps) {
   const { user } = useAppSelector(selectAuth)
 
-  const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [initialValues, setInitialValues] = useState<Record<string, any>>({})
@@ -49,13 +39,8 @@ export default function NotesModal({ open, onClose, contactId, customerName = 'N
     const loadBookingData = async () => {
       try {
         setInitialValues({ notes: '' })
-        const bookingRes = await api.get('bookings', { params: { contactId: contactId } })
-        const bookingsList = (bookingRes.data?.items ?? []) as Booking[]
-        if (bookingsList.length > 0) {
-          setBooking(bookingsList[0])
-        }
       } catch (e) {
-        console.error('Failed to load booking details', e)
+        console.error('Failed to load notes details', e)
       } finally {
         setLoading(false)
       }
@@ -75,28 +60,11 @@ export default function NotesModal({ open, onClose, contactId, customerName = 'N
     setSaving(true)
 
     try {
-      const newNotes = [
-        ...(booking?.notes ?? []),
-        { note: noteText, created_at: new Date(), userEmail: user?.email || 'System' }
-      ]
-
-      const bookingPayload = {
-        notes: newNotes
-      }
-
-      if (booking) {
-        await api.put(`bookings/${booking._id}`, { ...booking, ...bookingPayload })
-      } else {
-        await api.post('bookings', {
-          contactId: contactId,
-          customerName: customerName,
-          contactNumber: contactNumber,
-          notes: newNotes,
-          attachments: [],
-          callLogs: [],
-          bookingDetails: []
-        })
-      }
+      await api.post('resources/resourceNotes', {
+        contactId,
+        note: noteText,
+        userEmail: user?.email || 'System'
+      })
 
       setToast({ open: true, msg: 'Saved', sev: 'success' })
       setTimeout(() => {

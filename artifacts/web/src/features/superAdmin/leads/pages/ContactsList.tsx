@@ -55,8 +55,21 @@ export default function ContactsListPage() {
   }, [])
 
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
+    const sNoCol: GridColDef<Contact> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = items.findIndex((item) => item._id === row._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
     const sorted = [...columns].sort((a, b) => a.order - b.order)
-    return sorted.map((c) => ({
+    const dataCols = sorted.map((c): GridColDef<Contact> => ({
       field: c.key,
       headerName: c.label,
       flex: 1,
@@ -80,7 +93,9 @@ export default function ContactsListPage() {
         return String(v)
       },
     }))
-  }, [columns])
+
+    return [sNoCol, ...dataCols]
+  }, [columns, items])
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

@@ -22,6 +22,93 @@ function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+async function enrichTasks(Model, items) {
+  if (Model.modelName !== 'Task' || !items || items.length === 0) return;
+  const mongoose = require('mongoose');
+  const User = mongoose.model('User');
+  const Contact = mongoose.model('Contact');
+
+  const keys = [...new Set(items.map(item => item.assignedTo).filter(Boolean))];
+  const userMap = {};
+  if (keys.length > 0) {
+    const users = await User.find({
+      $or: [
+        { _id: { $in: keys.filter(k => mongoose.Types.ObjectId.isValid(k)) } },
+        { email: { $in: keys } },
+        { uid: { $in: keys } }
+      ]
+    }).lean().exec();
+
+    users.forEach(u => {
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
+      userMap[String(u._id)] = fullName;
+      if (u.email) userMap[String(u.email).toLowerCase()] = fullName;
+      if (u.uid) userMap[String(u.uid)] = fullName;
+    });
+  }
+
+  const contactIds = [...new Set(items.map(item => item.contactId).filter(Boolean))];
+  const contactMap = {};
+  if (contactIds.length > 0) {
+    const contacts = await Contact.find({
+      _id: { $in: contactIds.filter(id => mongoose.Types.ObjectId.isValid(id)) }
+    }).lean().exec();
+
+    contacts.forEach(c => {
+      contactMap[String(c._id)] = c.contactNumber || c.contact_no || '';
+    });
+  }
+
+  items.forEach(item => {
+    if (item.assignedTo) {
+      const lookupKey = String(item.assignedTo).toLowerCase();
+      if (userMap[lookupKey]) {
+        item.assignedTo = userMap[lookupKey];
+      } else if (userMap[String(item.assignedTo)]) {
+        item.assignedTo = userMap[String(item.assignedTo)];
+      }
+    }
+    if (item.contactId) {
+      const lookupContactId = String(item.contactId);
+      if (contactMap[lookupContactId]) {
+        item.contactNumber = contactMap[lookupContactId];
+      }
+    }
+  });
+}
+
+async function enrichOrganizationNames(Model, items) {
+  if (!items || items.length === 0) return;
+  const mongoose = require('mongoose');
+  const Organization = mongoose.model('Organization');
+
+  const orgKeys = [...new Set(items.map(item => item.organizationId).filter(Boolean))];
+  if (orgKeys.length === 0) return;
+
+  const orgs = await Organization.find({
+    $or: [
+      { organizationId: { $in: orgKeys } },
+      { _id: { $in: orgKeys.filter(k => mongoose.Types.ObjectId.isValid(k)) } }
+    ]
+  }).lean().exec();
+
+  const orgMap = {};
+  orgs.forEach(o => {
+    const name = o.name || o.organizationName || '';
+    orgMap[String(o.organizationId)] = name;
+    orgMap[String(o._id)] = name;
+  });
+
+  items.forEach(item => {
+    if (item.organizationId) {
+      const lookup = String(item.organizationId);
+      if (orgMap[lookup]) {
+        item.organizationId = orgMap[lookup];
+      }
+    }
+  });
+}
+
 function buildController({
   Model,
   resourceName,
@@ -49,6 +136,12 @@ function buildController({
   async function list(req, res, next) {
     try {
       const filter = resolveTenantFilter(req.user, req.query.industryId);
+      Object.keys(req.query).forEach((key) => {
+        if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId'].includes(key)) return;
+        if (Model.schema.paths[key]) {
+          filter[key] = req.query[key];
+        }
+      });
       const q = (req.query.q || '').toString().trim();
       if (q) {
         const re = new RegExp(escapeRegex(q), 'i');
@@ -68,6 +161,8 @@ function buildController({
           .exec(),
         Model.countDocuments(filter).exec(),
       ]);
+      await enrichTasks(Model, items);
+      await enrichOrganizationNames(Model, items);
       res.json({ items, total });
     } catch (err) { next(err); }
   }
@@ -79,6 +174,8 @@ function buildController({
       if (!isSuperAdmin(req.user) && doc.industryId !== req.user?.industryId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
+      await enrichTasks(Model, [doc]);
+      await enrichOrganizationNames(Model, [doc]);
       res.json(doc);
     } catch (err) { next(err); }
   }
@@ -92,8 +189,16 @@ function buildController({
         ? payload.industryId || req.user?.industryId
         : req.user?.industryId;
       payload.createdBy = req.user?.id;
+      if (req.user?.organizationId) {
+        payload.organizationId = String(req.user.organizationId);
+      }
+      if (req.user?.uid) {
+        payload.uid = String(req.user.uid);
+      }
       const doc = await Model.create(payload);
-      res.status(201).json(doc.toObject());
+      const docObj = doc.toObject();
+      await enrichTasks(Model, [docObj]);
+      res.status(201).json(docObj);
     } catch (err) { next(err); }
   }
 
@@ -112,6 +217,7 @@ function buildController({
       const updated = await Model.findByIdAndUpdate(req.params.id, { $set: patch }, { new: true })
         .lean()
         .exec();
+      await enrichTasks(Model, [updated]);
       res.json(updated);
     } catch (err) { next(err); }
   }

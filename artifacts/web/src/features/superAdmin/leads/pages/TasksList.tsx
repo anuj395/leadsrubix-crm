@@ -11,6 +11,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
+import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
@@ -41,6 +42,7 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
 }
 
 export default function TasksListPage() {
+  const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
   const [items, setItems] = useState<Task[]>([])
   const [columns, setColumns] = useState<ResolvedTableHeader[]>([])
@@ -63,7 +65,16 @@ export default function TasksListPage() {
           role_key: user?.role === 'superAdmin' ? 'admin' : undefined,
         }),
       ])
-      setItems(listRes.data?.items ?? [])
+      const rawItems = listRes.data?.items ?? []
+      const processed = rawItems.map((task: any) => {
+        const dueDateVal = task.dueDate || task.due_date || task.nextFollowUp
+        const statusVal = String(task.status || 'PENDING').toUpperCase()
+        if (statusVal === 'PENDING' && dueDateVal && new Date(dueDateVal) < new Date()) {
+          return { ...task, status: 'OVERDUE' }
+        }
+        return task
+      })
+      setItems(processed)
       setColumns(resolved.table_headers)
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } }
@@ -79,6 +90,19 @@ export default function TasksListPage() {
   }, [])
 
   const gridColumns = useMemo<GridColDef<Task>[]>(() => {
+    const sNoCol: GridColDef<Task> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = items.findIndex((item) => item._id === row._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
     const sorted = [...columns].sort((a, b) => a.order - b.order)
     const dataCols = sorted.map((c): GridColDef<Task> => ({
       field: c.key,
@@ -149,7 +173,19 @@ export default function TasksListPage() {
       ),
     }
 
-    return [...dataCols, actionsCol]
+    return [sNoCol, ...dataCols, actionsCol]
+  }, [columns, items])
+
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    if (columns.length > 0) {
+      const model: Record<string, boolean> = {}
+      columns.forEach((col) => {
+        model[col.key] = col.visible !== false
+      })
+      setColumnVisibilityModel(model)
+    }
   }, [columns])
 
   return (
@@ -168,8 +204,18 @@ export default function TasksListPage() {
           height="100%"
           rows={items}
           columns={gridColumns}
+          columnVisibilityModel={columnVisibilityModel}
+          onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
           loading={loading}
           getRowId={(r) => r._id}
+          onRowClick={(params) => {
+            const stage = String(params.row.stage || '').toUpperCase()
+            if (stage === 'INTERESTED' || stage === 'CALLBACK' || stage === 'CALL BACK') {
+              if (params.row.contactId) {
+                navigate(`/leads/contacts/${params.row.contactId}`)
+              }
+            }
+          }}
         />
       </AppCard>
 

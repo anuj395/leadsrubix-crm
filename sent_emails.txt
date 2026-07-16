@@ -1,0 +1,45 @@
+
+========================================
+Timestamp: 2026-07-16T06:19:47.315Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: az7sfknR
+========================================
+
+========================================
+Timestamp: 2026-07-16T07:03:05.769Z
+To: raja.digitalrubix@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Dev
+Username / Email: raja.digitalrubix@gmail.com
+Temp Password: GmXmESB8
+========================================
+
+========================================
+Timestamp: 2026-07-16T07:11:06.403Z
+To: lm@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lm@gmail.com
+Temp Password: HUql3Q1A
+========================================
+
+========================================
+Timestamp: 2026-07-16T07:12:14.904Z
+To: tl@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: tl@gmail.com
+Temp Password: ueanFWkL
+========================================
+
+========================================
+Timestamp: 2026-07-16T07:12:45.936Z
+To: sales@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: sales@gmail.com
+Temp Password: MztxYZgs
+========================================

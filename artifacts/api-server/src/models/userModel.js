@@ -98,6 +98,7 @@ function shapePublic(u) {
     team: u.team || '',
     branch: u.branch || '',
     branchPermission: u.branchPermission || [],
+    uid: u.uid || '',
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };

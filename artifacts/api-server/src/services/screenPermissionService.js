@@ -108,7 +108,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
   }
 
   const isSuperAdmin = resolvedRoleKey === 'superAdmin' || authedUser?.role === 'superAdmin';
-  const bypassPermissions = false;
+  const bypassPermissions = isSuperAdmin;
 
   if (!bypassPermissions && !industryCode) {
     const err = new Error('industry_code is required (none found on user)');
@@ -181,8 +181,11 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
     allowed = fields.filter((f) => allowedFieldIds.has(String(f._id)));
   }
 
+  if (!isSuperAdmin) {
+    allowed = allowed.filter((f) => f.field_key !== 'organizationId');
+  }
+
   const table_headers = allowed
-    .filter((f) => f.is_table_visible)
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
       key: f.field_key,
@@ -191,7 +194,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
       sortable: f.sortable,
       order: f.order,
       options: f.options || [],
-      visible: true,
+      visible: f.is_table_visible,
     }));
 
   const form_fields = allowed
