@@ -77,6 +77,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.0
         version: 9.0.3
+      moment:
+        specifier: ^2.30.1
+        version: 2.30.1
       mongodb-memory-server:
         specifier: ^10.1.4
         version: 10.4.3(socks@2.8.8)
@@ -2139,6 +2142,9 @@ packages:
 
   modern-screenshot@4.7.0:
     resolution: {integrity: sha512-9YxN+ddPSMMlhylOv25VHzXrl9u67QRxoh7+SEewGtgUw7t6hHTrjptSDJUSne9oG4Xk/h2cwG15nIt4Hc9ujg==}
+
+  moment@2.30.1:
+    resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
 
   mongodb-connection-string-url@2.6.0:
     resolution: {integrity: sha512-WvTZlI9ab0QYtTYnuMLgobULWhokRjtC7db9LtcVfJ+Hsnyr5eo6ZtNAt3Ly24XZScGMelOcGtm7lSn0332tPQ==}
@@ -4713,6 +4719,8 @@ snapshots:
       brace-expansion: 2.0.2
 
   modern-screenshot@4.7.0: {}
+
+  moment@2.30.1: {}
 
   mongodb-connection-string-url@2.6.0:
     dependencies:

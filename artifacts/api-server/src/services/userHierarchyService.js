@@ -23,36 +23,43 @@ async function getVisibleUserIds(authedUser) {
   if (role === 'superAdmin' || role === 'admin') return null;
 
   const selfId = String(authedUser.id);
+  const selfUid = authedUser.uid;
 
   if (role === 'sales') return [selfId];
 
-  // For team leads and lead managers we walk down the reporting_to tree
-  // breadth-first, scoped to the same industry (defensive — managers should
-  // never see across tenants even if their reports were mis-assigned).
-  // The `visited` Set prevents reprocessing on a cycle, and MAX_DEPTH is a
-  // belt-and-suspenders cap so a pathological reporting graph cannot run the
-  // request to OOM even if visited tracking were bypassed.
+  // Walk the tree hierarchy using both Mongoose _id and Firebase uid values
   const MAX_DEPTH = 10;
   const visited = new Set([selfId]);
-  let frontier = [selfId];
+  let frontierIds = [selfId];
+  let frontierUids = selfUid ? [selfUid] : [];
   let depth = 0;
 
-  while (frontier.length > 0 && depth < MAX_DEPTH) {
+  while ((frontierIds.length > 0 || frontierUids.length > 0) && depth < MAX_DEPTH) {
     depth += 1;
     const filter = {
-      reporting_to: { $in: frontier },
+      $or: [
+        { reportingTo: { $in: frontierUids } },
+        { reportingTo: { $in: frontierIds } },
+        { reporting_to: { $in: frontierUids } },
+        { reporting_to: { $in: frontierIds } }
+      ],
       ...(authedUser.industryId ? { industryId: authedUser.industryId } : {}),
     };
-    const reports = await User.find(filter).select('_id').lean().exec();
-    const nextFrontier = [];
+    const reports = await User.find(filter).select('_id uid').lean().exec();
+    const nextFrontierIds = [];
+    const nextFrontierUids = [];
     for (const r of reports) {
       const id = String(r._id);
       if (!visited.has(id)) {
         visited.add(id);
-        nextFrontier.push(id);
+        nextFrontierIds.push(id);
+        if (r.uid) {
+          nextFrontierUids.push(r.uid);
+        }
       }
     }
-    frontier = nextFrontier;
+    frontierIds = nextFrontierIds;
+    frontierUids = nextFrontierUids;
   }
 
   return Array.from(visited);

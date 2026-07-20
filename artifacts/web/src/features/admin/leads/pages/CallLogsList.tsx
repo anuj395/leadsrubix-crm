@@ -1,131 +1,96 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Box from '@mui/material/Box'
-import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import CallMadeIcon from '@mui/icons-material/CallMade'
 import CallReceivedIcon from '@mui/icons-material/CallReceived'
-import CallMissedIcon from '@mui/icons-material/CallMissed'
 import SupportAgentIcon from '@mui/icons-material/SupportAgent'
 import type { GridColDef } from '@mui/x-data-grid'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useAppSelector } from '@/store/hooks'
+import { selectAuth } from '@/features/auth'
+import api from '@/services/axiosInstance'
 
 interface CallLog {
-  id: string
-  customer_name: string
-  phone: string
-  agent: string
-  direction: 'Inbound' | 'Outbound'
-  duration: string
-  status: 'Answered' | 'Missed' | 'No Answer' | 'Busy'
-  timestamp: string
-  notes: string
+  _id: string
+  id?: string
+  customerName?: string
+  customer_name?: string
+  contactNumber?: string
+  contact_no?: string
+  createdBy?: string
+  created_by?: string
+  type?: string
+  direction?: 'Inbound' | 'Outbound'
+  duration: number | string
+  stage?: string
+  status?: 'Answered' | 'Missed' | 'No Answer' | 'Busy'
+  created_at?: string
+  createdAt?: string
+  details?: string
+  notes?: string
 }
 
-const MOCK_CALL_LOGS: CallLog[] = [
-  {
-    id: '1',
-    customer_name: 'John Doe',
-    phone: '+1-555-0199',
-    agent: 'Sarah Connor',
-    direction: 'Inbound',
-    duration: '2m 45s',
-    status: 'Answered',
-    timestamp: '2026-06-13 15:30',
-    notes: 'Inquired about Bayview Estates pricing. Sent brochure.',
-  },
-  {
-    id: '2',
-    customer_name: 'Jane Smith',
-    phone: '+1-555-0188',
-    agent: 'Michael Scott',
-    direction: 'Outbound',
-    duration: '5m 12s',
-    status: 'Answered',
-    timestamp: '2026-06-13 14:15',
-    notes: 'Follow-up regarding office layouts. Requested pricing sheet.',
-  },
-  {
-    id: '3',
-    customer_name: 'William Vance',
-    phone: '+1-555-0177',
-    agent: 'Dwight Schrute',
-    direction: 'Inbound',
-    duration: '0s',
-    status: 'Missed',
-    timestamp: '2026-06-13 12:45',
-    notes: 'Missed call. Callback ticket created.',
-  },
-  {
-    id: '4',
-    customer_name: 'Bruce Wayne',
-    phone: '+1-555-0166',
-    agent: 'Sarah Connor',
-    direction: 'Outbound',
-    duration: '1m 20s',
-    status: 'Busy',
-    timestamp: '2026-06-13 11:20',
-    notes: 'Line busy. Will retry later.',
-  },
-  {
-    id: '5',
-    customer_name: 'Clark Kent',
-    phone: '+1-555-0155',
-    agent: 'Jim Halpert',
-    direction: 'Inbound',
-    duration: '3m 10s',
-    status: 'Answered',
-    timestamp: '2026-06-13 10:05',
-    notes: 'Scheduled site visit for next Tuesday at 10 AM.',
-  },
-  {
-    id: '6',
-    customer_name: 'Diana Prince',
-    phone: '+1-555-0144',
-    agent: 'Pam Beesly',
-    direction: 'Outbound',
-    duration: '0s',
-    status: 'No Answer',
-    timestamp: '2026-06-13 09:15',
-    notes: 'No answer. Left voicemail.',
-  },
-]
-
 export default function CallLogsListPage() {
+  const { user } = useAppSelector(selectAuth)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [logs, setLogs] = useState<CallLog[]>([])
+  const [loading, setLoading] = useState(false)
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
 
-  const filteredLogs = useMemo(() => {
-    return MOCK_CALL_LOGS.filter((log) => {
-      const matchSearch =
-        log.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-        log.phone.includes(search) ||
-        log.agent.toLowerCase().includes(search.toLowerCase())
-      const matchStatus = statusFilter === 'All' || log.status === statusFilter
-      return matchSearch && matchStatus
-    })
-  }, [search, statusFilter])
+  const fetchLogs = async () => {
+    const userAny = user as any
+    if (!userAny?.id) return
+    setLoading(true)
+    try {
+      const filter: Record<string, unknown> = {}
+      if (statusFilter !== 'All') {
+        filter.stage = [statusFilter.toUpperCase()]
+      }
+
+      const res = await api.post('/call-logs/search', {
+        uid: userAny.uid || userAny.id,
+        filter,
+        sort: { created_at: -1 },
+        searchString: search,
+        page: paginationModel.page + 1,
+        pageSize: paginationModel.pageSize,
+      })
+
+      setLogs(res.data || [])
+    } catch (err) {
+      console.error('Failed to fetch call logs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchLogs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, search, statusFilter, paginationModel.page, paginationModel.pageSize])
 
   const stats = useMemo(() => {
-    const total = MOCK_CALL_LOGS.length
-    const answered = MOCK_CALL_LOGS.filter((l) => l.status === 'Answered').length
-    const missed = MOCK_CALL_LOGS.filter((l) => l.status === 'Missed').length
-    const inbound = MOCK_CALL_LOGS.filter((l) => l.direction === 'Inbound').length
-    const outbound = MOCK_CALL_LOGS.filter((l) => l.direction === 'Outbound').length
+    const total = logs.length
+    const answered = logs.filter((l) => (l.stage || l.status || '').toLowerCase() === 'answered').length
+    const missed = logs.filter((l) => (l.stage || l.status || '').toLowerCase() === 'missed').length
+    const inbound = logs.filter((l) => (l.type || l.direction || '').toLowerCase() === 'inbound').length
+    const outbound = logs.filter((l) => (l.type || l.direction || '').toLowerCase() === 'outbound').length
     return { total, answered, missed, inbound, outbound }
-  }, [])
+  }, [logs])
 
   const columns = useMemo<GridColDef<CallLog>[]>(() => [
     {
-      field: 'direction',
+      field: 'type',
       headerName: 'Dir',
       width: 80,
       renderCell: (params) => {
-        const isI = params.value === 'Inbound'
+        const isI = String(params.value || '').toLowerCase() === 'inbound'
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
             {isI ? (
@@ -138,22 +103,30 @@ export default function CallLogsListPage() {
       },
     },
     {
-      field: 'customer_name',
+      field: 'customerName',
       headerName: 'Customer Name',
       flex: 1.2,
       minWidth: 160,
+      valueGetter: (_v, row) => row.customerName || row.customer_name || '',
       renderCell: (params) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {params.value}
         </Typography>
       ),
     },
-    { field: 'phone', headerName: 'Phone Number', flex: 1, minWidth: 130 },
     {
-      field: 'agent',
+      field: 'contactNumber',
+      headerName: 'Phone Number',
+      flex: 1,
+      minWidth: 130,
+      valueGetter: (_v, row) => row.contactNumber || row.contact_no || ''
+    },
+    {
+      field: 'createdBy',
       headerName: 'Agent',
       flex: 1,
       minWidth: 140,
+      valueGetter: (_v, row) => row.createdBy || row.created_by || '',
       renderCell: (params) => (
         <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
           <SupportAgentIcon sx={{ fontSize: '1.05rem', color: 'text.secondary' }} />
@@ -162,18 +135,40 @@ export default function CallLogsListPage() {
       ),
     },
     {
-      field: 'status',
+      field: 'stage',
       headerName: 'Status',
       width: 120,
+      valueGetter: (_v, row) => row.stage || row.status || '',
       renderCell: (params) => <StatusBadge value={params.value} />,
     },
-    { field: 'duration', headerName: 'Duration', width: 100 },
-    { field: 'timestamp', headerName: 'Date & Time', flex: 1.2, minWidth: 140 },
     {
-      field: 'notes',
+      field: 'duration',
+      headerName: 'Duration',
+      width: 100,
+      valueGetter: (_v, row) => {
+        const d = Number(row.duration) || 0;
+        if (d === 0) return '0s';
+        const mins = Math.floor(d / 60);
+        const secs = d % 60;
+        return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      }
+    },
+    {
+      field: 'created_at',
+      headerName: 'Date & Time',
+      flex: 1.2,
+      minWidth: 140,
+      valueGetter: (_v, row) => {
+        const dateStr = row.created_at || row.createdAt;
+        return dateStr ? new Date(dateStr).toLocaleString() : '';
+      }
+    },
+    {
+      field: 'details',
       headerName: 'Call Summary/Notes',
       flex: 2,
       minWidth: 240,
+      valueGetter: (_v, row) => row.details || row.notes || '',
       renderCell: (params) => (
         <Typography variant="body2" sx={{ color: 'text.secondary', textOverflow: 'ellipsis', overflow: 'hidden' }}>
           {params.value}
@@ -256,10 +251,12 @@ export default function CallLogsListPage() {
 
         <AppDataGrid
           height="400px"
-          rows={filteredLogs}
+          rows={logs}
           columns={columns}
-          loading={false}
-          getRowId={(r) => r.id}
+          loading={loading}
+          getRowId={(r) => r._id || r.id || JSON.stringify(r)}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
         />
       </AppCard>
     </Box>

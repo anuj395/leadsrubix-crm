@@ -57,6 +57,9 @@ import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
 import InterestedDetailsPage from '@/features/admin/leads/components/InterestedDetails'
+import ContactDrilldownPage from '@/features/admin/pages/drilldown/ContactDrilldown'
+import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
+import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
@@ -75,6 +78,10 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/call-logs": CallLogsListPage,
   "/leads/bookings": BookingsListPage,
   "/leads/sorted": SortedListPage,
+
+  "/drilldownData": ContactDrilldownPage,
+  "/taskDrilldownData": TaskDrilldownPage,
+  "/callDrilldownData": CallLogDrilldownPage,
 
   "/configuration/screens": ScreensPage,
   "/configuration/screen-fields": ScreenFieldsPage,

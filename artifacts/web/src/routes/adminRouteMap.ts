@@ -3,6 +3,10 @@ import UserListPage from '@/features/admin/pages/UserList'
 import UserFormPage from '@/features/superAdmin/users/pages/UserForm'
 import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
 
+import ContactDrilldownPage from '@/features/admin/pages/drilldown/ContactDrilldown'
+import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
+import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
+
 import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
 import TasksListPage from '@/features/admin/leads/pages/TasksList'
 import CallLogsListPage from '@/features/admin/leads/pages/CallLogsList'
@@ -116,4 +120,8 @@ export const routeComponentMap: Record<string, any> = {
   "/leadDistribution/logic": LeadDistributionLogicPage,
   "/reassign/list": ReassignListPage,
   "/reassign/logic": ReassignLogicPage,
+
+  "/drilldownData": ContactDrilldownPage,
+  "/taskDrilldownData": TaskDrilldownPage,
+  "/callDrilldownData": CallLogDrilldownPage,
 }

@@ -23,6 +23,9 @@ const headersRoutes = require('./headersRoutes');
 const formFieldsRoutes = require('./formFieldsRoutes');
 const optionsRoutes = require('./optionsRoutes');
 const analyticsRoutes = require('./analyticsRoutes');
+const analyticsLeadsRoutes = require('./analyticsLeads');
+const analyticsTasksRoutes = require('./analyticsTasks');
+const analyticsCallsRoutes = require('./analyticsCalls');
 const pricingPlanRoutes = require('./pricingPlanRoutes');
 const designationRoutes = require('./designationRoutes');
 const roleKeyRoutes = require('./roleKeyRoutes');
@@ -36,6 +39,7 @@ const leadDistributionRoutes = require('./leadDistributionRoutes');
 const holidayRoutes = require('./holidayRoutes');
 const webhookRoutes = require('./webhookRoutes');
 const workingDayRoutes = require('./workingDayRoutes');
+const drilldownRoutes = require('./drilldownRoutes');
 const screenController = require('../controllers/screenController');
 const { authenticate } = require('../middlewares/auth');
 
@@ -69,6 +73,9 @@ router.use('/headers', headersRoutes);
 router.use('/formFields', formFieldsRoutes);
 router.use('/options', optionsRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/analyticsLeads', analyticsLeadsRoutes);
+router.use('/analyticsTasks', analyticsTasksRoutes);
+router.use('/analyticsCalls', analyticsCallsRoutes);
 router.use('/whatsapp-config', whatsappRoutes);
 router.use('/resources', resourceItemRoutes);
 router.use('/api-tokens', apiTokenRoutes);
@@ -76,6 +83,7 @@ router.use('/lead-distribution', leadDistributionRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
 router.use('/webhook', webhookRoutes);
+router.use('/', drilldownRoutes);
 
 
 // Compat alias: GET /api/form-config?screen=contacts → flat form_fields[]

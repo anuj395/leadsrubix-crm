@@ -8,7 +8,8 @@ import {
   GridToolbarDensitySelector,
   GridToolbarExport,
   GridToolbarQuickFilter,
-  type DataGridProps
+  type DataGridProps,
+  type GridColDef
 } from '@mui/x-data-grid'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
@@ -119,13 +120,43 @@ export function AppDataGrid({
   const responsiveColumns = useMemo(() => {
     if (!columns) return []
 
-    return columns.map((col) => {
+    const hasSNo = columns.some((col) => col.field === 'sNo')
+    const snColumn: GridColDef = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 60,
+      minWidth: 60,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => {
+        const id = getRowId
+          ? getRowId(params.row)
+          : ((params.row as any)._id ?? (params.row as any).id ?? JSON.stringify(params.row))
+        const idx = rest.rows?.findIndex((r: any) => {
+          const rId = getRowId
+            ? getRowId(r)
+            : ((r as any)._id ?? (r as any).id ?? JSON.stringify(r))
+          return rId === id
+        })
+        return idx !== undefined && idx !== -1 ? idx + 1 : ''
+      }
+    }
+
+    const baseColumns = hasSNo ? columns : [snColumn, ...columns]
+
+    return baseColumns.map((col) => {
       const updated = { ...col }
       const fieldLower = String(updated.field).toLowerCase()
 
       // Define safe responsive minimum widths based on field keys/types
       let defaultMinWidth = 120
-      if (fieldLower.includes('email')) {
+      if (fieldLower === 'sno') {
+        defaultMinWidth = 60
+        updated.width = 60
+        updated.minWidth = 60
+        delete updated.flex
+      } else if (fieldLower.includes('email')) {
         defaultMinWidth = 180
       } else if (fieldLower.includes('role')) {
         defaultMinWidth = 160
@@ -210,6 +241,7 @@ export function AppDataGrid({
       <DataGrid
         columns={responsiveColumns}
         pagination
+        disableVirtualization={true}
         // The per-column three-dots menu is the DataGrid default; nothing to
         // wire here. Adding the toolbar gives Columns / Filter / Density /
         // Export and a quick search box.
@@ -249,6 +281,23 @@ export function AppDataGrid({
           backdropFilter: 'blur(10px)',
           borderRadius: '12px',
           overflow: 'hidden',
+          '& .MuiDataGrid-columnHeader[data-field="sNo"]': {
+            position: 'sticky !important',
+            left: '0 !important',
+            zIndex: '4 !important',
+            bgcolor: `${theme.palette.mode === 'dark' ? '#12162b' : '#f5f6fa'} !important`,
+            boxShadow: '2px 0 5px -2px rgba(0,0,0,0.2)',
+          },
+          '& .MuiDataGrid-cell[data-field="sNo"]': {
+            position: 'sticky !important',
+            left: '0 !important',
+            zIndex: '3 !important',
+            bgcolor: `${theme.palette.mode === 'dark' ? '#12162b' : '#ffffff'} !important`,
+            boxShadow: '2px 0 5px -2px rgba(0,0,0,0.2)',
+          },
+          '& .MuiDataGrid-row:hover .MuiDataGrid-cell[data-field="sNo"]': {
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(79, 106, 245, 0.2)' : 'rgba(79, 106, 245, 0.08) !important',
+          },
           '& .MuiDataGrid-columnHeaders': {
             position: 'sticky',
             top: 0,

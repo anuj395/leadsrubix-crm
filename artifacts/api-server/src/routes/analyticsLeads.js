@@ -1,14 +1,8 @@
 const express = require('express');
-const ctrl = require('../controllers/analyticsController');
+const router = express.Router();
 const { dashboard } = require('../controllers/analyticsLeadController');
 const { authenticate } = require('../middlewares/auth');
 
-const router = express.Router();
-
-// Existing analytics route
-router.get('/dashboard', authenticate, ctrl.getAnalyticsDashboardData);
-
-// New legacy dashboard analytics route
 router.post('/dashboard/:type', authenticate, dashboard);
 
 module.exports = router;

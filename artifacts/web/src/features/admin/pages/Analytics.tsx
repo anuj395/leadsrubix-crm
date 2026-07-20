@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Typography from '@mui/material/Typography'
@@ -118,9 +119,76 @@ interface DashboardPayload {
 
 export default function AnalyticsPage() {
   const theme = useTheme()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
   const isDark = theme.palette.mode === 'dark'
+
+  const handleCardClick = (label: string) => {
+    if (isSuperAdmin) return
+    const userAny = user as any
+    const orgId = isSuperAdmin && selectedOrg !== 'all' ? selectedOrg : userAny?.organizationId || ''
+    const targetUid = userAny?.uid || userAny?.id || ''
+    const isSource = groupBy === 'source'
+    const roleFlag = userAny?.role !== 'sales' && userAny?.role !== 'associate'
+
+    const leadFilter: Record<string, any> = {}
+    const taskFilter: Record<string, any> = {}
+
+    if (startDate) {
+      leadFilter.createdAt = { start_date: startDate }
+      taskFilter.createdAt = { start_date: startDate }
+    }
+    if (endDate) {
+      if (!leadFilter.createdAt) leadFilter.createdAt = {}
+      if (!taskFilter.createdAt) taskFilter.createdAt = {}
+      leadFilter.createdAt.end_date = endDate
+      taskFilter.createdAt.end_date = endDate
+    }
+
+    if (label === 'Completed Visits') {
+      taskFilter.status = ['COMPLETED', 'Completed']
+      taskFilter.taskType = ['Site Visit']
+      const taskDrilldownData = {
+        uid: targetUid,
+        organizationId: orgId,
+        taskFilter,
+        leadFilter: {},
+        source: isSource,
+        role: roleFlag
+      }
+      navigate('/taskDrilldownData', { state: { taskDrilldownData, ts: Date.now() } })
+    } else if (label === 'Scheduled Visits') {
+      taskFilter.status = ['PENDING', 'Pending']
+      taskFilter.taskType = ['Site Visit']
+      const taskDrilldownData = {
+        uid: targetUid,
+        organizationId: orgId,
+        taskFilter,
+        leadFilter: {},
+        source: isSource,
+        role: roleFlag
+      }
+      navigate('/taskDrilldownData', { state: { taskDrilldownData, ts: Date.now() } })
+    } else {
+      if (label === 'Fresh') leadFilter.stage = ['FRESH']
+      else if (label === 'Call Back') leadFilter.stage = ['CALLBACK', 'CALL BACK']
+      else if (label === 'Interested') leadFilter.stage = ['INTERESTED']
+      else if (label === 'Closed Won') leadFilter.stage = ['WON', 'CLOSED WON']
+      else if (label === 'Not Interested') leadFilter.stage = ['NOT INTERESTED']
+      else if (label === 'Closed Lost') leadFilter.stage = ['LOST', 'CLOSED LOST']
+
+      const drilldownData = {
+        uid: targetUid,
+        organizationId: orgId,
+        leadFilter,
+        taskFilter: {},
+        source: isSource,
+        role: roleFlag
+      }
+      navigate('/drilldownData', { state: { drilldownData, ts: Date.now() } })
+    }
+  }
 
   // General State
   const [loading, setLoading] = useState(true)
@@ -129,7 +197,7 @@ export default function AnalyticsPage() {
 
   // Filters State
   const [groupBy, setGroupBy] = useState<'team' | 'source' | 'teamWise'>('team')
-  const [selectedOrg, setSelectedOrg] = useState('all')
+  const [selectedOrg, setSelectedOrg] = useState('')
   const [showDatePanel, setShowDatePanel] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -145,7 +213,7 @@ export default function AnalyticsPage() {
     try {
       setLoading(true)
       let url = `/analytics/dashboard?group_by=${groupBy}`
-      if (isSuperAdmin && selectedOrg !== 'all') {
+      if (isSuperAdmin && selectedOrg) {
         url += `&industryId=${selectedOrg}`
       }
       if (startDate) url += `&start_date=${startDate}`
@@ -160,6 +228,17 @@ export default function AnalyticsPage() {
     }
   }
 
+  // Automatically select the first organization for Super Admin
+  useEffect(() => {
+    if (isSuperAdmin && data?.organizationsList && data.organizationsList.length > 0) {
+      const firstOrg = data.organizationsList[0].code
+      const isValid = data.organizationsList.some(org => org.code === selectedOrg)
+      if (!isValid || !selectedOrg) {
+        setSelectedOrg(firstOrg)
+      }
+    }
+  }, [data?.organizationsList, isSuperAdmin, selectedOrg])
+
   useEffect(() => {
     void fetchDashboardData()
   }, [groupBy, selectedOrg, startDate, endDate])
@@ -168,7 +247,7 @@ export default function AnalyticsPage() {
     setStartDate('')
     setEndDate('')
     setGroupBy('team')
-    setSelectedOrg('all')
+    setSelectedOrg(isSuperAdmin && data?.organizationsList && data.organizationsList.length > 0 ? data.organizationsList[0].code : '')
     setShowDatePanel(false)
   }
 
@@ -415,7 +494,6 @@ export default function AnalyticsPage() {
                 onChange={(e) => setSelectedOrg(e.target.value)}
                 sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
               >
-                <MenuItem value="all">All Organizations</MenuItem>
                 {data.organizationsList.map((org) => (
                   <MenuItem key={org.code} value={org.code}>
                     {org.name}
@@ -568,30 +646,34 @@ export default function AnalyticsPage() {
                 gap: 1.25,
               }}
             >
-              {cardConfigs.map((c) => (
-                <Card
-                  key={c.label}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                    background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                    borderLeft: `3px solid ${c.color}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: 80,
-                    transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: isDark
-                        ? `0 4px 20px ${alpha(c.color, 0.2)}`
-                        : `0 4px 16px ${alpha(c.color, 0.1)}`,
-                      borderColor: alpha(c.color, 0.5),
-                    }
-                  }}
-                >
+              {cardConfigs.map((c) => {
+                const isTotalLeads = c.label === 'Total Leads'
+                return (
+                  <Card
+                    key={c.label}
+                    onClick={isTotalLeads ? undefined : () => handleCardClick(c.label)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: '10px',
+                      border: '1px solid',
+                      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                      background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                      borderLeft: `3px solid ${c.color}`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: 80,
+                      cursor: isTotalLeads ? 'default' : 'pointer',
+                      transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': isTotalLeads ? {} : {
+                        transform: 'translateY(-2px)',
+                        boxShadow: isDark
+                          ? `0 4px 20px ${alpha(c.color, 0.2)}`
+                          : `0 4px 16px ${alpha(c.color, 0.1)}`,
+                        borderColor: alpha(c.color, 0.5),
+                      }
+                    }}
+                  >
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {c.label}
@@ -604,7 +686,8 @@ export default function AnalyticsPage() {
                     {c.val}
                   </Typography>
                 </Card>
-              ))}
+              );
+            })}
             </Box>
           </Box>
 
