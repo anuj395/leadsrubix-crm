@@ -53,8 +53,9 @@ function fillExtraFields(aligned, user) {
   const now = new Date();
   
   if (user) {
-    aligned.uid = aligned.uid || user.uid || '';
-    aligned.createdBy = aligned.createdBy || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    aligned.uid = aligned.uid || user.uid || String(user._id);
+    aligned.createdBy = aligned.createdBy || String(user._id);
+    aligned.contactOwnerEmail = aligned.contactOwnerEmail || user.email || '';
     aligned.organizationId = aligned.organizationId || user.organizationId;
   }
   
@@ -71,7 +72,8 @@ function fillExtraFields(aligned, user) {
   aligned.budget = aligned.budget || '';
   aligned.propertySubType = aligned.propertySubType || '';
   aligned.source = aligned.source || '';
-  aligned.contactOwnerEmail = aligned.contactOwnerEmail || '';
+  aligned.leadType = aligned.leadType || 'Leads';
+  aligned.contactOwnerEmail = aligned.contactOwnerEmail || (user ? user.email : '');
   aligned.adset = aligned.adset || '';
   aligned.campaign = aligned.campaign || '';
   aligned.notes = aligned.notes || '';
@@ -146,13 +148,18 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
     industryId: user.industryId,
   });
   if (visibleIds !== null) {
-    const users = await userModel.User.find({ _id: { $in: visibleIds } }).select('uid email').lean().exec();
+    const users = await userModel.User.find({ _id: { $in: visibleIds } }).select('uid email firstName lastName').lean().exec();
     const visibleUids = users.map(u => u.uid).filter(Boolean);
     const visibleEmails = users.map(u => u.email).filter(Boolean);
+    const visibleNames = users.map(u => `${u.firstName || ''} ${u.lastName || ''}`.trim()).filter(Boolean);
+
     filter.$or = [
-      { createdBy: { $in: visibleIds } },
-      { uid: { $in: visibleUids } },
-      { contactOwnerEmail: { $in: visibleEmails } }
+      { createdBy: { $in: [...visibleIds, ...visibleNames, user.email, String(user._id)] } },
+      { uid: { $in: [...visibleUids, String(user._id), user.uid].filter(Boolean) } },
+      { contactOwnerEmail: { $in: [...visibleEmails, user.email].filter(Boolean) } },
+      { contactOwnerEmail: '' },
+      { contactOwnerEmail: null },
+      { contactOwnerEmail: { $exists: false } }
     ];
   }
   const items = await contactModel.list({ filter, limit });
@@ -257,15 +264,39 @@ exports.createForUser = async ({ payload, authedUser }) => {
   if (!isSuperAdmin) {
     data.organizationId = user.organizationId;
   }
-  if (data.customerName === undefined) {
-    if (data.customer_name !== undefined) {
-      data.customerName = data.customer_name;
-    } else if (data.name !== undefined) {
-      data.customerName = data.name;
-    }
-  }
 
-  const cleaned = {};
+  // Standard camelCase property defaults
+  data.customerName = data.customerName || '';
+  data.contactNumber = data.contactNumber || '';
+  data.alternateNo = data.alternateNo || '';
+  data.emailId = data.emailId || data.email || '';
+  data.email = data.email || data.emailId || '';
+  data.contactOwnerEmail = data.contactOwnerEmail || user.email || '';
+  data.leadType = data.leadType || 'Leads';
+  data.propertyType = data.propertyType || '';
+  data.propertyStage = data.propertyStage || '';
+  data.propertySubType = data.propertySubType || '';
+  data.projectName = data.projectName || '';
+  data.countryCode = data.countryCode || '+91';
+
+  const cleaned = {
+    customerName: data.customerName,
+    contactNumber: data.contactNumber,
+    contactOwnerEmail: data.contactOwnerEmail || user.email,
+    countryCode: data.countryCode || '+91',
+    alternateNo: data.alternateNo || '',
+    leadType: data.leadType || 'Leads',
+    source: data.source || data['Source'] || 'Import',
+    stage: data.stage || 'FRESH',
+    location: data.location || data['Location'] || '',
+    projectName: data.projectName || '',
+    propertyType: data.propertyType || '',
+    propertyStage: data.propertyStage || '',
+    propertySubType: data.propertySubType || '',
+    budget: data.budget || data['Budget'] || '',
+    notes: data.notes || data['Notes'] || '',
+  };
+
   for (const f of allowedFormFields) {
     const k = f.field_key;
     if (data[k] !== undefined) {
@@ -286,32 +317,61 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   const targetOrgId = isSuperAdmin ? (cleaned.organizationId || payload.organizationId || payload.fields?.organizationId || data.organizationId) : user.organizationId;
 
-  // Check duplicates on contact number & alternate number
-  if (cleaned.contactNumber) {
-    const parsedMain = parsePhoneNumber(cleaned.contactNumber, cleaned.countryCode || '+91');
-    const parsedAlt = cleaned.alternateNo ? parsePhoneNumber(cleaned.alternateNo, cleaned.countryCode || '+91') : null;
-    
-    const orConditions = [];
-    if (parsedMain.contactNumber) {
-      orConditions.push({ contactNumber: parsedMain.contactNumber });
-      orConditions.push({ alternateNo: parsedMain.contactNumber });
-    }
-    if (parsedAlt && parsedAlt.contactNumber) {
-      orConditions.push({ contactNumber: parsedAlt.contactNumber });
-      orConditions.push({ alternateNo: parsedAlt.contactNumber });
-    }
-    
-    if (orConditions.length > 0) {
-      const Contact = mongoose.model('Contact');
-      const duplicate = await Contact.findOne({
-        organizationId: targetOrgId,
-        $or: orConditions
-      }).lean().exec();
+  const Organization = mongoose.model('Organization');
+  const org = await Organization.findOne({
+    $or: [
+      { organizationId: targetOrgId },
+      ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
+    ]
+  }).lean().exec();
+
+  const allowDuplicates = org ? org.allowDuplicateLeads === true : false;
+
+  if (!allowDuplicates) {
+    // Check duplicates on contact number & alternate number
+    if (cleaned.contactNumber || cleaned.alternateNo) {
+      const parsedMain = parsePhoneNumber(cleaned.contactNumber, cleaned.countryCode || '+91');
+      const parsedAlt = cleaned.alternateNo ? parsePhoneNumber(cleaned.alternateNo, cleaned.countryCode || '+91') : null;
       
-      if (duplicate) {
-        const err = new Error("Contact number or Alternate number already exists on another lead");
-        err.status = 400;
-        throw err;
+      const orConditions = [];
+      if (parsedMain.contactNumber) {
+        orConditions.push({ contactNumber: parsedMain.contactNumber });
+        orConditions.push({ alternateNo: parsedMain.contactNumber });
+      }
+      if (parsedAlt && parsedAlt.contactNumber) {
+        orConditions.push({ contactNumber: parsedAlt.contactNumber });
+        orConditions.push({ alternateNo: parsedAlt.contactNumber });
+      }
+      
+      if (orConditions.length > 0) {
+        const Contact = mongoose.model('Contact');
+        const duplicate = await Contact.findOne({
+          organizationId: targetOrgId,
+          $or: orConditions
+        }).lean().exec();
+        
+        if (duplicate) {
+          const err = new Error("Contact Phone Number Already Exists!!");
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+
+    if (cleaned.email) {
+      const cleanEmail = String(cleaned.email).trim().toLowerCase();
+      if (cleanEmail) {
+        const Contact = mongoose.model('Contact');
+        const duplicateEmail = await Contact.findOne({
+          organizationId: targetOrgId,
+          email: cleanEmail
+        }).lean().exec();
+        
+        if (duplicateEmail) {
+          const err = new Error("Contact Email ID Already Exists!!");
+          err.status = 400;
+          throw err;
+        }
       }
     }
   }
@@ -418,6 +478,72 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     throw err;
   }
 
+  const targetOrgId = isSuperAdmin ? (cleaned.organizationId || existing.organizationId) : user.organizationId;
+
+  const Organization = mongoose.model('Organization');
+  const org = await Organization.findOne({
+    $or: [
+      { organizationId: targetOrgId },
+      ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
+    ]
+  }).lean().exec();
+
+  const allowDuplicates = org ? org.allowDuplicateLeads === true : false;
+
+  if (!allowDuplicates) {
+    if (cleaned.contactNumber !== undefined || cleaned.alternateNo !== undefined) {
+      const mainPhone = cleaned.contactNumber !== undefined ? cleaned.contactNumber : existing.contactNumber;
+      const altPhone = cleaned.alternateNo !== undefined ? cleaned.alternateNo : existing.alternateNo;
+      const countryCode = cleaned.countryCode || existing.countryCode || '+91';
+
+      const parsedMain = parsePhoneNumber(mainPhone, countryCode);
+      const parsedAlt = altPhone ? parsePhoneNumber(altPhone, countryCode) : null;
+      
+      const orConditions = [];
+      if (parsedMain.contactNumber) {
+        orConditions.push({ contactNumber: parsedMain.contactNumber });
+        orConditions.push({ alternateNo: parsedMain.contactNumber });
+      }
+      if (parsedAlt && parsedAlt.contactNumber) {
+        orConditions.push({ contactNumber: parsedAlt.contactNumber });
+        orConditions.push({ alternateNo: parsedAlt.contactNumber });
+      }
+      
+      if (orConditions.length > 0) {
+        const Contact = mongoose.model('Contact');
+        const duplicate = await Contact.findOne({
+          _id: { $ne: id },
+          organizationId: targetOrgId,
+          $or: orConditions
+        }).lean().exec();
+        
+        if (duplicate) {
+          const err = new Error("Contact Phone Number Already Exists!!");
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+
+    if (cleaned.email !== undefined && cleaned.email !== null) {
+      const cleanEmail = String(cleaned.email).trim().toLowerCase();
+      if (cleanEmail) {
+        const Contact = mongoose.model('Contact');
+        const duplicateEmail = await Contact.findOne({
+          _id: { $ne: id },
+          organizationId: targetOrgId,
+          email: cleanEmail
+        }).lean().exec();
+        
+        if (duplicateEmail) {
+          const err = new Error("Contact Email ID Already Exists!!");
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+  }
+
   cleaned.modifiedAt = new Date();
   
   delete cleaned.field_one;
@@ -432,6 +558,161 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     await enrichOrganizationNames([updated]);
   }
   return updated;
+};
+
+exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, authedUser }) => {
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    const err = new Error('No contact IDs specified'); err.status = 400; throw err;
+  }
+
+  if (ids.length > 250) {
+    const err = new Error('Records More than 250 are not allowed'); err.status = 400; throw err;
+  }
+
+  if (!owner || !owner.email || (!owner.uid && !owner.id)) {
+    const err = new Error('Owner Not Found'); err.status = 400; throw err;
+  }
+
+  const targetOwnerUid = owner.uid || owner.id;
+  const Contact = mongoose.model('Contact');
+  const Task = mongoose.model('Task');
+  const now = new Date();
+
+  const leads = await Contact.find({ _id: { $in: ids } }).exec();
+
+  for (const lead of leads) {
+    const updatePayload = {
+      uid: targetOwnerUid,
+      contactOwnerEmail: owner.email,
+      transferReason: reason,
+      transferStatus: true,
+      leadType: leadType || lead.leadType || 'Leads',
+      modifiedAt: now,
+      stageChangeAt: now,
+      leadAssignTime: now,
+      previousOwner1: lead.previousOwner2 || '',
+      previousOwner2: lead.contactOwnerEmail || '',
+      transferBy1: lead.transferBy2 || '',
+      transferBy2: authedUser?.email || '',
+      previousStage1: lead.previousStage2 || '',
+      previousStage2: lead.stage || '',
+    };
+
+    if (options.fresh === true) {
+      updatePayload.stage = 'FRESH';
+      updatePayload.nextFollowUpType = '';
+      updatePayload.nextFollowUpDateTime = null;
+      updatePayload.notIntReason = '';
+      updatePayload.lostReason = '';
+      updatePayload.otherNotIntReason = '';
+      updatePayload.otherLostReason = '';
+
+      if (!options.contactDetails) {
+        updatePayload.projectName = '';
+        updatePayload.propertyStage = '';
+        updatePayload.propertyType = '';
+        updatePayload.budget = '';
+        updatePayload.location = '';
+        updatePayload.propertySubType = '';
+        updatePayload.callBackReason = '';
+      }
+    }
+
+    // Direct update on existing lead
+    await Contact.findByIdAndUpdate(lead._id, { $set: updatePayload });
+
+    // Update existing pending tasks for this lead to new owner if options.task is true
+    if (options.task === true) {
+      await Task.updateMany(
+        { contactId: lead._id, status: 'PENDING' },
+        {
+          $set: {
+            uid: targetOwnerUid,
+            createdBy: owner.email,
+            contactOwnerEmail: owner.email,
+            assignedTo: owner.email,
+            organizationId: owner.organizationId || owner.organization_id || lead.organizationId,
+          }
+        }
+      );
+    }
+  }
+
+  return { transferredCount: leads.length };
+};
+
+exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser }) => {
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    const err = new Error('No contact IDs specified'); err.status = 400; throw err;
+  }
+  const Contact = mongoose.model('Contact');
+  const result = await Contact.updateMany(
+    { _id: { $in: ids } },
+    { $set: { contactOwnerEmail, uid: uid || null, modifiedAt: new Date() } }
+  );
+  return { modifiedCount: result.modifiedCount };
+};
+
+exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv', authedUser }) => {
+  if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+    return { imported: 0, errors: [] };
+  }
+  const ImportLog = require('../models/importLogModel');
+  const user = await userModel.findById(authedUser.id);
+  const requestId = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+  let imported = 0;
+  const errors = [];
+  const processedRows = [];
+
+  for (let i = 0; i < contacts.length; i++) {
+    const row = contacts[i];
+    try {
+      await exports.createForUser({ payload: row, authedUser });
+      imported++;
+      processedRows.push({ ...row, import_status: 'SUCCESS' });
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      errors.push({ index: i, error: errMsg });
+      processedRows.push({ ...row, import_status: 'FAILED', error_message: errMsg });
+    }
+  }
+
+  if (user?.organizationId) {
+    // Generate simulated/stored file URLs for file download parity
+    const fileUrl = `/api/contacts/import-files/${requestId}_raw.csv`;
+    const responseUrl = `/api/contacts/import-files/${requestId}_processed.csv`;
+
+    await ImportLog.create({
+      requestId,
+      organizationId: user.organizationId,
+      createdBy: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      uid: user.uid || String(user._id),
+      status: errors.length === 0 ? 'Completed' : 'Completed with Errors',
+      uploadCount: imported,
+      failedCount: errors.length,
+      fileUrl,
+      responseUrl,
+    });
+  }
+
+  return { imported, errors, requestId };
+};
+
+exports.listImportLogs = async ({ authedUser }) => {
+  if (!authedUser?.id) {
+    const err = new Error('Authentication required'); err.status = 401; throw err;
+  }
+  const user = await userModel.findById(authedUser.id);
+  if (!user) {
+    const err = new Error('Authenticated user not found'); err.status = 401; throw err;
+  }
+  const ImportLog = require('../models/importLogModel');
+  const logs = await ImportLog.find({ organizationId: user.organizationId })
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+  return logs;
 };
 
 exports.deleteForUser = async ({ id, authedUser }) => {

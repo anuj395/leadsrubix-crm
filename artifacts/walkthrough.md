@@ -1,18 +1,17 @@
-# Walkthrough - User Contact Number Validation & Duplicate Checks
+# Walkthrough - Dropdown Default Selection Fix
 
-Added format validation and duplicate checks for user **Contact Number** / **Mobile Number** fields during user creation and edit operations.
+Audited and updated dropdown components across the application to ensure no item is selected by default unless explicitly required.
 
-## Changes Made
+## Key Changes Made
 
-### 1. Backend Duplicate & Format Validation (`userService.js`)
-- In [userService.js](file:///Users/sta/Documents/anti-leads-rubix-updated-crm/Leads-Rubix-CRM/artifacts/api-server/src/services/userService.js):
-  * Added validation in `exports.create` and `exports.update` to verify that contact numbers contain between 7 and 15 digits.
-  * Added duplicate checking against existing user records (`contactNumber`, `contact_no`, `fields.contactNumber`, `fields.phone`).
-  * If a duplicate contact number exists, throws a `400 Bad Request` error returning: `"User Contact Number Already Exists!!"`.
+1. **`DynamicForm.tsx`**:
+   - Removed the `useEffect` hook that automatically set `next[f.key] = opts[0].value`. Dropdowns now render unselected (`""`) until the user makes a selection.
 
-### 2. Client-Side Format Validation (`DynamicForm.tsx`)
-- In [DynamicForm.tsx](file:///Users/sta/Documents/anti-leads-rubix-updated-crm/Leads-Rubix-CRM/artifacts/web/src/components/DynamicForm/DynamicForm.tsx):
-  * Added digit count verification (7-15 digits) inside `validate()`, highlighting contact number fields with an inline validation message if invalid.
+2. **`ChangeOwnerModal.tsx`**:
+   - Updated `transferReason` and `leadType` state initializations to `""` instead of defaulting to array index `[0]`.
+
+3. **`Analytics.tsx`**:
+   - Preserved Super Admin Organization auto-selection on the Analytics screen as requested.
 
 ---
 

@@ -200,9 +200,9 @@ export function DynamicForm({
     void (async () => {
       try {
         const data = await resolveScreen({
-          screen_key: screen,
-          industry_code,
-          role_key,
+          screenKey: screen,
+          industryCode: industry_code,
+          roleKey: role_key,
         })
         if (cancelled) return
         setFields(data.form_fields)
@@ -316,43 +316,7 @@ export function DynamicForm({
     }
   }, [countryValue])
 
-  // Automatically select the first option if empty or invalid
-  useEffect(() => {
-    setValues((prev) => {
-      let changed = false
-      const next = { ...prev }
-      for (const f of fields) {
-        if (f.type === 'select') {
-          const apiUrl = getDropdownUrl(f)
-          let opts: DropdownOption[] = []
-          if (f.dropdown_source === 'api' && apiUrl) {
-            opts = dropdowns[apiUrl] ?? []
-          } else if (f.dropdown_source === 'static') {
-            opts = (f.options || []).map((o) => ({ value: o, label: o }))
-          } else {
-            opts = (f.options || []).map((o) => ({ value: o, label: o }))
-          }
 
-          if (f.key === 'status' && opts.length === 0) {
-            opts = [
-              { value: 'ACTIVE', label: 'Active' },
-              { value: 'INACTIVE', label: 'Inactive' }
-            ]
-          }
-
-          if (opts.length > 0) {
-            const currentValue = next[f.key]
-            const hasValidValue = opts.some(o => o.value === currentValue)
-            if (!hasValidValue || currentValue === undefined || currentValue === '') {
-              next[f.key] = opts[0].value
-              changed = true
-            }
-          }
-        }
-      }
-      return changed ? next : prev
-    })
-  }, [fields, dropdowns])
 
   const validate = useMemo(
     () => () => {

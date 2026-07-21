@@ -48,16 +48,19 @@ exports.remove = async (req, res, next) => {
 
 exports.resolve = async (req, res, next) => {
   try {
-    const { screen_key, industry_code, role_key } = req.body || {};
+    const { screen_key, industry_code, role_key, screenKey, industryCode, roleKey } = req.body || {};
+    const finalScreenKey = screenKey || screen_key;
+    const finalIndustryCode = industryCode || industry_code;
+    const finalRoleKey = roleKey || role_key;
 
     const isSuperAdmin = req.user?.role === 'superAdmin';
     const isAdmin = req.user?.role === 'admin';
-    const isGuestSignup = !req.user && screen_key === 'organization';
+    const isGuestSignup = !req.user && finalScreenKey === 'organization';
 
     const out = await permissionService.resolve({
-      screen_key,
-      industry_code: (isSuperAdmin || isGuestSignup) ? industry_code : req.user?.industryId,
-      role_key: (isSuperAdmin || isAdmin || isGuestSignup) ? (role_key || 'admin') : undefined,
+      screenKey: finalScreenKey,
+      industryCode: (isSuperAdmin || isGuestSignup) ? finalIndustryCode : req.user?.industryId,
+      roleKey: (isSuperAdmin || isAdmin || isGuestSignup) ? (finalRoleKey || 'admin') : undefined,
       authedUser: req.user,
     });
     res.json(out);

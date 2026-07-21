@@ -46,8 +46,8 @@ export function useTableConfig(
         }
 
         const data = await resolveScreen({
-          screen_key: screen,
-          industry_code: industryId,
+          screenKey: screen,
+          industryCode: industryId,
         })
 
         const cols: DbColumnConfig[] = data.table_headers.map((h) => ({

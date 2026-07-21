@@ -12,6 +12,7 @@ const organizationSchema = new mongoose.Schema(
     organizationName: { type: String },
     contactNumber: { type: String, default: '', alias: 'contact_no' },
     industryId: { type: String, default: null }, // industry code, mirrors user.industryId
+    allowDuplicateLeads: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     createdBy: { type: String, default: null },
   },

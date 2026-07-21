@@ -29,3 +29,30 @@ export async function updateContact(id: string, payload: Record<string, unknown>
 export async function deleteContact(id: string): Promise<void> {
   await api.delete(`contacts/${id}`)
 }
+
+
+export async function bulkReassignContacts(ids: string[], contactOwnerEmail: string, uid?: string): Promise<any> {
+  const res = await api.post('contacts/bulkReassign', { ids, contactOwnerEmail, uid })
+  return res.data
+}
+
+export async function bulkImportContacts(contacts: any[]): Promise<{ imported: number; errors: any[]; requestId?: string }> {
+  const res = await api.post('contacts/bulkImport', { contacts })
+  return res.data
+}
+
+export async function fetchImportHistory(): Promise<any[]> {
+  const res = await api.get('contacts/importHistory')
+  return res.data ?? []
+}
+
+export async function transferContacts(payload: {
+  ids: string[]
+  owner: { email: string; uid?: string; id?: string }
+  reason: string
+  leadType: string
+  options?: { fresh?: boolean; notes?: boolean; attachments?: boolean; task?: boolean; contactDetails?: boolean }
+}): Promise<any> {
+  const res = await api.post('contacts/transfer', payload)
+  return res.data
+}

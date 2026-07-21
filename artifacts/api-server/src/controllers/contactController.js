@@ -37,6 +37,62 @@ exports.update = async (req, res, next) => {
   }
 };
 
+exports.transfer = async (req, res, next) => {
+  try {
+    const { ids, owner, reason, leadType, options } = req.body;
+    const result = await service.transferLeads({
+      ids,
+      owner,
+      reason,
+      leadType,
+      options,
+      authedUser: req.user,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.bulkReassign = async (req, res, next) => {
+  try {
+    const { ids, contactOwnerEmail, uid } = req.body;
+    const result = await service.bulkReassignContacts({
+      ids,
+      contactOwnerEmail,
+      uid,
+      authedUser: req.user,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.bulkImport = async (req, res, next) => {
+  try {
+    const { contacts } = req.body;
+    const result = await service.bulkImportContacts({
+      contacts,
+      authedUser: req.user,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.importHistory = async (req, res, next) => {
+  try {
+    const logs = await service.listImportLogs({
+      authedUser: req.user,
+    });
+    res.json(logs);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.remove = async (req, res, next) => {
   try {
     await service.deleteForUser({

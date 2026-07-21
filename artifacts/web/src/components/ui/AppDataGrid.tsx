@@ -17,8 +17,12 @@ import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import RefreshIcon from '@mui/icons-material/Refresh'
 
+import Button from '@mui/material/Button'
+import FileUploadIcon from '@mui/icons-material/FileUpload'
+
 export type AppDataGridProps = DataGridProps & {
   onReload?: () => void
+  onImport?: () => void
   /**
    * Height of the scroll container. Defaults to `80vh` so the column header
    * stays sticky and the body scrolls underneath, matching the MUI docs
@@ -53,6 +57,7 @@ export function AppDataGrid({
   height = '80vh',
   hideToolbar = false,
   onReload,
+  onImport,
   sx,
   slots,
   slotProps,
@@ -82,6 +87,16 @@ export function AppDataGrid({
             <GridToolbarFilterButton />
             <GridToolbarDensitySelector />
             <GridToolbarExport />
+            {onImport && (
+              <Button
+                size="small"
+                startIcon={<FileUploadIcon />}
+                onClick={onImport}
+                sx={{ fontSize: '0.8125rem', textTransform: 'none', fontWeight: 500, p: '4px 5px' }}
+              >
+                Import
+              </Button>
+            )}
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
             <GridToolbarQuickFilter />
@@ -94,7 +109,7 @@ export function AppDataGrid({
         </GridToolbarContainer>
       )
     }
-  }, [onReload])
+  }, [onReload, onImport])
 
   const totalCount = rest.rowCount ?? rest.rows?.length ?? 0
   const computedPageSizeOptions = useMemo(() => {

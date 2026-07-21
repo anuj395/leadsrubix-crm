@@ -84,14 +84,15 @@ exports.bulkSet = async ({ screen_id, roleId, industryId, field_ids }) => {
  *   - A permission row with is_enabled=true must exist for (screen, role, industry, field).
  *   - is_table_visible / is_form_visible on the field decide which buckets it goes into.
  */
-exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) => {
-  if (!screen_key) {
-    const err = new Error('screen_key is required');
+exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, industryCode: inputIndustryCode, roleKey: inputRoleKey, authedUser }) => {
+  const finalScreenKey = screenKey || screen_key;
+  if (!finalScreenKey) {
+    const err = new Error('screenKey is required');
     err.status = 400;
     throw err;
   }
 
-  const screen = await screenModel.findByKey(screen_key);
+  const screen = await screenModel.findByKey(finalScreenKey);
   if (!screen || !screen.isActive) {
     const err = new Error('Screen not found');
     err.status = 404;
@@ -99,8 +100,8 @@ exports.resolve = async ({ screen_key, industry_code, role_key, authedUser }) =>
   }
 
   // Resolve industry — explicit code wins; else fall back to user's industryId.
-  let industryCode = industry_code;
-  let resolvedRoleKey = role_key;
+  let industryCode = inputIndustryCode || industry_code;
+  let resolvedRoleKey = inputRoleKey || role_key;
   if ((!industryCode || !resolvedRoleKey) && authedUser?.id) {
     const u = await userModel.findById(authedUser.id);
     if (!industryCode) industryCode = u?.industryId;

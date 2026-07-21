@@ -6,17 +6,19 @@ import Alert from '@mui/material/Alert'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { SwapHoriz as SwapHorizIcon, Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { listContacts, deleteContact, type Contact } from '@/services/contactsService'
+import { listContacts, deleteContact, bulkImportContacts, type Contact } from '@/services/contactsService'
 import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { selectAuth } from '@/features/auth'
+import { ChangeOwnerModal } from '../components/ChangeOwnerModal'
+import { ImportContactModal } from '../components/ImportContactModal'
 
 export default function ContactsListPage() {
   const { user } = useAppSelector(selectAuth)
@@ -26,6 +28,8 @@ export default function ContactsListPage() {
   const [items, setItems] = useState<Contact[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [openOwnerModal, setOpenOwnerModal] = useState(false)
+  const [openImportModal, setOpenImportModal] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
   })
@@ -91,6 +95,10 @@ export default function ContactsListPage() {
         }
       }
     })
+  }
+
+  const handleImport = () => {
+    setOpenImportModal(true)
   }
 
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
@@ -199,14 +207,23 @@ export default function ContactsListPage() {
         action={
           <Stack direction="row" spacing={1.5}>
             {selectedIds.length > 0 && (
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleBulkDelete}
-              >
-                Delete Selected ({selectedIds.length})
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<SwapHorizIcon />}
+                  onClick={() => setOpenOwnerModal(true)}
+                >
+                  Change Owner ({selectedIds.length})
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleBulkDelete}
+                >
+                  Delete ({selectedIds.length})
+                </Button>
+              </>
             )}
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
               Add Contact
@@ -222,6 +239,7 @@ export default function ContactsListPage() {
           loading={loading || configLoading}
           getRowId={(r) => r._id}
           onReload={refresh}
+          onImport={handleImport}
           onRowClick={(params) => navigate(`/leads/contacts/${params.row._id}`)}
           checkboxSelection
           rowSelectionModel={selectedIds}
@@ -234,6 +252,26 @@ export default function ContactsListPage() {
           }}
         />
       </AppCard>
+
+      <ChangeOwnerModal
+        open={openOwnerModal}
+        onClose={() => setOpenOwnerModal(false)}
+        selectedIds={selectedIds}
+        onSuccess={() => {
+          setToast({ open: true, msg: 'Lead owner updated successfully', sev: 'success' })
+          setSelectedIds([])
+          void refresh()
+        }}
+      />
+
+      <ImportContactModal
+        open={openImportModal}
+        onClose={() => setOpenImportModal(false)}
+        onSuccess={() => {
+          setToast({ open: true, msg: 'Contacts imported successfully', sev: 'success' })
+          void refresh()
+        }}
+      />
 
       <Snackbar
         open={toast.open}

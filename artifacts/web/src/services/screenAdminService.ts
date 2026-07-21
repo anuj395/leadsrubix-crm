@@ -181,10 +181,18 @@ export async function bulkSetScreenPermissions(input: {
 
 // ── Resolve (used by client pages to get their dynamic columns/forms) ────────
 export async function resolveScreen(input: {
-  screen_key: string
+  screenKey?: string
+  industryCode?: string
+  roleKey?: string
+  screen_key?: string
   industry_code?: string
   role_key?: string
 }): Promise<ResolvedScreen> {
-  const res = await api.post('screens/resolve', input)
+  const payload = {
+    screenKey: input.screenKey || input.screen_key,
+    industryCode: input.industryCode || input.industry_code,
+    roleKey: input.roleKey || input.role_key,
+  }
+  const res = await api.post('screens/resolve', payload)
   return res.data as ResolvedScreen
 }
