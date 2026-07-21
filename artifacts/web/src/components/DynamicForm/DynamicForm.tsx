@@ -381,6 +381,18 @@ export function DynamicForm({
       if (values.lostReason === 'Other' && !String(values.otherLostReason || '').trim()) {
         next.otherLostReason = 'Please Mention Other Lost Reason'
       }
+      const phoneVal = String(values.contactNumber || values.phone || values.contact_no || '').trim()
+      if (phoneVal) {
+        const rawDigits = phoneVal.replace(/\D/g, '')
+        if (rawDigits.length < 7 || rawDigits.length > 15) {
+          if (fields.some(f => f.key === 'contactNumber')) {
+            next.contactNumber = 'Invalid Contact Number. Must contain between 7 and 15 digits.'
+          }
+          if (fields.some(f => f.key === 'phone')) {
+            next.phone = 'Invalid Contact Number. Must contain between 7 and 15 digits.'
+          }
+        }
+      }
       return next
     },
     [fields, values, trialPeriodLicenses, screen, isSuperAdmin],

@@ -118,6 +118,12 @@ async function seedUsers() {
       await User.updateOne({ _id: u._id }, { $set: { password: hashedDevPassword } });
       console.log(`[seed] reset password for user ${u.email} to 'lead@1221'`);
     }
+
+    const expectedStatus = u.isActive !== false ? 'ACTIVE' : 'INACTIVE';
+    if (u.status !== expectedStatus) {
+      await User.updateOne({ _id: u._id }, { $set: { status: expectedStatus } });
+      console.log(`[seed] synchronized status for ${u.email} -> ${expectedStatus}`);
+    }
   }
 
   // Ensure a known dev superAdmin is present — DEV/TEST environments only.

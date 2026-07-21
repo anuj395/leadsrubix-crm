@@ -399,7 +399,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   }
 
   // Permit system and metadata updates
-  const systemFields = ['stage', 'latitude', 'longitude', 'modifiedAt', 'stageChangeAt', 'leadAssignTime'];
+  const systemFields = ['stage', 'latitude', 'longitude', 'modifiedAt', 'stageChangeAt', 'leadAssignTime', 'contactOwnerEmail', 'uid'];
   for (const k of systemFields) {
     if (data[k] !== undefined) {
       cleaned[k] = data[k];

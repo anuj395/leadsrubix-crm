@@ -75,10 +75,10 @@ async function getVisibleUserIds(authedUser) {
  *   admin         → superAdmin
  */
 const MANAGER_OF = {
-  sales: ['teamLead', 'leadManager'],
+  sales: ['teamLead', 'leadManager', 'admin'],
   teamLead: ['leadManager', 'admin'],
   leadManager: ['admin'],
-  admin: ['superAdmin'],
+  admin: ['admin'],
 };
 
 async function listManagerCandidates({ role, industryId, organizationId }) {
@@ -87,33 +87,27 @@ async function listManagerCandidates({ role, industryId, organizationId }) {
   const filter = { role: { $in: managerRoles }, isActive: { $ne: false } };
   if (organizationId) {
     filter.organizationId = organizationId;
-  }
-  // If any manager role is not superAdmin, we need to scope to the industry
-  const hasNonSuperAdmin = managerRoles.some(r => r !== 'superAdmin');
-  if (hasNonSuperAdmin) {
-    if (industryId) {
-      const mongoose = require('mongoose');
-      const Industry = mongoose.model('Industry');
-      const ind = await Industry.findOne({
-        $or: [
-          { code: industryId },
-          ...(mongoose.Types.ObjectId.isValid(industryId) ? [{ _id: industryId }] : [])
-        ]
-      }).lean().exec();
-      if (ind) {
-        filter.industryId = { $in: [String(ind._id), ind.code] };
-      } else {
-        filter.industryId = industryId;
-      }
+  } else if (industryId) {
+    const mongoose = require('mongoose');
+    const Industry = mongoose.model('Industry');
+    const ind = await Industry.findOne({
+      $or: [
+        { code: industryId },
+        ...(mongoose.Types.ObjectId.isValid(industryId) ? [{ _id: industryId }] : [])
+      ]
+    }).lean().exec();
+    if (ind) {
+      filter.industryId = { $in: [String(ind._id), ind.code] };
     } else {
-      filter.industryId = 'NONE';
+      filter.industryId = industryId;
     }
   }
-  const list = await User.find(filter).select('_id name email role').lean().exec();
+
+  const list = await User.find(filter).select('_id name firstName lastName email role').lean().exec();
   return list.map((u) => ({
     _id: String(u._id),
     id: String(u._id),
-    name: u.name || u.email,
+    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || u.email,
     email: u.email,
     role: u.role,
   }));

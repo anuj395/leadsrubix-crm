@@ -171,6 +171,15 @@ export default function UserFormPage() {
       }
 
       if (id) {
+        if (editingItem && core.email.trim().toLowerCase() !== editingItem.email.toLowerCase()) {
+          const isConfirmed = window.confirm('Are you sure you want to change the Email ID?')
+          if (!isConfirmed) {
+            setCore(c => ({ ...c, email: editingItem.email }))
+            setLoading(false)
+            return
+          }
+          payload.email = core.email.trim().toLowerCase()
+        }
         await updateUser(id, payload)
         setToast({ open: true, msg: 'User updated successfully', sev: 'success' })
       } else {
@@ -308,7 +317,7 @@ export default function UserFormPage() {
                         label="Reports To"
                         value={core.reporting_to}
                         onChange={(e) => setCore({ ...core, reporting_to: e.target.value })}
-                        disabled={loadingManagers || managers.length === 0}
+                        disabled={loadingManagers}
                         sx={inputSx}
                       >
                         <MenuItem value="">

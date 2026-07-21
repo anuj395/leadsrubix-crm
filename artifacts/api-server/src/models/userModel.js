@@ -87,6 +87,7 @@ function shapePublic(u) {
     role: u.role,
     industryId: u.industryId || '',
     isActive: u.isActive !== false,
+    status: (u.isActive !== false) ? 'ACTIVE' : 'INACTIVE',
     reportingTo: u.reportingTo || u.reporting_to || '',
     reporting_to: u.reportingTo || u.reporting_to || '',
     organizationName: u.organizationName || '',
@@ -201,8 +202,13 @@ exports.update = async (id, patch) => {
   if (patch.industryId !== undefined || patch.industryId !== undefined) {
     $set.industryId = patch.industryId !== undefined ? patch.industryId : patch.industryId;
   }
-  if (patch.isActive !== undefined || patch.isActive !== undefined) {
-    $set.isActive = !!(patch.isActive !== undefined ? patch.isActive : patch.isActive);
+  if (patch.isActive !== undefined) {
+    const isAct = !!patch.isActive;
+    $set.isActive = isAct;
+    $set.status = isAct ? 'ACTIVE' : 'INACTIVE';
+  }
+  if (patch.status !== undefined) {
+    $set.status = String(patch.status).toUpperCase();
   }
   if (patch.reportingTo !== undefined || patch.reporting_to !== undefined) {
     $set.reportingTo = String(patch.reportingTo !== undefined ? patch.reportingTo : (patch.reporting_to || ''));

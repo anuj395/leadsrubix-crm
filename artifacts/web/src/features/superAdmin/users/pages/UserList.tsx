@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
@@ -6,10 +6,16 @@ import MenuItem from '@mui/material/MenuItem'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import TextField from '@mui/material/TextField'
+import Switch from '@mui/material/Switch'
+import Tooltip from '@mui/material/Tooltip'
+import Stack from '@mui/material/Stack'
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  VpnKey as VpnKeyIcon,
+  FileUpload as FileUploadIcon,
+  FileDownload as FileDownloadIcon,
 } from '@mui/icons-material'
 import type {
   GridColDef,
@@ -19,6 +25,7 @@ import type {
   GridRenderCellParams,
 } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
+import ChangePasswordModal from '../components/ChangePasswordModal'
 
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
@@ -28,6 +35,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import {
   listUsersPaged,
   deleteUser,
+  updateUser,
   type AdminUser,
 } from '@/services/usersAdminService'
 import {
@@ -88,6 +96,9 @@ export default function UserListPage() {
   // Dynamic headers resolved from API
   const [resolvedHeaders, setResolvedHeaders] = useState<ResolvedTableHeader[]>([])
 
+  // Modal states
+  const [passModalUser, setPassModalUser] = useState<AdminUser | null>(null)
+
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -97,6 +108,8 @@ export default function UserListPage() {
   const showToast = (msg: string, sev: 'success' | 'error' = 'success') => {
     setToast({ open: true, msg, sev })
   }
+
+
 
   // Load superAdmin metadata
   useEffect(() => {
@@ -181,6 +194,17 @@ export default function UserListPage() {
     })
   }
 
+  const handleStatusToggle = useCallback(async (row: AdminUser, checked: boolean) => {
+    try {
+      await updateUser(row._id, { isActive: checked })
+      showToast(`User status updated to ${checked ? 'Active' : 'Inactive'}`)
+      await refresh()
+    } catch (e: any) {
+      const err = e as { response?: { data?: { message?: string } } }
+      showToast(err?.response?.data?.message ?? 'Failed to update status', 'error')
+    }
+  }, [refresh])
+
   // Combine core and resolved headers to build columns list
   const allColumns = useMemo(() => {
     const headerMap = new Map<string, ResolvedTableHeader>()
@@ -222,10 +246,21 @@ export default function UserListPage() {
         col.flex = 1.2
         col.minWidth = 160
         col.valueGetter = (_v, row) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '—'
-      } else if (header.type === 'badge' || header.key === 'isActive' || header.key === 'role') {
-        col.renderCell = (params: GridRenderCellParams) => {
-          if (header.key === 'isActive') {
-            return <StatusBadge value={params.value ? 'Active' : 'Inactive'} />
+      } else if (header.type === 'badge' || header.key === 'isActive' || header.key === 'status' || header.key === 'role') {
+        col.renderCell = (params: GridRenderCellParams<AdminUser>) => {
+          if (header.key === 'isActive' || header.key === 'status') {
+            const isAct = params.row.isActive !== false
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Switch
+                  size="small"
+                  checked={isAct}
+                  disabled={!perms.can_edit}
+                  onChange={(e) => handleStatusToggle(params.row, e.target.checked)}
+                />
+                <StatusBadge value={isAct ? 'ACTIVE' : 'INACTIVE'} />
+              </Box>
+            )
           }
           return <StatusBadge value={params.value as string} />
         }
@@ -243,28 +278,39 @@ export default function UserListPage() {
       disableColumnMenu: true,
       align: 'right',
       headerAlign: 'right',
-      width: 120,
+      width: 150,
       renderCell: (params: GridRenderCellParams<AdminUser>) => (
-        <>
+        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center', justifyContent: 'flex-end' }}>
           {perms.can_edit && (
-            <IconButton size="small" onClick={() => navigate(`/users/${params.row._id}/edit`)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
+            <>
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => navigate(`/users/${params.row._id}/edit`)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Change Password">
+                <IconButton size="small" color="warning" onClick={() => setPassModalUser(params.row)}>
+                  <VpnKeyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
           )}
           {perms.can_delete && (
-            <IconButton size="small" color="error" onClick={() => void remove(params.row)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => void remove(params.row)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
           {!perms.can_edit && !perms.can_delete && (
             <Box component="span" sx={{ color: 'text.secondary' }}>—</Box>
           )}
-        </>
+        </Stack>
       ),
     })
 
     return cols
-  }, [allColumns, perms.can_edit, perms.can_delete])
+  }, [allColumns, perms.can_edit, perms.can_delete, handleStatusToggle])
 
   const onFilterModelChange = (m: GridFilterModel) => {
     const q = (m.quickFilterValues ?? []).join(' ').trim()
@@ -328,6 +374,15 @@ export default function UserListPage() {
           onReload={refresh}
         />
       </AppCard>
+
+      {passModalUser && (
+        <ChangePasswordModal
+          open={Boolean(passModalUser)}
+          onClose={() => setPassModalUser(null)}
+          user={passModalUser}
+          onSuccess={refresh}
+        />
+      )}
 
       <Snackbar
         open={toast.open}

@@ -256,6 +256,30 @@ exports.create = async ({ payload, authedUser }) => {
   if (!email) { const e = new Error('email is required'); e.status = 400; throw e; }
   if (!industryId) { const e = new Error('industryId is required'); e.status = 400; throw e; }
 
+  const targetOrgId = authedUser?.organizationId || '';
+  if (payload.isActive !== false && targetOrgId) {
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({
+      $or: [
+        { industryId: industryId },
+        { organizationId: targetOrgId }
+      ]
+    }).lean().exec();
+    const limitVal = org ? (org.no_of_employees || org.numEmployees || org.num_employees || (org.fields && (org.fields.no_of_employees || org.fields.numEmployees || org.fields.num_employees))) : null;
+    const limit = limitVal ? Number(limitVal) : null;
+    if (limit !== null && limit !== undefined && !isNaN(limit)) {
+      const activeCount = await userModel.User.countDocuments({
+        organizationId: targetOrgId,
+        isActive: true
+      });
+      if (activeCount >= limit) {
+        const err = new Error(`Organization active employee limit (${limit}) has been reached.`);
+        err.status = 400;
+        throw err;
+      }
+    }
+  }
+
   ensureCanAssignRole({ authedUser, targetRole: role });
 
   const existing = await userModel.findByEmail(email);
@@ -292,13 +316,30 @@ exports.create = async ({ payload, authedUser }) => {
   const designation = cleanedFields.designation || '';
   const team = cleanedFields.team || '';
   const branch = cleanedFields.branch || '';
-  const contactNumber = cleanedFields.phone || cleanedFields.contactNumber || '';
+  const rawContact = cleanedFields.phone || cleanedFields.contactNumber || payload.contactNumber || payload.contact_no || (payload.fields && (payload.fields.contactNumber || payload.fields.contact_no || payload.fields.phone)) || '';
+  if (rawContact) {
+    const cleanNum = String(rawContact).trim();
+    const rawDigits = cleanNum.replace(/\D/g, '');
+    if (rawDigits.length < 7 || rawDigits.length > 15) {
+      const err = new Error('Invalid contact number format. Contact number must contain between 7 and 15 digits.');
+      err.status = 400;
+      throw err;
+    }
+    const existingPhone = await userModel.User.findOne({
+      $or: [
+        { contactNumber: cleanNum },
+        { contact_no: cleanNum },
+        { 'fields.contactNumber': cleanNum },
+        { 'fields.phone': cleanNum }
+      ]
+    }).lean().exec();
 
-  delete cleanedFields.designation;
-  delete cleanedFields.team;
-  delete cleanedFields.branch;
-  delete cleanedFields.phone;
-  delete cleanedFields.contactNumber;
+    if (existingPhone) {
+      const err = new Error('User Contact Number Already Exists!!');
+      err.status = 400;
+      throw err;
+    }
+  }
 
   const payloadData = {
     firstName,
@@ -310,11 +351,12 @@ exports.create = async ({ payload, authedUser }) => {
     organizationId: authedUser?.organizationId || '',
     organizationName: authedUser?.organizationName || '',
     isActive: payload.isActive !== false,
+    status: payload.isActive !== false ? 'ACTIVE' : 'INACTIVE',
     reporting_to: payload.reporting_to || '',
     designation,
     team,
     branch,
-    contactNumber,
+    contactNumber: rawContact,
     needs_password_change: true,
     ...cleanedFields,
   };
@@ -356,6 +398,33 @@ exports.update = async ({ id, payload, authedUser }) => {
     const e = new Error('Forbidden'); e.status = 403; throw e;
   }
 
+  // Active status limit check
+  if (payload.isActive === true && !target.isActive) {
+    const Organization = mongoose.model('Organization');
+    const targetOrgId = target.organizationId || authedUser?.organizationId;
+    if (targetOrgId) {
+      const org = await Organization.findOne({
+        $or: [
+          { industryId: target.industryId || authedUser?.industryId },
+          { organizationId: targetOrgId }
+        ]
+      }).lean().exec();
+      const limitVal = org ? (org.no_of_employees || org.numEmployees || org.num_employees || (org.fields && (org.fields.no_of_employees || org.fields.numEmployees || org.fields.num_employees))) : null;
+      const limit = limitVal ? Number(limitVal) : null;
+      if (limit !== null && limit !== undefined && !isNaN(limit)) {
+        const activeCount = await userModel.User.countDocuments({
+          organizationId: targetOrgId,
+          isActive: true
+        });
+        if (activeCount >= limit) {
+          const err = new Error(`Organization active employee limit (${limit}) has been reached.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+  }
+
   const nextRole = payload.role || (payload.fields && payload.fields.designation) || target.role;
   const nextIndustry = isSuperAdmin && payload.industryId ? payload.industryId : target.industryId;
 
@@ -392,7 +461,10 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (payload.firstName !== undefined) patch.firstName = String(payload.firstName).trim();
   if (payload.lastName !== undefined) patch.lastName = String(payload.lastName).trim();
   if ((payload.fields && payload.fields.designation) !== undefined || payload.role !== undefined) patch.role = nextRole;
-  if (payload.isActive !== undefined) patch.isActive = !!payload.isActive;
+  if (payload.isActive !== undefined) {
+    patch.isActive = !!payload.isActive;
+    patch.status = payload.isActive ? 'ACTIVE' : 'INACTIVE';
+  }
   if (isSuperAdmin && payload.industryId !== undefined) patch.industryId = String(payload.industryId);
   if (payload.password) patch.password = String(payload.password);
   if (payload.reporting_to !== undefined) patch.reporting_to = String(payload.reporting_to).trim();
@@ -456,6 +528,32 @@ exports.update = async ({ id, payload, authedUser }) => {
     }
 
     patch.$unset = { fields: 1 };
+  }
+
+  const targetContact = patch.contactNumber || (payload.fields && (payload.fields.contactNumber || payload.fields.phone || payload.fields.contact_no)) || payload.contactNumber || payload.contact_no;
+  if (targetContact !== undefined && targetContact !== null && targetContact !== '') {
+    const cleanNum = String(targetContact).trim();
+    const rawDigits = cleanNum.replace(/\D/g, '');
+    if (rawDigits.length < 7 || rawDigits.length > 15) {
+      const err = new Error('Invalid contact number format. Contact number must contain between 7 and 15 digits.');
+      err.status = 400;
+      throw err;
+    }
+    const existingPhone = await userModel.User.findOne({
+      _id: { $ne: id },
+      $or: [
+        { contactNumber: cleanNum },
+        { contact_no: cleanNum },
+        { 'fields.contactNumber': cleanNum },
+        { 'fields.phone': cleanNum }
+      ]
+    }).lean().exec();
+
+    if (existingPhone) {
+      const err = new Error('User Contact Number Already Exists!!');
+      err.status = 400;
+      throw err;
+    }
   }
 
   return userModel.update(id, patch);
