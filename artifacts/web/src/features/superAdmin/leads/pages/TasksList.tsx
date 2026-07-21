@@ -60,9 +60,9 @@ export default function TasksListPage() {
       const [listRes, resolved] = await Promise.all([
         api.get('tasks'),
         resolveScreen({
-          screen_key: 'tasks',
-          industry_code: user?.role === 'superAdmin' ? 'temp0001' : undefined,
-          role_key: user?.role === 'superAdmin' ? 'admin' : undefined,
+          screenKey: 'tasks',
+          industryCode: user?.role === 'superAdmin' ? 'temp0001' : undefined,
+          roleKey: user?.role === 'superAdmin' ? 'admin' : undefined,
         }),
       ])
       const rawItems = listRes.data?.items ?? []

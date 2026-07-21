@@ -89,6 +89,7 @@ export interface SidebarMenuRecord {
   name: string
   icon?: string
   route?: string
+  parentId: string | null
   parent_id: string | null
   order: number
   module?: string
@@ -100,6 +101,7 @@ export interface SidebarMenuInput {
   name: string
   icon?: string
   route?: string
+  parentId?: string | null
   parent_id?: string | null
   order?: number
   module?: string
@@ -111,12 +113,22 @@ export async function getMenus(): Promise<SidebarMenuRecord[]> {
 }
 
 export async function createMenuRecord(data: SidebarMenuInput): Promise<SidebarMenuRecord> {
-  const res = await api.post('sidebar-menus', data)
+  const payload = {
+    ...data,
+    parentId: data.parentId || data.parent_id,
+    parent_id: data.parentId || data.parent_id,
+  }
+  const res = await api.post('sidebar-menus', payload)
   return res.data as SidebarMenuRecord
 }
 
 export async function updateMenuRecord(id: string, data: Partial<SidebarMenuInput>): Promise<SidebarMenuRecord> {
-  const res = await api.put(`sidebar-menus/${id}`, data)
+  const payload = {
+    ...data,
+    parentId: data.parentId || data.parent_id,
+    parent_id: data.parentId || data.parent_id,
+  }
+  const res = await api.put(`sidebar-menus/${id}`, payload)
   return res.data as SidebarMenuRecord
 }
 
@@ -129,21 +141,26 @@ export interface SidebarPermissionRecord {
   _id: string
   roleId: string
   industryId: string
+  menuId: string
   menu_id: string
+  isVisible: boolean
   is_visible: boolean
+  orderOverride: number | null
   order_override: number | null
 }
 
 export async function getPermissions(params: {
   roleId?: string
   industryId?: string
+  menuId?: string
   menu_id?: string
   visibleOnly?: boolean
 } = {}): Promise<SidebarPermissionRecord[]> {
   const search = new URLSearchParams()
+  const mId = params.menuId || params.menu_id
   if (params.roleId) search.set('roleId', params.roleId)
   if (params.industryId) search.set('industryId', params.industryId)
-  if (params.menu_id) search.set('menu_id', params.menu_id)
+  if (mId) search.set('menuId', mId)
   if (params.visibleOnly) search.set('visible', 'true')
   const qs = search.toString()
   return safeList<SidebarPermissionRecord>(qs ? `sidebar-permissions?${qs}` : 'sidebar-permissions')
@@ -152,8 +169,14 @@ export async function getPermissions(params: {
 export async function bulkSetPermissions(input: {
   roleId: string
   industryId: string
-  menu_ids: string[]
+  menuIds?: string[]
+  menu_ids?: string[]
 }): Promise<SidebarPermissionRecord[]> {
-  const res = await api.post('sidebar-permissions/bulk', input)
+  const payload = {
+    roleId: input.roleId,
+    industryId: input.industryId,
+    menuIds: input.menuIds || input.menu_ids,
+  }
+  const res = await api.post('sidebar-permissions/bulk', payload)
   return (res.data?.items ?? []) as SidebarPermissionRecord[]
 }

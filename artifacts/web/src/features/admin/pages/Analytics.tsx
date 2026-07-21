@@ -136,14 +136,14 @@ export default function AnalyticsPage() {
     const taskFilter: Record<string, any> = {}
 
     if (startDate) {
-      leadFilter.createdAt = { start_date: startDate }
-      taskFilter.createdAt = { start_date: startDate }
+      leadFilter.createdAt = { startDate: startDate }
+      taskFilter.createdAt = { startDate: startDate }
     }
     if (endDate) {
       if (!leadFilter.createdAt) leadFilter.createdAt = {}
       if (!taskFilter.createdAt) taskFilter.createdAt = {}
-      leadFilter.createdAt.end_date = endDate
-      taskFilter.createdAt.end_date = endDate
+      leadFilter.createdAt.endDate = endDate
+      taskFilter.createdAt.endDate = endDate
     }
 
     if (label === 'Completed Visits') {
@@ -212,12 +212,12 @@ export default function AnalyticsPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      let url = `/analytics/dashboard?group_by=${groupBy}`
+      let url = `/analytics/dashboard?groupBy=${groupBy}`
       if (isSuperAdmin && selectedOrg) {
         url += `&industryId=${selectedOrg}`
       }
-      if (startDate) url += `&start_date=${startDate}`
-      if (endDate) url += `&end_date=${endDate}`
+      if (startDate) url += `&startDate=${startDate}`
+      if (endDate) url += `&endDate=${endDate}`
 
       const res = await axiosInstance.get<DashboardPayload>(url)
       setData(res.data)

@@ -34,9 +34,9 @@ export default function ContactsListPage() {
       const [list, resolved] = await Promise.all([
         listContacts(),
         resolveScreen({
-          screen_key: 'contacts',
-          industry_code: user?.role === 'superAdmin' ? 'temp0001' : undefined,
-          role_key: user?.role === 'superAdmin' ? 'admin' : undefined,
+          screenKey: 'contacts',
+          industryCode: user?.role === 'superAdmin' ? 'temp0001' : undefined,
+          roleKey: user?.role === 'superAdmin' ? 'admin' : undefined,
         }),
       ])
       setItems(list)

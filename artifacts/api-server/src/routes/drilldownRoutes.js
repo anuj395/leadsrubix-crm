@@ -64,15 +64,16 @@ router.post('/leads/drillDownSearch', authenticate, async (req, res, next) => {
     const { uid, organizationid, page, pageSize, leadFilter, role } = req.body;
     const query = {};
 
-    if (organizationid) {
+    const targetOrgId = req.body.organizationId || req.body.organizationid;
+    if (targetOrgId) {
       // Map industryId to organizationId if needed
       const org = await Organization.findOne({
         $or: [
-          { industryId: organizationid },
-          { organizationId: organizationid }
+          { industryId: targetOrgId },
+          { organizationId: targetOrgId }
         ]
       }).lean().exec();
-      query.organizationId = org ? org.organizationId : organizationid;
+      query.organizationId = org ? org.organizationId : targetOrgId;
     }
 
     if (leadFilter) {
@@ -80,8 +81,10 @@ router.post('/leads/drillDownSearch', authenticate, async (req, res, next) => {
         let dbKey = key;
         if (key === 'created_at' || key === 'createdAt') {
           query.createdAt = {};
-          if (value.start_date) query.createdAt.$gte = new Date(value.start_date);
-          if (value.end_date) query.createdAt.$lte = new Date(value.end_date);
+          const start = value.startDate || value.start_date;
+          const end = value.endDate || value.end_date;
+          if (start) query.createdAt.$gte = new Date(start);
+          if (end) query.createdAt.$lte = new Date(end);
           continue;
         } else if (key === 'lead_source') {
           dbKey = 'source';
@@ -197,8 +200,10 @@ router.post('/tasks/drillDownSearch', authenticate, async (req, res, next) => {
         let dbKey = key;
         if (key === 'created_at' || key === 'createdAt') {
           query.createdAt = {};
-          if (value.start_date) query.createdAt.$gte = new Date(value.start_date);
-          if (value.end_date) query.createdAt.$lte = new Date(value.end_date);
+          const start = value.startDate || value.start_date;
+          const end = value.endDate || value.end_date;
+          if (start) query.createdAt.$gte = new Date(start);
+          if (end) query.createdAt.$lte = new Date(end);
           continue;
         } else if (key === 'task_type') {
           dbKey = 'taskType';

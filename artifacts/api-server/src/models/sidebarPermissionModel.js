@@ -4,19 +4,35 @@ const sidebarPermissionSchema = new mongoose.Schema(
   {
     roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
     industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
-    menu_id: { type: mongoose.Schema.Types.ObjectId, ref: 'SidebarMenu', required: true },
-    is_visible: { type: Boolean, default: true },
-    order_override: { type: Number, default: null },
+    menuId: { type: mongoose.Schema.Types.ObjectId, ref: 'SidebarMenu', required: true },
+    isVisible: { type: Boolean, default: true },
+    orderOverride: { type: Number, default: null },
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
+sidebarPermissionSchema.virtual('menu_id')
+  .get(function() { return this.menuId; })
+  .set(function(v) { this.menuId = v; });
+
+sidebarPermissionSchema.virtual('is_visible')
+  .get(function() { return this.isVisible; })
+  .set(function(v) { this.isVisible = v; });
+
+sidebarPermissionSchema.virtual('order_override')
+  .get(function() { return this.orderOverride; })
+  .set(function(v) { this.orderOverride = v; });
+
 sidebarPermissionSchema.index(
-  { roleId: 1, industryId: 1, menu_id: 1 },
+  { roleId: 1, industryId: 1, menuId: 1 },
   { unique: true, name: 'idx_perm_unique' },
 );
 sidebarPermissionSchema.index(
-  { roleId: 1, industryId: 1, is_visible: 1 },
+  { roleId: 1, industryId: 1, isVisible: 1 },
   { name: 'idx_perm_lookup' },
 );
 
@@ -28,35 +44,41 @@ const SidebarPermission = mongoose.model(
 
 exports.SidebarPermission = SidebarPermission;
 
-exports.list = async ({ roleId, industryId, menu_id, visibleOnly = false } = {}) => {
+exports.list = async ({ roleId, industryId, menuId, menu_id, visibleOnly = false } = {}) => {
+  const mId = menuId || menu_id;
   const q = {};
   if (roleId) q.roleId = roleId;
   if (industryId) q.industryId = industryId;
-  if (menu_id) q.menu_id = menu_id;
-  if (visibleOnly) q.is_visible = true;
+  if (mId) q.menuId = mId;
+  if (visibleOnly) q.isVisible = true;
   return SidebarPermission.find(q).lean().exec();
 };
 
 exports.findById = async (id) => SidebarPermission.findById(id).lean().exec();
 
-exports.upsert = async ({ roleId, industryId, menu_id, is_visible, order_override }) => {
+exports.upsert = async ({ roleId, industryId, menuId, menu_id, isVisible, is_visible, orderOverride, order_override }) => {
+  const mId = menuId || menu_id;
+  const vis = isVisible !== undefined ? isVisible : is_visible;
+  const ord = orderOverride !== undefined ? orderOverride : order_override;
   const $set = {};
-  if (is_visible !== undefined) $set.is_visible = !!is_visible;
-  if (order_override !== undefined) {
-    $set.order_override = order_override === null ? null : Number(order_override);
+  if (vis !== undefined) $set.isVisible = !!vis;
+  if (ord !== undefined) {
+    $set.orderOverride = ord === null ? null : Number(ord);
   }
   await SidebarPermission.updateOne(
-    { roleId, industryId, menu_id },
-    { $set, $setOnInsert: { roleId, industryId, menu_id } },
+    { roleId, industryId, menuId: mId },
+    { $set, $setOnInsert: { roleId, industryId, menuId: mId } },
     { upsert: true },
   );
-  return SidebarPermission.findOne({ roleId, industryId, menu_id }).lean().exec();
+  return SidebarPermission.findOne({ roleId, industryId, menuId: mId }).lean().exec();
 };
 
 exports.remove = async (id) => SidebarPermission.findByIdAndDelete(id).lean().exec();
 
-exports.removeByCombo = async ({ roleId, industryId, menu_id }) =>
-  SidebarPermission.deleteOne({ roleId, industryId, menu_id }).exec();
+exports.removeByCombo = async ({ roleId, industryId, menuId, menu_id }) => {
+  const mId = menuId || menu_id;
+  return SidebarPermission.deleteOne({ roleId, industryId, menuId: mId }).exec();
+};
 
 exports.removeByRoleIndustry = async ({ roleId, industryId }) =>
   SidebarPermission.deleteMany({ roleId, industryId }).exec();
@@ -67,23 +89,23 @@ exports.removeByIndustry = async (industryId) =>
 exports.removeByRole = async (roleId) =>
   SidebarPermission.deleteMany({ roleId }).exec();
 
-exports.removeByMenu = async (menu_id) =>
-  SidebarPermission.deleteMany({ menu_id }).exec();
+exports.removeByMenu = async (menuId) =>
+  SidebarPermission.deleteMany({ menuId }).exec();
 
-exports.bulkSetForRoleIndustry = async ({ roleId, industryId, menu_ids }) => {
-  const ids = Array.isArray(menu_ids) ? menu_ids : [];
+exports.bulkSetForRoleIndustry = async ({ roleId, industryId, menuIds, menu_ids }) => {
+  const ids = Array.isArray(menuIds || menu_ids) ? (menuIds || menu_ids) : [];
   await SidebarPermission.deleteMany({
     roleId,
     industryId,
-    menu_id: { $nin: ids },
+    menuId: { $nin: ids },
   });
   if (ids.length) {
-    const ops = ids.map((menu_id) => ({
+    const ops = ids.map((menuId) => ({
       updateOne: {
-        filter: { roleId, industryId, menu_id },
+        filter: { roleId, industryId, menuId },
         update: {
-          $set: { is_visible: true },
-          $setOnInsert: { roleId, industryId, menu_id },
+          $set: { isVisible: true },
+          $setOnInsert: { roleId, industryId, menuId },
         },
         upsert: true,
       },

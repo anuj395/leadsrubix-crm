@@ -274,7 +274,7 @@ async function migrateAndSeedSidebar() {
                 name: capitalize(moduleKey),
                 icon: moduleKey,
                 module: moduleKey,
-                parent_id: null,
+                parentId: null,
                 order: 0,
                 isActive: true,
               },
@@ -293,7 +293,7 @@ async function migrateAndSeedSidebar() {
               name: m.name,
               icon: m.icon || '',
               route: m.route || '',
-              parent_id: parentId,
+              parentId: parentId,
               module: moduleKey,
               order: i,
               isActive: true,
@@ -304,13 +304,13 @@ async function migrateAndSeedSidebar() {
         menuCount++;
 
         await SidebarPermission.updateOne(
-          { roleId: role._id, industryId: industry._id, menu_id: menu._id },
+          { roleId: role._id, industryId: industry._id, menuId: menu._id },
           {
-            $set: { is_visible: true, order_override: i },
+            $set: { isVisible: true, orderOverride: i },
             $setOnInsert: {
               roleId: role._id,
               industryId: industry._id,
-              menu_id: menu._id,
+              menuId: menu._id,
             },
           },
           { upsert: true },
@@ -674,23 +674,23 @@ async function seedScreens() {
     const fieldDocs = [];
     for (const f of spec.fields) {
       const doc = await ScreenField.findOneAndUpdate(
-        { screen_id: screen._id, field_key: f.field_key },
+        { screenId: screen._id, fieldKey: f.field_key },
         {
           $set: {
             label: f.label,
             type: f.type,
-            is_table_visible: f.is_table_visible !== false,
-            is_form_visible: f.is_form_visible !== false,
-            is_required: !!f.is_required,
+            isTableVisible: f.is_table_visible !== false,
+            isFormVisible: f.is_form_visible !== false,
+            isRequired: !!f.is_required,
             sortable: true,
             order: f.order || 0,
             isActive: true,
-            dropdown_source: f.dropdown_source || 'none',
-            dropdown_api: f.dropdown_api || '',
+            dropdownSource: f.dropdown_source || 'none',
+            dropdownApi: f.dropdown_api || '',
             options: f.options || [],
-            default_value: f.default_value !== undefined ? f.default_value : null,
+            defaultValue: f.default_value !== undefined ? f.default_value : null,
           },
-          $setOnInsert: { screen_id: screen._id, field_key: f.field_key },
+          $setOnInsert: { screenId: screen._id, fieldKey: f.field_key },
         },
         { upsert: true, new: true },
       );
@@ -698,7 +698,7 @@ async function seedScreens() {
     }
     // Clean up any fields that are no longer in the spec.
     const specKeys = spec.fields.map((f) => f.field_key);
-    await ScreenField.deleteMany({ screen_id: screen._id, field_key: { $nin: specKeys } });
+    await ScreenField.deleteMany({ screenId: screen._id, fieldKey: { $nin: specKeys } });
     fieldsByScreen.set(String(screen._id), { screen, fields: fieldDocs });
   }
 
@@ -715,18 +715,18 @@ async function seedScreens() {
         for (const field of fields) {
           await ScreenPermission.updateOne(
             {
-              screen_id: screen._id,
+              screenId: screen._id,
               roleId: role._id,
               industryId: industry._id,
-              field_id: field._id,
+              fieldId: field._id,
             },
             {
-              $set: { is_enabled: true },
+              $set: { isEnabled: true },
               $setOnInsert: {
-                screen_id: screen._id,
+                screenId: screen._id,
                 roleId: role._id,
                 industryId: industry._id,
-                field_id: field._id,
+                fieldId: field._id,
               },
             },
             { upsert: true },
@@ -926,7 +926,7 @@ async function seedLeadDistributionSidebar() {
         name: 'Lead Distribution',
         icon: 'leadDistribution',
         module: 'leadDistribution',
-        parent_id: null,
+        parentId: null,
         route: '',
         isActive: true,
         order: 9.1,
@@ -950,7 +950,7 @@ async function seedLeadDistributionSidebar() {
           name: child.name,
           route: child.route,
           icon: child.icon,
-          parent_id: parentMenu._id,
+          parentId: parentMenu._id,
           module: 'leadDistribution',
           isActive: true,
           order: 9.2 + (i * 0.1),
@@ -961,13 +961,13 @@ async function seedLeadDistributionSidebar() {
 
     // Ensure permissions exist for the admin role
     await SidebarPermission.updateOne(
-      { roleId: adminRole._id, industryId: industry._id, menu_id: childMenu._id },
+      { roleId: adminRole._id, industryId: industry._id, menuId: childMenu._id },
       {
-        $set: { is_visible: true, order_override: 9.2 + (i * 0.1) },
+        $set: { isVisible: true, orderOverride: 9.2 + (i * 0.1) },
         $setOnInsert: {
           roleId: adminRole._id,
           industryId: industry._id,
-          menu_id: childMenu._id,
+          menuId: childMenu._id,
         }
       },
       { upsert: true }
@@ -976,13 +976,13 @@ async function seedLeadDistributionSidebar() {
 
   // Ensure the parent menu has permission
   await SidebarPermission.updateOne(
-    { roleId: adminRole._id, industryId: industry._id, menu_id: parentMenu._id },
+    { roleId: adminRole._id, industryId: industry._id, menuId: parentMenu._id },
     {
-      $set: { is_visible: true, order_override: 9.1 },
+      $set: { isVisible: true, orderOverride: 9.1 },
       $setOnInsert: {
         roleId: adminRole._id,
         industryId: industry._id,
-        menu_id: parentMenu._id,
+        menuId: parentMenu._id,
       }
     },
     { upsert: true }

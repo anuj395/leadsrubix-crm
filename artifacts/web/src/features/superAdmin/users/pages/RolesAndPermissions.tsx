@@ -94,28 +94,28 @@ const emptyRoleForm: RoleFormState = {
 
 interface FieldFormState {
   _id?: string
-  field_key: string
+  fieldKey: string
   label: string
   type: ScreenFieldType
-  is_required: boolean
-  is_table_visible: boolean
-  is_form_visible: boolean
+  isRequired: boolean
+  isTableVisible: boolean
+  isFormVisible: boolean
   order: number
-  dropdown_source: DropdownSource
-  dropdown_api: string
+  dropdownSource: DropdownSource
+  dropdownApi: string
   options: string
 }
 
 const emptyFieldForm: FieldFormState = {
-  field_key: '',
+  fieldKey: '',
   label: '',
   type: 'text',
-  is_required: false,
-  is_table_visible: true,
-  is_form_visible: true,
+  isRequired: false,
+  isTableVisible: true,
+  isFormVisible: true,
   order: 0,
-  dropdown_source: 'none',
-  dropdown_api: '',
+  dropdownSource: 'none',
+  dropdownApi: '',
   options: '',
 }
 
@@ -391,40 +391,49 @@ export default function RolesAndPermissionsPage() {
   const openFieldEdit = (f: ScreenField) => {
     setFieldForm({
       _id: f._id,
-      field_key: f.field_key,
+      fieldKey: f.fieldKey || f.field_key || '',
       label: f.label,
       type: f.type,
-      is_required: f.is_required,
-      is_table_visible: f.is_table_visible,
-      is_form_visible: f.is_form_visible,
+      isRequired: f.isRequired !== undefined ? f.isRequired : !!f.is_required,
+      isTableVisible: f.isTableVisible !== undefined ? f.isTableVisible : !!f.is_table_visible,
+      isFormVisible: f.isFormVisible !== undefined ? f.isFormVisible : !!f.is_form_visible,
       order: f.order,
-      dropdown_source: f.dropdown_source,
-      dropdown_api: f.dropdown_api,
+      dropdownSource: f.dropdownSource || f.dropdown_source || 'none',
+      dropdownApi: f.dropdownApi || f.dropdown_api || '',
       options: (f.options || []).join(', '),
     })
     setFieldDialogOpen(true)
   }
   const saveField = async () => {
     if (!usersScreen) return
-    if (!fieldForm.field_key.trim() || !fieldForm.label.trim()) {
+    if (!fieldForm.fieldKey.trim() || !fieldForm.label.trim()) {
       showToast('Key and label are required', 'error'); return
     }
     setFieldSaving(true)
     try {
       const payload = {
+        screenId: usersScreen._id,
         screen_id: usersScreen._id,
-        field_key: fieldForm.field_key.trim(),
+        fieldKey: fieldForm.fieldKey.trim(),
+        field_key: fieldForm.fieldKey.trim(),
         label: fieldForm.label.trim(),
         type: fieldForm.type,
-        is_required: fieldForm.is_required,
-        is_table_visible: fieldForm.is_table_visible,
-        is_form_visible: fieldForm.is_form_visible,
+        isRequired: fieldForm.isRequired,
+        is_required: fieldForm.isRequired,
+        isTableVisible: fieldForm.isTableVisible,
+        is_table_visible: fieldForm.isTableVisible,
+        isFormVisible: fieldForm.isFormVisible,
+        is_form_visible: fieldForm.isFormVisible,
         order: Number(fieldForm.order) || 0,
-        dropdown_source: fieldForm.type === 'select' ? fieldForm.dropdown_source : 'none' as DropdownSource,
-        dropdown_api: fieldForm.type === 'select' && fieldForm.dropdown_source === 'api'
-          ? fieldForm.dropdown_api.trim()
+        dropdownSource: fieldForm.type === 'select' ? fieldForm.dropdownSource : ('none' as DropdownSource),
+        dropdown_source: fieldForm.type === 'select' ? fieldForm.dropdownSource : ('none' as DropdownSource),
+        dropdownApi: fieldForm.type === 'select' && fieldForm.dropdownSource === 'api'
+          ? fieldForm.dropdownApi.trim()
           : '',
-        options: fieldForm.type === 'select' && fieldForm.dropdown_source === 'static'
+        dropdown_api: fieldForm.type === 'select' && fieldForm.dropdownSource === 'api'
+          ? fieldForm.dropdownApi.trim()
+          : '',
+        options: fieldForm.type === 'select' && fieldForm.dropdownSource === 'static'
           ? fieldForm.options.split(',').map((s) => s.trim()).filter(Boolean)
           : [],
       }
@@ -444,9 +453,10 @@ export default function RolesAndPermissionsPage() {
     }
   }
   const removeField = async (f: ScreenField) => {
+    const key = f.fieldKey || f.field_key
     confirmDelete({
       title: 'Confirm Deletion',
-      message: `Delete field "${f.label}" (${f.field_key})? This removes it from every role's user form. This action cannot be undone.`,
+      message: `Delete field "${f.label}" (${key})? This removes it from every role's user form. This action cannot be undone.`,
       onConfirm: async () => {
         try {
           await deleteScreenField(f._id)
@@ -1159,11 +1169,11 @@ export default function RolesAndPermissionsPage() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Field Key"
-              value={fieldForm.field_key}
-              onChange={(e) => setFieldForm({ ...fieldForm, field_key: e.target.value })}
+              value={fieldForm.fieldKey}
+              onChange={(e) => setFieldForm({ ...fieldForm, fieldKey: e.target.value })}
               disabled={!!fieldForm._id}
               fullWidth
-              helperText="Snake_case identifier — used as the JSON key in user records"
+              helperText="camelCase identifier — used as the property key in user records"
             />
             <TextField
               label="Label"
@@ -1185,22 +1195,22 @@ export default function RolesAndPermissionsPage() {
                 <TextField
                   select
                   label="Dropdown Source"
-                  value={fieldForm.dropdown_source}
-                  onChange={(e) => setFieldForm({ ...fieldForm, dropdown_source: e.target.value as DropdownSource })}
+                  value={fieldForm.dropdownSource}
+                  onChange={(e) => setFieldForm({ ...fieldForm, dropdownSource: e.target.value as DropdownSource })}
                   fullWidth
                 >
                   {DROPDOWN_SOURCES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                 </TextField>
-                {fieldForm.dropdown_source === 'api' && (
+                {fieldForm.dropdownSource === 'api' && (
                   <TextField
                     label="Dropdown API URL"
-                    value={fieldForm.dropdown_api}
-                    onChange={(e) => setFieldForm({ ...fieldForm, dropdown_api: e.target.value })}
+                    value={fieldForm.dropdownApi}
+                    onChange={(e) => setFieldForm({ ...fieldForm, dropdownApi: e.target.value })}
                     fullWidth
                     helperText='e.g. /api/options/departments — relative URLs hit your API server'
                   />
                 )}
-                {fieldForm.dropdown_source === 'static' && (
+                {fieldForm.dropdownSource === 'static' && (
                   <TextField
                     label="Static Options"
                     value={fieldForm.options}
@@ -1220,15 +1230,15 @@ export default function RolesAndPermissionsPage() {
             />
             <Stack direction="row" spacing={2} flexWrap="wrap">
               <FormControlLabel
-                control={<Switch checked={fieldForm.is_required} onChange={(e) => setFieldForm({ ...fieldForm, is_required: e.target.checked })} />}
+                control={<Switch checked={fieldForm.isRequired} onChange={(e) => setFieldForm({ ...fieldForm, isRequired: e.target.checked })} />}
                 label="Required"
               />
               <FormControlLabel
-                control={<Switch checked={fieldForm.is_form_visible} onChange={(e) => setFieldForm({ ...fieldForm, is_form_visible: e.target.checked })} />}
+                control={<Switch checked={fieldForm.isFormVisible} onChange={(e) => setFieldForm({ ...fieldForm, isFormVisible: e.target.checked })} />}
                 label="Form"
               />
               <FormControlLabel
-                control={<Switch checked={fieldForm.is_table_visible} onChange={(e) => setFieldForm({ ...fieldForm, is_table_visible: e.target.checked })} />}
+                control={<Switch checked={fieldForm.isTableVisible} onChange={(e) => setFieldForm({ ...fieldForm, isTableVisible: e.target.checked })} />}
                 label="Table"
               />
             </Stack>

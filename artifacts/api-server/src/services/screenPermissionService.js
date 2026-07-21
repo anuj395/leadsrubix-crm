@@ -16,14 +16,16 @@ exports.list = async (opts) => {
   return items.filter((item) => validFieldIds.has(String(item.field_id)));
 };
 
-exports.bulkSet = async ({ screen_id, roleId, industryId, field_ids }) => {
-  if (!screen_id || !roleId || !industryId) {
-    const err = new Error('screen_id, roleId and industryId are required');
+exports.bulkSet = async ({ screenId, screen_id, roleId, industryId, fieldIds, field_ids }) => {
+  const targetScreenId = screenId || screen_id;
+  const targetFieldIds = fieldIds || field_ids;
+  if (!targetScreenId || !roleId || !industryId) {
+    const err = new Error('screenId, roleId and industryId are required');
     err.status = 400;
     throw err;
   }
-  if (!Array.isArray(field_ids)) {
-    const err = new Error('field_ids must be an array');
+  if (!Array.isArray(targetFieldIds)) {
+    const err = new Error('fieldIds must be an array');
     err.status = 400;
     throw err;
   }
@@ -186,29 +188,31 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     allowed = allowed.filter((f) => f.field_key !== 'organizationId');
   }
 
-  const table_headers = allowed
+  const tableHeaders = allowed
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
-      key: f.field_key,
+      key: f.fieldKey || f.field_key,
       label: f.label,
       type: f.type,
       sortable: f.sortable,
       order: f.order,
       options: f.options || [],
-      visible: f.is_table_visible,
+      visible: f.isTableVisible !== undefined ? f.isTableVisible : f.is_table_visible,
     }));
 
-  const form_fields = allowed
-    .filter((f) => f.is_form_visible)
+  const formFields = allowed
+    .filter((f) => (f.isFormVisible !== undefined ? f.isFormVisible : f.is_form_visible))
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
-      key: f.field_key,
+      key: f.fieldKey || f.field_key,
       label: f.label,
       type: f.type,
-      required: f.is_required,
+      required: f.isRequired !== undefined ? f.isRequired : f.is_required,
       options: f.options || [],
-      dropdown_source: f.dropdown_source || 'none',
-      dropdown_api: f.dropdown_api || '',
+      dropdownSource: f.dropdownSource || f.dropdown_source || 'none',
+      dropdownApi: f.dropdownApi || f.dropdown_api || '',
+      dropdown_source: f.dropdownSource || f.dropdown_source || 'none',
+      dropdown_api: f.dropdownApi || f.dropdown_api || '',
       order: f.order,
     }));
 
@@ -216,7 +220,9 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     screen: { _id: screen._id, key: screen.key, name: screen.name },
     industryId: industry ? industry._id : null,
     roleId: role ? role._id : null,
-    table_headers,
-    form_fields,
+    tableHeaders,
+    table_headers: tableHeaders,
+    formFields,
+    form_fields: formFields,
   };
 };

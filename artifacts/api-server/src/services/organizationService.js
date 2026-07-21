@@ -31,7 +31,9 @@ async function resolveActor(authedUser) {
  * Returns the form-visible fields the (role × industry) caller is allowed to
  * write on an Organization. SuperAdmin can use every active form field.
  */
-async function resolveAllowedFormFields({ industry_code, role_key, isSuperAdmin }) {
+async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, role_key, isSuperAdmin }) {
+  const code = industryCode || industry_code;
+  const rKey = roleKey || role_key;
   const screen = await screenModel.findByKey(ORG_SCREEN_KEY);
   if (!screen || !screen.isActive) {
     return { screen: null, fields: [] };
@@ -42,9 +44,9 @@ async function resolveAllowedFormFields({ industry_code, role_key, isSuperAdmin 
     return { screen, fields: fields };
   }
 
-  const industry = await industryModel.findByCode(industry_code);
+  const industry = await industryModel.findByCode(code);
   if (!industry) return { screen, fields: [] };
-  const role = await roleModel.findByIndustryAndKey(industry._id, role_key);
+  const role = await roleModel.findByIndustryAndKey(industry._id, rKey);
   if (!role) return { screen, fields: [] };
 
   const perms = await permissionModel.list({
@@ -94,8 +96,8 @@ exports.listPaged = async ({
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
 
   const { fields: allowedFields } = await resolveAllowedFormFields({
-    industry_code: industryId || user.industryId,
-    role_key: user.role || authedUser.role,
+    industryCode: industryId || user.industryId,
+    roleKey: user.role || authedUser.role,
     isSuperAdmin,
   });
 

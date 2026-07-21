@@ -38,30 +38,30 @@ import {
 
 interface FormState {
   _id?: string
-  field_key: string
+  fieldKey: string
   label: string
   type: ScreenFieldType
   options: string
-  dropdown_source: DropdownSource
-  dropdown_api: string
-  is_table_visible: boolean
-  is_form_visible: boolean
-  is_required: boolean
+  dropdownSource: DropdownSource
+  dropdownApi: string
+  isTableVisible: boolean
+  isFormVisible: boolean
+  isRequired: boolean
   sortable: boolean
   order: number
   isActive: boolean
 }
 
 const emptyForm: FormState = {
-  field_key: '',
+  fieldKey: '',
   label: '',
   type: 'text',
   options: '',
-  dropdown_source: 'none',
-  dropdown_api: '',
-  is_table_visible: true,
-  is_form_visible: true,
-  is_required: false,
+  dropdownSource: 'none',
+  dropdownApi: '',
+  isTableVisible: true,
+  isFormVisible: true,
+  isRequired: false,
   sortable: true,
   order: 0,
   isActive: true,
@@ -136,15 +136,15 @@ export default function ScreenFieldsPage() {
   const openEdit = (row: ScreenField) => {
     setForm({
       _id: row._id,
-      field_key: row.field_key,
+      fieldKey: row.fieldKey || row.field_key || '',
       label: row.label,
       type: row.type,
       options: (row.options || []).join(', '),
-      dropdown_source: row.dropdown_source || 'none',
-      dropdown_api: row.dropdown_api || '',
-      is_table_visible: row.is_table_visible,
-      is_form_visible: row.is_form_visible,
-      is_required: row.is_required,
+      dropdownSource: row.dropdownSource || row.dropdown_source || 'none',
+      dropdownApi: row.dropdownApi || row.dropdown_api || '',
+      isTableVisible: row.isTableVisible !== undefined ? row.isTableVisible : !!row.is_table_visible,
+      isFormVisible: row.isFormVisible !== undefined ? row.isFormVisible : !!row.is_form_visible,
+      isRequired: row.isRequired !== undefined ? row.isRequired : !!row.is_required,
       sortable: row.sortable,
       order: row.order,
       isActive: row.isActive,
@@ -153,26 +153,33 @@ export default function ScreenFieldsPage() {
   }
 
   const submit = async () => {
-    if (!form.field_key.trim() || !form.label.trim()) {
+    if (!form.fieldKey.trim() || !form.label.trim()) {
       setToast({ open: true, msg: 'Field key and label are required', sev: 'error' })
       return
     }
     setSaving(true)
     try {
       const payload = {
+        screenId,
         screen_id: screenId,
-        field_key: form.field_key,
+        fieldKey: form.fieldKey,
+        field_key: form.fieldKey,
         label: form.label,
         type: form.type,
         options: form.options
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
-        dropdown_source: form.dropdown_source,
-        dropdown_api: form.dropdown_source === 'api' ? form.dropdown_api.trim() : '',
-        is_table_visible: form.is_table_visible,
-        is_form_visible: form.is_form_visible,
-        is_required: form.is_required,
+        dropdownSource: form.dropdownSource,
+        dropdown_source: form.dropdownSource,
+        dropdownApi: form.dropdownSource === 'api' ? form.dropdownApi.trim() : '',
+        dropdown_api: form.dropdownSource === 'api' ? form.dropdownApi.trim() : '',
+        isTableVisible: form.isTableVisible,
+        is_table_visible: form.isTableVisible,
+        isFormVisible: form.isFormVisible,
+        is_form_visible: form.isFormVisible,
+        isRequired: form.isRequired,
+        is_required: form.isRequired,
         sortable: form.sortable,
         order: Number(form.order) || 0,
         isActive: form.isActive,
@@ -213,35 +220,40 @@ export default function ScreenFieldsPage() {
   const gridColumns = useMemo<GridColDef<ScreenField>[]>(
     () => [
       { field: 'order', headerName: 'Order', width: 90, type: 'number' },
-      { field: 'field_key', headerName: 'Key', flex: 1, renderCell: (p) => <code>{p.value}</code> },
+      { field: 'fieldKey', headerName: 'Key', flex: 1, valueGetter: (_, row) => row.fieldKey || row.field_key, renderCell: (p) => <code>{p.value}</code> },
       { field: 'label', headerName: 'Label', flex: 1.2 },
       { field: 'type', headerName: 'Type', width: 110, renderCell: (p) => <StatusBadge value={p.value} hideDot /> },
       {
-        field: 'is_table_visible',
+        field: 'isTableVisible',
         headerName: 'In Table',
         width: 100,
+        valueGetter: (_, row) => (row.isTableVisible !== undefined ? row.isTableVisible : row.is_table_visible),
         renderCell: (p) => (p.value ? 'Yes' : '—'),
       },
       {
-        field: 'is_form_visible',
+        field: 'isFormVisible',
         headerName: 'In Form',
         width: 100,
+        valueGetter: (_, row) => (row.isFormVisible !== undefined ? row.isFormVisible : row.is_form_visible),
         renderCell: (p) => (p.value ? 'Yes' : '—'),
       },
       {
-        field: 'is_required',
+        field: 'isRequired',
         headerName: 'Required',
         width: 100,
+        valueGetter: (_, row) => (row.isRequired !== undefined ? row.isRequired : row.is_required),
         renderCell: (p) => (p.value ? 'Yes' : '—'),
       },
       {
-        field: 'dropdown_source',
+        field: 'dropdownSource',
         headerName: 'Source',
         flex: 1.5,
         valueGetter: (_, row) => {
           if (row.type !== 'select') return '—'
-          if (row.dropdown_source === 'api') return `api (${row.dropdown_api})`
-          if (row.dropdown_source === 'static') return `static (${(row.options || []).length})`
+          const src = row.dropdownSource || row.dropdown_source
+          const api = row.dropdownApi || row.dropdown_api
+          if (src === 'api') return `api (${api})`
+          if (src === 'static') return `static (${(row.options || []).length})`
           return 'none'
         },
       },
@@ -341,9 +353,9 @@ export default function ScreenFieldsPage() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Field Key"
-              value={form.field_key}
-              onChange={(e) => setForm({ ...form, field_key: e.target.value })}
-              helperText="Data key used by client code (e.g. customer_name)"
+              value={form.fieldKey}
+              onChange={(e) => setForm({ ...form, fieldKey: e.target.value })}
+              helperText="Data key used by client code (e.g. customerName)"
               disabled={!!form._id}
               fullWidth
             />
@@ -369,8 +381,8 @@ export default function ScreenFieldsPage() {
                 <TextField
                   select
                   label="Dropdown Source"
-                  value={form.dropdown_source}
-                  onChange={(e) => setForm({ ...form, dropdown_source: e.target.value as DropdownSource })}
+                  value={form.dropdownSource}
+                  onChange={(e) => setForm({ ...form, dropdownSource: e.target.value as DropdownSource })}
                   helperText="Where the dropdown options come from"
                   fullWidth
                 >
@@ -378,7 +390,7 @@ export default function ScreenFieldsPage() {
                     <MenuItem key={s} value={s}>{s}</MenuItem>
                   ))}
                 </TextField>
-                {form.dropdown_source === 'static' && (
+                {form.dropdownSource === 'static' && (
                   <TextField
                     label="Static Options"
                     value={form.options}
@@ -387,11 +399,11 @@ export default function ScreenFieldsPage() {
                     fullWidth
                   />
                 )}
-                {form.dropdown_source === 'api' && (
+                {form.dropdownSource === 'api' && (
                   <TextField
                     label="Dropdown API URL"
-                    value={form.dropdown_api}
-                    onChange={(e) => setForm({ ...form, dropdown_api: e.target.value })}
+                    value={form.dropdownApi}
+                    onChange={(e) => setForm({ ...form, dropdownApi: e.target.value })}
                     helperText="e.g. /api/options/lead-types — must return [{value,label}] or {items:[...]}"
                     fullWidth
                   />
@@ -407,15 +419,15 @@ export default function ScreenFieldsPage() {
             />
             <Stack direction="row" spacing={2} flexWrap="wrap">
               <FormControlLabel
-                control={<Switch checked={form.is_table_visible} onChange={(e) => setForm({ ...form, is_table_visible: e.target.checked })} />}
+                control={<Switch checked={form.isTableVisible} onChange={(e) => setForm({ ...form, isTableVisible: e.target.checked })} />}
                 label="Show in table"
               />
               <FormControlLabel
-                control={<Switch checked={form.is_form_visible} onChange={(e) => setForm({ ...form, is_form_visible: e.target.checked })} />}
+                control={<Switch checked={form.isFormVisible} onChange={(e) => setForm({ ...form, isFormVisible: e.target.checked })} />}
                 label="Show in form"
               />
               <FormControlLabel
-                control={<Switch checked={form.is_required} onChange={(e) => setForm({ ...form, is_required: e.target.checked })} />}
+                control={<Switch checked={form.isRequired} onChange={(e) => setForm({ ...form, isRequired: e.target.checked })} />}
                 label="Required"
               />
               <FormControlLabel

@@ -42,15 +42,22 @@ export const DROPDOWN_SOURCES: DropdownSource[] = ['none', 'static', 'api']
 
 export interface ScreenField {
   _id: string
+  screenId: string
   screen_id: string
+  fieldKey: string
   field_key: string
   label: string
   type: ScreenFieldType
   options: string[]
+  dropdownSource: DropdownSource
   dropdown_source: DropdownSource
+  dropdownApi: string
   dropdown_api: string
+  isTableVisible: boolean
   is_table_visible: boolean
+  isFormVisible: boolean
   is_form_visible: boolean
+  isRequired: boolean
   is_required: boolean
   sortable: boolean
   order: number
@@ -58,15 +65,22 @@ export interface ScreenField {
 }
 
 export interface ScreenFieldInput {
-  screen_id: string
-  field_key: string
+  screenId?: string
+  screen_id?: string
+  fieldKey?: string
+  field_key?: string
   label: string
   type?: ScreenFieldType
   options?: string[]
+  dropdownSource?: DropdownSource
   dropdown_source?: DropdownSource
+  dropdownApi?: string
   dropdown_api?: string
+  isTableVisible?: boolean
   is_table_visible?: boolean
+  isFormVisible?: boolean
   is_form_visible?: boolean
+  isRequired?: boolean
   is_required?: boolean
   sortable?: boolean
   order?: number
@@ -75,10 +89,13 @@ export interface ScreenFieldInput {
 
 export interface ScreenPermission {
   _id: string
+  screenId: string
   screen_id: string
   roleId: string
   industryId: string
+  fieldId: string
   field_id: string
+  isEnabled: boolean
   is_enabled: boolean
 }
 
@@ -98,7 +115,9 @@ export interface ResolvedFormField {
   type: ScreenFieldType
   required: boolean
   options: string[]
+  dropdownSource: DropdownSource
   dropdown_source: DropdownSource
+  dropdownApi: string
   dropdown_api: string
   order: number
 }
@@ -107,7 +126,9 @@ export interface ResolvedScreen {
   screen: { _id: string; key: string; name: string }
   industryId: string
   roleId: string
+  tableHeaders: ResolvedTableHeader[]
   table_headers: ResolvedTableHeader[]
+  formFields: ResolvedFormField[]
   form_fields: ResolvedFormField[]
 }
 
@@ -134,8 +155,8 @@ export async function deleteScreen(id: string): Promise<void> {
 }
 
 // ── Fields CRUD ──────────────────────────────────────────────────────────────
-export async function getScreenFields(screen_id?: string): Promise<ScreenField[]> {
-  const qs = screen_id ? `?screen_id=${encodeURIComponent(screen_id)}` : ''
+export async function getScreenFields(screenId?: string): Promise<ScreenField[]> {
+  const qs = screenId ? `?screenId=${encodeURIComponent(screenId)}` : ''
   return safeList<ScreenField>(`screen-fields${qs}`)
 }
 export async function createScreenField(data: ScreenFieldInput): Promise<ScreenField> {
@@ -155,13 +176,15 @@ export async function deleteScreenField(id: string): Promise<void> {
 
 // ── Permissions ──────────────────────────────────────────────────────────────
 export async function getScreenPermissions(params: {
+  screenId?: string
   screen_id?: string
   roleId?: string
   industryId?: string
   enabledOnly?: boolean
 } = {}): Promise<ScreenPermission[]> {
   const search = new URLSearchParams()
-  if (params.screen_id) search.set('screen_id', params.screen_id)
+  const sId = params.screenId || params.screen_id
+  if (sId) search.set('screenId', sId)
   if (params.roleId) search.set('roleId', params.roleId)
   if (params.industryId) search.set('industryId', params.industryId)
   if (params.enabledOnly) search.set('enabled', 'true')
@@ -170,12 +193,20 @@ export async function getScreenPermissions(params: {
 }
 
 export async function bulkSetScreenPermissions(input: {
-  screen_id: string
+  screenId?: string
+  screen_id?: string
   roleId: string
   industryId: string
-  field_ids: string[]
+  fieldIds?: string[]
+  field_ids?: string[]
 }): Promise<ScreenPermission[]> {
-  const res = await api.post('screen-permissions/bulk', input)
+  const payload = {
+    screenId: input.screenId || input.screen_id,
+    roleId: input.roleId,
+    industryId: input.industryId,
+    fieldIds: input.fieldIds || input.field_ids,
+  }
+  const res = await api.post('screen-permissions/bulk', payload)
   return (res.data?.items ?? []) as ScreenPermission[]
 }
 

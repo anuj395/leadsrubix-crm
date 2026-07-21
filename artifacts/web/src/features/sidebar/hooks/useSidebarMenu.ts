@@ -59,13 +59,14 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   const fetchMenu = useCallback(async () => {
     if (!user || isSuperAdmin) return
 
-    const industryId = user.industryId
+    const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
+    const role = user.role || (user as any).roleKey || (user as any).role_key
     if (!industryId) {
       console.warn('[useSidebarMenu] user.industryId is missing — skipping API fetch.')
       return
     }
 
-    const result = await dispatch(loadSidebarMenu({ industryId, role: user.role }))
+    const result = await dispatch(loadSidebarMenu({ industryId, role }))
 
     if (loadSidebarMenu.fulfilled.match(result)) {
       persistMenu(result.payload)

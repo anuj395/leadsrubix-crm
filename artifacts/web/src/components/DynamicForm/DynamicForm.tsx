@@ -119,8 +119,9 @@ const DIALING_CODES = [
 interface Props {
   screen: string
   /** Optional override; only honored server-side for superAdmin callers. */
+  industryCode?: string
+  roleKey?: string
   industry_code?: string
-  /** Optional override; only honored server-side for superAdmin callers. */
   role_key?: string
   initialValues?: Record<string, Value>
   onSubmit: (values: Record<string, Value>) => Promise<void> | void
@@ -138,6 +139,8 @@ interface Props {
 
 export function DynamicForm({
   screen,
+  industryCode,
+  roleKey,
   industry_code,
   role_key,
   initialValues = {},
@@ -199,17 +202,20 @@ export function DynamicForm({
     setLoadingConfig(true)
     void (async () => {
       try {
+        const finalIndustryCode = industryCode || industry_code
+        const finalRoleKey = roleKey || role_key
         const data = await resolveScreen({
           screenKey: screen,
-          industryCode: industry_code,
-          roleKey: role_key,
+          industryCode: finalIndustryCode,
+          roleKey: finalRoleKey,
         })
         if (cancelled) return
-        setFields(data.form_fields)
+        const loadedFields = data.formFields || data.form_fields || []
+        setFields(loadedFields)
         // Seed defaults for newly-introduced fields without clobbering user input.
         setValues((prev) => {
           const next = { ...prev }
-          for (const f of data.form_fields) {
+          for (const f of loadedFields) {
             if (next[f.key] === undefined) {
               next[f.key] = f.type === 'checkbox' ? false : ''
             }
@@ -237,16 +243,17 @@ export function DynamicForm({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, industry_code, role_key])
+  }, [screen, industryCode, roleKey, industry_code, role_key])
 
   const getDropdownUrl = (f: ResolvedFormField) => {
-    let url = f.dropdown_api || ''
+    let url = f.dropdownApi || f.dropdown_api || ''
     if (!url) return ''
     if (url.includes('options/states') && values.country) {
       url = `${url}?country=${encodeURIComponent(String(values.country))}`
     }
-    if (url.includes('options/organizations') && industry_code) {
-      url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(industry_code))}`
+    const finalIndustryCode = industryCode || industry_code
+    if (url.includes('options/organizations') && finalIndustryCode) {
+      url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(finalIndustryCode))}`
     }
     const activeOrg = values.organizationId || values.organizationId
     if (activeOrg && !url.includes('options/organizations')) {

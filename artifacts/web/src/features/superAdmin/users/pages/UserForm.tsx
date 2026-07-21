@@ -222,8 +222,8 @@ export default function UserFormPage() {
         <Box sx={{ mt: 2 }}>
           <DynamicForm
             screen="users"
-            industry_code={isSuperAdmin ? core.industryId : undefined}
-            role_key={core.role}
+            industryCode={isSuperAdmin ? core.industryId : undefined}
+            roleKey={core.role}
             initialValues={dynamicValues as Record<string, string | number | boolean | null>}
             onSubmit={async (vals) => { await handleSubmit(vals as Record<string, unknown>) }}
             onCancel={() => navigate('/users')}

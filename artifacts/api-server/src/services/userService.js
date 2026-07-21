@@ -53,7 +53,9 @@ function enrichUserFields(userDoc) {
  * Resolve which dynamic fields a (role × industry) is allowed to set on a
  * User document. SuperAdmin sees every is_form_visible field.
  */
-async function resolveAllowedFields({ industry_code, role_key, isSuperAdmin }) {
+async function resolveAllowedFields({ industryCode, roleKey, industry_code, role_key, isSuperAdmin }) {
+  const code = industryCode || industry_code;
+  const key = roleKey || role_key;
   const screen = await screenModel.findByKey(USERS_SCREEN_KEY);
   if (!screen || !screen.isActive) return { fields: [], screen: null };
   const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
@@ -62,11 +64,11 @@ async function resolveAllowedFields({ industry_code, role_key, isSuperAdmin }) {
     return { screen, fields: fields.filter((f) => f.is_form_visible) };
   }
 
-  const industry = await industryModel.findByCode(industry_code);
+  const industry = await industryModel.findByCode(code);
   if (!industry) {
-    const err = new Error(`Industry "${industry_code}" not found`); err.status = 400; throw err;
+    const err = new Error(`Industry "${code}" not found`); err.status = 400; throw err;
   }
-  const role = await roleModel.findByIndustryAndKey(industry._id, role_key);
+  const role = await roleModel.findByIndustryAndKey(industry._id, key);
   if (!role) return { screen, fields: [] };
 
   const perms = await permissionModel.list({

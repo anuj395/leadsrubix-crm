@@ -111,11 +111,13 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }))
 
   useEffect(() => {
-    if (!user || user.role === 'superAdmin') return
+    const role = user?.role || (user as any)?.roleKey || (user as any)?.role_key
+    if (!user || role === 'superAdmin') return
 
     void (async () => {
       try {
-        const res = await api.get(`/organizations?industryId=${user.industryId}`)
+        const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
+        const res = await api.get(`/organizations?industryId=${industryId}`)
         const orgs = res.data?.items ?? []
         const org = orgs[0]
         if (org) {

@@ -2,21 +2,37 @@ const mongoose = require('mongoose');
 
 const screenPermissionSchema = new mongoose.Schema(
   {
-    screen_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true },
+    screenId: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true },
     roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
     industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
-    field_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ScreenField', required: true },
-    is_enabled: { type: Boolean, default: true },
+    fieldId: { type: mongoose.Schema.Types.ObjectId, ref: 'ScreenField', required: true },
+    isEnabled: { type: Boolean, default: true },
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
+screenPermissionSchema.virtual('screen_id')
+  .get(function() { return this.screenId; })
+  .set(function(v) { this.screenId = v; });
+
+screenPermissionSchema.virtual('field_id')
+  .get(function() { return this.fieldId; })
+  .set(function(v) { this.fieldId = v; });
+
+screenPermissionSchema.virtual('is_enabled')
+  .get(function() { return this.isEnabled; })
+  .set(function(v) { this.isEnabled = v; });
+
 screenPermissionSchema.index(
-  { screen_id: 1, roleId: 1, industryId: 1, field_id: 1 },
+  { screenId: 1, roleId: 1, industryId: 1, fieldId: 1 },
   { unique: true, name: 'idx_screen_perm_unique' },
 );
 screenPermissionSchema.index(
-  { screen_id: 1, roleId: 1, industryId: 1, is_enabled: 1 },
+  { screenId: 1, roleId: 1, industryId: 1, isEnabled: 1 },
   { name: 'idx_screen_perm_lookup' },
 );
 
@@ -28,33 +44,38 @@ const ScreenPermission = mongoose.model(
 
 exports.ScreenPermission = ScreenPermission;
 
-exports.list = async ({ screen_id, roleId, industryId, field_id, enabledOnly = false } = {}) => {
+exports.list = async ({ screenId, screen_id, roleId, industryId, fieldId, field_id, enabledOnly = false } = {}) => {
+  const sId = screenId || screen_id;
+  const fId = fieldId || field_id;
   const q = {};
-  if (screen_id) q.screen_id = screen_id;
+  if (sId) q.screenId = sId;
   if (roleId) q.roleId = roleId;
   if (industryId) q.industryId = industryId;
-  if (field_id) q.field_id = field_id;
-  if (enabledOnly) q.is_enabled = true;
+  if (fId) q.fieldId = fId;
+  if (enabledOnly) q.isEnabled = true;
   return ScreenPermission.find(q).lean().exec();
 };
 
 exports.findById = async (id) => ScreenPermission.findById(id).lean().exec();
 
-exports.upsert = async ({ screen_id, roleId, industryId, field_id, is_enabled }) => {
+exports.upsert = async ({ screenId, screen_id, roleId, industryId, fieldId, field_id, isEnabled, is_enabled }) => {
+  const sId = screenId || screen_id;
+  const fId = fieldId || field_id;
+  const enabled = isEnabled !== undefined ? isEnabled : is_enabled;
   const $set = {};
-  if (is_enabled !== undefined) $set.is_enabled = !!is_enabled;
+  if (enabled !== undefined) $set.isEnabled = !!enabled;
   await ScreenPermission.updateOne(
-    { screen_id, roleId, industryId, field_id },
-    { $set, $setOnInsert: { screen_id, roleId, industryId, field_id } },
+    { screenId: sId, roleId, industryId, fieldId: fId },
+    { $set, $setOnInsert: { screenId: sId, roleId, industryId, fieldId: fId } },
     { upsert: true },
   );
-  return ScreenPermission.findOne({ screen_id, roleId, industryId, field_id }).lean().exec();
+  return ScreenPermission.findOne({ screenId: sId, roleId, industryId, fieldId: fId }).lean().exec();
 };
 
 exports.remove = async (id) => ScreenPermission.findByIdAndDelete(id).lean().exec();
 
-exports.removeByScreen = async (screen_id) =>
-  ScreenPermission.deleteMany({ screen_id }).exec();
+exports.removeByScreen = async (screenId) =>
+  ScreenPermission.deleteMany({ screenId }).exec();
 
 exports.removeByRole = async (roleId) =>
   ScreenPermission.deleteMany({ roleId }).exec();
@@ -62,31 +83,30 @@ exports.removeByRole = async (roleId) =>
 exports.removeByIndustry = async (industryId) =>
   ScreenPermission.deleteMany({ industryId }).exec();
 
-exports.removeByField = async (field_id) =>
-  ScreenPermission.deleteMany({ field_id }).exec();
+exports.removeByField = async (fieldId) =>
+  ScreenPermission.deleteMany({ fieldId }).exec();
 
-// Overwrite enabled fields for a (screen, role, industry) combo. Anything not
-// in `field_ids` becomes disabled (deleted); listed ids become enabled (upsert).
-exports.bulkSetForCombo = async ({ screen_id, roleId, industryId, field_ids }) => {
-  const ids = Array.isArray(field_ids) ? field_ids : [];
+exports.bulkSetForCombo = async ({ screenId, screen_id, roleId, industryId, fieldIds, field_ids }) => {
+  const sId = screenId || screen_id;
+  const ids = Array.isArray(fieldIds || field_ids) ? (fieldIds || field_ids) : [];
   await ScreenPermission.deleteMany({
-    screen_id,
+    screenId: sId,
     roleId,
     industryId,
-    field_id: { $nin: ids },
+    fieldId: { $nin: ids },
   });
   if (ids.length) {
-    const ops = ids.map((field_id) => ({
+    const ops = ids.map((fieldId) => ({
       updateOne: {
-        filter: { screen_id, roleId, industryId, field_id },
+        filter: { screenId: sId, roleId, industryId, fieldId },
         update: {
-          $set: { is_enabled: true },
-          $setOnInsert: { screen_id, roleId, industryId, field_id },
+          $set: { isEnabled: true },
+          $setOnInsert: { screenId: sId, roleId, industryId, fieldId },
         },
         upsert: true,
       },
     }));
     await ScreenPermission.bulkWrite(ops, { ordered: false });
   }
-  return ScreenPermission.find({ screen_id, roleId, industryId }).lean().exec();
+  return ScreenPermission.find({ screenId: sId, roleId, industryId }).lean().exec();
 };

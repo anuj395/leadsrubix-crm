@@ -145,8 +145,8 @@ export default function OrganizationFormPage() {
 
                 <DynamicForm
                   screen="organization"
-                  industry_code={selectedIndustry}
-                  role_key="admin"
+                  industryCode={selectedIndustry}
+                  roleKey="admin"
                   initialValues={editingItem ? toFormValues(editingItem) : { industryId: selectedIndustry }}
                   onCancel={handleCancel}
                   submitLabel={id ? 'Save' : 'Create'}

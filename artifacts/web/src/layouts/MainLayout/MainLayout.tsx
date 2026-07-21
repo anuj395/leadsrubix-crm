@@ -33,7 +33,8 @@ export function MainLayout() {
       console.log('[MainLayout] No user found in auth state');
       return;
     }
-    if (user.role === 'superAdmin') {
+    const role = user.role || (user as any).roleKey || (user as any).role_key
+    if (role === 'superAdmin') {
       console.log('[MainLayout] User is superAdmin, skipping popup');
       return;
     }
@@ -42,7 +43,8 @@ export function MainLayout() {
 
     void (async () => {
       try {
-        const res = await api.get(`/organizations?industryId=${user.industryId}`)
+        const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
+        const res = await api.get(`/organizations?industryId=${industryId}`)
         console.log('[MainLayout] Organization fetch response:', res.data);
         const orgs = res.data?.items ?? []
         const org = orgs[0]

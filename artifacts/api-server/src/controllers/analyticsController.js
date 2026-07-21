@@ -2,15 +2,18 @@ const service = require('../services/analyticsService');
 
 exports.getAnalyticsDashboardData = async (req, res, next) => {
   try {
-    const { group_by, industryId, start_date, end_date } = req.query;
+    const groupBy = req.query.groupBy || req.query.group_by;
+    const startDate = req.query.startDate || req.query.start_date;
+    const endDate = req.query.endDate || req.query.end_date;
+    const { industryId } = req.query;
     const authedUser = req.user;
 
     const data = await service.getAnalyticsDashboardData({
       authedUser,
       industryIdQuery: industryId,
-      groupBy: group_by,
-      startDate: start_date,
-      endDate: end_date
+      groupBy,
+      startDate,
+      endDate
     });
 
     res.json(data);

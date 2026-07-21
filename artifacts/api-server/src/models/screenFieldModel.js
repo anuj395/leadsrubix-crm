@@ -5,33 +5,65 @@ const DROPDOWN_SOURCES = ['none', 'static', 'api'];
 
 const screenFieldSchema = new mongoose.Schema(
   {
-    screen_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true },
-    field_key: { type: String, required: true, trim: true },
+    screenId: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true },
+    fieldKey: { type: String, required: true, trim: true },
     label: { type: String, required: true, trim: true },
     type: { type: String, enum: FIELD_TYPES, default: 'text' },
     options: { type: [String], default: [] }, // for static select fields
-    // Dynamic-dropdown config (only meaningful when type === 'select'):
-    //   - 'none'   → ignore (treat as plain text-ish select with empty options)
-    //   - 'static' → use the `options` array above
-    //   - 'api'    → fetch dropdown_api at form-render time and use the response
-    dropdown_source: { type: String, enum: DROPDOWN_SOURCES, default: 'none' },
-    dropdown_api: { type: String, default: '', trim: true },
-    is_table_visible: { type: Boolean, default: true },
-    is_form_visible: { type: Boolean, default: true },
-    is_required: { type: Boolean, default: false },
+    dropdownSource: { type: String, enum: DROPDOWN_SOURCES, default: 'none' },
+    dropdownApi: { type: String, default: '', trim: true },
+    isTableVisible: { type: Boolean, default: true },
+    isFormVisible: { type: Boolean, default: true },
+    isRequired: { type: Boolean, default: false },
     sortable: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
-    default_value: { type: mongoose.Schema.Types.Mixed, default: null },
+    defaultValue: { type: mongoose.Schema.Types.Mixed, default: null },
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
+screenFieldSchema.virtual('screen_id')
+  .get(function() { return this.screenId; })
+  .set(function(v) { this.screenId = v; });
+
+screenFieldSchema.virtual('field_key')
+  .get(function() { return this.fieldKey; })
+  .set(function(v) { this.fieldKey = v; });
+
+screenFieldSchema.virtual('dropdown_source')
+  .get(function() { return this.dropdownSource; })
+  .set(function(v) { this.dropdownSource = v; });
+
+screenFieldSchema.virtual('dropdown_api')
+  .get(function() { return this.dropdownApi; })
+  .set(function(v) { this.dropdownApi = v; });
+
+screenFieldSchema.virtual('is_table_visible')
+  .get(function() { return this.isTableVisible; })
+  .set(function(v) { this.isTableVisible = v; });
+
+screenFieldSchema.virtual('is_form_visible')
+  .get(function() { return this.isFormVisible; })
+  .set(function(v) { this.isFormVisible = v; });
+
+screenFieldSchema.virtual('is_required')
+  .get(function() { return this.isRequired; })
+  .set(function(v) { this.isRequired = v; });
+
+screenFieldSchema.virtual('default_value')
+  .get(function() { return this.defaultValue; })
+  .set(function(v) { this.defaultValue = v; });
+
 screenFieldSchema.index(
-  { screen_id: 1, field_key: 1 },
+  { screenId: 1, fieldKey: 1 },
   { unique: true, name: 'idx_screen_field_unique' },
 );
-screenFieldSchema.index({ screen_id: 1, order: 1 }, { name: 'idx_screen_field_order' });
+screenFieldSchema.index({ screenId: 1, order: 1 }, { name: 'idx_screen_field_order' });
 
 const ScreenField = mongoose.model('ScreenField', screenFieldSchema, 'screen_fields');
 
@@ -39,95 +71,103 @@ exports.ScreenField = ScreenField;
 exports.FIELD_TYPES = FIELD_TYPES;
 exports.DROPDOWN_SOURCES = DROPDOWN_SOURCES;
 
-exports.list = async ({ screen_id, activeOnly = false } = {}) => {
+exports.list = async ({ screenId, screen_id, activeOnly = false } = {}) => {
+  const targetScreenId = screenId || screen_id;
   const q = {};
-  if (screen_id) q.screen_id = screen_id;
+  if (targetScreenId) q.screenId = targetScreenId;
   if (activeOnly) q.isActive = true;
   return ScreenField.find(q).sort({ order: 1, label: 1 }).lean().exec();
 };
 
 exports.findById = async (id) => ScreenField.findById(id).lean().exec();
 
-exports.findByScreenAndKey = async (screen_id, field_key) =>
-  ScreenField.findOne({ screen_id, field_key: String(field_key).trim() }).lean().exec();
+exports.findByScreenAndKey = async (screenId, fieldKey) =>
+  ScreenField.findOne({ screenId, fieldKey: String(fieldKey).trim() }).lean().exec();
 
 function normalizeDropdown(payload) {
-  const source = DROPDOWN_SOURCES.includes(payload.dropdown_source) ? payload.dropdown_source : 'none';
-  const apiUrl = source === 'api' ? String(payload.dropdown_api || '').trim() : '';
-  return { dropdown_source: source, dropdown_api: apiUrl };
+  const src = payload.dropdownSource || payload.dropdown_source;
+  const api = payload.dropdownApi || payload.dropdown_api;
+  const source = DROPDOWN_SOURCES.includes(src) ? src : 'none';
+  const apiUrl = source === 'api' ? String(api || '').trim() : '';
+  return { dropdownSource: source, dropdownApi: apiUrl, dropdown_source: source, dropdown_api: apiUrl };
 }
 
 exports.create = async (payload) => {
   const dd = normalizeDropdown(payload);
   const doc = await ScreenField.create({
-    screen_id: payload.screen_id,
-    field_key: String(payload.field_key).trim(),
+    screenId: payload.screenId || payload.screen_id,
+    fieldKey: String(payload.fieldKey || payload.field_key).trim(),
     label: String(payload.label).trim(),
     type: payload.type || 'text',
     options: Array.isArray(payload.options) ? payload.options : [],
-    dropdown_source: dd.dropdown_source,
-    dropdown_api: dd.dropdown_api,
-    is_table_visible: payload.is_table_visible !== false,
-    is_form_visible: payload.is_form_visible !== false,
-    is_required: !!payload.is_required,
+    dropdownSource: dd.dropdownSource,
+    dropdownApi: dd.dropdownApi,
+    isTableVisible: (payload.isTableVisible !== undefined ? payload.isTableVisible : payload.is_table_visible) !== false,
+    isFormVisible: (payload.isFormVisible !== undefined ? payload.isFormVisible : payload.is_form_visible) !== false,
+    isRequired: !!(payload.isRequired !== undefined ? payload.isRequired : payload.is_required),
     sortable: payload.sortable !== false,
     order: typeof payload.order === 'number' ? payload.order : 0,
     isActive: payload.isActive !== false,
-    default_value: payload.default_value !== undefined ? payload.default_value : null,
+    defaultValue: payload.defaultValue !== undefined ? payload.defaultValue : (payload.default_value !== undefined ? payload.default_value : null),
   });
   return doc.toObject();
 };
 
 exports.update = async (id, patch) => {
   const update = {};
-  if (patch.field_key !== undefined) update.field_key = String(patch.field_key).trim();
+  const fKey = patch.fieldKey || patch.field_key;
+  if (fKey !== undefined) update.fieldKey = String(fKey).trim();
   if (patch.label !== undefined) update.label = String(patch.label).trim();
   if (patch.type !== undefined) update.type = String(patch.type);
   if (patch.options !== undefined) update.options = Array.isArray(patch.options) ? patch.options : [];
-  if (patch.dropdown_source !== undefined || patch.dropdown_api !== undefined) {
+  if (patch.dropdownSource !== undefined || patch.dropdown_source !== undefined || patch.dropdownApi !== undefined || patch.dropdown_api !== undefined) {
     const dd = normalizeDropdown({
-      dropdown_source: patch.dropdown_source,
-      dropdown_api: patch.dropdown_api,
+      dropdownSource: patch.dropdownSource || patch.dropdown_source,
+      dropdownApi: patch.dropdownApi || patch.dropdown_api,
     });
-    update.dropdown_source = dd.dropdown_source;
-    update.dropdown_api = dd.dropdown_api;
+    update.dropdownSource = dd.dropdownSource;
+    update.dropdownApi = dd.dropdownApi;
   }
-  if (patch.is_table_visible !== undefined) update.is_table_visible = !!patch.is_table_visible;
-  if (patch.is_form_visible !== undefined) update.is_form_visible = !!patch.is_form_visible;
-  if (patch.is_required !== undefined) update.is_required = !!patch.is_required;
+  const isTableVis = patch.isTableVisible !== undefined ? patch.isTableVisible : patch.is_table_visible;
+  if (isTableVis !== undefined) update.isTableVisible = !!isTableVis;
+  const isFormVis = patch.isFormVisible !== undefined ? patch.isFormVisible : patch.is_form_visible;
+  if (isFormVis !== undefined) update.isFormVisible = !!isFormVis;
+  const isReq = patch.isRequired !== undefined ? patch.isRequired : patch.is_required;
+  if (isReq !== undefined) update.isRequired = !!isReq;
   if (patch.sortable !== undefined) update.sortable = !!patch.sortable;
   if (patch.order !== undefined) update.order = Number(patch.order);
   if (patch.isActive !== undefined) update.isActive = !!patch.isActive;
-  if (patch.default_value !== undefined) update.default_value = patch.default_value;
+  const defVal = patch.defaultValue !== undefined ? patch.defaultValue : patch.default_value;
+  if (defVal !== undefined) update.defaultValue = defVal;
   return ScreenField.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec();
 };
 
 exports.remove = async (id) => ScreenField.findByIdAndDelete(id).lean().exec();
 
-exports.removeByScreen = async (screen_id) =>
-  ScreenField.deleteMany({ screen_id }).exec();
+exports.removeByScreen = async (screenId) =>
+  ScreenField.deleteMany({ screenId }).exec();
 
-exports.upsertByKey = async (screen_id, field_key, attrs) => {
-  const key = String(field_key).trim();
+exports.upsertByKey = async (screenId, fieldKey, attrs) => {
+  const key = String(fieldKey).trim();
   const dd = normalizeDropdown(attrs);
   const $set = {
     label: attrs.label,
     type: attrs.type || 'text',
     options: Array.isArray(attrs.options) ? attrs.options : [],
-    dropdown_source: dd.dropdown_source,
-    dropdown_api: dd.dropdown_api,
-    is_table_visible: attrs.is_table_visible !== false,
-    is_form_visible: attrs.is_form_visible !== false,
-    is_required: !!attrs.is_required,
+    dropdownSource: dd.dropdownSource,
+    dropdownApi: dd.dropdownApi,
+    isTableVisible: (attrs.isTableVisible !== undefined ? attrs.isTableVisible : attrs.is_table_visible) !== false,
+    isFormVisible: (attrs.isFormVisible !== undefined ? attrs.isFormVisible : attrs.is_form_visible) !== false,
+    isRequired: !!(attrs.isRequired !== undefined ? attrs.isRequired : attrs.is_required),
     sortable: attrs.sortable !== false,
     order: typeof attrs.order === 'number' ? attrs.order : 0,
     isActive: attrs.isActive !== false,
-    default_value: attrs.default_value !== undefined ? attrs.default_value : null,
+    defaultValue: attrs.defaultValue !== undefined ? attrs.defaultValue : (attrs.default_value !== undefined ? attrs.default_value : null),
   };
   await ScreenField.updateOne(
-    { screen_id, field_key: key },
-    { $set, $setOnInsert: { screen_id, field_key: key } },
+    { screenId, fieldKey: key },
+    { $set, $setOnInsert: { screenId, fieldKey: key } },
     { upsert: true },
   );
-  return ScreenField.findOne({ screen_id, field_key: key }).lean().exec();
+  return ScreenField.findOne({ screenId, fieldKey: key }).lean().exec();
 };

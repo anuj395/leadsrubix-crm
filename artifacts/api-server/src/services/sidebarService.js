@@ -11,22 +11,24 @@ const permModel = require('../models/sidebarPermissionModel');
  * Returns { industryId, industry_code, role, menus } where `menus` is a
  * flat array; each item carries `parent_id` so the client can build a tree.
  */
-async function resolveSidebar({ industry_code, role_key }) {
-  if (!industry_code || !role_key) {
-    return { industry_code, role: role_key, menus: [] };
+async function resolveSidebar({ industryCode, roleKey, industry_code, role_key }) {
+  const code = industryCode || industry_code;
+  const key = roleKey || role_key;
+  if (!code || !key) {
+    return { industryCode: code, roleKey: key, menus: [] };
   }
 
-  const industry = await industryModel.findByCode(industry_code);
+  const industry = await industryModel.findByCode(code);
   if (!industry || industry.isActive === false) {
-    return { industry_code, role: role_key, menus: [] };
+    return { industryCode: code, roleKey: key, menus: [] };
   }
 
-  const role = await roleModel.findByIndustryAndKey(industry._id, role_key);
+  const role = await roleModel.findByIndustryAndKey(industry._id, key);
   if (!role || role.isActive === false) {
     return {
       industryId: String(industry._id),
-      industry_code,
-      role: role_key,
+      industryCode: code,
+      roleKey: key,
       menus: [],
     };
   }
@@ -45,7 +47,7 @@ async function resolveSidebar({ industry_code, role_key }) {
     };
   }
 
-  const menus = await menuModel.findByIds(perms.map((p) => p.menu_id));
+  const menus = await menuModel.findByIds(perms.map((p) => p.menuId || p.menu_id));
   const menuById = new Map(
     menus.filter((m) => m.isActive !== false).map((m) => [String(m._id), m]),
   );
@@ -56,9 +58,10 @@ async function resolveSidebar({ industry_code, role_key }) {
   const includedIds = new Set([...menuById.keys()]);
   const parentIdsToFetch = [];
   for (const m of menuById.values()) {
-    if (m.parent_id && !includedIds.has(String(m.parent_id))) {
-      parentIdsToFetch.push(m.parent_id);
-      includedIds.add(String(m.parent_id));
+    const pId = m.parentId || m.parent_id;
+    if (pId && !includedIds.has(String(pId))) {
+      parentIdsToFetch.push(pId);
+      includedIds.add(String(pId));
     }
   }
   if (parentIdsToFetch.length) {
@@ -68,14 +71,15 @@ async function resolveSidebar({ industry_code, role_key }) {
     }
   }
 
-  const permByMenu = new Map(perms.map((p) => [String(p.menu_id), p]));
+  const permByMenu = new Map(perms.map((p) => [String(p.menuId || p.menu_id), p]));
 
   const items = [...menuById.values()]
     .map((m) => {
       const perm = permByMenu.get(String(m._id));
+      const orderOverride = perm ? (perm.orderOverride !== undefined ? perm.orderOverride : perm.order_override) : undefined;
       const order =
-        perm && typeof perm.order_override === 'number'
-          ? perm.order_override
+        typeof orderOverride === 'number'
+          ? orderOverride
           : typeof m.order === 'number'
             ? m.order
             : 0;
@@ -85,7 +89,8 @@ async function resolveSidebar({ industry_code, role_key }) {
         name: m.name,
         icon: m.icon || '',
         route: m.route || '',
-        parent_id: m.parent_id ? String(m.parent_id) : null,
+        parent_id: (m.parentId || m.parent_id) ? String(m.parentId || m.parent_id) : null,
+        parentId: (m.parentId || m.parent_id) ? String(m.parentId || m.parent_id) : null,
         order,
         module: m.module || '',
       };
@@ -94,8 +99,10 @@ async function resolveSidebar({ industry_code, role_key }) {
 
   return {
     industryId: String(industry._id),
-    industry_code,
-    role: role_key,
+    industryCode: code,
+    industry_code: code,
+    roleKey: key,
+    role: key,
     menus: items,
   };
 }
@@ -151,20 +158,22 @@ exports.getByIndustry = async (industry_code) => {
   for (const r of roles) {
     const list = grouped.get(String(r._id)) || [];
     list.sort((a, b) => {
-      const aMenu = menuById.get(String(a.menu_id));
-      const bMenu = menuById.get(String(b.menu_id));
+      const aMenu = menuById.get(String(a.menuId || a.menu_id));
+      const bMenu = menuById.get(String(b.menuId || b.menu_id));
+      const aOrd = a.orderOverride !== undefined ? a.orderOverride : a.order_override;
+      const bOrd = b.orderOverride !== undefined ? b.orderOverride : b.order_override;
       const aOrder =
-        typeof a.order_override === 'number'
-          ? a.order_override
+        typeof aOrd === 'number'
+          ? aOrd
           : aMenu?.order ?? 0;
       const bOrder =
-        typeof b.order_override === 'number'
-          ? b.order_override
+        typeof bOrd === 'number'
+          ? bOrd
           : bMenu?.order ?? 0;
       return aOrder - bOrder;
     });
     rolesObj[r.key] = list
-      .map((p) => menuById.get(String(p.menu_id)))
+      .map((p) => menuById.get(String(p.menuId || p.menu_id)))
       .filter((m) => m && m.isActive !== false)
       .map((m) => ({
         key: m.key,

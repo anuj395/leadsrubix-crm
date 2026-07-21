@@ -16,14 +16,16 @@ export function ProtectedRoute() {
   const [isExpired, setIsExpired] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated || !user || user.role === 'superAdmin') {
+    const role = user?.role || (user as any)?.roleKey || (user as any)?.role_key
+    if (!isAuthenticated || !user || role === 'superAdmin') {
       setLoadingOrg(false)
       return
     }
 
     void (async () => {
       try {
-        const res = await api.get(`/organizations?industryId=${user.industryId}`)
+        const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
+        const res = await api.get(`/organizations?industryId=${industryId}`)
         const orgs = res.data?.items ?? []
         const org = orgs[0]
         if (org) {
