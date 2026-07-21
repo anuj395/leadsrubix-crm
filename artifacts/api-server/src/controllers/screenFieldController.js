@@ -3,7 +3,7 @@ const service = require('../services/screenFieldService');
 exports.list = async (req, res, next) => {
   try {
     const items = await service.list({
-      screen_id: req.query.screen_id,
+      screenId: req.query.screenId,
       activeOnly: req.query.active === 'true',
     });
     res.json({ items });

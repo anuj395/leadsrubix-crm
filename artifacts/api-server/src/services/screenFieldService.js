@@ -15,24 +15,26 @@ exports.get = async (id) => {
 };
 
 exports.create = async (payload) => {
-  if (!payload?.screen_id || !payload?.field_key || !payload?.label) {
-    const err = new Error('screen_id, field_key and label are required');
+  const sId = payload?.screenId || payload?.screen_id;
+  const fKey = payload?.fieldKey || payload?.field_key;
+  if (!sId || !fKey || !payload?.label) {
+    const err = new Error('screenId, fieldKey and label are required');
     err.status = 400;
     throw err;
   }
-  const screen = await screenModel.findById(payload.screen_id);
+  const screen = await screenModel.findById(sId);
   if (!screen) {
     const err = new Error('Screen not found');
     err.status = 404;
     throw err;
   }
-  const dup = await fieldModel.findByScreenAndKey(payload.screen_id, payload.field_key);
+  const dup = await fieldModel.findByScreenAndKey(sId, fKey);
   if (dup) {
     const err = new Error('Field with this key already exists for this screen');
     err.status = 409;
     throw err;
   }
-  return fieldModel.create(payload);
+  return fieldModel.create({ ...payload, screenId: sId, fieldKey: fKey });
 };
 
 exports.update = async (id, patch) => {
@@ -42,8 +44,9 @@ exports.update = async (id, patch) => {
     err.status = 404;
     throw err;
   }
-  if (patch?.field_key) {
-    const dup = await fieldModel.findByScreenAndKey(current.screen_id, patch.field_key);
+  const fKey = patch?.fieldKey || patch?.field_key;
+  if (fKey) {
+    const dup = await fieldModel.findByScreenAndKey(current.screenId, fKey);
     if (dup && String(dup._id) !== String(id)) {
       const err = new Error('Field with this key already exists for this screen');
       err.status = 409;

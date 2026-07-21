@@ -8,23 +8,21 @@ const userModel = require('../models/userModel');
 exports.list = async (opts) => {
   const items = await permissionModel.list(opts);
   const q = { activeOnly: true };
-  if (opts && opts.screen_id) {
-    q.screen_id = opts.screen_id;
+  if (opts && opts.screenId) {
+    q.screenId = opts.screenId;
   }
   const fields = await fieldModel.list(q);
   const validFieldIds = new Set(fields.map((f) => String(f._id)));
-  return items.filter((item) => validFieldIds.has(String(item.field_id)));
+  return items.filter((item) => validFieldIds.has(String(item.fieldId)));
 };
 
-exports.bulkSet = async ({ screenId, screen_id, roleId, industryId, fieldIds, field_ids }) => {
-  const targetScreenId = screenId || screen_id;
-  const targetFieldIds = fieldIds || field_ids;
-  if (!targetScreenId || !roleId || !industryId) {
+exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
+  if (!screenId || !roleId || !industryId) {
     const err = new Error('screenId, roleId and industryId are required');
     err.status = 400;
     throw err;
   }
-  if (!Array.isArray(targetFieldIds)) {
+  if (!Array.isArray(fieldIds)) {
     const err = new Error('fieldIds must be an array');
     err.status = 400;
     throw err;
@@ -33,7 +31,7 @@ exports.bulkSet = async ({ screenId, screen_id, roleId, industryId, fieldIds, fi
   // Verify the (screen, role, industry) triple is internally consistent before
   // we write rows that would otherwise drift from real FKs.
   const [screen, role, industry] = await Promise.all([
-    screenModel.findById(screen_id),
+    screenModel.findById(screenId),
     roleModel.findById(roleId),
     industryModel.findById(industryId),
   ]);
@@ -54,20 +52,20 @@ exports.bulkSet = async ({ screenId, screen_id, roleId, industryId, fieldIds, fi
   }
 
   // Verify every requested field belongs to this screen.
-  if (field_ids.length > 0) {
-    const fields = await fieldModel.list({ screen_id });
+  if (fieldIds.length > 0) {
+    const fields = await fieldModel.list({ screenId });
     const validIds = new Set(fields.map((f) => String(f._id)));
-    const invalid = field_ids.filter((id) => !validIds.has(String(id)));
+    const invalid = fieldIds.filter((id) => !validIds.has(String(id)));
     if (invalid.length > 0) {
       const err = new Error(
-        `field_ids contains entries that do not belong to this screen: ${invalid.join(', ')}`,
+        `fieldIds contains entries that do not belong to this screen: ${invalid.join(', ')}`,
       );
       err.status = 400;
       throw err;
     }
   }
 
-  return permissionModel.bulkSetForCombo({ screen_id, roleId, industryId, field_ids });
+  return permissionModel.bulkSetForCombo({ screenId, roleId, industryId, fieldIds });
 };
 
 /**
@@ -157,7 +155,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   }
 
   // Active fields for this screen.
-  const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
   if (fields.length === 0) {
     return {
       screen: { _id: screen._id, key: screen.key, name: screen.name },
@@ -175,12 +173,12 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   } else {
     // Enabled permissions for this triple.
     const perms = await permissionModel.list({
-      screen_id: screen._id,
+      screenId: screen._id,
       roleId: role._id,
       industryId: industry._id,
       enabledOnly: true,
     });
-    const allowedFieldIds = new Set(perms.map((p) => String(p.field_id)));
+    const allowedFieldIds = new Set(perms.map((p) => String(p.fieldId)));
     allowed = fields.filter((f) => allowedFieldIds.has(String(f._id)));
   }
 

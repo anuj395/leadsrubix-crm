@@ -4,7 +4,7 @@ export interface RoleActionPermission {
   _id: string
   roleId: string
   industryId: string
-  screen_id: string
+  screenId: string
   can_view: boolean
   can_add: boolean
   can_edit: boolean
@@ -23,12 +23,12 @@ export interface MyActionPerms {
 export async function listRoleActionPermissions(params: {
   roleId?: string
   industryId?: string
-  screen_id?: string
+  screenId?: string
 } = {}): Promise<RoleActionPermission[]> {
   const search = new URLSearchParams()
   if (params.roleId)     search.set('roleId', params.roleId)
   if (params.industryId) search.set('industryId', params.industryId)
-  if (params.screen_id)   search.set('screen_id', params.screen_id)
+  if (params.screenId)   search.set('screenId', params.screenId)
   const qs = search.toString()
   const res = await api.get(qs ? `role-action-permissions?${qs}` : 'role-action-permissions')
   return (res.data?.items ?? []) as RoleActionPermission[]
@@ -37,7 +37,7 @@ export async function listRoleActionPermissions(params: {
 export async function upsertRoleActionPermission(input: {
   roleId: string
   industryId: string
-  screen_id: string
+  screenId: string
   can_view?: boolean
   can_add?: boolean
   can_edit?: boolean

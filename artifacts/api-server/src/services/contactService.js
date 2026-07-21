@@ -239,7 +239,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
     const err = new Error(`Industry "${resolvedIndustryId}" not found`); err.status = 400; throw err;
   }
 
-  const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
   let allowedFormFields;
   if (isSuperAdmin) {
     allowedFormFields = fields.filter((f) => f.is_form_visible);
@@ -249,12 +249,12 @@ exports.createForUser = async ({ payload, authedUser }) => {
       const err = new Error(`Role "${user.role}" not found for this industry`); err.status = 400; throw err;
     }
     const perms = await permissionModel.list({
-      screen_id: screen._id,
+      screenId: screen._id,
       roleId: role._id,
       industryId: industry._id,
       enabledOnly: true,
     });
-    const allowedIds = new Set(perms.map((p) => String(p.field_id)));
+    const allowedIds = new Set(perms.map((p) => String(p.fieldId)));
     allowedFormFields = fields.filter(
       (f) => f.is_form_visible && allowedIds.has(String(f._id)),
     );
@@ -420,7 +420,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     const err = new Error(`Industry "${user.industryId}" not found`); err.status = 400; throw err;
   }
 
-  const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
   let allowedFormFields;
   if (isSuperAdmin) {
     allowedFormFields = fields.filter((f) => f.is_form_visible);
@@ -430,12 +430,12 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
       const err = new Error(`Role "${role}" not found for this industry`); err.status = 400; throw err;
     }
     const perms = await permissionModel.list({
-      screen_id: screen._id,
+      screenId: screen._id,
       roleId: roleDoc._id,
       industryId: industry._id,
       enabledOnly: true,
     });
-    const allowedIds = new Set(perms.map((p) => String(p.field_id)));
+    const allowedIds = new Set(perms.map((p) => String(p.fieldId)));
     allowedFormFields = fields.filter(
       (f) => f.is_form_visible && allowedIds.has(String(f._id)),
     );

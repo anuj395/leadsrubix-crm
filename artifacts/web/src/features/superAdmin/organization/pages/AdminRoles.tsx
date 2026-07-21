@@ -155,7 +155,7 @@ export default function AdminRolesPage() {
       })
       const byScreen: Record<string, boolean> = {}
       for (const s of screens) byScreen[s._id] = false
-      for (const p of perms) byScreen[p.screen_id] = true
+      for (const p of perms) byScreen[p.screenId] = true
       setModuleAccess(byScreen)
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } }
@@ -179,8 +179,8 @@ export default function AdminRolesPage() {
       const fields: ScreenField[] = next ? await getScreenFields(screen._id) : []
       const fieldIds = fields.filter((f) => f.isActive).map((f) => f._id)
       await bulkSetScreenPermissions({
-        screen_id: screen._id, roleId: adminRole._id,
-        industryId: currentIndustry._id, field_ids: next ? fieldIds : [],
+        screenId: screen._id, roleId: adminRole._id,
+        industryId: currentIndustry._id, fieldIds: next ? fieldIds : [],
       })
       setModuleAccess((m) => ({ ...m, [screen._id]: next }))
       showToast(`${screen.name}: ${next ? 'enabled' : 'disabled'} for admins`)

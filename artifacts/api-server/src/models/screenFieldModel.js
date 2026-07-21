@@ -27,10 +27,6 @@ const screenFieldSchema = new mongoose.Schema(
   },
 );
 
-screenFieldSchema.virtual('screen_id')
-  .get(function() { return this.screenId; })
-  .set(function(v) { this.screenId = v; });
-
 screenFieldSchema.virtual('field_key')
   .get(function() { return this.fieldKey; })
   .set(function(v) { this.fieldKey = v; });
@@ -71,10 +67,9 @@ exports.ScreenField = ScreenField;
 exports.FIELD_TYPES = FIELD_TYPES;
 exports.DROPDOWN_SOURCES = DROPDOWN_SOURCES;
 
-exports.list = async ({ screenId, screen_id, activeOnly = false } = {}) => {
-  const targetScreenId = screenId || screen_id;
+exports.list = async ({ screenId, activeOnly = false } = {}) => {
   const q = {};
-  if (targetScreenId) q.screenId = targetScreenId;
+  if (screenId) q.screenId = screenId;
   if (activeOnly) q.isActive = true;
   return ScreenField.find(q).sort({ order: 1, label: 1 }).lean().exec();
 };
@@ -95,7 +90,7 @@ function normalizeDropdown(payload) {
 exports.create = async (payload) => {
   const dd = normalizeDropdown(payload);
   const doc = await ScreenField.create({
-    screenId: payload.screenId || payload.screen_id,
+    screenId: payload.screenId,
     fieldKey: String(payload.fieldKey || payload.field_key).trim(),
     label: String(payload.label).trim(),
     type: payload.type || 'text',

@@ -58,7 +58,7 @@ async function resolveAllowedFields({ industryCode, roleKey, industry_code, role
   const key = roleKey || role_key;
   const screen = await screenModel.findByKey(USERS_SCREEN_KEY);
   if (!screen || !screen.isActive) return { fields: [], screen: null };
-  const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
 
   if (isSuperAdmin) {
     return { screen, fields: fields.filter((f) => f.is_form_visible) };
@@ -72,12 +72,12 @@ async function resolveAllowedFields({ industryCode, roleKey, industry_code, role
   if (!role) return { screen, fields: [] };
 
   const perms = await permissionModel.list({
-    screen_id: screen._id,
+    screenId: screen._id,
     roleId: role._id,
     industryId: industry._id,
     enabledOnly: true,
   });
-  const allowedIds = new Set(perms.map((p) => String(p.field_id)));
+  const allowedIds = new Set(perms.map((p) => String(p.fieldId)));
   return {
     screen,
     fields: fields.filter((f) => f.is_form_visible && allowedIds.has(String(f._id))),

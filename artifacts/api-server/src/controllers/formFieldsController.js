@@ -59,7 +59,7 @@ exports.get = async (req, res, next) => {
     if (!screen) {
       return res.json({ organizationId, form_name, fields: [] });
     }
-    const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+    const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
     res.json({
       organizationId,
       form_name,

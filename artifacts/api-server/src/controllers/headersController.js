@@ -57,7 +57,7 @@ exports.get = async (req, res, next) => {
       // we return an empty columns array rather than fabricating one.
       return res.json({ organizationId, module, columns: [] });
     }
-    const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+    const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
     res.json({
       organizationId,
       module,

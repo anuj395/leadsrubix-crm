@@ -22,10 +22,6 @@ const roleActionPermissionSchema = new mongoose.Schema(
   },
 );
 
-roleActionPermissionSchema.virtual('screen_id')
-  .get(function() { return this.screenId; })
-  .set(function(v) { this.screenId = v; });
-
 roleActionPermissionSchema.virtual('can_view')
   .get(function() { return this.canView; })
   .set(function(v) { this.canView = v; });
@@ -55,25 +51,22 @@ const RoleActionPermission = mongoose.model(
 
 exports.RoleActionPermission = RoleActionPermission;
 
-exports.list = async ({ roleId, industryId, screenId, screen_id } = {}) => {
-  const sId = screenId || screen_id;
+exports.list = async ({ roleId, industryId, screenId } = {}) => {
   const q = {};
   if (roleId) q.roleId = roleId;
   if (industryId) q.industryId = industryId;
-  if (sId) q.screenId = sId;
+  if (screenId) q.screenId = screenId;
   return RoleActionPermission.find(q).lean().exec();
 };
 
-exports.findFor = ({ roleId, industryId, screenId, screen_id }) => {
-  const sId = screenId || screen_id;
-  return RoleActionPermission.findOne({ roleId, industryId, screenId: sId }).lean().exec();
+exports.findFor = ({ roleId, industryId, screenId }) => {
+  return RoleActionPermission.findOne({ roleId, industryId, screenId }).lean().exec();
 };
 
 exports.upsert = async ({
-  roleId, industryId, screenId, screen_id,
+  roleId, industryId, screenId,
   canView, can_view, canAdd, can_add, canEdit, can_edit, canDelete, can_delete,
 }) => {
-  const sId = screenId || screen_id;
   const cView = canView !== undefined ? canView : can_view;
   const cAdd = canAdd !== undefined ? canAdd : can_add;
   const cEdit = canEdit !== undefined ? canEdit : can_edit;
@@ -84,11 +77,11 @@ exports.upsert = async ({
   if (cEdit !== undefined) $set.canEdit = !!cEdit;
   if (cDel  !== undefined) $set.canDelete = !!cDel;
   await RoleActionPermission.updateOne(
-    { roleId, industryId, screenId: sId },
-    { $set, $setOnInsert: { roleId, industryId, screenId: sId } },
+    { roleId, industryId, screenId },
+    { $set, $setOnInsert: { roleId, industryId, screenId } },
     { upsert: true },
   );
-  return RoleActionPermission.findOne({ roleId, industryId, screenId: sId }).lean().exec();
+  return RoleActionPermission.findOne({ roleId, industryId, screenId }).lean().exec();
 };
 
 exports.removeByRole     = (roleId)     => RoleActionPermission.deleteMany({ roleId }).exec();

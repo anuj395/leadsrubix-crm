@@ -3,10 +3,10 @@ const service = require('../services/screenPermissionService');
 exports.list = async (req, res, next) => {
   try {
     const items = await service.list({
-      screen_id: req.query.screen_id,
+      screenId: req.query.screenId,
       roleId: req.query.roleId,
       industryId: req.query.industryId,
-      field_id: req.query.field_id,
+      fieldId: req.query.fieldId,
       enabledOnly: req.query.enabled === 'true',
     });
     res.json({ items });

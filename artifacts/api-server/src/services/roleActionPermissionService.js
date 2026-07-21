@@ -10,28 +10,28 @@ const ACTIONS = ['view', 'add', 'edit', 'delete'];
 
 exports.ACTIONS = ACTIONS;
 
-exports.list = ({ roleId, industryId, screen_id }) =>
-  model.list({ roleId, industryId, screen_id });
+exports.list = ({ roleId, industryId, screenId }) =>
+  model.list({ roleId, industryId, screenId });
 
-exports.upsert = async ({ roleId, industryId, screen_id, can_view, can_add, can_edit, can_delete }) => {
-  if (!roleId || !industryId || !screen_id) {
-    const e = new Error('roleId, industryId and screen_id are required'); e.status = 400; throw e;
+exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete }) => {
+  if (!roleId || !industryId || !screenId) {
+    const e = new Error('roleId, industryId and screenId are required'); e.status = 400; throw e;
   }
-  if (!isObjectId(roleId) || !isObjectId(industryId) || !isObjectId(screen_id)) {
-    const e = new Error('roleId, industryId and screen_id must be valid ObjectIds'); e.status = 400; throw e;
+  if (!isObjectId(roleId) || !isObjectId(industryId) || !isObjectId(screenId)) {
+    const e = new Error('roleId, industryId and screenId must be valid ObjectIds'); e.status = 400; throw e;
   }
   // Ensure referenced docs actually exist and that the role belongs to the
   // requested industry — prevents orphan / cross-industry rows from direct API calls.
   const [role, screen] = await Promise.all([
     roleModel.findById(roleId),
-    screenModel.findById(screen_id),
+    screenModel.findById(screenId),
   ]);
   if (!role)   { const e = new Error('Role not found');   e.status = 404; throw e; }
   if (!screen) { const e = new Error('Screen not found'); e.status = 404; throw e; }
   if (String(role.industryId) !== String(industryId)) {
     const e = new Error('Role does not belong to the specified industry'); e.status = 400; throw e;
   }
-  return model.upsert({ roleId, industryId, screen_id, can_view, can_add, can_edit, can_delete });
+  return model.upsert({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete });
 };
 
 /**
@@ -53,7 +53,7 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
   const row = await model.findFor({
     roleId: role._id,
     industryId: authedUser.industryId,
-    screen_id: screen._id,
+    screenId: screen._id,
   });
   if (!row) return false;
   return !!row[`can_${action}`];

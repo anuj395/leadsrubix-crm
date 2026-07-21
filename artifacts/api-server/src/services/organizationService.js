@@ -38,7 +38,7 @@ async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, 
   if (!screen || !screen.isActive) {
     return { screen: null, fields: [] };
   }
-  const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
 
   if (isSuperAdmin) {
     return { screen, fields: fields };
@@ -50,12 +50,12 @@ async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, 
   if (!role) return { screen, fields: [] };
 
   const perms = await permissionModel.list({
-    screen_id: screen._id,
+    screenId: screen._id,
     roleId: role._id,
     industryId: industry._id,
     enabledOnly: true,
   });
-  const allowedIds = new Set(perms.map((p) => String(p.field_id)));
+  const allowedIds = new Set(perms.map((p) => String(p.fieldId)));
   return {
     screen,
     fields: fields.filter((f) => f.is_form_visible && allowedIds.has(String(f._id))),
@@ -226,7 +226,7 @@ exports.create = async ({ payload, authedUser }) => {
   try {
     const screen = await screenModel.findByKey(ORG_SCREEN_KEY);
     if (screen) {
-      const fields = await fieldModel.list({ screen_id: screen._id, activeOnly: true });
+      const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
       for (const f of fields) {
         if (mergedWithDefaults[f.field_key] === undefined && f.default_value !== undefined && f.default_value !== null) {
           mergedWithDefaults[f.field_key] = f.default_value;

@@ -43,7 +43,6 @@ export const DROPDOWN_SOURCES: DropdownSource[] = ['none', 'static', 'api']
 export interface ScreenField {
   _id: string
   screenId: string
-  screen_id: string
   fieldKey: string
   field_key: string
   label: string
@@ -66,7 +65,6 @@ export interface ScreenField {
 
 export interface ScreenFieldInput {
   screenId?: string
-  screen_id?: string
   fieldKey?: string
   field_key?: string
   label: string
@@ -90,11 +88,9 @@ export interface ScreenFieldInput {
 export interface ScreenPermission {
   _id: string
   screenId: string
-  screen_id: string
   roleId: string
   industryId: string
   fieldId: string
-  field_id: string
   isEnabled: boolean
   is_enabled: boolean
 }
@@ -177,14 +173,12 @@ export async function deleteScreenField(id: string): Promise<void> {
 // ── Permissions ──────────────────────────────────────────────────────────────
 export async function getScreenPermissions(params: {
   screenId?: string
-  screen_id?: string
   roleId?: string
   industryId?: string
   enabledOnly?: boolean
 } = {}): Promise<ScreenPermission[]> {
   const search = new URLSearchParams()
-  const sId = params.screenId || params.screen_id
-  if (sId) search.set('screenId', sId)
+  if (params.screenId) search.set('screenId', params.screenId)
   if (params.roleId) search.set('roleId', params.roleId)
   if (params.industryId) search.set('industryId', params.industryId)
   if (params.enabledOnly) search.set('enabled', 'true')
@@ -193,18 +187,16 @@ export async function getScreenPermissions(params: {
 }
 
 export async function bulkSetScreenPermissions(input: {
-  screenId?: string
-  screen_id?: string
+  screenId: string
   roleId: string
   industryId: string
-  fieldIds?: string[]
-  field_ids?: string[]
+  fieldIds: string[]
 }): Promise<ScreenPermission[]> {
   const payload = {
-    screenId: input.screenId || input.screen_id,
+    screenId: input.screenId,
     roleId: input.roleId,
     industryId: input.industryId,
-    fieldIds: input.fieldIds || input.field_ids,
+    fieldIds: input.fieldIds,
   }
   const res = await api.post('screen-permissions/bulk', payload)
   return (res.data?.items ?? []) as ScreenPermission[]

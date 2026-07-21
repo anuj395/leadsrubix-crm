@@ -161,7 +161,6 @@ export default function ScreenFieldsPage() {
     try {
       const payload = {
         screenId,
-        screen_id: screenId,
         fieldKey: form.fieldKey,
         field_key: form.fieldKey,
         label: form.label,

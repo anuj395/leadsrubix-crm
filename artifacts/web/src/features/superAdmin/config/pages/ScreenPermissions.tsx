@@ -119,12 +119,12 @@ export default function ScreenPermissionsPage() {
     void (async () => {
       try {
         const perms = await getScreenPermissions({
-          screen_id: screenId,
+          screenId: screenId,
           roleId: roleId,
           industryId: industryId,
           enabledOnly: true,
         })
-        if (!cancelled) setEnabled(new Set(perms.map((p) => p.field_id)))
+        if (!cancelled) setEnabled(new Set(perms.map((p) => p.fieldId)))
       } catch (e: any) {
         if (!cancelled) {
           setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load permissions', sev: 'error' })
@@ -160,10 +160,10 @@ export default function ScreenPermissionsPage() {
     setSaving(true)
     try {
       await bulkSetScreenPermissions({
-        screen_id: screenId,
+        screenId: screenId,
         roleId: roleId,
         industryId: industryId,
-        field_ids: [...enabled],
+        fieldIds: [...enabled],
       })
       setToast({ open: true, msg: 'Permissions updated', sev: 'success' })
     } catch (e: any) {

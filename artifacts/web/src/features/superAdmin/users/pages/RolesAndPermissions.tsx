@@ -170,7 +170,7 @@ export default function RolesAndPermissionsPage() {
   const [allScreens, setAllScreens] = useState<Screen[]>([])
   const [actionRows, setActionRows] = useState<RoleActionPermission[]>([])
   const [actionLoading, setActionLoading] = useState(false)
-  const [actionSaving, setActionSaving] = useState<string | null>(null) // screen_id being saved
+  const [actionSaving, setActionSaving] = useState<string | null>(null) // screenId being saved
 
   // ── Permission Fields (Field-level config) inside Tab 3 ──────────────────
   const [selectedScreenForPerms, setSelectedScreenForPerms] = useState<Screen | null>(null)
@@ -271,13 +271,13 @@ export default function RolesAndPermissionsPage() {
     void (async () => {
       try {
         const perms = await getScreenPermissions({
-          screen_id: usersScreen._id,
+          screenId: usersScreen._id,
           roleId: selectedRoleId,
           industryId: filterIndustry,
           enabledOnly: true,
         })
         if (cancelled) return
-        setEnabledFieldIds(new Set(perms.map((p) => String(p.field_id))))
+        setEnabledFieldIds(new Set(perms.map((p) => String(p.fieldId))))
       } catch (e) {
         const err = e as { response?: { data?: { message?: string } } }
         if (!cancelled) showToast(err?.response?.data?.message ?? 'Failed to load permissions', 'error')
@@ -369,10 +369,10 @@ export default function RolesAndPermissionsPage() {
     setPermsSaving(true)
     try {
       await bulkSetScreenPermissions({
-        screen_id: usersScreen._id,
+        screenId: usersScreen._id,
         roleId: selectedRoleId,
         industryId: filterIndustry,
-        field_ids: Array.from(enabledFieldIds),
+        fieldIds: Array.from(enabledFieldIds),
       })
       showToast('Permissions saved')
     } catch (e) {
@@ -413,7 +413,6 @@ export default function RolesAndPermissionsPage() {
     try {
       const payload = {
         screenId: usersScreen._id,
-        screen_id: usersScreen._id,
         fieldKey: fieldForm.fieldKey.trim(),
         field_key: fieldForm.fieldKey.trim(),
         label: fieldForm.label.trim(),
@@ -494,7 +493,7 @@ export default function RolesAndPermissionsPage() {
 
   const actionByScreen = useMemo(() => {
     const m = new Map<string, RoleActionPermission>()
-    for (const r of actionRows) m.set(String(r.screen_id), r)
+    for (const r of actionRows) m.set(String(r.screenId), r)
     return m
   }, [actionRows])
 
@@ -506,11 +505,11 @@ export default function RolesAndPermissionsPage() {
     selectedRoleObj?.key === 'superAdmin' || selectedRoleObj?.key === 'admin'
 
   const toggleAction = async (
-    screen_id: string,
+    screenId: string,
     action: 'view' | 'add' | 'edit' | 'delete',
   ) => {
     if (!actionRoleId || !filterIndustry || isPrivilegedRole) return
-    const cur = actionByScreen.get(screen_id)
+    const cur = actionByScreen.get(screenId)
     const next = {
       can_view:   cur?.can_view   ?? false,
       can_add:    cur?.can_add    ?? false,
@@ -518,16 +517,16 @@ export default function RolesAndPermissionsPage() {
       can_delete: cur?.can_delete ?? false,
     }
     next[`can_${action}` as const] = !next[`can_${action}` as const]
-    setActionSaving(screen_id)
+    setActionSaving(screenId)
     try {
       const saved = await upsertRoleActionPermission({
         roleId: actionRoleId,
         industryId: filterIndustry,
-        screen_id,
+        screenId,
         ...next,
       })
       setActionRows((prev) => {
-        const without = prev.filter((p) => String(p.screen_id) !== String(screen_id))
+        const without = prev.filter((p) => String(p.screenId) !== String(screenId))
         return [...without, saved]
       })
     } catch (e) {
@@ -552,7 +551,7 @@ export default function RolesAndPermissionsPage() {
         const [fieldsList, existingPerms] = await Promise.all([
           getScreenFields(selectedScreenForPerms._id),
           getScreenPermissions({
-            screen_id: selectedScreenForPerms._id,
+            screenId: selectedScreenForPerms._id,
             roleId: actionRoleId,
             industryId: filterIndustry,
             enabledOnly: true,
@@ -560,7 +559,7 @@ export default function RolesAndPermissionsPage() {
         ])
         if (cancelled) return
         setPermFields(fieldsList.sort((a, b) => a.order - b.order))
-        setEnabledPermFieldIds(new Set(existingPerms.map((p) => p.field_id)))
+        setEnabledPermFieldIds(new Set(existingPerms.map((p) => p.fieldId)))
       } catch (e) {
         const err = e as { response?: { data?: { message?: string } } }
         if (!cancelled) showToast(err?.response?.data?.message ?? 'Failed to load permissions', 'error')
@@ -576,10 +575,10 @@ export default function RolesAndPermissionsPage() {
     setPermFieldsSaving(true)
     try {
       await bulkSetScreenPermissions({
-        screen_id: selectedScreenForPerms._id,
+        screenId: selectedScreenForPerms._id,
         roleId: actionRoleId,
         industryId: filterIndustry,
-        field_ids: [...enabledPermFieldIds],
+        fieldIds: [...enabledPermFieldIds],
       })
       showToast('Permissions updated')
     } catch (e) {

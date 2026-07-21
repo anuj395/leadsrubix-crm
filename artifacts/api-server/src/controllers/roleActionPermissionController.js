@@ -5,7 +5,7 @@ exports.list = async (req, res, next) => {
     const items = await svc.list({
       roleId: req.query.roleId,
       industryId: req.query.industryId,
-      screen_id: req.query.screen_id,
+      screenId: req.query.screenId,
     });
     res.json({ items });
   } catch (err) { next(err); }
