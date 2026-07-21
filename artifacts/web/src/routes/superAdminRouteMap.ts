@@ -76,7 +76,7 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/contacts/:id/interested": InterestedDetailsPage,
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
-  "/leads/bookings": BookingsListPage,
+  // "/leads/bookings": BookingsListPage,
   "/leads/sorted": SortedListPage,
 
   "/drilldownData": ContactDrilldownPage,
@@ -92,7 +92,7 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/api": ApiListPage,
   "/configuration/api/new": ApiFormPage,
   "/configuration/api/:id/edit": ApiFormPage,
-  "/configuration/booking-form": BookingFormPage,
+  // "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
   "/configuration/whatsapp": WhatsappApiPage,
   "/configuration/industries": IndustriesPage,

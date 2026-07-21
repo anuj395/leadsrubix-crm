@@ -1,17 +1,22 @@
-# Walkthrough - Dropdown Default Selection Fix
+# Walkthrough - Hiding Booking Functionality
 
-Audited and updated dropdown components across the application to ensure no item is selected by default unless explicitly required.
+Hidden all Booking-related menus, navigation, routes, integrations, and API endpoints across the application. All underlying code structures remain intact to allow seamless re-enabling in the future.
 
-## Key Changes Made
+## Areas Updated
 
-1. **`DynamicForm.tsx`**:
-   - Removed the `useEffect` hook that automatically set `next[f.key] = opts[0].value`. Dropdowns now render unselected (`""`) until the user makes a selection.
+1. **Sidebar Navigation & Menu Configuration**:
+   - `menuConfig.ts`: Commented out `leads.bookings` across `superAdminMenuConfig` and `adminMenuConfig`.
+   - `menuMapper.ts`: Filtered out any raw API sidebar items containing `booking` in key, name, or route.
+   - `useSidebarMenu.ts`: Added filtering to ensure Booking menu items are hidden regardless of role or API payload.
 
-2. **`ChangeOwnerModal.tsx`**:
-   - Updated `transferReason` and `leadType` state initializations to `""` instead of defaulting to array index `[0]`.
+2. **Routes & Pages**:
+   - `adminRouteMap.ts` & `superAdminRouteMap.ts`: Disabled `/leads/bookings` and `/configuration/booking-form` routes.
 
-3. **`Analytics.tsx`**:
-   - Preserved Super Admin Organization auto-selection on the Analytics screen as requested.
+3. **Integrations**:
+   - `IntegrationsApi.tsx` & `IntegrationsApiData.tsx`: Hidden Booking references from integration logs and descriptions.
+
+4. **API Backend**:
+   - `api-server/src/routes/index.js`: Commented out `/bookings` router mounting (`// router.use('/bookings', bookingRoutes)`).
 
 ---
 

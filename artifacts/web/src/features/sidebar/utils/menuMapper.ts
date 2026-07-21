@@ -35,11 +35,17 @@ export function toIconKey(icon?: string): MenuIconKey {
  */
 export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[]): SidebarNavItem[] {
   if (!raw?.length) return []
+  const filtered = raw.filter((item) => {
+    const k = (item.key || '').toLowerCase()
+    const n = (item.name || '').toLowerCase()
+    const r = (item.route || '').toLowerCase()
+    return !k.includes('booking') && !n.includes('booking') && !r.includes('booking')
+  })
 
   // Group by module, preserving insertion order
   const groups = new Map<string, { parent: RawSidebarMenuItem | null; children: RawSidebarMenuItem[] }>()
 
-  raw.forEach((item) => {
+  filtered.forEach((item) => {
     const mod = (item.module ?? item.key).toLowerCase()
     if (!groups.has(mod)) groups.set(mod, { parent: null, children: [] })
     const g = groups.get(mod)!

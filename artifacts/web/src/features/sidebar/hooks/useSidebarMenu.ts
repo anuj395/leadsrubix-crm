@@ -120,6 +120,14 @@ export function useSidebarMenu(): UseSidebarMenuResult {
         list = [usersItem, ...list]
       }
     }
+    // Filter out all booking items
+    list = list
+      .filter((item) => !item.id.toLowerCase().includes('booking') && !item.name.toLowerCase().includes('booking'))
+      .map((item) => ({
+        ...item,
+        children: item.children?.filter((c) => !c.id.toLowerCase().includes('booking') && !c.name.toLowerCase().includes('booking'))
+      }))
+
     return list
   }, [isSuperAdmin, reduxItems, user?.role])
 

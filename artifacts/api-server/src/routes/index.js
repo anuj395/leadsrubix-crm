@@ -66,7 +66,7 @@ router.use('/branches', branchRoutes);
 router.use('/teams', teamRoutes);
 router.use('/designations', designationRoutes);
 router.use('/role-keys', roleKeyRoutes);
-router.use('/bookings', bookingRoutes);
+// router.use('/bookings', bookingRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/call-logs', callLogRoutes);
 router.use('/headers', headersRoutes);

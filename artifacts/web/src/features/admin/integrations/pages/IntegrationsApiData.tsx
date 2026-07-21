@@ -124,13 +124,13 @@ const INITIAL_LOGS: ApiLog[] = [
     payloadPreview: '{"error": "Unauthorized key", "code": "AUTH_009", "message": "Failed to connect to ERP catalog"}',
     payloadFull: {
       request: {
-        endpoint: '/api/v2/sync/bookings',
+        endpoint: '/api/v2/sync/leads',
         method: 'PUT',
         headers: {
           Authorization: 'Bearer expired_token_xyz',
         },
         body: {
-          booking_id: 'book_9028',
+          lead_id: 'lead_9028',
           amount: 54000,
           currency: 'USD',
           customer_id: 'cust_00921',

@@ -64,7 +64,7 @@ const INITIAL_APIS: ApiEndpoint[] = [
     method: 'PUT',
     status: 'Inactive',
     type: 'Rest API',
-    description: 'Synchronizes completed sales and booking records with internal ERP systems.',
+    description: 'Synchronizes completed sales records with internal ERP systems.',
   },
 ]
 
