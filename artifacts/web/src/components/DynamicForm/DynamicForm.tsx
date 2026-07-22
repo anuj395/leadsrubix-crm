@@ -31,11 +31,12 @@ import Typography from '@mui/material/Typography'
 import Alert from '@mui/material/Alert'
 import Select from '@mui/material/Select'
 import InputAdornment from '@mui/material/InputAdornment'
+import Autocomplete from '@mui/material/Autocomplete'
 import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
 import { api } from '@/services/api'
 import { useAuth } from '@/hooks/useAuth'
 
-type Value = string | number | boolean | null
+type Value = string | number | boolean | null | string[]
 
 interface DropdownOption {
   value: string
@@ -52,8 +53,11 @@ function normalizeOptions(raw: unknown): DropdownOption[] {
   return list.map((entry) => {
     if (entry && typeof entry === 'object') {
       const e = entry as Record<string, unknown>
-      const v = e.value ?? e.id ?? e.key ?? e.label ?? ''
-      const l = e.label ?? e.name ?? e.title ?? String(v)
+      const v = e.value ?? e.id ?? e._id ?? e.key ?? e.label ?? ''
+      let l = e.label ?? e.name ?? e.title ?? String(v)
+      if (e.email) {
+        l = `${l} – ${e.email}`
+      }
       return { value: String(v), label: String(l) }
     }
     return { value: String(entry), label: String(entry) }
@@ -114,6 +118,10 @@ const DIALING_CODES = [
   { code: '+48', flag: '🇵🇱', label: '🇵🇱 +48 (Poland)' },
   { code: '+30', flag: '🇬🇷', label: '🇬🇷 +30 (Greece)' },
 ]
+
+const MULTIPLE_FIELDS = new Set(['project', 'location', 'budget', 'propertyType', 'users', 'leadManagerUsers']);
+
+
 
 
 interface Props {
@@ -193,6 +201,7 @@ export function DynamicForm({
   // pointing at the same source share results.
   const [dropdowns, setDropdowns] = useState<Record<string, DropdownOption[]>>({})
   const [dropdownLoading, setDropdownLoading] = useState<Record<string, boolean>>({})
+  const [rawDropdowns, setRawDropdowns] = useState<Record<string, any[]>>({})
 
   // 1) Load form config. Re-runs when screen/role/industry change so the
   // Add/Edit User flow can swap fields the instant a different role is
@@ -286,6 +295,8 @@ export function DynamicForm({
         .get(path)
         .then((res) => {
           if (cancelled) return
+          const rawItems = Array.isArray(res.data) ? res.data : (res.data?.items ?? [])
+          setRawDropdowns((prev) => ({ ...prev, [url]: rawItems }))
           const opts = normalizeOptions(res.data)
           setDropdowns((prev) => ({ ...prev, [url]: opts }))
         })
@@ -334,7 +345,7 @@ export function DynamicForm({
         }
         if (f.required) {
           const v = values[f.key]
-          if (v === undefined || v === null || v === '' || v === false) {
+          if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) {
             next[f.key] = `${f.label} is required`
           }
         }
@@ -418,7 +429,10 @@ export function DynamicForm({
           if (f.key === 'otherNotIntReason' && values.notIntReason !== 'Other') {
             return null
           }
-          if (f.key === 'otherLostReason' && values.lostReason !== 'Other') {
+          if (f.key === 'distributionType') {
+            return null
+          }
+          if (f.key === 'leadManagerUsers' && values.distributionType === 'Normal') {
             return null
           }
           const value = values[f.key]
@@ -429,7 +443,71 @@ export function DynamicForm({
             const apiUrl = getDropdownUrl(f)
             let opts: DropdownOption[] = []
             if (f.dropdown_source === 'api' && apiUrl) {
-              opts = dropdowns[apiUrl] ?? []
+              const orgId = String((user as any)?.organizationId || (user as any)?.organization_id || '').toLowerCase()
+              if (f.key === 'leadManagerUsers') {
+                const rawUsers = rawDropdowns[apiUrl] || []
+                const managerUsers = rawUsers.filter(u => {
+                  const uOrg = String(u.organizationId || u.organization_id || '').toLowerCase()
+                  if (orgId && uOrg && uOrg !== orgId) return false
+                  return u.role === 'leadManager' || u.role === 'teamLead' || u.role === 'admin' || u.role === 'superAdmin'
+                })
+                opts = normalizeOptions(managerUsers)
+              } else if (f.key === 'users') {
+                const rawUsers = rawDropdowns[apiUrl] || []
+                const selectedManagers = (values.leadManagerUsers as string[]) || []
+                const allRawUsers = [
+                  ...rawUsers,
+                  ...(rawDropdowns['users?includeAdmin=true'] || []),
+                  ...(rawDropdowns['users'] || [])
+                ]
+
+                if (selectedManagers.length > 0) {
+                  const filtered = rawUsers.filter(u => {
+                    const uOrg = String(u.organizationId || u.organization_id || '').toLowerCase()
+                    if (orgId && uOrg && uOrg !== orgId) return false
+                    return selectedManagers.some(mId => {
+                      const mgr = allRawUsers.find(mu => String(mu._id || mu.id || '').toLowerCase() === mId.toLowerCase() || String(mu.email || '').toLowerCase() === mId.toLowerCase())
+                      if (!mgr) return false
+                      
+                      let isSub = false
+                      let current = u
+                      while (current) {
+                        const rep = (current.reportingTo || current.reporting_to || '').toLowerCase()
+                        if (!rep) break
+                        if (rep === String(mgr._id || mgr.id || '').toLowerCase() || rep === String(mgr.email || '').toLowerCase()) {
+                          isSub = true
+                          break
+                        }
+                        const parent = allRawUsers.find(mu => String(mu._id || mu.id || '').toLowerCase() === rep || String(mu.email || '').toLowerCase() === rep)
+                        if (!parent || parent === current) break
+                        current = parent
+                      }
+                      if (!isSub) return false
+                      const mgrRole = mgr.role || ''
+                      if (mgrRole === 'admin') {
+                        return ['leadManager', 'teamLead', 'sales'].includes(u.role)
+                      }
+                      if (mgrRole === 'leadManager') {
+                        return ['teamLead', 'sales'].includes(u.role)
+                      }
+                      if (mgrRole === 'teamLead') {
+                        return ['sales'].includes(u.role)
+                      }
+                      return false
+                    })
+                  })
+                  opts = normalizeOptions(filtered)
+                } else {
+                  const potentialAssociates = rawUsers.filter(u => {
+                    const uOrg = String(u.organizationId || u.organization_id || '').toLowerCase()
+                    if (orgId && uOrg && uOrg !== orgId) return false
+                    return ['sales', 'teamLead', 'leadManager'].includes(u.role)
+                  })
+                  opts = normalizeOptions(potentialAssociates)
+                }
+              } else {
+                opts = dropdowns[apiUrl] ?? []
+              }
             } else if (f.dropdown_source === 'static') {
               opts = (f.options || []).map((o) => ({ value: o, label: o }))
             } else {
@@ -445,6 +523,44 @@ export function DynamicForm({
             const isLoading = f.dropdown_source === 'api' && !!apiUrl && dropdownLoading[apiUrl]
             const dropdownErr =
               f.dropdown_source === 'api' && apiUrl ? errors[`__dropdown__${apiUrl}`] : ''
+
+            if (MULTIPLE_FIELDS.has(f.key)) {
+              const valArray = Array.isArray(value) ? (value as string[]) : (value ? [String(value)] : []);
+              return (
+                <Autocomplete
+                  key={f.key}
+                  multiple
+                  size="small"
+                  options={opts}
+                  getOptionLabel={(o) => o.label || o.value || String(o)}
+                  value={opts.filter(o => valArray.includes(o.value))}
+                  onChange={(_, val) => {
+                    setValue(f.key, val.map(o => o.value))
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label={labelWithRequired}
+                      error={!!err || !!dropdownErr}
+                      helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}
+                      fullWidth
+                    />
+                  )}
+                  fullWidth
+                  disabled={isLoading || readOnly}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      minHeight: '45px !important',
+                      height: valArray.length > 0 ? 'auto' : '45px !important',
+                      boxSizing: 'border-box !important',
+                    },
+                    '& .MuiOutlinedInput-input': {
+                      py: '4px !important',
+                    },
+                  }}
+                />
+              )
+            }
             return (
               <TextField
                 key={f.key}

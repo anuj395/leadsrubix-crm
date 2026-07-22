@@ -97,10 +97,10 @@ export default function LeadDistributionListPage() {
             const list = p.row.users || []
             return list.map((u) => u.user_email).join(', ')
           }
-          if (['project', 'location', 'budget', 'property_type'].includes(c.key)) {
+          if (['project', 'location', 'budget', 'propertyType'].includes(c.key)) {
             return val && val.length > 0 ? val.join(', ') : 'All'
           }
-          if (c.key === 'distribution_type') {
+          if (c.key === 'distributionType') {
             return <Box sx={{ color: 'primary.main', fontWeight: 600 }}>{val}</Box>
           }
           if (c.key === 'source') {

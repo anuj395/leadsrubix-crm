@@ -126,7 +126,7 @@ function ensureCanAssignRole({ authedUser, targetRole }) {
  *   - SuperAdmin → all users (optionally filtered by ?industryId=...)
  *   - admin/etc. → scoped to their own industry
  */
-exports.fetchAll = async ({ authedUser, industryId } = {}) => {
+exports.fetchAll = async ({ authedUser, industryId, includeAdmin } = {}) => {
   const isSuperAdmin = authedUser?.role === 'superAdmin';
   const industryFilter = isSuperAdmin ? industryId : authedUser?.industryId;
   if (!isSuperAdmin && !industryFilter) {
@@ -135,7 +135,8 @@ exports.fetchAll = async ({ authedUser, industryId } = {}) => {
   }
   const items = await userModel.list({
     industryId: industryFilter,
-    excludeRole: ['admin', 'superAdmin'],
+    organizationId: isSuperAdmin ? undefined : authedUser?.organizationId,
+    excludeRole: includeAdmin ? ['superAdmin'] : ['admin', 'superAdmin'],
   });
 
   const orgIds = [...new Set(items.map(u => u.organizationId).filter(Boolean))];
@@ -178,6 +179,7 @@ exports.fetchPaged = async ({
   }
   const { items, total } = await userModel.listPaged({
     industryId: industryFilter,
+    organizationId: isSuperAdmin ? undefined : authedUser?.organizationId,
     excludeRole: ['admin', 'superAdmin'],
     q,
     page,

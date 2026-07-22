@@ -111,9 +111,10 @@ exports.findAll = async () => {
   return list.map(shapePublic);
 };
 
-exports.list = async ({ industryId, role, excludeRole } = {}) => {
+exports.list = async ({ industryId, role, excludeRole, organizationId } = {}) => {
   const q = {};
   if (industryId) q.industryId = industryId;
+  if (organizationId) q.organizationId = organizationId;
   if (role) q.role = role;
   if (excludeRole) {
     if (Array.isArray(excludeRole)) {
@@ -133,6 +134,7 @@ exports.list = async ({ industryId, role, excludeRole } = {}) => {
  */
 exports.listPaged = async ({
   industryId,
+  organizationId,
   role,
   excludeRole,
   q: search,
@@ -142,6 +144,7 @@ exports.listPaged = async ({
 } = {}) => {
   const filter = {};
   if (industryId) filter.industryId = industryId;
+  if (organizationId) filter.organizationId = organizationId;
   if (role) filter.role = role;
   if (excludeRole) {
     if (Array.isArray(excludeRole)) {

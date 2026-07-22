@@ -34,13 +34,13 @@ router.post('/rules', authenticate, async (req, res) => {
       project: req.body.project || [],
       location: req.body.location || [],
       budget: req.body.budget || [],
-      property_type: req.body.property_type || [],
+      propertyType: req.body.propertyType || [],
       users: req.body.users || [],
       usersQueue: req.body.usersQueue || [],
-      leadManager_users: req.body.leadManager_users || [],
-      distribution_type: req.body.distribution_type || 'Normal',
+      leadManagerUsers: req.body.leadManagerUsers || [],
+      distributionType: req.body.distributionType || 'Normal',
       userIndex: req.body.userIndex || 0,
-      lead_dist_id: req.body.lead_dist_id,
+      leadDistId: req.body.leadDistId,
     });
 
     const saved = await rule.save();
@@ -65,11 +65,11 @@ router.put('/rules/:id', authenticate, async (req, res) => {
     if (req.body.project !== undefined) rule.project = req.body.project;
     if (req.body.location !== undefined) rule.location = req.body.location;
     if (req.body.budget !== undefined) rule.budget = req.body.budget;
-    if (req.body.property_type !== undefined) rule.property_type = req.body.property_type;
+    if (req.body.propertyType !== undefined) rule.propertyType = req.body.propertyType;
     if (req.body.users !== undefined) rule.users = req.body.users;
     if (req.body.usersQueue !== undefined) rule.usersQueue = req.body.usersQueue;
-    if (req.body.leadManager_users !== undefined) rule.leadManager_users = req.body.leadManager_users;
-    if (req.body.distribution_type !== undefined) rule.distribution_type = req.body.distribution_type;
+    if (req.body.leadManagerUsers !== undefined) rule.leadManagerUsers = req.body.leadManagerUsers;
+    if (req.body.distributionType !== undefined) rule.distributionType = req.body.distributionType;
     if (req.body.userIndex !== undefined) rule.userIndex = req.body.userIndex;
 
     const saved = await rule.save();
@@ -123,12 +123,12 @@ router.post('/rotation-rules', authenticate, async (req, res) => {
       organizationId: orgId,
       source: req.body.source,
       project: req.body.project || [],
-      rotation_time: req.body.rotation_time,
+      rotationTime: req.body.rotationTime,
       users: req.body.users || [],
       usersQueue: req.body.usersQueue || [],
-      leadManager_users: req.body.leadManager_users || [],
+      leadManagerUsers: req.body.leadManagerUsers || [],
       userIndex: req.body.userIndex || 0,
-      reloc_id: req.body.reloc_id,
+      relocId: req.body.relocId,
     });
 
     const saved = await rule.save();

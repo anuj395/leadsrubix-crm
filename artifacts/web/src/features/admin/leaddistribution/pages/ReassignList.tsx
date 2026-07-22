@@ -100,7 +100,7 @@ export default function ReassignListPage() {
           if (c.key === 'project') {
             return val && val.length > 0 ? val.join(', ') : 'All'
           }
-          if (c.key === 'rotation_time') {
+          if (c.key === 'rotationTime') {
             return val
           }
           if (c.key === 'source') {

@@ -71,9 +71,12 @@ async function safeList(path: string): Promise<AdminUser[]> {
   return (res.data?.items ?? []) as AdminUser[]
 }
 
-export async function listUsers(industryId?: string): Promise<AdminUser[]> {
-  const qs = industryId ? `?industryId=${encodeURIComponent(industryId)}` : ''
-  return safeList(`users${qs}`)
+export async function listUsers(industryId?: string, includeAdmin?: boolean): Promise<AdminUser[]> {
+  const params = new URLSearchParams()
+  if (industryId) params.set('industryId', industryId)
+  if (includeAdmin) params.set('includeAdmin', 'true')
+  const qs = params.toString()
+  return safeList(`users${qs ? `?${qs}` : ''}`)
 }
 
 export interface PagedUsers {

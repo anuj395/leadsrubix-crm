@@ -11,29 +11,29 @@ export interface LeadDistributionRule {
   project: string[]
   location: string[]
   budget: string[]
-  property_type: string[]
+  propertyType: string[]
   users: LeadDistributionUser[]
   usersQueue: string[]
-  leadManager_users: LeadDistributionUser[]
-  distribution_type: 'Normal' | 'Roundrobin'
+  leadManagerUsers: LeadDistributionUser[]
+  distributionType: 'Normal' | 'Roundrobin'
   userIndex: number
-  lead_dist_id: string
-  created_at?: string
-  updated_at?: string
+  leadDistId: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface LeadRotationRule {
   _id: string
   source: string
   project: string[]
-  rotation_time: number
+  rotationTime: number
   users: LeadDistributionUser[]
   usersQueue: string[]
-  leadManager_users: LeadDistributionUser[]
+  leadManagerUsers: LeadDistributionUser[]
   userIndex: number
-  reloc_id: string
-  created_at?: string
-  updated_at?: string
+  relocId: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface LeadDistributionLogic {

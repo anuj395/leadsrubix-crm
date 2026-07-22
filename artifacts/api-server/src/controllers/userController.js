@@ -55,6 +55,7 @@ exports.getAllUsers = async (req, res, next) => {
     const items = await userService.fetchAll({
       authedUser: req.user,
       industryId: req.query.industryId,
+      includeAdmin: req.query.includeAdmin === 'true',
     });
     res.json({ items });
   } catch (err) {

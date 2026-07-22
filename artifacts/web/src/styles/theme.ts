@@ -546,9 +546,15 @@ export function createAppTheme(mode: ThemeMode = DEFAULT_THEME_MODE) {
         styleOverrides: {
           root: ({ theme: t }) => ({
             borderRadius: baseBorderRadius,
+            minHeight: '45px',
+            height: '45px',
+            boxSizing: 'border-box',
             backgroundColor: isDark ? 'rgba(8, 10, 24, 0.45)' : 'rgba(255, 255, 255, 0.55)',
             backdropFilter: 'blur(4px)',
             transition: 'box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease',
+            '&.MuiInputBase-multiline': {
+              height: 'auto',
+            },
             '&:hover .MuiOutlinedInput-notchedOutline': {
               borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
             },
@@ -566,7 +572,28 @@ export function createAppTheme(mode: ThemeMode = DEFAULT_THEME_MODE) {
             transition: 'border-color 160ms ease',
           }),
           input: {
-            paddingBlock: 'clamp(0.5rem, 1.5vw, 0.6875rem)',
+            paddingBlock: '11px',
+            boxSizing: 'border-box',
+          },
+          inputSizeSmall: {
+            paddingBlock: '11px',
+          },
+        },
+      },
+
+      MuiAutocomplete: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              minHeight: '40px !important',
+              paddingTop: '2px !important',
+              paddingBottom: '2px !important',
+              boxSizing: 'border-box !important',
+            },
+            '& .MuiOutlinedInput-input': {
+              paddingTop: '2.5px !important',
+              paddingBottom: '2.5px !important',
+            },
           },
         },
       },
@@ -574,7 +601,7 @@ export function createAppTheme(mode: ThemeMode = DEFAULT_THEME_MODE) {
       MuiInput: {
         styleOverrides: {
           input: {
-            paddingBlock: 'clamp(0.5rem, 1.5vw, 0.6875rem)',
+            paddingBlock: '8.5px',
           },
         },
       },
