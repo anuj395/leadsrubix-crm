@@ -178,14 +178,14 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "configuration.screenFields",
     name: "Screen Fields",
-    route: "/configuration/screen-fields",
+    route: "/configuration/screenFields",
     icon: "headers",
     module: "Configuration"
   },
   {
     key: "configuration.screenPermissions",
     name: "Permission Fields",
-    route: "/configuration/screen-permissions",
+    route: "/configuration/screenPermissions",
     icon: "headers",
     module: "Configuration"
   },

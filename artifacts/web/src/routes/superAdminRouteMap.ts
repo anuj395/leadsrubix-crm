@@ -84,8 +84,8 @@ export const routeComponentMap: Record<string, any> = {
   "/callDrilldownData": CallLogDrilldownPage,
 
   "/configuration/screens": ScreensPage,
-  "/configuration/screen-fields": ScreenFieldsPage,
-  "/configuration/screen-permissions": ScreenPermissionsPage,
+  "/configuration/screenFields": ScreenFieldsPage,
+  "/configuration/screenPermissions": ScreenPermissionsPage,
   "/configuration/projects": ProjectsListPage,
   "/configuration/projects/new": ProjectFormPage,
   "/configuration/projects/:id/edit": ProjectFormPage,

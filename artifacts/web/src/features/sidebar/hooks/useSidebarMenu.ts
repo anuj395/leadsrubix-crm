@@ -98,29 +98,6 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   const menu = useMemo(() => {
     let list = isSuperAdmin ? mapSuperAdminConfig() : reduxItems
 
-    if (user?.role === 'admin') {
-      list = list.filter((item) => item.id !== 'users' && item.module !== 'users')
-      const usersItem: SidebarNavItem = {
-        id: 'users',
-        name: 'Users',
-        icon: 'users',
-        module: 'users',
-        children: [
-          { id: 'users.list', name: 'Users List', route: '/users', icon: 'users' },
-          { id: 'users.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'shield' }
-        ]
-      }
-      const analyticsIndex = list.findIndex((item) => item.id === 'analytics' || item.module === 'analytics')
-      if (analyticsIndex !== -1) {
-        list = [
-          ...list.slice(0, analyticsIndex + 1),
-          usersItem,
-          ...list.slice(analyticsIndex + 1)
-        ]
-      } else {
-        list = [usersItem, ...list]
-      }
-    }
     // Filter out all booking items
     list = list
       .filter((item) => !item.id.toLowerCase().includes('booking') && !item.name.toLowerCase().includes('booking'))
@@ -130,7 +107,7 @@ export function useSidebarMenu(): UseSidebarMenuResult {
       }))
 
     return list
-  }, [isSuperAdmin, reduxItems, user?.role])
+  }, [isSuperAdmin, reduxItems])
 
   return {
     menu,

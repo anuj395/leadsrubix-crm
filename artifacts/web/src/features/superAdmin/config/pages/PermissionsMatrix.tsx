@@ -94,7 +94,7 @@ export default function PermissionsMatrixPage() {
           visibleOnly: true,
         })
         if (cancelled) return
-        setEnabled(new Set(perms.map((p) => p.menu_id)))
+        setEnabled(new Set(perms.map((p) => p.menu_id || p.menuId)))
       } catch (e: any) {
         if (cancelled) return
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load permissions', sev: 'error' })
@@ -142,8 +142,18 @@ export default function PermissionsMatrixPage() {
   const toggle = (id: string) => {
     setEnabled((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const isChecking = !next.has(id)
+      if (isChecking) {
+        next.add(id)
+        menus
+          .filter((m) => m.parent_id === id)
+          .forEach((c) => next.add(c._id))
+      } else {
+        next.delete(id)
+        menus
+          .filter((m) => m.parent_id === id)
+          .forEach((c) => next.delete(c._id))
+      }
       return next
     })
   }
