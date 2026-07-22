@@ -145,6 +145,10 @@ export function AppDataGrid({
       filterable: false,
       disableColumnMenu: true,
       renderCell: (params) => {
+        if (params.api && typeof params.api.getRowIndexRelativeToVisibleRows === 'function') {
+          const index = params.api.getRowIndexRelativeToVisibleRows(params.id)
+          return index !== undefined && index !== -1 ? index + 1 : ''
+        }
         const id = getRowId
           ? getRowId(params.row)
           : ((params.row as any)._id ?? (params.row as any).id ?? JSON.stringify(params.row))
@@ -249,7 +253,7 @@ export function AppDataGrid({
 
       return updated
     })
-  }, [columns, isMobile])
+  }, [columns, isMobile, rest.rows, getRowId])
 
   return (
     <Box sx={{ height, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>

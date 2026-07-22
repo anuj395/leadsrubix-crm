@@ -345,15 +345,6 @@ export default function WhatsappApiPage() {
   const columns = useMemo<GridColDef[]>(
     () => [
       {
-        field: 'srNo',
-        headerName: 'Sr. No.',
-        width: 80,
-        renderCell: (p) => {
-          const idx = rows.findIndex((r) => r.id === p.id)
-          return <Box>{idx + 1}</Box>
-        },
-      },
-      {
         field: 'type',
         headerName: 'Type',
         flex: 1,

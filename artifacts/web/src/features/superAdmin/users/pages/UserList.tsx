@@ -246,7 +246,12 @@ export default function UserListPage() {
         col.flex = 1.2
         col.minWidth = 160
         col.valueGetter = (_v, row) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '—'
-      } else if (header.type === 'badge' || header.key === 'isActive' || header.key === 'status' || header.key === 'role') {
+      } else if (header.key === 'isActive' || header.key === 'status') {
+        col.minWidth = 180
+        col.flex = 1.2
+      }
+
+      if (header.type === 'badge' || header.key === 'isActive' || header.key === 'status' || header.key === 'role') {
         col.renderCell = (params: GridRenderCellParams<AdminUser>) => {
           if (header.key === 'isActive' || header.key === 'status') {
             const isAct = params.row.isActive !== false

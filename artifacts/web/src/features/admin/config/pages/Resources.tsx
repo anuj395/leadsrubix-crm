@@ -672,24 +672,6 @@ export default function ResourcesPage() {
       return col
     })
 
-    // Prepend No. column
-    cols.unshift({
-      field: 'serialNumber',
-      headerName: 'Sr. No.',
-      width: 70,
-      sortable: false,
-      valueGetter: (params: any) => {
-        if (!params || !params.row) return ''
-        const idx = rows.indexOf(params.row)
-        return idx !== -1 ? idx + 1 : ''
-      },
-      renderCell: (params: any) => {
-        if (!params || !params.row) return ''
-        const idx = rows.indexOf(params.row)
-        return idx !== -1 ? idx + 1 : ''
-      }
-    })
-
     // Action column placed at the end
     cols.push({
       field: 'actions',
