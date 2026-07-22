@@ -218,9 +218,9 @@ export default function ScreenFieldsPage() {
 
   const gridColumns = useMemo<GridColDef<ScreenField>[]>(
     () => [
-      { field: 'order', headerName: 'Order', width: 90, type: 'number' },
       { field: 'fieldKey', headerName: 'Key', flex: 1, valueGetter: (_, row) => row.fieldKey || row.field_key, renderCell: (p) => <code>{p.value}</code> },
       { field: 'label', headerName: 'Label', flex: 1.2 },
+      { field: 'order', headerName: 'Order', width: 90, type: 'number' },
       { field: 'type', headerName: 'Type', width: 110, renderCell: (p) => <StatusBadge value={p.value} hideDot /> },
       {
         field: 'isTableVisible',

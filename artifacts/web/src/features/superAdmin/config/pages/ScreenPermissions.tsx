@@ -178,21 +178,22 @@ export default function ScreenPermissionsPage() {
   const columns = useMemo<GridColDef<ScreenField>[]>(
     () => [
       {
-        field: 'order',
-        headerName: 'Order',
-        width: 80,
-        type: 'number',
-      },
-      {
-        field: 'field_key',
+        field: 'fieldKey',
         headerName: 'Field Key',
         flex: 1,
+        valueGetter: (_, row) => row.fieldKey || row.field_key,
         renderCell: (p) => <code>{p.value}</code>,
       },
       {
         field: 'label',
         headerName: 'Display Label',
         flex: 1.2,
+      },
+      {
+        field: 'order',
+        headerName: 'Order',
+        width: 80,
+        type: 'number',
       },
       {
         field: 'type',
