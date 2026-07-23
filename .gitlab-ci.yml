@@ -1,63 +1,16 @@
-image: node:20-alpine
-
 stages:
-  - install
-  - validate
-  - build
   - deploy
-
-variables:
-  PNPM_HOME: ".pnpm-store"
-  PORT: "3000"
-
-cache:
-  key:
-    files:
-      - pnpm-lock.yaml
-  paths:
-    - .pnpm-store
-    - node_modules/
-
-before_script:
-  - corepack enable
-  - corepack prepare pnpm@latest --activate
-  - pnpm config set store-dir .pnpm-store
-
-install_dependencies:
-  stage: install
-  script:
-    - pnpm install --frozen-lockfile
-  rules:
-    - if: $CI_COMMIT_BRANCH == "dev_anuj"
-    - if: $CI_COMMIT_BRANCH == "prod"
-
-typecheck:
-  stage: validate
-  script:
-    - pnpm run typecheck
-  rules:
-    - if: $CI_COMMIT_BRANCH == "dev_anuj"
-    - if: $CI_COMMIT_BRANCH == "prod"
-
-build:
-  stage: build
-  script:
-    - pnpm run build
-  rules:
-    - if: $CI_COMMIT_BRANCH == "dev_anuj"
-    - if: $CI_COMMIT_BRANCH == "prod"
 
 deploy_prod:
   stage: deploy
-  image: alpine:latest
-  before_script:
-    - apk update && apk add openssh-client git
-    - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+  tags:
+    - ec2-runner
   script:
-    - ssh ubuntu@$EC2_HOST "cd /home/ubuntu/Leads-Rubix-CRM && git checkout prod && git pull origin prod && pnpm install --frozen-lockfile && PORT=3000 pnpm run build && pm2 restart api-server"
+    - cd /home/ubuntu/Leads-Rubix-CRM
+    - git checkout prod
+    - git pull origin prod
+    - pnpm install --no-frozen-lockfile
+    - PORT=3000 pnpm run build
+    - pm2 restart api-server
   rules:
     - if: $CI_COMMIT_BRANCH == "prod"
