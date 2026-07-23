@@ -406,12 +406,79 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
 
         {/* Error */}
         {!loading && error && (
-          <Typography
-            variant="caption"
-            sx={{ color: theme.palette.error.main, px: 1, py: 2, textAlign: 'center', display: 'block' }}
-          >
-            {collapsed ? '!' : `Menu error: ${error}`}
-          </Typography>
+          (error.includes('402') || error.toLowerCase().includes('subscription expired') || error.toLowerCase().includes('renew')) ? (
+            <Box sx={{ px: collapsed ? 1 : 2, py: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 2 }}>
+              <Box
+                sx={{
+                  width: collapsed ? 36 : 48,
+                  height: collapsed ? 36 : 48,
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'error.main',
+                }}
+              >
+                <CreditCardOutlinedIcon sx={{ fontSize: collapsed ? '1.25rem' : '1.75rem' }} />
+              </Box>
+              
+              {!collapsed && (
+                <>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                    Subscription Expired
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Please renew your enterprise plan to restore access.
+                  </Typography>
+                  <Button
+                    component={NavLink}
+                    to="/account/subscription-details"
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    fullWidth
+                    sx={{
+                      mt: 1,
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      boxShadow: 'none',
+                      '&:hover': {
+                        boxShadow: 'none',
+                      }
+                    }}
+                  >
+                    Renew Plan
+                  </Button>
+                </>
+              )}
+              
+              {collapsed && (
+                <Tooltip title="Subscription Expired. Click to renew." placement="right">
+                  <IconButton
+                    component={NavLink}
+                    to="/account/subscription-details"
+                    color="error"
+                    size="small"
+                    sx={{
+                      border: `1px solid ${theme.palette.error.main}`,
+                      borderRadius: '8px',
+                    }}
+                  >
+                    !
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+          ) : (
+            <Typography
+              variant="caption"
+              sx={{ color: theme.palette.error.main, px: 1, py: 2, textAlign: 'center', display: 'block' }}
+            >
+              {collapsed ? '!' : `Menu error: ${error}`}
+            </Typography>
+          )
         )}
 
         {/* Empty */}
