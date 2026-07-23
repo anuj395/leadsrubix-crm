@@ -18,9 +18,8 @@ For comprehensive guides on setup, deployment, and architecture, refer to the fo
 ```
 Leads-Rubix-CRM/
   ├── .agents/                 # Workspace customization and agent rules
-  ├── .gitlab-ci.yml           # GitLab CI/CD Pipeline specifications
+  ├── .github/                 # GitHub Actions workflows config
   ├── deploy_aws.md            # AWS production deployment & security documentation
-  ├── leads-crm-key.pem        # Generated private SSH key for AWS EC2 instance
   ├── package.json             # Root monorepo workspace definition
   ├── pnpm-workspace.yaml      # pnpm workspace configurations
   └── artifacts/
@@ -68,7 +67,7 @@ To run the entire stack locally:
 
 ---
 
-## 4. GitLab Branching & Git Workflow
+## 4. GitHub Branching & Git Workflow
 
 All development work must adhere to the following git workflow rules:
 
@@ -77,6 +76,6 @@ All development work must adhere to the following git workflow rules:
 * **Production Release Branch**: `prod` (Triggers automatic AWS auto-deploy)
 
 ### Branching Rules
-1. **Direct Pushes Restricted**: Pushing code directly to the `dev_anuj` and `prod` branches is restricted. All changes must be pushed to a feature branch and merged via a GitLab Merge Request (MR).
+1. **Direct Pushes Restricted**: Pushing code directly to the `dev_anuj` and `prod` branches is restricted. All changes must be pushed to a feature branch and merged via a Pull Request (PR).
 2. **Feature Branches**: Branch off from `dev_anuj` using format `feature/<feature-name>`.
-3. **Deployment Trigger**: Merging changes into the `prod` branch automatically initiates the GitLab CD pipeline to validate and deploy code directly onto the live AWS server.
+3. **Deployment Trigger**: Merging changes into the `prod` branch automatically initiates the GitHub Actions workflow to validate and deploy code directly onto the live AWS server.
