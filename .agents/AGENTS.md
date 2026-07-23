@@ -1,6 +1,6 @@
 # Project Customization Rules
 
-## GitLab Branching Workflow
+## GitHub Branching Workflow
 * The `main` branch is the primary branch.
 * The `prod` and `dev_anuj` branches are created from the `main` branch.
 * All development work should be done in the `dev_anuj` branch.
@@ -9,25 +9,25 @@
 
 ## Feature Branching Workflow
 * Developers should create feature branches from `dev_anuj`.
-* Structure: `dev_anuj` → `feature/<feature-name>` → Merge Request → `dev_anuj`.
+* Structure: `dev_anuj` → `feature/<feature-name>` → Pull Request → `dev_anuj`.
 
 ## Continuous Deployment (CD) Workflow
 ```
 dev_anuj
     |
     ↓
-Testing & Validation (GitLab CI)
+Testing & Validation
     |
     ↓
-Merge Request
+Pull Request
     |
     ↓
 prod branch
     |
     ↓
-AWS Auto Deploy (GitLab CD)
+AWS Auto Deploy (GitHub Actions)
     |
     ├── ReactJS Frontend (Served by Nginx)
     └── NodeJS Backend (Managed by PM2)
 ```
-* Merging changes into the `prod` branch automatically triggers the GitLab CI/CD pipeline deploy stage, deploying the backend and frontend to the AWS EC2 server.
+* Merging changes into the `prod` branch automatically triggers the GitHub Actions workflow deploy stage, deploying the backend and frontend to the AWS EC2 server.

@@ -1,0 +1,27 @@
+name: Deploy CRM to AWS EC2
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/Leads-Rubix-CRM
+            git checkout prod
+            git pull origin prod
+            pnpm install --no-frozen-lockfile
+            PORT=3000 pnpm run build
+            pm2 restart api-server
