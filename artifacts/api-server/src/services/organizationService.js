@@ -62,7 +62,7 @@ async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, 
   };
 }
 
-function pickAllowed(payload, allowedFieldDefs) {
+function pickAllowed(payload, allowedFieldDefs, isCreate = false) {
   const cleaned = {};
   
   const allowedMap = {};
@@ -87,7 +87,11 @@ function pickAllowed(payload, allowedFieldDefs) {
   const missing = [];
   allowedFieldDefs.forEach(f => {
     if (f.is_required || f.isRequired) {
-      const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      const fieldKey = f.field_key || f.fieldKey || '';
+      if (isCreate && (fieldKey === 'cost_per_license' || fieldKey === 'valid_till' || fieldKey === 'costPerLicense' || fieldKey === 'validTill')) {
+        return;
+      }
+      const camel = fieldKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
       if (cleaned[camel] === undefined || cleaned[camel] === null || cleaned[camel] === '') {
         missing.push(f.field_key || camel);
       }
@@ -213,7 +217,7 @@ exports.create = async ({ payload, authedUser }) => {
     role_key: user ? user.role || authedUser?.role : 'admin',
     isSuperAdmin,
   });
-  const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields);
+  const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields, true);
 
   const orgId = generateOrgId();
 
@@ -525,7 +529,7 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (patch.numEmployees !== undefined && patch.numEmployees !== null) {
     const User = mongoose.model('User');
     const activeUserCount = await User.countDocuments({
-      organizationId: existing.organizationId || existing._id.toString(),
+      organization_id: existing.organizationId || existing._id.toString(),
       is_active: true
     }).exec();
     if (Number(patch.numEmployees) < activeUserCount) {
@@ -538,7 +542,7 @@ exports.update = async ({ id, payload, authedUser }) => {
   // 2. Sync Administrator User Details & Email Update Cascading
   const User = mongoose.model('User');
   const adminUser = await User.findOne({
-    organizationId: existing.organizationId || existing._id.toString(),
+    organization_id: existing.organizationId || existing._id.toString(),
     role: 'admin'
   }).exec();
 
@@ -557,17 +561,17 @@ exports.update = async ({ id, payload, authedUser }) => {
 
       const Contact = mongoose.model('Contact');
       await Contact.updateMany(
-        { organizationId: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
+        { organization_id: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
         { $set: { contactOwnerEmail: newEmail } }
       );
 
       const Task = mongoose.model('Task');
       await Task.updateMany(
-        { organizationId: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
+        { organization_id: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
         { $set: { contactOwnerEmail: newEmail } }
       );
       await Task.updateMany(
-        { organizationId: existing.organizationId || existing._id.toString(), assignedTo: oldEmail },
+        { organization_id: existing.organizationId || existing._id.toString(), assignedTo: oldEmail },
         { $set: { assignedTo: newEmail } }
       );
     }
@@ -582,7 +586,7 @@ exports.update = async ({ id, payload, authedUser }) => {
   // 3. Organization Name Update Cascading to Users
   if (patch.organizationName !== undefined && patch.organizationName !== existing.organizationName) {
     await User.updateMany(
-      { organizationId: existing.organizationId || existing._id.toString() },
+      { organization_id: existing.organizationId || existing._id.toString() },
       { $set: { organization_name: patch.organizationName } }
     );
   }
@@ -611,17 +615,16 @@ exports.update = async ({ id, payload, authedUser }) => {
     patch.status = newActive ? 'ACTIVE' : 'INACTIVE';
     
     const userUpdate = {
-      isActive: newActive,
-      isActive: newActive,
+      is_active: newActive,
       status: newActive ? 'active' : 'inactive'
     };
     if (newActive) {
-      userUpdate.activatedAt = new Date();
-      userUpdate.deactivatedAt = null;
+      userUpdate.activated_at = new Date();
+      userUpdate.deactivated_at = null;
       patch.activatedAt = new Date();
       patch.deactivatedAt = null;
     } else {
-      userUpdate.deactivatedAt = new Date();
+      userUpdate.deactivated_at = new Date();
       patch.deactivatedAt = new Date();
     }
     
@@ -629,8 +632,8 @@ exports.update = async ({ id, payload, authedUser }) => {
     await mongoose.model('User').updateMany(
       {
         $or: [
-          { organizationId: existing._id },
-          { organizationId: existing.organizationId || existing.organizationId }
+          { organization_id: existing._id },
+          { organization_id: existing.organizationId || existing.organization_id }
         ]
       },
       { $set: userUpdate }

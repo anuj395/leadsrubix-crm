@@ -184,51 +184,44 @@ exports.findByEmail = async (email) => {
   return User.findOne({ email: String(email).toLowerCase().trim() }).exec();
 };
 
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (!payload) return payload;
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[dbKey] = v;
+  }
+  return out;
+}
+
 exports.create = async (data) => {
-  const user = new User(data);
+  const user = new User(normalizePayload(data));
   await user.save();
   return shapePublic(user.toObject());
 };
 
 exports.update = async (id, patch) => {
-  const $set = {};
-  if (patch.firstName !== undefined || patch.first_name !== undefined) {
-    $set.firstName = patch.firstName !== undefined ? patch.firstName : patch.first_name;
-  }
-  if (patch.lastName !== undefined || patch.last_name !== undefined) {
-    $set.lastName = patch.lastName !== undefined ? patch.lastName : patch.last_name;
-  }
-  if (patch.organizationName !== undefined || patch.organizationName !== undefined) {
-    $set.organizationName = patch.organizationName !== undefined ? patch.organizationName : patch.organizationName;
-  }
-  if (patch.role !== undefined) $set.role = patch.role;
-  if (patch.industryId !== undefined || patch.industryId !== undefined) {
-    $set.industryId = patch.industryId !== undefined ? patch.industryId : patch.industryId;
-  }
+  const normalized = normalizePayload(patch);
+  const $set = { ...normalized };
+
   if (patch.isActive !== undefined) {
     const isAct = !!patch.isActive;
-    $set.isActive = isAct;
+    $set.is_active = isAct;
     $set.status = isAct ? 'ACTIVE' : 'INACTIVE';
   }
   if (patch.status !== undefined) {
     $set.status = String(patch.status).toUpperCase();
   }
-  if (patch.reportingTo !== undefined || patch.reporting_to !== undefined) {
-    $set.reportingTo = String(patch.reportingTo !== undefined ? patch.reportingTo : (patch.reporting_to || ''));
-  }
-  if (patch.contactNumber !== undefined || patch.contact_no !== undefined) {
-    $set.contactNumber = patch.contactNumber !== undefined ? patch.contactNumber : patch.contact_no;
-  }
-  if (patch.designation !== undefined) $set.designation = patch.designation;
-  if (patch.team !== undefined) $set.team = patch.team;
-  if (patch.branch !== undefined) $set.branch = patch.branch;
-  if (patch.fields !== undefined) $set.fields = patch.fields || {};
-  // Password change goes through a separate flow (pre-save hook would not run
-  // with findByIdAndUpdate). Allow it here only by hashing manually.
+
   if (patch.password) {
     $set.password = await bcrypt.hash(String(patch.password), 10);
-    $set.needsPasswordChange = false;
+    $set.needs_password_change = false;
   }
+
   const updated = await User.findByIdAndUpdate(id, { $set }, { new: true })
     .select('-password')
     .lean()

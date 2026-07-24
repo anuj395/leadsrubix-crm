@@ -42,12 +42,37 @@ exports.Contact = Contact;
 exports.list = async ({ filter = {}, limit = 200 } = {}) =>
   Contact.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
 
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (!payload) return payload;
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[dbKey] = v;
+  }
+  return out;
+}
+
 exports.create = async (payload) => {
-  const doc = await Contact.create(payload);
+  const doc = await Contact.create(normalizePayload(payload));
   return doc.toObject();
 };
 
 exports.findById = async (id) => Contact.findById(id).lean().exec();
-exports.findByIdAndUpdate = async (id, update, options = {}) => Contact.findByIdAndUpdate(id, update, options).lean().exec();
+
+exports.findByIdAndUpdate = async (id, update, options = {}) => {
+  const normalizedUpdate = {};
+  for (const [op, val] of Object.entries(update || {})) {
+    if (op.startsWith('$')) {
+      normalizedUpdate[op] = normalizePayload(val);
+    } else {
+      normalizedUpdate[op] = val;
+    }
+  }
+  return Contact.findByIdAndUpdate(id, normalizedUpdate, options).lean().exec();
+};
 
 exports.remove = async (id) => Contact.findByIdAndDelete(id).lean().exec();

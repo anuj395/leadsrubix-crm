@@ -90,13 +90,28 @@ exports.listPaged = async ({
 
 exports.findById = async (id) => Organization.findById(id).exec();
 
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (!payload) return payload;
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[dbKey] = v;
+  }
+  return out;
+}
+
 exports.create = async (payload) => {
-  const doc = await Organization.create(payload);
+  const doc = await Organization.create(normalizePayload(payload));
   return doc;
 };
 
 exports.update = async (id, patch) => {
-  const $set = { ...patch };
+  const normalizedPatch = normalizePayload(patch);
+  const $set = { ...normalizedPatch };
   if (patch.organizationId !== undefined) {
     $set.organization_id = patch.organizationId;
     delete $set.organizationId;
