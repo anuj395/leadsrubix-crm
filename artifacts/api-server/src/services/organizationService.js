@@ -103,6 +103,51 @@ function pickAllowed(payload, allowedFieldDefs, isCreate = false) {
     err.status = 400;
     throw err;
   }
+
+  // Dynamic Format Validation
+  allowedFieldDefs.forEach(f => {
+    const fieldKey = f.field_key || f.fieldKey || '';
+    const camel = fieldKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    const val = cleaned[camel];
+
+    if (val !== undefined && val !== null && val !== '') {
+      if (f.type === 'email' || fieldKey.toLowerCase().includes('email')) {
+        const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRx.test(String(val))) {
+          const err = new Error(`Invalid Email format for ${f.label || fieldKey}`);
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (f.type === 'phone' || fieldKey.toLowerCase().includes('phone') || fieldKey.toLowerCase().includes('contact')) {
+        const rawDigits = String(val).replace(/\D/g, '');
+        if (rawDigits.length < 7 || rawDigits.length > 15) {
+          const err = new Error(`Invalid Contact Number for ${f.label || fieldKey}. Must be between 7 and 15 digits.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (fieldKey.toLowerCase().includes('pincode') || fieldKey.toLowerCase().includes('pin_code')) {
+        const pincodeRx = /^[1-9][0-9]{5}$/;
+        if (!pincodeRx.test(String(val))) {
+          const err = new Error(`Invalid Pincode for ${f.label || fieldKey}. Must be a valid 6-digit code.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (f.type === 'number') {
+        if (isNaN(Number(val))) {
+          const err = new Error(`${f.label || fieldKey} must be a valid number.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+  });
+
   return cleaned;
 }
 

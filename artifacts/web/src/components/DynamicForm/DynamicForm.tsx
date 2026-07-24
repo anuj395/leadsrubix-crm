@@ -350,16 +350,48 @@ export function DynamicForm({
     () => () => {
       const next: Record<string, string> = {}
       for (const f of fields) {
-        if ((f.key === 'organizationId' || f.key === 'organizationId') && !isSuperAdmin) {
+        if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
           continue
         }
+        const v = values[f.key]
+
         if (f.required) {
-          const v = values[f.key]
           if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) {
             next[f.key] = `${f.label} is required`
+            continue
+          }
+        }
+
+        if (v !== undefined && v !== null && v !== '') {
+          if (f.type === 'email' || f.key.toLowerCase().includes('email')) {
+            const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRx.test(String(v))) {
+              next[f.key] = `Invalid Email format`
+            }
+          }
+
+          if (f.type === 'phone' || f.key.toLowerCase().includes('phone') || f.key.toLowerCase().includes('contact')) {
+            const rawDigits = String(v).replace(/\D/g, '')
+            if (rawDigits.length < 7 || rawDigits.length > 15) {
+              next[f.key] = `Invalid Contact Number. Must be between 7 and 15 digits.`
+            }
+          }
+
+          if (f.key.toLowerCase().includes('pincode') || f.key.toLowerCase().includes('pin_code')) {
+            const pincodeRx = /^[1-9][0-9]{5}$/
+            if (!pincodeRx.test(String(v))) {
+              next[f.key] = `Invalid Pincode. Must be a valid 6-digit code.`
+            }
+          }
+
+          if (f.type === 'number') {
+            if (isNaN(Number(v))) {
+              next[f.key] = `${f.label} must be a valid number.`
+            }
           }
         }
       }
+
       if (screen === 'organization') {
         const numEmployees = Number(values.numEmployees || values.num_employees || 0)
         if (numEmployees > trialPeriodLicenses) {
@@ -372,18 +404,6 @@ export function DynamicForm({
       }
       if (values.lostReason === 'Other' && !String(values.otherLostReason || '').trim()) {
         next.otherLostReason = 'Please Mention Other Lost Reason'
-      }
-      const phoneVal = String(values.contactNumber || values.phone || values.contact_no || '').trim()
-      if (phoneVal) {
-        const rawDigits = phoneVal.replace(/\D/g, '')
-        if (rawDigits.length < 7 || rawDigits.length > 15) {
-          if (fields.some(f => f.key === 'contactNumber')) {
-            next.contactNumber = 'Invalid Contact Number. Must contain between 7 and 15 digits.'
-          }
-          if (fields.some(f => f.key === 'phone')) {
-            next.phone = 'Invalid Contact Number. Must contain between 7 and 15 digits.'
-          }
-        }
       }
       return next
     },
