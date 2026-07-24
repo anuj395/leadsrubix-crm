@@ -704,12 +704,17 @@ exports.remove = async ({ id, authedUser }) => {
   if (orgId) {
     // 1. Find all users belonging to this organization
     const User = mongoose.model('User');
-    const orgUsers = await User.find({ organizationId: orgId }).lean().exec();
+    const orgUsers = await User.find({ organization_id: orgId }).lean().exec();
     const userIds = orgUsers.map(u => u._id);
 
     // 2. Cascade delete all users belonging to this organization
-    const deleteUsersResult = await User.deleteMany({ organizationId: orgId });
+    const deleteUsersResult = await User.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteUsersResult.deletedCount} users for organization: ${orgId}`);
+
+    // 3. Cascade delete all tasks belonging to this organization
+    const Task = mongoose.model('Task');
+    const deleteTasksResult = await Task.deleteMany({ organization_id: orgId });
+    console.log(`[organizationService] Cascade deleted ${deleteTasksResult.deletedCount} tasks`);
 
     // 4. Cascade delete contacts created by these users
     const Contact = mongoose.model('Contact');
@@ -723,44 +728,44 @@ exports.remove = async ({ id, authedUser }) => {
 
     // 6. Cascade delete api tokens for this organization
     const ApiToken = mongoose.model('ApiToken');
-    const deleteTokensResult = await ApiToken.deleteMany({ organizationId: orgId });
+    const deleteTokensResult = await ApiToken.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteTokensResult.deletedCount} API tokens`);
 
     // 7. Cascade delete WhatsApp configs for this organization
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
-    const deleteWhatsappResult = await WhatsAppConfig.deleteMany({ organizationId: orgId });
+    const deleteWhatsappResult = await WhatsAppConfig.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteWhatsappResult.deletedCount} WhatsApp configs`);
 
     // 8. Cascade delete news for this organization
     const News = mongoose.model('News');
-    const deleteNewsResult = await News.deleteMany({ organizationId: orgId });
+    const deleteNewsResult = await News.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteNewsResult.deletedCount} news documents`);
 
     // 9. Cascade delete FAQs for this organization
     const FAQ = mongoose.model('FAQ');
-    const deleteFaqResult = await FAQ.deleteMany({ organizationId: orgId });
+    const deleteFaqResult = await FAQ.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteFaqResult.deletedCount} FAQ documents`);
 
     // 10. Cascade delete resource items/catalogs for this organization
     const OrganizationResources = mongoose.model('OrganizationResources');
-    const deleteResourcesResult = await OrganizationResources.deleteMany({ organizationId: orgId });
+    const deleteResourcesResult = await OrganizationResources.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteResourcesResult.deletedCount} resource/catalog documents`);
 
     // 11. Cascade delete working days configuration for this organization
     const WorkingDay = mongoose.model('WorkingDay');
-    await WorkingDay.deleteMany({ organizationId: orgId });
+    await WorkingDay.deleteMany({ organization_id: orgId });
 
     // 12. Cascade delete Teams, Branches, and Designations configurations for this organization
     const Team = mongoose.model('Team');
-    await Team.deleteMany({ organizationId: orgId });
+    await Team.deleteMany({ organization_id: orgId });
     const Branch = mongoose.model('Branch');
-    await Branch.deleteMany({ organizationId: orgId });
+    await Branch.deleteMany({ organization_id: orgId });
     const Designation = mongoose.model('Designation');
-    await Designation.deleteMany({ organizationId: orgId });
+    await Designation.deleteMany({ organization_id: orgId });
 
     // 13. Cascade delete Holiday configuration for this organization
     const Holiday = mongoose.model('Holiday');
-    await Holiday.deleteMany({ organizationId: orgId });
+    await Holiday.deleteMany({ organization_id: orgId });
   }
 
   return organizationModel.remove(id);
