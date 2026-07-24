@@ -55,6 +55,47 @@ function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function shapePublic(org) {
+  if (!org) return null;
+  const o = org.toObject ? org.toObject() : { ...org };
+  return {
+    _id: String(o._id),
+    id: String(o._id),
+    organizationId: o.organizationId || o.organization_id || '',
+    organizationName: o.organizationName || o.organization_name || '',
+    contactNumber: o.contactNumber || o.contact_number || '',
+    industryId: o.industryId || o.industry_id || '',
+    allowDuplicateLeads: o.allowDuplicateLeads !== false && o.allow_duplicate_leads !== false,
+    isActive: o.isActive !== false && o.is_active !== false,
+    createdBy: o.createdBy || o.created_by || '',
+    firstName: o.firstName || o.first_name || '',
+    lastName: o.lastName || o.last_name || '',
+    emailId: o.emailId || o.email_id || '',
+    country: o.country || '',
+    state: o.state || '',
+    city: o.city || '',
+    pincode: o.pincode || '',
+    numEmployees: typeof o.numEmployees === 'number' ? o.numEmployees : (typeof o.num_employees === 'number' ? o.num_employees : 0),
+    address: o.address || '',
+    showAnalytics: o.showAnalytics !== false && o.show_analytics !== false,
+    showData: o.showData !== false && o.show_data !== false,
+    trialPeriod: o.trialPeriod !== false && o.trial_period !== false,
+    designations: o.designations || [],
+    teams: o.teams || [],
+    status: o.status || 'ACTIVE',
+    costPerLicense: typeof o.costPerLicense === 'number' ? o.costPerLicense : (typeof o.cost_per_license === 'number' ? o.cost_per_license : 1000),
+    orgTrialPeriodUsersLicenses: typeof o.orgTrialPeriodUsersLicenses === 'number' ? o.orgTrialPeriodUsersLicenses : (typeof o.org_trial_period_users_licenses === 'number' ? o.org_trial_period_users_licenses : 10),
+    gracePeriodDays: typeof o.gracePeriodDays === 'number' ? o.gracePeriodDays : (typeof o.grace_period_days === 'number' ? o.grace_period_days : 7),
+    trialPeriodDays: typeof o.trialPeriodDays === 'number' ? o.trialPeriodDays : (typeof o.trial_period_days === 'number' ? o.trial_period_days : 7),
+    paymentStatus: o.paymentStatus !== false && o.payment_status !== false,
+    validFrom: o.validFrom || o.valid_from || null,
+    validTill: o.validTill || o.valid_till || null,
+    createdAt: o.createdAt,
+    updatedAt: o.updatedAt,
+  };
+}
+exports.shapePublic = shapePublic;
+
 const ALLOWED_SORT = new Set(['createdAt', 'updatedAt', 'isActive']);
 
 exports.listPaged = async ({
@@ -85,10 +126,13 @@ exports.listPaged = async ({
     Organization.find(filter).sort({ [safeSort]: dir }).skip(skip).limit(limit).exec(),
     Organization.countDocuments(filter).exec(),
   ]);
-  return { items, total };
+  return { items: items.map(shapePublic), total };
 };
 
-exports.findById = async (id) => Organization.findById(id).exec();
+exports.findById = async (id) => {
+  const doc = await Organization.findById(id).exec();
+  return shapePublic(doc);
+};
 
 function camelToSnakeCase(str) {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -106,7 +150,7 @@ function normalizePayload(payload) {
 
 exports.create = async (payload) => {
   const doc = await Organization.create(normalizePayload(payload));
-  return doc;
+  return shapePublic(doc);
 };
 
 exports.update = async (id, patch) => {
@@ -136,7 +180,8 @@ exports.update = async (id, patch) => {
     $set.created_by = patch.createdBy;
     delete $set.createdBy;
   }
-  return Organization.findByIdAndUpdate(id, { $set }, { new: true }).exec();
+  const updated = await Organization.findByIdAndUpdate(id, { $set }, { new: true }).exec();
+  return shapePublic(updated);
 };
 
 exports.remove = async (id) => Organization.findByIdAndDelete(id).exec();

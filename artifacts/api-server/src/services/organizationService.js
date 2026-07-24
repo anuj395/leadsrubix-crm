@@ -197,8 +197,8 @@ exports.listPaged = async ({
   }, {});
 
   const enrichedItems = items.map(orgDoc => {
-    const org = orgDoc.toObject();
-    const creatorId = (org.createdBy || org.createdBy)?.toString();
+    const org = orgDoc.toObject ? orgDoc.toObject() : { ...orgDoc };
+    const creatorId = (org.createdBy)?.toString();
     const creator = userMap[creatorId];
     let createdByVal = creatorId || '';
     if (creator) {
