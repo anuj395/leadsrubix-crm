@@ -612,7 +612,17 @@ exports.remove = async ({ id, authedUser }) => {
   if (String(target._id) === String(authedUser?.id)) {
     const e = new Error('You cannot delete your own account'); e.status = 400; throw e;
   }
-  await userModel.remove(id);
+  // Clean up references to the deleted user
+  const User = mongoose.model('User');
+  const Task = mongoose.model('Task');
+  const Contact = mongoose.model('Contact');
+
+  await Promise.all([
+    User.updateMany({ reporting_to: id }, { $set: { reporting_to: '' } }),
+    Task.updateMany({ uid: id }, { $set: { uid: null, assigned_to: '' } }),
+    Contact.updateMany({ contact_owner_email: target.email }, { $set: { contact_owner_email: '' } }),
+    userModel.remove(id)
+  ]);
 };
 
 exports.changePasswordByEmail = async ({ email, password, authedUser }) => {
