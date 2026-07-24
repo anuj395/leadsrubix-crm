@@ -510,6 +510,83 @@ exports.update = async ({ id, payload, authedUser }) => {
   const patch = { ...cleaned };
   if (isSuperAdmin && payload.industryId) patch.industryId = payload.industryId;
 
+  // 1. Valid Till Date Validation
+  if (patch.validTill) {
+    const targetDate = new Date(patch.validTill);
+    const currentDate = new Date();
+    if (targetDate <= currentDate) {
+      const err = new Error('Valid Till date must be later than the current date');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  // 1b. Number of Employees / Active Users Validation
+  if (patch.numEmployees !== undefined && patch.numEmployees !== null) {
+    const User = mongoose.model('User');
+    const activeUserCount = await User.countDocuments({
+      organizationId: existing.organizationId || existing._id.toString(),
+      is_active: true
+    }).exec();
+    if (Number(patch.numEmployees) < activeUserCount) {
+      const err = new Error(`The number of employees can't be less than ${activeUserCount}.`);
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  // 2. Sync Administrator User Details & Email Update Cascading
+  const User = mongoose.model('User');
+  const adminUser = await User.findOne({
+    organizationId: existing.organizationId || existing._id.toString(),
+    role: 'admin'
+  }).exec();
+
+  if (adminUser) {
+    const oldEmail = adminUser.email;
+    const newEmail = (patch.emailId || existing.emailId || '').toLowerCase().trim();
+
+    if (newEmail && newEmail !== oldEmail) {
+      const existingUser = await User.findOne({ email: newEmail }).exec();
+      if (existingUser && String(existingUser._id) !== String(adminUser._id)) {
+        const err = new Error(`Email ${newEmail} is already in use by another user.`);
+        err.status = 400;
+        throw err;
+      }
+      adminUser.email = newEmail;
+
+      const Contact = mongoose.model('Contact');
+      await Contact.updateMany(
+        { organizationId: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
+        { $set: { contactOwnerEmail: newEmail } }
+      );
+
+      const Task = mongoose.model('Task');
+      await Task.updateMany(
+        { organizationId: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
+        { $set: { contactOwnerEmail: newEmail } }
+      );
+      await Task.updateMany(
+        { organizationId: existing.organizationId || existing._id.toString(), assignedTo: oldEmail },
+        { $set: { assignedTo: newEmail } }
+      );
+    }
+
+    if (patch.firstName !== undefined) adminUser.first_name = patch.firstName;
+    if (patch.lastName !== undefined) adminUser.last_name = patch.lastName;
+    if (patch.contactNumber !== undefined) adminUser.contact_number = patch.contactNumber;
+
+    await adminUser.save();
+  }
+
+  // 3. Organization Name Update Cascading to Users
+  if (patch.organizationName !== undefined && patch.organizationName !== existing.organizationName) {
+    await User.updateMany(
+      { organizationId: existing.organizationId || existing._id.toString() },
+      { $set: { organization_name: patch.organizationName } }
+    );
+  }
+
   let newActive = undefined;
   const rawStatus = payload.status ?? payload.fields?.status ?? cleaned.status ?? 
                     payload.isActive ?? payload.fields?.isActive ?? cleaned.isActive ??

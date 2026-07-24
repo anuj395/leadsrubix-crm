@@ -18,7 +18,7 @@
  *   - [{ value, label }, ...]
  *   - ["a", "b", ...]
  */
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useRef, type FormEvent, type ReactNode } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
@@ -219,7 +219,13 @@ export function DynamicForm({
           roleKey: finalRoleKey,
         })
         if (cancelled) return
-        const loadedFields = data.formFields || data.form_fields || []
+        let loadedFields = data.formFields || data.form_fields || []
+        const isEdit = !!(initialValues?.id || initialValues?._id || initialValues?.organizationId)
+        if (!isEdit && screen === 'organization') {
+          loadedFields = loadedFields.filter(
+            (f) => f.key !== 'costPerLicense' && f.key !== 'validTill' && f.key !== 'cost_per_license' && f.key !== 'valid_till'
+          )
+        }
         setFields(loadedFields)
         // Seed defaults for newly-introduced fields without clobbering user input.
         setValues((prev) => {
@@ -328,10 +334,14 @@ export function DynamicForm({
 
   // Reset state selection if country changes so we don't submit invalid state/country combos
   const countryValue = values.country
+  const prevCountryRef = useRef<Value | undefined>(undefined)
   useEffect(() => {
-    if (values.state) {
-      setValues((prev) => ({ ...prev, state: '' }))
+    if (prevCountryRef.current !== undefined && prevCountryRef.current !== countryValue) {
+      if (values.state) {
+        setValues((prev) => ({ ...prev, state: '' }))
+      }
     }
+    prevCountryRef.current = countryValue
   }, [countryValue])
 
 
@@ -846,13 +856,31 @@ export function DynamicForm({
             f.type === 'number' ? 'number' :
             f.type === 'date' ? 'datetime-local' :
             'text'
+
+          let displayVal = value
+          if (inputType === 'datetime-local' && value) {
+            try {
+              const d = new Date(String(value))
+              if (!isNaN(d.getTime())) {
+                const yyyy = d.getFullYear()
+                const mm = String(d.getMonth() + 1).padStart(2, '0')
+                const dd = String(d.getDate()).padStart(2, '0')
+                const hh = String(d.getHours()).padStart(2, '0')
+                const min = String(d.getMinutes()).padStart(2, '0')
+                displayVal = `${yyyy}-${mm}-${dd}T${hh}:${min}`
+              }
+            } catch (err) {
+              console.error('Failed to parse date:', err)
+            }
+          }
+
           return (
             <TextField
               key={f.key}
               size="small"
               type={inputType}
               label={labelWithRequired}
-              value={(value as string | number) ?? ''}
+              value={(displayVal as string | number) ?? ''}
               onChange={(e) => setValue(
                 f.key,
                 inputType === 'number' && e.target.value !== ''

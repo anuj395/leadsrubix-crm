@@ -430,6 +430,8 @@ const SCREEN_DEFAULTS = [
         dropdown_source: 'api', dropdown_api: '/api/options/industries?launchedOnly=true' },
       { field_key: 'numEmployees', label: 'Number of Employees', type: 'number', is_required: false, order: 11 },
       { field_key: 'address',       label: 'Address',       type: 'textarea', is_required: false, order: 12 },
+      { field_key: 'costPerLicense', label: 'License Cost', type: 'number', is_required: true, order: 20 },
+      { field_key: 'validTill', label: 'Valid Till', type: 'date', is_required: true, order: 21 },
       { field_key: 'allowDuplicateLeads', label: 'Allow Duplicate Leads', type: 'checkbox', is_form_visible: false, default_value: true, order: 13 },
       { field_key: 'showAnalytics', label: 'Show Analytics', type: 'checkbox', is_form_visible: false, default_value: true, order: 14 },
       { field_key: 'showData', label: 'Show Data', type: 'checkbox', is_form_visible: false, is_table_visible: false, default_value: true, order: 15 },
