@@ -674,23 +674,23 @@ async function seedScreens() {
     const fieldDocs = [];
     for (const f of spec.fields) {
       const doc = await ScreenField.findOneAndUpdate(
-        { screenId: screen._id, fieldKey: f.field_key },
+        { screen_id: screen._id, field_key: f.field_key },
         {
           $set: {
             label: f.label,
             type: f.type,
-            isTableVisible: f.is_table_visible !== false,
-            isFormVisible: f.is_form_visible !== false,
-            isRequired: !!f.is_required,
+            is_table_visible: f.is_table_visible !== false,
+            is_form_visible: f.is_form_visible !== false,
+            is_required: !!f.is_required,
             sortable: true,
             order: f.order || 0,
-            isActive: true,
-            dropdownSource: f.dropdown_source || 'none',
-            dropdownApi: f.dropdown_api || '',
+            is_active: true,
+            dropdown_source: f.dropdown_source || 'none',
+            dropdown_api: f.dropdown_api || '',
             options: f.options || [],
-            defaultValue: f.default_value !== undefined ? f.default_value : null,
+            default_value: f.default_value !== undefined ? f.default_value : null,
           },
-          $setOnInsert: { screenId: screen._id, fieldKey: f.field_key },
+          $setOnInsert: { screen_id: screen._id, field_key: f.field_key },
         },
         { upsert: true, new: true },
       );
@@ -698,7 +698,7 @@ async function seedScreens() {
     }
     // Clean up any fields that are no longer in the spec.
     const specKeys = spec.fields.map((f) => f.field_key);
-    await ScreenField.deleteMany({ screenId: screen._id, fieldKey: { $nin: specKeys } });
+    await ScreenField.deleteMany({ screen_id: screen._id, field_key: { $nin: specKeys } });
     fieldsByScreen.set(String(screen._id), { screen, fields: fieldDocs });
   }
 
@@ -715,18 +715,18 @@ async function seedScreens() {
         for (const field of fields) {
           await ScreenPermission.updateOne(
             {
-              screenId: screen._id,
-              roleId: role._id,
-              industryId: industry._id,
-              fieldId: field._id,
+              screen_id: screen._id,
+              role_id: role._id,
+              industry_id: industry._id,
+              field_id: field._id,
             },
             {
-              $set: { isEnabled: true },
+              $set: { is_enabled: true },
               $setOnInsert: {
-                screenId: screen._id,
-                roleId: role._id,
-                industryId: industry._id,
-                fieldId: field._id,
+                screen_id: screen._id,
+                role_id: role._id,
+                industry_id: industry._id,
+                field_id: field._id,
               },
             },
             { upsert: true },
@@ -764,7 +764,7 @@ async function seedIndustries() {
       { code },
       {
         $set: { name: String(name) },
-        $setOnInsert: { code, isActive: true, status: 'Launched' },
+        $setOnInsert: { code, is_active: true, status: 'Launched' },
       },
       { upsert: true, new: false, includeResultMetadata: true },
     );
@@ -780,18 +780,18 @@ async function seedIndustries() {
   // user under a freshly-seeded industry. `superAdmin` is intentionally NOT
   // a per-industry role — it's handled as a system-wide bypass.
   const DEFAULT_ROLES = ['superAdmin', 'admin', 'leadManager', 'teamLead', 'sales'];
-  const allIndustries = await Industry.find({}).lean().exec();
+  const allIndustries = await Industry.find({}).exec();
   let rolesAdded = 0;
   for (const ind of allIndustries) {
     for (const key of DEFAULT_ROLES) {
       const r = await Role.findOneAndUpdate(
-        { industryId: ind._id, key },
+        { industry_id: ind._id, key },
         {
           $setOnInsert: {
-            industryId: ind._id,
+            industry_id: ind._id,
             key,
             name: ROLE_DISPLAY_NAMES[key] || capitalize(key),
-            isActive: true,
+            is_active: true,
           },
         },
         { upsert: true, new: false, includeResultMetadata: true },

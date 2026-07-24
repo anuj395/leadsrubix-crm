@@ -52,3 +52,30 @@ Organization: Leads Rubix
 Username / Email: saleds@gmail.com
 Temp Password: TTWpsYCj
 ========================================
+
+========================================
+Timestamp: 2026-07-23T13:05:30.519Z
+To: admin-1784811930413@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Organization
+Username / Email: admin-1784811930413@org.com
+Temp Password: Nz83dcSg
+========================================
+
+========================================
+Timestamp: 2026-07-23T14:16:18.055Z
+To: andsjd@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: cxkckzxckz
+Username / Email: andsjd@gmail.com
+Temp Password: 8iUr5g6I
+========================================
+
+========================================
+Timestamp: 2026-07-24T05:44:16.691Z
+To: admin@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Organization
+Username / Email: admin@org.com
+Temp Password: 6c44WFsl
+========================================

@@ -6,7 +6,11 @@ const dropdownOptionSchema = new mongoose.Schema(
     value: { type: String, required: true },
     label: { type: String, required: true },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  }
 );
 
 // Ensure uniqueness per key + value combination

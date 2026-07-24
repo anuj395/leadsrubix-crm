@@ -63,14 +63,14 @@ async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, 
 }
 
 function pickAllowed(payload, allowedFieldDefs) {
-  const allowedKeys = new Set(allowedFieldDefs.map((f) => f.field_key));
+  const allowedKeys = new Set(allowedFieldDefs.map((f) => f.field_key || f.fieldKey));
   const cleaned = {};
   for (const [k, v] of Object.entries(payload || {})) {
     if (allowedKeys.has(k)) cleaned[k] = v;
   }
   const missing = allowedFieldDefs
-    .filter((f) => f.is_required)
-    .map((f) => f.field_key)
+    .filter((f) => f.is_required || f.isRequired)
+    .map((f) => f.field_key || f.fieldKey)
     .filter((k) => cleaned[k] === undefined || cleaned[k] === null || cleaned[k] === '');
   if (missing.length > 0) {
     const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
@@ -112,14 +112,14 @@ exports.listPaged = async ({
     pageSize,
     sortField,
     sortDir,
-    searchKeys: allowedFields.map(f => f.field_key),
+    searchKeys: allowedFields.map(f => f.field_key || f.fieldKey),
   });
 
   // Enrich createdBy with human-readable name or role
   const userIds = items
     .map(org => org.createdBy || org.createdBy)
     .filter(id => id && mongoose.Types.ObjectId.isValid(id));
-  const users = await userModel.User.find({ _id: { $in: userIds } }).lean().exec();
+  const users = await mongoose.model('User').find({ _id: { $in: userIds } }).lean().exec();
   const userMap = users.reduce((acc, u) => {
     acc[u._id.toString()] = u;
     return acc;
@@ -157,7 +157,7 @@ exports.fetchById = async ({ id, authedUser }) => {
   if (org) {
     const creatorId = (org.createdBy || org.createdBy)?.toString();
     if (creatorId && mongoose.Types.ObjectId.isValid(creatorId)) {
-      const creator = await userModel.User.findById(creatorId).lean().exec();
+      const creator = await mongoose.model('User').findById(creatorId).lean().exec();
       let createdByVal = creatorId;
       if (creator) {
         createdByVal = creator.role === 'superAdmin' ? 'Super Admin' : (creator.organizationName || creator.name || creator.email);
@@ -228,8 +228,10 @@ exports.create = async ({ payload, authedUser }) => {
     if (screen) {
       const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
       for (const f of fields) {
-        if (mergedWithDefaults[f.field_key] === undefined && f.default_value !== undefined && f.default_value !== null) {
-          mergedWithDefaults[f.field_key] = f.default_value;
+        const key = f.field_key || f.fieldKey;
+        const defVal = f.default_value !== undefined ? f.default_value : f.defaultValue;
+        if (mergedWithDefaults[key] === undefined && defVal !== undefined && defVal !== null) {
+          mergedWithDefaults[key] = defVal;
         }
       }
     }
@@ -269,7 +271,7 @@ exports.create = async ({ payload, authedUser }) => {
   let adminEmail = orgEmail || `admin@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   
   // Ensure unique admin email
-  const existingUser = await userModel.User.findOne({ email: adminEmail.toLowerCase().trim() });
+  const existingUser = await mongoose.model('User').findOne({ email: adminEmail.toLowerCase().trim() });
   if (existingUser) {
     adminEmail = `admin-${Date.now()}@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   }
@@ -525,7 +527,7 @@ exports.update = async ({ id, payload, authedUser }) => {
     }
     
     // Update all users belonging to this organization (supporting both old ObjectId and new string matches)
-    await userModel.User.updateMany(
+    await mongoose.model('User').updateMany(
       {
         $or: [
           { organizationId: existing._id },

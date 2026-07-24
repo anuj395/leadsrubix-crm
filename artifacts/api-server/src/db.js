@@ -4,6 +4,30 @@
 const mongoose = require('mongoose');
 const config = require('./config');
 
+// Globally convert all default camelCase timestamps to snake_case in MongoDB
+mongoose.plugin((schema) => {
+  if (schema.options.timestamps === true) {
+    schema.options.timestamps = {
+      createdAt: 'created_at',
+      updatedAt: 'updated_at'
+    };
+  }
+  if (schema.options.timestamps) {
+    const createdAtKey = schema.options.timestamps.createdAt;
+    const updatedAtKey = schema.options.timestamps.updatedAt;
+    if (createdAtKey && createdAtKey !== 'createdAt' && !schema.paths['createdAt'] && !schema.virtuals['createdAt']) {
+      schema.virtual('createdAt')
+        .get(function() { return this[createdAtKey]; })
+        .set(function(v) { this[createdAtKey] = v; });
+    }
+    if (updatedAtKey && updatedAtKey !== 'updatedAt' && !schema.paths['updatedAt'] && !schema.virtuals['updatedAt']) {
+      schema.virtual('updatedAt')
+        .get(function() { return this[updatedAtKey]; })
+        .set(function(v) { this[updatedAtKey] = v; });
+    }
+  }
+});
+
 let memoryServer = null;
 
 const connect = async () => {

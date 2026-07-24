@@ -5,17 +5,25 @@ const newsItemSchema = new mongoose.Schema(
     name: { type: String, required: true },
     link: { type: String, required: true },
     status: { type: String, enum: ['Active', 'Draft'], default: 'Active' },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, alias: 'createdBy' },
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
 const newsSchema = new mongoose.Schema(
   {
-    organizationId: { type: String, default: null, index: true },
+    organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
     news: [newsItemSchema],
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
 const News = mongoose.model('News', newsSchema, 'news');

@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
  */
 const contactSchema = new mongoose.Schema(
   {
-    createdBy: { type: mongoose.Schema.Types.Mixed, default: null },
+    created_by: { type: mongoose.Schema.Types.Mixed, default: null, alias: 'createdBy' },
   },
   { 
     timestamps: true, 

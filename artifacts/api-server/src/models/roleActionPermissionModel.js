@@ -7,13 +7,13 @@ const mongoose = require('mongoose');
  */
 const roleActionPermissionSchema = new mongoose.Schema(
   {
-    roleId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Role',     required: true },
-    industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
-    screenId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Screen',   required: true },
-    canView:    { type: Boolean, default: false },
-    canAdd:     { type: Boolean, default: false },
-    canEdit:    { type: Boolean, default: false },
-    canDelete:  { type: Boolean, default: false },
+    role_id:     { type: mongoose.Schema.Types.ObjectId, ref: 'Role',     required: true, alias: 'roleId' },
+    industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true, alias: 'industryId' },
+    screen_id:   { type: mongoose.Schema.Types.ObjectId, ref: 'Screen',   required: true, alias: 'screenId' },
+    can_view:    { type: Boolean, default: false, alias: 'canView' },
+    can_add:     { type: Boolean, default: false, alias: 'canAdd' },
+    can_edit:    { type: Boolean, default: false, alias: 'canEdit' },
+    can_delete:  { type: Boolean, default: false, alias: 'canDelete' },
   },
   { 
     timestamps: true,
@@ -22,24 +22,8 @@ const roleActionPermissionSchema = new mongoose.Schema(
   },
 );
 
-roleActionPermissionSchema.virtual('can_view')
-  .get(function() { return this.canView; })
-  .set(function(v) { this.canView = v; });
-
-roleActionPermissionSchema.virtual('can_add')
-  .get(function() { return this.canAdd; })
-  .set(function(v) { this.canAdd = v; });
-
-roleActionPermissionSchema.virtual('can_edit')
-  .get(function() { return this.canEdit; })
-  .set(function(v) { this.canEdit = v; });
-
-roleActionPermissionSchema.virtual('can_delete')
-  .get(function() { return this.canDelete; })
-  .set(function(v) { this.canDelete = v; });
-
 roleActionPermissionSchema.index(
-  { roleId: 1, industryId: 1, screenId: 1 },
+  { role_id: 1, industry_id: 1, screen_id: 1 },
   { unique: true, name: 'idx_role_action_perm_unique' },
 );
 

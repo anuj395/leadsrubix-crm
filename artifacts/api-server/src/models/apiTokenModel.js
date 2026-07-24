@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const apiTokenSchema = new mongoose.Schema(
   {
     api_key: { type: String, required: true, unique: true },
-    organizationId: { type: String, required: true },
+    organization_id: { type: String, required: true, alias: 'organizationId' },
     source: { type: String, required: true }, // e.g. "Webhook", "Facebook"
-    leadSourceId: { type: String, default: null }, // camelCase matching Firebase
-    countryCode: { type: String, default: '+91', alias: 'country_code' },
+    lead_source_id: { type: String, default: null, alias: 'leadSourceId' }, // camelCase matching Firebase
+    country_code: { type: String, default: '+91', alias: 'countryCode' },
     status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },
     access_token: { type: String },
     facebook_pages: { type: Array },
@@ -14,7 +14,11 @@ const apiTokenSchema = new mongoose.Schema(
     app_id: { type: String },
     app_secret: { type: String },
   },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+  { 
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  }
 );
 
 apiTokenSchema.pre('save', function (next) {
@@ -28,6 +32,6 @@ apiTokenSchema.pre('save', function (next) {
   next();
 });
 
-const ApiToken = mongoose.model('ApiToken', apiTokenSchema, 'apiTokens');
+const ApiToken = mongoose.model('ApiToken', apiTokenSchema, 'api_tokens');
 
 module.exports = ApiToken;

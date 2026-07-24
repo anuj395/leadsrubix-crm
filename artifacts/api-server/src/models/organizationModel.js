@@ -8,13 +8,13 @@ const mongoose = require('mongoose');
  */
 const organizationSchema = new mongoose.Schema(
   {
-    organizationId: { type: String },
-    organizationName: { type: String },
-    contactNumber: { type: String, default: '', alias: 'contact_no' },
-    industryId: { type: String, default: null }, // industry code, mirrors user.industryId
-    allowDuplicateLeads: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true },
-    createdBy: { type: String, default: null },
+    organization_id: { type: String, alias: 'organizationId' },
+    organization_name: { type: String, alias: 'organizationName' },
+    contact_number: { type: String, default: '', alias: 'contactNumber' },
+    industry_id: { type: String, default: null, alias: 'industryId' },
+    allow_duplicate_leads: { type: Boolean, default: false, alias: 'allowDuplicateLeads' },
+    is_active: { type: Boolean, default: true, alias: 'isActive' },
+    created_by: { type: String, default: null, alias: 'createdBy' },
   },
   { 
     timestamps: true, 

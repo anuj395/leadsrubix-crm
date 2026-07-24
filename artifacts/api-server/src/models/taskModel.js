@@ -2,37 +2,39 @@ const mongoose = require('mongoose');
 
 const taskSchema = new mongoose.Schema(
   {
-    contactId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: true, index: true },
-    organizationId: { type: String, default: null, index: true },
-    uid:            { type: String, default: null, index: true },
-    industryId:     { type: String, default: null, index: true },
-    type:           { type: String, required: true }, // e.g., Call Back, Site Visit
-    dueDate:        { type: Date, required: true },
-    status:         { type: String, default: 'PENDING' }, // e.g., PENDING, COMPLETED, ACTIVE, CANCELLED
-    callbackReason: { type: String, default: '' },
-    customerName:   { type: String, default: '' },
-    contactNumber:  { type: String, default: '' },
-    createdBy:      { type: String, default: '' },
-    latitude:       { type: Number, default: null },
-    longitude:      { type: Number, default: null },
+    contact_id:          { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: true, index: true, alias: 'contactId' },
+    organization_id:     { type: String, default: null, index: true, alias: 'organizationId' },
+    uid:                { type: String, default: null, index: true },
+    industry_id:         { type: String, default: null, index: true, alias: 'industryId' },
+    type:               { type: String, required: true }, // e.g., Call Back, Site Visit
+    due_date:            { type: Date, required: true, alias: 'dueDate' },
+    status:             { type: String, default: 'PENDING' }, // e.g., PENDING, COMPLETED, ACTIVE, CANCELLED
+    callback_reason:     { type: String, default: '', alias: 'callbackReason' },
+    customer_name:       { type: String, default: '', alias: 'customerName' },
+    contact_number:      { type: String, default: '', alias: 'contactNumber' },
+    created_by:          { type: String, default: '', alias: 'createdBy' },
+    latitude:           { type: Number, default: null },
+    longitude:          { type: Number, default: null },
     stage:              { type: String, default: '' },
-    contactOwnerEmail:  { type: String, default: '' },
-    projectName:        { type: String, default: '' },
+    contact_owner_email: { type: String, default: '', alias: 'contactOwnerEmail' },
+    project_name:        { type: String, default: '', alias: 'projectName' },
     location:           { type: String, default: '' },
     budget:             { type: String, default: '' },
-    transferStatus:     { type: Boolean, default: false },
-    uniqueMeeting:      { type: Boolean, default: false },
-    uniqueSiteVisit:    { type: Boolean, default: false },
-    completedAt:        { type: Date, default: null },
+    transfer_status:     { type: Boolean, default: false, alias: 'transferStatus' },
+    unique_meeting:      { type: Boolean, default: false, alias: 'uniqueMeeting' },
+    unique_site_visit:    { type: Boolean, default: false, alias: 'uniqueSiteVisit' },
+    completed_at:        { type: Date, default: null, alias: 'completedAt' },
     source:             { type: String, default: '' },
-    inventoryType:      { type: String, default: '' },
+    inventory_type:      { type: String, default: '', alias: 'inventoryType' },
     notes:              { type: String, default: '' },
-    taskType:           { type: String, default: '' },
-    nextFollowUp:       { type: Date, default: null },
-    assignedTo:         { type: String, default: '' },
+    task_type:           { type: String, default: '', alias: 'taskType' },
+    next_follow_up:       { type: Date, default: null, alias: 'nextFollowUp' },
+    assigned_to:         { type: String, default: '', alias: 'assignedTo' },
   },
   { 
-    timestamps: true
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
   }
 );
 

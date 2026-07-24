@@ -4,16 +4,20 @@ const ROLE_KEYS = ['superAdmin', 'admin', 'leadManager', 'teamLead', 'sales'];
 
 const roleSchema = new mongoose.Schema(
   {
-    industryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true },
+    industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true, alias: 'industryId' },
     key: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
-    isActive: { type: Boolean, default: true },
+    is_active: { type: Boolean, default: true, alias: 'isActive' },
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
-roleSchema.index({ industryId: 1, key: 1 }, { unique: true, name: 'idx_role_industry_key' });
+roleSchema.index({ industry_id: 1, key: 1 }, { unique: true, name: 'idx_role_industry_key' });
 
 const Role = mongoose.model('Role', roleSchema, 'roles');
 
@@ -27,19 +31,19 @@ exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
   if (industryId) {
     const industryDoc = await industryModel.findByCode(industryId);
     if (industryDoc) {
-      q.industryId = industryDoc._id;
+      q.industry_id = industryDoc._id;
     } else {
-      q.industryId = industryId;
+      q.industry_id = industryId;
     }
   }
-  if (activeOnly) q.isActive = true;
+  if (activeOnly) q.is_active = true;
   if (excludeRole) {
     q.key = { $nin: ['superAdmin', excludeRole] };
   }
-  return Role.find(q).populate('industryId').sort({ key: 1 }).lean().exec();
+  return Role.find(q).populate('industry_id').sort({ key: 1 }).exec();
 };
 
-exports.findById = async (id) => Role.findById(id).populate('industryId').lean().exec();
+exports.findById = async (id) => Role.findById(id).populate('industry_id').exec();
 
 exports.findByIndustryAndKey = async (industryId, key) => {
   let targetId = industryId;
@@ -47,18 +51,18 @@ exports.findByIndustryAndKey = async (industryId, key) => {
   if (industryDoc) {
     targetId = industryDoc._id;
   }
-  return Role.findOne({ industryId: targetId, key: String(key).trim() }).lean().exec();
+  return Role.findOne({ industry_id: targetId, key: String(key).trim() }).exec();
 };
 
 exports.create = async ({ industryId, key, name, description, isActive }) => {
   const doc = await Role.create({
-    industryId,
+    industry_id: industryId,
     key: String(key).trim(),
     name: String(name).trim(),
     description: description || '',
-    isActive: isActive !== false,
+    is_active: isActive !== false,
   });
-  return doc.toObject();
+  return doc;
 };
 
 exports.update = async (id, patch) => {
@@ -66,9 +70,9 @@ exports.update = async (id, patch) => {
   if (patch.key !== undefined) update.key = String(patch.key).trim();
   if (patch.name !== undefined) update.name = String(patch.name).trim();
   if (patch.description !== undefined) update.description = String(patch.description);
-  if (patch.isActive !== undefined) update.isActive = !!patch.isActive;
-  if (patch.industryId !== undefined) update.industryId = patch.industryId;
-  return Role.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec();
+  if (patch.isActive !== undefined) update.is_active = !!patch.isActive;
+  if (patch.industryId !== undefined) update.industry_id = patch.industryId;
+  return Role.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
 };
 
-exports.remove = async (id) => Role.findByIdAndDelete(id).lean().exec();
+exports.remove = async (id) => Role.findByIdAndDelete(id).exec();

@@ -3,16 +3,20 @@ const mongoose = require('mongoose');
 const teamItemSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   code: { type: String, default: '', trim: true },
-  isActive: { type: Boolean, default: true }
+  is_active: { type: Boolean, default: true, alias: 'isActive' }
 });
 
 const teamSchema = new mongoose.Schema(
   {
-    industryId: { type: String, default: null, index: true },
-    organizationId: { type: String, default: null, index: true },
+    industry_id: { type: String, default: null, index: true, alias: 'industryId' },
+    organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
     teams: [teamItemSchema]
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  }
 );
 
 const Team = mongoose.model('Team', teamSchema, 'teams');

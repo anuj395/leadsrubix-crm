@@ -112,16 +112,22 @@ export const routeComponentMap: Record<string, any> = {
   "/account/update-password": UpdatePasswordPage,
   "/settings": SettingsPage,
 
+  "/tool/area-converter": AreaConverterPage,
   "/tool/areaConverter": AreaConverterPage,
   "/tool/calculator": CalculatorPage,
   "/tool/emi-calculator": EmiCalculatorPage,
 
+  "/lead-distribution/list": LeadDistributionListPage,
   "/leadDistribution/list": LeadDistributionListPage,
+  "/lead-distribution/logic": LeadDistributionLogicPage,
   "/leadDistribution/logic": LeadDistributionLogicPage,
   "/reassign/list": ReassignListPage,
   "/reassign/logic": ReassignLogicPage,
 
+  "/drilldown-data": ContactDrilldownPage,
   "/drilldownData": ContactDrilldownPage,
+  "/task-drilldown-data": TaskDrilldownPage,
   "/taskDrilldownData": TaskDrilldownPage,
+  "/call-drilldown-data": CallLogDrilldownPage,
   "/callDrilldownData": CallLogDrilldownPage,
 }
