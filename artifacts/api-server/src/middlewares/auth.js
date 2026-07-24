@@ -32,6 +32,7 @@ module.exports.authenticate = async (req, res, next) => {
       organizationName: fresh.organizationName,
       email: fresh.email,
       uid: fresh.uid,
+      name: fresh.name || fresh.email,
     };
 
     // Subscription & Trial expiration checks for non-superAdmin users

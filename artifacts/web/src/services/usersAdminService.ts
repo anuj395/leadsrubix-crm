@@ -10,7 +10,7 @@ export interface AdminUser {
   role: string
   industryId?: string
   isActive: boolean
-  reporting_to?: string
+  reportingTo?: string
   fields: Record<string, unknown>
   createdAt?: string
   updatedAt?: string
@@ -25,7 +25,7 @@ export interface CreateUserInput {
   role: string
   industryId?: string
   isActive?: boolean
-  reporting_to?: string
+  reportingTo?: string
   fields?: Record<string, unknown>
 }
 
@@ -37,7 +37,7 @@ export interface UpdateUserInput {
   industryId?: string
   isActive?: boolean
   password?: string
-  reporting_to?: string
+  reportingTo?: string
   fields?: Record<string, unknown>
 }
 

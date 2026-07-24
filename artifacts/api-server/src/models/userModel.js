@@ -76,32 +76,38 @@ exports.User = User;
 
 function shapePublic(u) {
   if (!u) return null;
+  const fName = u.firstName || u.first_name || '';
+  const lName = u.lastName || u.last_name || '';
   return {
-    ...u,
-    _id: u._id,
-    id: u._id,
-    firstName: u.firstName || '',
-    lastName: u.lastName || '',
-    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+    _id: String(u._id),
+    id: String(u._id),
+    firstName: fName,
+    lastName: lName,
+    name: `${fName} ${lName}`.trim() || u.email,
     email: u.email,
     role: u.role,
-    industryId: u.industryId || '',
-    isActive: u.isActive !== false,
-    status: (u.isActive !== false) ? 'ACTIVE' : 'INACTIVE',
+    industryId: u.industryId || u.industry_id || '',
+    isActive: u.isActive !== false && u.is_active !== false,
+    status: (u.isActive !== false && u.is_active !== false) ? 'ACTIVE' : 'INACTIVE',
     reportingTo: u.reportingTo || u.reporting_to || '',
-    reporting_to: u.reportingTo || u.reporting_to || '',
-    organizationName: u.organizationName || '',
-    organizationId: u.organizationId || '',
+    organizationName: u.organizationName || u.organization_name || '',
+    organizationId: u.organizationId || u.organization_id || '',
     needsPasswordChange: !!(u.needsPasswordChange || u.needs_password_change),
-    needs_password_change: !!(u.needsPasswordChange || u.needs_password_change),
-    contactNumber: u.contactNumber || u.contact_no || '',
+    contactNumber: u.contactNumber || u.contact_number || u.contact_no || '',
+    userImage: u.userImage || u.user_image || '',
     designation: u.designation || '',
     team: u.team || '',
     branch: u.branch || '',
-    branchPermission: u.branchPermission || [],
+    branchPermission: u.branchPermission || u.branch_permission || [],
     uid: u.uid || '',
+    deviceId: u.deviceId || u.device_id || '',
+    latestUpdateProfile: !!(u.latestUpdateProfile || u.latest_update_profile),
+    activatedAt: u.activatedAt || u.activated_at || null,
+    deactivatedAt: u.deactivatedAt || u.deactivated_at || null,
+    createdBy: u.createdBy || u.created_by || 'Super Admin',
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
+    fields: u.fields || {},
   };
 }
 exports.shapePublic = shapePublic;
@@ -113,8 +119,8 @@ exports.findAll = async () => {
 
 exports.list = async ({ industryId, role, excludeRole, organizationId } = {}) => {
   const q = {};
-  if (industryId) q.industryId = industryId;
-  if (organizationId) q.organizationId = organizationId;
+  if (industryId) q.industry_id = industryId;
+  if (organizationId) q.organization_id = organizationId;
   if (role) q.role = role;
   if (excludeRole) {
     if (Array.isArray(excludeRole)) {
@@ -143,8 +149,8 @@ exports.listPaged = async ({
   sort,
 } = {}) => {
   const filter = {};
-  if (industryId) filter.industryId = industryId;
-  if (organizationId) filter.organizationId = organizationId;
+  if (industryId) filter.industry_id = industryId;
+  if (organizationId) filter.organization_id = organizationId;
   if (role) filter.role = role;
   if (excludeRole) {
     if (Array.isArray(excludeRole)) {
@@ -156,7 +162,7 @@ exports.listPaged = async ({
   if (search) {
     const safe = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rx = new RegExp(safe, 'i');
-    filter.$or = [{ email: rx }, { firstName: rx }, { lastName: rx }];
+    filter.$or = [{ email: rx }, { first_name: rx }, { last_name: rx }];
   }
   const sortSpec = sort && Object.keys(sort).length ? sort : { createdAt: -1 };
   const safePage = Math.max(0, (Number(page) || 1) - 1);
@@ -192,6 +198,10 @@ function normalizePayload(payload) {
   if (!payload) return payload;
   const out = {};
   for (const [k, v] of Object.entries(payload)) {
+    if (k.startsWith('$')) {
+      out[k] = v;
+      continue;
+    }
     const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
     out[dbKey] = v;
   }
@@ -207,6 +217,8 @@ exports.create = async (data) => {
 exports.update = async (id, patch) => {
   const normalized = normalizePayload(patch);
   const $set = { ...normalized };
+  const $unset = normalized.$unset;
+  delete $set.$unset;
 
   if (patch.isActive !== undefined) {
     const isAct = !!patch.isActive;
@@ -222,7 +234,12 @@ exports.update = async (id, patch) => {
     $set.needs_password_change = false;
   }
 
-  const updated = await User.findByIdAndUpdate(id, { $set }, { new: true })
+  const updateQuery = { $set };
+  if ($unset) {
+    updateQuery.$unset = $unset;
+  }
+
+  const updated = await User.findByIdAndUpdate(id, updateQuery, { new: true })
     .select('-password')
     .lean()
     .exec();
