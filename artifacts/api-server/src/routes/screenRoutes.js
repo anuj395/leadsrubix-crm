@@ -7,7 +7,14 @@ const router = express.Router();
 
 // Compose endpoint — used by all client pages to resolve their dynamic config.
 router.post('/resolve', (req, res, next) => {
-  if (req.body?.screen_key === 'organization') {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authenticate(req, res, (err) => {
+      if (err) return next(err);
+      return ctrl.resolve(req, res, next);
+    });
+  }
+  if (req.body?.screen_key === 'organization' || req.body?.screenKey === 'organization') {
     return ctrl.resolve(req, res, next);
   }
   return authenticate(req, res, next);

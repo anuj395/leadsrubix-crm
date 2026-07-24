@@ -14,8 +14,8 @@ router.get('/', authenticate, async (req, res) => {
     const organizationId = isSuperAdmin(req.user) ? req.query.organizationId : req.user?.organizationId;
 
     const query = {};
-    if (industryId) query.industryId = industryId;
-    if (organizationId) query.organizationId = organizationId;
+    if (industryId) query.industry_id = industryId;
+    if (organizationId) query.organization_id = organizationId;
 
     const doc = await Team.findOne(query).exec();
     const items = doc ? doc.teams.map(t => ({ ...t.toObject(), id: t._id })) : [];
@@ -49,14 +49,14 @@ router.post('/', authenticate, async (req, res) => {
     const organizationId = isSuperAdmin(req.user) ? req.body.organizationId || req.user?.organizationId : req.user?.organizationId;
 
     const query = {};
-    if (industryId) query.industryId = industryId;
-    if (organizationId) query.organizationId = organizationId;
+    if (industryId) query.industry_id = industryId;
+    if (organizationId) query.organization_id = organizationId;
 
     let doc = await Team.findOne(query);
     if (!doc) {
       doc = await Team.create({
-        industryId,
-        organizationId,
+        industry_id: industryId,
+        organization_id: organizationId,
         teams: []
       });
     }

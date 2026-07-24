@@ -7,7 +7,24 @@ const mongoose = require('mongoose');
  */
 const contactSchema = new mongoose.Schema(
   {
-    createdBy: { type: mongoose.Schema.Types.Mixed, default: null },
+    created_by: { type: mongoose.Schema.Types.Mixed, default: null, alias: 'createdBy' },
+    organization_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', alias: 'organizationId' },
+    customer_name: { type: String, alias: 'customerName' },
+    contact_number: { type: String, alias: 'contactNumber' },
+    email_id: { type: String, alias: 'emailId' },
+    alternate_no: { type: String, alias: 'alternateNo' },
+    lead_type: { type: String, alias: 'leadType' },
+    location: { type: String },
+    project_name: { type: String, alias: 'projectName' },
+    property_type: { type: String, alias: 'propertyType' },
+    property_stage: { type: String, alias: 'propertyStage' },
+    budget: { type: String },
+    property_sub_type: { type: String, alias: 'propertySubType' },
+    source: { type: String },
+    contact_owner_email: { type: String, alias: 'contactOwnerEmail' },
+    adset: { type: String },
+    campaign: { type: String },
+    notes: { type: String },
   },
   { 
     timestamps: true, 
@@ -25,12 +42,37 @@ exports.Contact = Contact;
 exports.list = async ({ filter = {}, limit = 200 } = {}) =>
   Contact.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
 
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (!payload) return payload;
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[dbKey] = v;
+  }
+  return out;
+}
+
 exports.create = async (payload) => {
-  const doc = await Contact.create(payload);
+  const doc = await Contact.create(normalizePayload(payload));
   return doc.toObject();
 };
 
 exports.findById = async (id) => Contact.findById(id).lean().exec();
-exports.findByIdAndUpdate = async (id, update, options = {}) => Contact.findByIdAndUpdate(id, update, options).lean().exec();
+
+exports.findByIdAndUpdate = async (id, update, options = {}) => {
+  const normalizedUpdate = {};
+  for (const [op, val] of Object.entries(update || {})) {
+    if (op.startsWith('$')) {
+      normalizedUpdate[op] = normalizePayload(val);
+    } else {
+      normalizedUpdate[op] = val;
+    }
+  }
+  return Contact.findByIdAndUpdate(id, normalizedUpdate, options).lean().exec();
+};
 
 exports.remove = async (id) => Contact.findByIdAndDelete(id).lean().exec();

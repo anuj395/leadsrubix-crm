@@ -62,21 +62,92 @@ async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, 
   };
 }
 
-function pickAllowed(payload, allowedFieldDefs) {
-  const allowedKeys = new Set(allowedFieldDefs.map((f) => f.field_key));
+function pickAllowed(payload, allowedFieldDefs, isCreate = false) {
   const cleaned = {};
+  
+  const allowedMap = {};
+  allowedFieldDefs.forEach(f => {
+    const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    allowedMap[camel] = f;
+  });
+
+  const normalizedPayload = {};
   for (const [k, v] of Object.entries(payload || {})) {
-    if (allowedKeys.has(k)) cleaned[k] = v;
+    const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    normalizedPayload[camelKey] = v;
   }
-  const missing = allowedFieldDefs
-    .filter((f) => f.is_required)
-    .map((f) => f.field_key)
-    .filter((k) => cleaned[k] === undefined || cleaned[k] === null || cleaned[k] === '');
+
+  for (const [camelKey, v] of Object.entries(normalizedPayload)) {
+    const fieldDef = allowedMap[camelKey];
+    if (fieldDef) {
+      cleaned[camelKey] = v;
+    }
+  }
+
+  const missing = [];
+  allowedFieldDefs.forEach(f => {
+    if (f.is_required || f.isRequired) {
+      const fieldKey = f.field_key || f.fieldKey || '';
+      if (isCreate && (fieldKey === 'cost_per_license' || fieldKey === 'valid_till' || fieldKey === 'costPerLicense' || fieldKey === 'validTill')) {
+        return;
+      }
+      const camel = fieldKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      if (cleaned[camel] === undefined || cleaned[camel] === null || cleaned[camel] === '') {
+        missing.push(f.field_key || camel);
+      }
+    }
+  });
+
   if (missing.length > 0) {
     const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
     err.status = 400;
     throw err;
   }
+
+  // Dynamic Format Validation
+  allowedFieldDefs.forEach(f => {
+    const fieldKey = f.field_key || f.fieldKey || '';
+    const camel = fieldKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    const val = cleaned[camel];
+
+    if (val !== undefined && val !== null && val !== '') {
+      if (f.type === 'email' || fieldKey.toLowerCase().includes('email')) {
+        const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRx.test(String(val))) {
+          const err = new Error(`Invalid Email format for ${f.label || fieldKey}`);
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (f.type === 'phone' || fieldKey.toLowerCase().includes('phone') || fieldKey.toLowerCase().includes('contact')) {
+        const rawDigits = String(val).replace(/\D/g, '');
+        if (rawDigits.length < 7 || rawDigits.length > 15) {
+          const err = new Error(`Invalid Contact Number for ${f.label || fieldKey}. Must be between 7 and 15 digits.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (fieldKey.toLowerCase().includes('pincode') || fieldKey.toLowerCase().includes('pin_code')) {
+        const pincodeRx = /^[1-9][0-9]{5}$/;
+        if (!pincodeRx.test(String(val))) {
+          const err = new Error(`Invalid Pincode for ${f.label || fieldKey}. Must be a valid 6-digit code.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (f.type === 'number') {
+        if (isNaN(Number(val))) {
+          const err = new Error(`${f.label || fieldKey} must be a valid number.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
+  });
+
   return cleaned;
 }
 
@@ -112,20 +183,21 @@ exports.listPaged = async ({
     pageSize,
     sortField,
     sortDir,
-    searchKeys: allowedFields.map(f => f.field_key),
+    searchKeys: allowedFields.map(f => f.field_key || f.fieldKey),
   });
 
   // Enrich createdBy with human-readable name or role
   const userIds = items
     .map(org => org.createdBy || org.createdBy)
     .filter(id => id && mongoose.Types.ObjectId.isValid(id));
-  const users = await userModel.User.find({ _id: { $in: userIds } }).lean().exec();
+  const users = await mongoose.model('User').find({ _id: { $in: userIds } }).lean().exec();
   const userMap = users.reduce((acc, u) => {
     acc[u._id.toString()] = u;
     return acc;
   }, {});
 
-  const enrichedItems = items.map(org => {
+  const enrichedItems = items.map(orgDoc => {
+    const org = orgDoc.toObject();
     const creatorId = (org.createdBy || org.createdBy)?.toString();
     const creator = userMap[creatorId];
     let createdByVal = creatorId || '';
@@ -136,7 +208,6 @@ exports.listPaged = async ({
     }
     return {
       ...org,
-      createdBy: createdByVal,
       createdBy: createdByVal,
     };
   });
@@ -157,7 +228,7 @@ exports.fetchById = async ({ id, authedUser }) => {
   if (org) {
     const creatorId = (org.createdBy || org.createdBy)?.toString();
     if (creatorId && mongoose.Types.ObjectId.isValid(creatorId)) {
-      const creator = await userModel.User.findById(creatorId).lean().exec();
+      const creator = await mongoose.model('User').findById(creatorId).lean().exec();
       let createdByVal = creatorId;
       if (creator) {
         createdByVal = creator.role === 'superAdmin' ? 'Super Admin' : (creator.organizationName || creator.name || creator.email);
@@ -191,7 +262,7 @@ exports.create = async ({ payload, authedUser }) => {
     role_key: user ? user.role || authedUser?.role : 'admin',
     isSuperAdmin,
   });
-  const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields);
+  const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields, true);
 
   const orgId = generateOrgId();
 
@@ -228,8 +299,10 @@ exports.create = async ({ payload, authedUser }) => {
     if (screen) {
       const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
       for (const f of fields) {
-        if (mergedWithDefaults[f.field_key] === undefined && f.default_value !== undefined && f.default_value !== null) {
-          mergedWithDefaults[f.field_key] = f.default_value;
+        const key = f.field_key || f.fieldKey;
+        const defVal = f.default_value !== undefined ? f.default_value : f.defaultValue;
+        if (mergedWithDefaults[key] === undefined && defVal !== undefined && defVal !== null) {
+          mergedWithDefaults[key] = defVal;
         }
       }
     }
@@ -269,7 +342,7 @@ exports.create = async ({ payload, authedUser }) => {
   let adminEmail = orgEmail || `admin@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   
   // Ensure unique admin email
-  const existingUser = await userModel.User.findOne({ email: adminEmail.toLowerCase().trim() });
+  const existingUser = await mongoose.model('User').findOne({ email: adminEmail.toLowerCase().trim() });
   if (existingUser) {
     adminEmail = `admin-${Date.now()}@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   }
@@ -486,6 +559,83 @@ exports.update = async ({ id, payload, authedUser }) => {
   const patch = { ...cleaned };
   if (isSuperAdmin && payload.industryId) patch.industryId = payload.industryId;
 
+  // 1. Valid Till Date Validation
+  if (patch.validTill) {
+    const targetDate = new Date(patch.validTill);
+    const currentDate = new Date();
+    if (targetDate <= currentDate) {
+      const err = new Error('Valid Till date must be later than the current date');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  // 1b. Number of Employees / Active Users Validation
+  if (patch.numEmployees !== undefined && patch.numEmployees !== null) {
+    const User = mongoose.model('User');
+    const activeUserCount = await User.countDocuments({
+      organization_id: existing.organizationId || existing._id.toString(),
+      is_active: true
+    }).exec();
+    if (Number(patch.numEmployees) < activeUserCount) {
+      const err = new Error(`The number of employees can't be less than ${activeUserCount}.`);
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  // 2. Sync Administrator User Details & Email Update Cascading
+  const User = mongoose.model('User');
+  const adminUser = await User.findOne({
+    organization_id: existing.organizationId || existing._id.toString(),
+    role: 'admin'
+  }).exec();
+
+  if (adminUser) {
+    const oldEmail = adminUser.email;
+    const newEmail = (patch.emailId || existing.emailId || '').toLowerCase().trim();
+
+    if (newEmail && newEmail !== oldEmail) {
+      const existingUser = await User.findOne({ email: newEmail }).exec();
+      if (existingUser && String(existingUser._id) !== String(adminUser._id)) {
+        const err = new Error(`Email ${newEmail} is already in use by another user.`);
+        err.status = 400;
+        throw err;
+      }
+      adminUser.email = newEmail;
+
+      const Contact = mongoose.model('Contact');
+      await Contact.updateMany(
+        { organization_id: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
+        { $set: { contactOwnerEmail: newEmail } }
+      );
+
+      const Task = mongoose.model('Task');
+      await Task.updateMany(
+        { organization_id: existing.organizationId || existing._id.toString(), contactOwnerEmail: oldEmail },
+        { $set: { contactOwnerEmail: newEmail } }
+      );
+      await Task.updateMany(
+        { organization_id: existing.organizationId || existing._id.toString(), assignedTo: oldEmail },
+        { $set: { assignedTo: newEmail } }
+      );
+    }
+
+    if (patch.firstName !== undefined) adminUser.first_name = patch.firstName;
+    if (patch.lastName !== undefined) adminUser.last_name = patch.lastName;
+    if (patch.contactNumber !== undefined) adminUser.contact_number = patch.contactNumber;
+
+    await adminUser.save();
+  }
+
+  // 3. Organization Name Update Cascading to Users
+  if (patch.organizationName !== undefined && patch.organizationName !== existing.organizationName) {
+    await User.updateMany(
+      { organization_id: existing.organizationId || existing._id.toString() },
+      { $set: { organization_name: patch.organizationName } }
+    );
+  }
+
   let newActive = undefined;
   const rawStatus = payload.status ?? payload.fields?.status ?? cleaned.status ?? 
                     payload.isActive ?? payload.fields?.isActive ?? cleaned.isActive ??
@@ -510,26 +660,25 @@ exports.update = async ({ id, payload, authedUser }) => {
     patch.status = newActive ? 'ACTIVE' : 'INACTIVE';
     
     const userUpdate = {
-      isActive: newActive,
-      isActive: newActive,
+      is_active: newActive,
       status: newActive ? 'active' : 'inactive'
     };
     if (newActive) {
-      userUpdate.activatedAt = new Date();
-      userUpdate.deactivatedAt = null;
+      userUpdate.activated_at = new Date();
+      userUpdate.deactivated_at = null;
       patch.activatedAt = new Date();
       patch.deactivatedAt = null;
     } else {
-      userUpdate.deactivatedAt = new Date();
+      userUpdate.deactivated_at = new Date();
       patch.deactivatedAt = new Date();
     }
     
     // Update all users belonging to this organization (supporting both old ObjectId and new string matches)
-    await userModel.User.updateMany(
+    await mongoose.model('User').updateMany(
       {
         $or: [
-          { organizationId: existing._id },
-          { organizationId: existing.organizationId || existing.organizationId }
+          { organization_id: existing._id },
+          { organization_id: existing.organizationId || existing.organization_id }
         ]
       },
       { $set: userUpdate }
@@ -555,12 +704,17 @@ exports.remove = async ({ id, authedUser }) => {
   if (orgId) {
     // 1. Find all users belonging to this organization
     const User = mongoose.model('User');
-    const orgUsers = await User.find({ organizationId: orgId }).lean().exec();
+    const orgUsers = await User.find({ organization_id: orgId }).lean().exec();
     const userIds = orgUsers.map(u => u._id);
 
     // 2. Cascade delete all users belonging to this organization
-    const deleteUsersResult = await User.deleteMany({ organizationId: orgId });
+    const deleteUsersResult = await User.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteUsersResult.deletedCount} users for organization: ${orgId}`);
+
+    // 3. Cascade delete all tasks belonging to this organization
+    const Task = mongoose.model('Task');
+    const deleteTasksResult = await Task.deleteMany({ organization_id: orgId });
+    console.log(`[organizationService] Cascade deleted ${deleteTasksResult.deletedCount} tasks`);
 
     // 4. Cascade delete contacts created by these users
     const Contact = mongoose.model('Contact');
@@ -574,44 +728,44 @@ exports.remove = async ({ id, authedUser }) => {
 
     // 6. Cascade delete api tokens for this organization
     const ApiToken = mongoose.model('ApiToken');
-    const deleteTokensResult = await ApiToken.deleteMany({ organizationId: orgId });
+    const deleteTokensResult = await ApiToken.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteTokensResult.deletedCount} API tokens`);
 
     // 7. Cascade delete WhatsApp configs for this organization
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
-    const deleteWhatsappResult = await WhatsAppConfig.deleteMany({ organizationId: orgId });
+    const deleteWhatsappResult = await WhatsAppConfig.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteWhatsappResult.deletedCount} WhatsApp configs`);
 
     // 8. Cascade delete news for this organization
     const News = mongoose.model('News');
-    const deleteNewsResult = await News.deleteMany({ organizationId: orgId });
+    const deleteNewsResult = await News.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteNewsResult.deletedCount} news documents`);
 
     // 9. Cascade delete FAQs for this organization
     const FAQ = mongoose.model('FAQ');
-    const deleteFaqResult = await FAQ.deleteMany({ organizationId: orgId });
+    const deleteFaqResult = await FAQ.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteFaqResult.deletedCount} FAQ documents`);
 
     // 10. Cascade delete resource items/catalogs for this organization
     const OrganizationResources = mongoose.model('OrganizationResources');
-    const deleteResourcesResult = await OrganizationResources.deleteMany({ organizationId: orgId });
+    const deleteResourcesResult = await OrganizationResources.deleteMany({ organization_id: orgId });
     console.log(`[organizationService] Cascade deleted ${deleteResourcesResult.deletedCount} resource/catalog documents`);
 
     // 11. Cascade delete working days configuration for this organization
     const WorkingDay = mongoose.model('WorkingDay');
-    await WorkingDay.deleteMany({ organizationId: orgId });
+    await WorkingDay.deleteMany({ organization_id: orgId });
 
     // 12. Cascade delete Teams, Branches, and Designations configurations for this organization
     const Team = mongoose.model('Team');
-    await Team.deleteMany({ organizationId: orgId });
+    await Team.deleteMany({ organization_id: orgId });
     const Branch = mongoose.model('Branch');
-    await Branch.deleteMany({ organizationId: orgId });
+    await Branch.deleteMany({ organization_id: orgId });
     const Designation = mongoose.model('Designation');
-    await Designation.deleteMany({ organizationId: orgId });
+    await Designation.deleteMany({ organization_id: orgId });
 
     // 13. Cascade delete Holiday configuration for this organization
     const Holiday = mongoose.model('Holiday');
-    await Holiday.deleteMany({ organizationId: orgId });
+    await Holiday.deleteMany({ organization_id: orgId });
   }
 
   return organizationModel.remove(id);

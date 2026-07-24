@@ -8,13 +8,35 @@ const mongoose = require('mongoose');
  */
 const organizationSchema = new mongoose.Schema(
   {
-    organizationId: { type: String },
-    organizationName: { type: String },
-    contactNumber: { type: String, default: '', alias: 'contact_no' },
-    industryId: { type: String, default: null }, // industry code, mirrors user.industryId
-    allowDuplicateLeads: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true },
-    createdBy: { type: String, default: null },
+    organization_id: { type: String, alias: 'organizationId' },
+    organization_name: { type: String, alias: 'organizationName' },
+    contact_number: { type: String, default: '', alias: 'contactNumber' },
+    industry_id: { type: String, default: null, alias: 'industryId' },
+    allow_duplicate_leads: { type: Boolean, default: false, alias: 'allowDuplicateLeads' },
+    is_active: { type: Boolean, default: true, alias: 'isActive' },
+    created_by: { type: String, default: null, alias: 'createdBy' },
+    first_name: { type: String, alias: 'firstName' },
+    last_name: { type: String, alias: 'lastName' },
+    email_id: { type: String, alias: 'emailId' },
+    country: { type: String },
+    state: { type: String },
+    city: { type: String },
+    pincode: { type: String },
+    num_employees: { type: Number, alias: 'numEmployees' },
+    address: { type: String },
+    show_analytics: { type: Boolean, default: true, alias: 'showAnalytics' },
+    show_data: { type: Boolean, default: true, alias: 'showData' },
+    trial_period: { type: Boolean, default: true, alias: 'trialPeriod' },
+    designations: { type: Array, default: [] },
+    teams: { type: Array, default: [] },
+    status: { type: String, default: 'ACTIVE' },
+    cost_per_license: { type: Number, default: 1000, alias: 'costPerLicense' },
+    org_trial_period_users_licenses: { type: Number, default: 10, alias: 'orgTrialPeriodUsersLicenses' },
+    grace_period_days: { type: Number, default: 7, alias: 'gracePeriodDays' },
+    trial_period_days: { type: Number, default: 7, alias: 'trialPeriodDays' },
+    payment_status: { type: Boolean, default: true, alias: 'paymentStatus' },
+    valid_from: { type: Date, alias: 'validFrom' },
+    valid_till: { type: Date, alias: 'validTill' },
   },
   { 
     timestamps: true, 
@@ -45,7 +67,7 @@ exports.listPaged = async ({
   searchKeys = [],
 } = {}) => {
   const filter = {};
-  if (industryId) filter.industryId = industryId;
+  if (industryId) filter.industry_id = industryId;
   if (q && String(q).trim()) {
     const re = new RegExp(escapeRegex(String(q).trim()), 'i');
     // Match against any of the screen-config field keys the caller exposes,
@@ -60,46 +82,61 @@ exports.listPaged = async ({
   const skip = Math.max(Number(page) || 0, 0) * limit;
 
   const [items, total] = await Promise.all([
-    Organization.find(filter).sort({ [safeSort]: dir }).skip(skip).limit(limit).lean().exec(),
+    Organization.find(filter).sort({ [safeSort]: dir }).skip(skip).limit(limit).exec(),
     Organization.countDocuments(filter).exec(),
   ]);
   return { items, total };
 };
 
-exports.findById = async (id) => Organization.findById(id).lean().exec();
+exports.findById = async (id) => Organization.findById(id).exec();
+
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (!payload) return payload;
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[dbKey] = v;
+  }
+  return out;
+}
 
 exports.create = async (payload) => {
-  const doc = await Organization.create(payload);
-  return doc.toObject();
+  const doc = await Organization.create(normalizePayload(payload));
+  return doc;
 };
 
 exports.update = async (id, patch) => {
-  const $set = { ...patch };
+  const normalizedPatch = normalizePayload(patch);
+  const $set = { ...normalizedPatch };
   if (patch.organizationId !== undefined) {
-    $set.organizationId = patch.organizationId;
+    $set.organization_id = patch.organizationId;
     delete $set.organizationId;
   }
   if (patch.organizationName !== undefined) {
-    $set.organizationName = patch.organizationName;
+    $set.organization_name = patch.organizationName;
     delete $set.organizationName;
   }
   if (patch.contact_no !== undefined) {
-    $set.contactNumber = patch.contact_no;
+    $set.contact_number = patch.contact_no;
     delete $set.contact_no;
   }
   if (patch.industryId !== undefined) {
-    $set.industryId = patch.industryId;
+    $set.industry_id = patch.industryId;
     delete $set.industryId;
   }
   if (patch.isActive !== undefined) {
-    $set.isActive = patch.isActive;
+    $set.is_active = patch.isActive;
     delete $set.isActive;
   }
   if (patch.createdBy !== undefined) {
-    $set.createdBy = patch.createdBy;
+    $set.created_by = patch.createdBy;
     delete $set.createdBy;
   }
-  return Organization.findByIdAndUpdate(id, { $set }, { new: true }).lean().exec();
+  return Organization.findByIdAndUpdate(id, { $set }, { new: true }).exec();
 };
 
-exports.remove = async (id) => Organization.findByIdAndDelete(id).lean().exec();
+exports.remove = async (id) => Organization.findByIdAndDelete(id).exec();

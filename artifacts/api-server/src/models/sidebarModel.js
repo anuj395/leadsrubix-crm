@@ -11,18 +11,22 @@ const menuItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const sidebarSchema = new mongoose.Schema({
-  industryId: { type: String, required: true },
+  industry_id: { type: String, required: true, alias: 'industryId' },
   roles: {
     admin: { type: [menuItemSchema], default: [] },
-    leadManager: { type: [menuItemSchema], default: [] },
-    teamLead: { type: [menuItemSchema], default: [] },
+    lead_manager: { type: [menuItemSchema], default: [], alias: 'leadManager' },
+    team_lead: { type: [menuItemSchema], default: [], alias: 'teamLead' },
     sales: { type: [menuItemSchema], default: [] },
   },
   is_ready_to_launch: { type: Boolean, default: false },
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toObject: { virtuals: true, getters: true },
+  toJSON: { virtuals: true, getters: true }
+});
 
 // use explicit collection name 'sidebar_configs'
-sidebarSchema.index({ industryId: 1 }, { unique: true, name: 'idx_industry_id' });
+sidebarSchema.index({ industry_id: 1 }, { unique: true, name: 'idx_industry_id' });
 const SidebarConfig = mongoose.model('SidebarConfig', sidebarSchema, 'sidebar_configs');
 
 exports.upsertRole = async ({ industryId, role, menus }) => {

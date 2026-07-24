@@ -235,6 +235,7 @@ export default function SettingsPage() {
         width: '100%',
         minWidth: 0,
         height: '100%',
+        maxHeight: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 3,

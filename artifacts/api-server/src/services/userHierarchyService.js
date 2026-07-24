@@ -43,7 +43,7 @@ async function getVisibleUserIds(authedUser) {
         { reporting_to: { $in: frontierUids } },
         { reporting_to: { $in: frontierIds } }
       ],
-      ...(authedUser.industryId ? { industryId: authedUser.industryId } : {}),
+      ...(authedUser.industryId ? { industry_id: authedUser.industryId } : {}),
     };
     const reports = await User.find(filter).select('_id uid').lean().exec();
     const nextFrontierIds = [];
@@ -84,9 +84,9 @@ const MANAGER_OF = {
 async function listManagerCandidates({ role, industryId, organizationId }) {
   const managerRoles = MANAGER_OF[role];
   if (!managerRoles) return [];
-  const filter = { role: { $in: managerRoles }, isActive: { $ne: false } };
+  const filter = { role: { $in: managerRoles }, is_active: { $ne: false } };
   if (organizationId) {
-    filter.organizationId = organizationId;
+    filter.organization_id = organizationId;
   } else if (industryId) {
     const mongoose = require('mongoose');
     const Industry = mongoose.model('Industry');
@@ -97,9 +97,9 @@ async function listManagerCandidates({ role, industryId, organizationId }) {
       ]
     }).lean().exec();
     if (ind) {
-      filter.industryId = { $in: [String(ind._id), ind.code] };
+      filter.industry_id = { $in: [String(ind._id), ind.code] };
     } else {
-      filter.industryId = industryId;
+      filter.industry_id = industryId;
     }
   }
 

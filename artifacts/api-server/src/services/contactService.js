@@ -299,16 +299,22 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   for (const f of allowedFormFields) {
     const k = f.field_key;
-    if (data[k] !== undefined) {
-      cleaned[k] = data[k];
+    const camelK = (k || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    if (data[camelK] !== undefined) {
+      cleaned[camelK] = data[camelK];
+    } else if (data[k] !== undefined) {
+      cleaned[camelK] = data[k];
     }
   }
 
   // Required-field validation
   const missing = allowedFormFields
-    .filter((f) => f.is_required)
+    .filter((f) => f.is_required || f.isRequired)
     .map((f) => f.field_key)
-    .filter((k) => cleaned[k] === undefined || cleaned[k] === null || cleaned[k] === '');
+    .filter((k) => {
+      const camelK = (k || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      return cleaned[camelK] === undefined || cleaned[camelK] === null || cleaned[camelK] === '';
+    });
   if (missing.length > 0) {
     const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
     err.status = 400;

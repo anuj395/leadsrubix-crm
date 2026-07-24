@@ -416,20 +416,22 @@ const SCREEN_DEFAULTS = [
     description: 'Organization records — fully dynamic table & form',
     fields: [
       { field_key: 'organizationName', label: 'Organization Name', type: 'text', is_required: true, order: 1 },
-      { field_key: 'firstName',    label: 'First Name',    type: 'text',     is_required: false, order: 2 },
-      { field_key: 'lastName',     label: 'Last Name',     type: 'text',     is_required: false, order: 3 },
+      { field_key: 'firstName',    label: 'First Name',    type: 'text',     is_required: true,  order: 2 },
+      { field_key: 'lastName',     label: 'Last Name',     type: 'text',     is_required: true,  order: 3 },
       { field_key: 'contactNumber',    label: 'Contact Number', type: 'phone',    is_required: true,  order: 4 },
-      { field_key: 'emailId',      label: 'Email ID',      type: 'email',    is_required: false, order: 5 },
+      { field_key: 'emailId',      label: 'Email ID',      type: 'email',    is_required: true,  order: 5 },
       { field_key: 'country',       label: 'Country',       type: 'select',   is_required: true,  order: 6,
         dropdown_source: 'api', dropdown_api: '/api/options/countries' },
       { field_key: 'state',         label: 'State',         type: 'select',   is_required: true,  order: 7,
         dropdown_source: 'api', dropdown_api: '/api/options/states' },
       { field_key: 'city',          label: 'City',          type: 'text',     is_required: true,  order: 8 },
-      { field_key: 'pincode',       label: 'Pincode',       type: 'text',     is_required: false, order: 9 },
+      { field_key: 'pincode',       label: 'Pincode',       type: 'text',     is_required: true,  order: 9 },
       { field_key: 'industryId',   label: 'Industry ID',   type: 'select',   is_required: true,  order: 10,
         dropdown_source: 'api', dropdown_api: '/api/options/industries?launchedOnly=true' },
-      { field_key: 'numEmployees', label: 'Number of Employees', type: 'number', is_required: false, order: 11 },
-      { field_key: 'address',       label: 'Address',       type: 'textarea', is_required: false, order: 12 },
+      { field_key: 'numEmployees', label: 'Number of Employees', type: 'number', is_required: true,  order: 11 },
+      { field_key: 'address',       label: 'Address',       type: 'textarea', is_required: true,  order: 12 },
+      { field_key: 'costPerLicense', label: 'License Cost', type: 'number', is_required: true, order: 20 },
+      { field_key: 'validTill', label: 'Valid Till', type: 'date', is_required: true, order: 21 },
       { field_key: 'allowDuplicateLeads', label: 'Allow Duplicate Leads', type: 'checkbox', is_form_visible: false, default_value: true, order: 13 },
       { field_key: 'showAnalytics', label: 'Show Analytics', type: 'checkbox', is_form_visible: false, default_value: true, order: 14 },
       { field_key: 'showData', label: 'Show Data', type: 'checkbox', is_form_visible: false, is_table_visible: false, default_value: true, order: 15 },
@@ -673,32 +675,33 @@ async function seedScreens() {
     );
     const fieldDocs = [];
     for (const f of spec.fields) {
+      const snakeKey = f.field_key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
       const doc = await ScreenField.findOneAndUpdate(
-        { screenId: screen._id, fieldKey: f.field_key },
+        { screen_id: screen._id, field_key: snakeKey },
         {
           $set: {
             label: f.label,
             type: f.type,
-            isTableVisible: f.is_table_visible !== false,
-            isFormVisible: f.is_form_visible !== false,
-            isRequired: !!f.is_required,
+            is_table_visible: f.is_table_visible !== false,
+            is_form_visible: f.is_form_visible !== false,
+            is_required: !!f.is_required,
             sortable: true,
             order: f.order || 0,
-            isActive: true,
-            dropdownSource: f.dropdown_source || 'none',
-            dropdownApi: f.dropdown_api || '',
+            is_active: true,
+            dropdown_source: f.dropdown_source || 'none',
+            dropdown_api: f.dropdown_api || '',
             options: f.options || [],
-            defaultValue: f.default_value !== undefined ? f.default_value : null,
+            default_value: f.default_value !== undefined ? f.default_value : null,
           },
-          $setOnInsert: { screenId: screen._id, fieldKey: f.field_key },
+          $setOnInsert: { screen_id: screen._id, field_key: snakeKey },
         },
         { upsert: true, new: true },
       );
       fieldDocs.push(doc);
     }
     // Clean up any fields that are no longer in the spec.
-    const specKeys = spec.fields.map((f) => f.field_key);
-    await ScreenField.deleteMany({ screenId: screen._id, fieldKey: { $nin: specKeys } });
+    const specKeys = spec.fields.map((f) => f.field_key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`));
+    await ScreenField.deleteMany({ screen_id: screen._id, field_key: { $nin: specKeys } });
     fieldsByScreen.set(String(screen._id), { screen, fields: fieldDocs });
   }
 
@@ -715,18 +718,18 @@ async function seedScreens() {
         for (const field of fields) {
           await ScreenPermission.updateOne(
             {
-              screenId: screen._id,
-              roleId: role._id,
-              industryId: industry._id,
-              fieldId: field._id,
+              screen_id: screen._id,
+              role_id: role._id,
+              industry_id: industry._id,
+              field_id: field._id,
             },
             {
-              $set: { isEnabled: true },
+              $set: { is_enabled: true },
               $setOnInsert: {
-                screenId: screen._id,
-                roleId: role._id,
-                industryId: industry._id,
-                fieldId: field._id,
+                screen_id: screen._id,
+                role_id: role._id,
+                industry_id: industry._id,
+                field_id: field._id,
               },
             },
             { upsert: true },
@@ -764,7 +767,7 @@ async function seedIndustries() {
       { code },
       {
         $set: { name: String(name) },
-        $setOnInsert: { code, isActive: true, status: 'Launched' },
+        $setOnInsert: { code, is_active: true, status: 'Launched' },
       },
       { upsert: true, new: false, includeResultMetadata: true },
     );
@@ -780,18 +783,18 @@ async function seedIndustries() {
   // user under a freshly-seeded industry. `superAdmin` is intentionally NOT
   // a per-industry role — it's handled as a system-wide bypass.
   const DEFAULT_ROLES = ['superAdmin', 'admin', 'leadManager', 'teamLead', 'sales'];
-  const allIndustries = await Industry.find({}).lean().exec();
+  const allIndustries = await Industry.find({}).exec();
   let rolesAdded = 0;
   for (const ind of allIndustries) {
     for (const key of DEFAULT_ROLES) {
       const r = await Role.findOneAndUpdate(
-        { industryId: ind._id, key },
+        { industry_id: ind._id, key },
         {
           $setOnInsert: {
-            industryId: ind._id,
+            industry_id: ind._id,
             key,
             name: ROLE_DISPLAY_NAMES[key] || capitalize(key),
-            isActive: true,
+            is_active: true,
           },
         },
         { upsert: true, new: false, includeResultMetadata: true },

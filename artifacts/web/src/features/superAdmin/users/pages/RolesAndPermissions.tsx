@@ -186,9 +186,15 @@ export default function RolesAndPermissionsPage() {
         const [inds, screens] = await Promise.all([getIndustries(), getScreens()])
         setIndustries(inds)
         if (!filterIndustry) {
-          const realEstate = inds.find((i) => i.code === 'temp0001')
-          if (realEstate) setFilterIndustry(realEstate._id)
-          else if (inds[0]) setFilterIndustry(inds[0]._id)
+          if (user?.industryId) {
+            const matchedInd = inds.find((i) => i._id === user.industryId || i.code === user.industryId)
+            if (matchedInd) setFilterIndustry(matchedInd._id)
+            else setFilterIndustry(user.industryId)
+          } else {
+            const realEstate = inds.find((i) => i.code === 'temp0001')
+            if (realEstate) setFilterIndustry(realEstate._id)
+            else if (inds[0]) setFilterIndustry(inds[0]._id)
+          }
         }
         setAllScreens(screens.filter((s) => s.isActive))
         const u = screens.find((s) => s.key === 'users')
@@ -216,9 +222,10 @@ export default function RolesAndPermissionsPage() {
         if (cancelled) return
         setRoles(list)
         // Default the role selector on the field tab.
-        const currentSelectedRoleExists = list.some((r) => r._id === selectedRoleId)
+        const visibleRoles = list.filter((r) => r.key !== 'admin')
+        const currentSelectedRoleExists = visibleRoles.some((r) => r._id === selectedRoleId)
         if (!selectedRoleId || !currentSelectedRoleExists) {
-          if (list[0]) setSelectedRoleId(list[0]._id)
+          if (visibleRoles[0]) setSelectedRoleId(visibleRoles[0]._id)
           else setSelectedRoleId('')
         }
         // Default the role selector on the action tab to leadManager.
@@ -645,23 +652,26 @@ export default function RolesAndPermissionsPage() {
   const fieldsColumns = useMemo<GridColDef<ScreenField>[]>(
     () => [
       { field: 'order', headerName: 'Order', width: 90, type: 'number' },
-      { field: 'field_key', headerName: 'Key', flex: 1, renderCell: (p) => <code>{p.value}</code> },
+      { field: 'fieldKey', headerName: 'Key', flex: 1, valueGetter: (_, row) => row.fieldKey || row.field_key, renderCell: (p) => <code>{p.value}</code> },
       { field: 'label', headerName: 'Label', flex: 1.2 },
       { field: 'type', headerName: 'Type', width: 110, renderCell: (p) => <StatusBadge value={p.value} hideDot /> },
       {
-        field: 'is_required',
+        field: 'isRequired',
         headerName: 'Required',
         width: 100,
+        valueGetter: (_, row) => (row.isRequired !== undefined ? row.isRequired : row.is_required),
         renderCell: (p) => (p.value ? 'Yes' : '—'),
       },
       {
-        field: 'dropdown_source',
+        field: 'dropdownSource',
         headerName: 'Source',
         flex: 1.5,
         valueGetter: (_, row) => {
           if (row.type !== 'select') return '—'
-          if (row.dropdown_source === 'api') return `api (${row.dropdown_api})`
-          if (row.dropdown_source === 'static') return `static (${(row.options || []).length})`
+          const src = row.dropdownSource || row.dropdown_source
+          const api = row.dropdownApi || row.dropdown_api
+          if (src === 'api') return `api (${api})`
+          if (src === 'static') return `static (${(row.options || []).length})`
           return 'none'
         },
       },
@@ -766,9 +776,10 @@ export default function RolesAndPermissionsPage() {
         type: 'number',
       },
       {
-        field: 'field_key',
+        field: 'fieldKey',
         headerName: 'Field Key',
         flex: 1,
+        valueGetter: (_, row) => row.fieldKey || row.field_key,
         renderCell: (p) => <code>{p.value}</code>,
       },
       {
@@ -815,9 +826,10 @@ export default function RolesAndPermissionsPage() {
         type: 'number',
       },
       {
-        field: 'field_key',
+        field: 'fieldKey',
         headerName: 'Field Key',
         flex: 1,
+        valueGetter: (_, row) => row.fieldKey || row.field_key,
         renderCell: (p) => <code>{p.value}</code>,
       },
       {
@@ -876,26 +888,28 @@ export default function RolesAndPermissionsPage() {
       </Tabs>
 
       {/* Industry selector — shared by tabs */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5, flexShrink: 0 }}>
-        <TextField
-          select
-          size="small"
-          label="Industry"
-          value={filterIndustry}
-          onChange={(e) => {
-            setFilterIndustry(e.target.value)
-            setSelectedRoleId('')
-            setActionRoleId('')
-          }}
-          sx={{ minWidth: 260 }}
-        >
-          {industries.map((i) => (
-            <MenuItem key={i._id} value={i._id}>
-              {i.name} ({i.code})
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+      {isSuperAdmin && (
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5, flexShrink: 0 }}>
+          <TextField
+            select
+            size="small"
+            label="Industry"
+            value={filterIndustry}
+            onChange={(e) => {
+              setFilterIndustry(e.target.value)
+              setSelectedRoleId('')
+              setActionRoleId('')
+            }}
+            sx={{ minWidth: 260 }}
+          >
+            {industries.map((i) => (
+              <MenuItem key={i._id} value={i._id}>
+                {i.name} ({i.code})
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      )}
 
       {/* ── Tab 1: Roles ───────────────────────────────────────────────────── */}
       {activeTabId === 'roles' && (
@@ -1007,7 +1021,7 @@ export default function RolesAndPermissionsPage() {
                 sx={{ minWidth: 260 }}
                 disabled={roles.length === 0}
               >
-                {roles.map((r) => (
+                {roles.filter((r) => r.key !== 'admin').map((r) => (
                   <MenuItem key={r._id} value={r._id}>{r.name} ({r.key})</MenuItem>
                 ))}
               </TextField>

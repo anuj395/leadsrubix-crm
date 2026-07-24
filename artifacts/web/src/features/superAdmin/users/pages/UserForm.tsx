@@ -55,7 +55,7 @@ export default function UserFormPage() {
     role: isSuperAdmin ? 'admin' : 'sales',
     industryId: isSuperAdmin ? '' : (authedUser?.industryId || ''),
     isActive: true,
-    reporting_to: '',
+    reportingTo: '',
   })
   
   const [dynamicValues, setDynamicValues] = useState<Record<string, unknown>>({})
@@ -88,7 +88,7 @@ export default function UserFormPage() {
               role: match.role,
               industryId: match.industryId ?? '',
               isActive: !!match.isActive,
-              reporting_to: match.reporting_to ?? '',
+              reportingTo: match.reportingTo ?? (match as any).reporting_to ?? '',
             })
             setDynamicValues(match.fields || {})
           } else {
@@ -137,8 +137,9 @@ export default function UserFormPage() {
         if (cancelled) return
         setManagers(list)
         // Auto-assign matching reporting manager if matches edit state
-        if (id && editingItem && list.some(m => m._id === editingItem.reporting_to)) {
-          setCore(c => ({ ...c, reporting_to: editingItem.reporting_to || '' }))
+        const targetManagerId = editingItem?.reportingTo || (editingItem as any)?.reporting_to || ''
+        if (id && editingItem && list.some(m => m._id === targetManagerId)) {
+          setCore(c => ({ ...c, reportingTo: targetManagerId }))
         }
       } catch (err) {
         console.error('Failed to load managers', err)
@@ -159,14 +160,14 @@ export default function UserFormPage() {
       setLoading(true)
       setFormError(null)
 
-      const reporting_to = ROLES_WITH_MANAGER.has(core.role) ? core.reporting_to || '' : ''
+      const reportingTo = ROLES_WITH_MANAGER.has(core.role) ? core.reportingTo || '' : ''
       const payload: any = {
         firstName: core.firstName.trim(),
         lastName: core.lastName.trim(),
         role: core.role,
         industryId: core.industryId || undefined,
         isActive: core.isActive,
-        reporting_to: reporting_to || undefined,
+        reportingTo: reportingTo || undefined,
         fields: dynVals,
       }
 
@@ -315,8 +316,8 @@ export default function UserFormPage() {
                         select
                         size="small"
                         label="Reports To"
-                        value={core.reporting_to}
-                        onChange={(e) => setCore({ ...core, reporting_to: e.target.value })}
+                        value={core.reportingTo}
+                        onChange={(e) => setCore({ ...core, reportingTo: e.target.value })}
                         disabled={loadingManagers}
                         sx={inputSx}
                       >
@@ -325,7 +326,7 @@ export default function UserFormPage() {
                         </MenuItem>
                         {managers.map((m) => (
                           <MenuItem key={m._id} value={m._id}>
-                            {m.name} ({m.role})
+                            {m.name && m.name !== m.email ? `${m.name} (${m.email})` : m.email} ({m.role})
                           </MenuItem>
                         ))}
                       </TextField>

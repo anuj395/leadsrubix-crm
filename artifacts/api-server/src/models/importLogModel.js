@@ -2,18 +2,20 @@ const mongoose = require('mongoose');
 
 const importLogSchema = new mongoose.Schema(
   {
-    requestId:      { type: String, required: true, index: true },
-    organizationId: { type: String, required: true, index: true },
-    createdBy:      { type: String, default: '' },
+    request_id:      { type: String, required: true, index: true, alias: 'requestId' },
+    organization_id: { type: String, required: true, index: true, alias: 'organizationId' },
+    created_by:      { type: String, default: '', alias: 'createdBy' },
     uid:            { type: String, default: '' },
     status:         { type: String, default: 'Uploaded' }, // Uploaded, Processing, Completed, Failed
-    uploadCount:    { type: Number, default: 0 },
-    failedCount:    { type: Number, default: 0 },
-    fileUrl:        { type: String, default: '' },
-    responseUrl:    { type: String, default: '' },
+    upload_count:    { type: Number, default: 0, alias: 'uploadCount' },
+    failed_count:    { type: Number, default: 0, alias: 'failedCount' },
+    file_url:        { type: String, default: '', alias: 'fileUrl' },
+    response_url:    { type: String, default: '', alias: 'responseUrl' },
   },
   { 
-    timestamps: true 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
   }
 );
 

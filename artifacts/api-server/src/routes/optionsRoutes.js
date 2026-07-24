@@ -9,26 +9,26 @@ const router = express.Router();
 async function resolveTenantList(Model, arrayKey, targetIndustry, targetOrganization) {
   let query = {};
   if (targetOrganization) {
-    query.organizationId = targetOrganization;
+    query.organization_id = targetOrganization;
   }
   if (targetIndustry) {
     const Industry = mongoose.model('Industry');
     const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
     if (ind) {
-      query.industryId = { $in: [String(ind._id), ind.code] };
+      query.industry_id = { $in: [String(ind._id), ind.code] };
     } else {
-      query.industryId = targetIndustry;
+      query.industry_id = targetIndustry;
     }
   }
   
   let doc = await Model.findOne(query).lean().exec();
-  if (!doc && query.organizationId) {
+  if (!doc && query.organization_id) {
     const fallbackQuery = { ...query };
-    delete fallbackQuery.organizationId;
-    doc = await Model.findOne({ ...fallbackQuery, $or: [{ organizationId: null }, { organizationId: { $exists: false } }] }).lean().exec();
+    delete fallbackQuery.organization_id;
+    doc = await Model.findOne({ ...fallbackQuery, $or: [{ organization_id: null }, { organization_id: { $exists: false } }] }).lean().exec();
   }
   const raw = doc ? doc[arrayKey] || [] : [];
-  return raw.filter(item => item.isActive !== false);
+  return raw.filter(item => item.isActive !== false && item.is_active !== false);
 }
 
 /**
@@ -125,7 +125,7 @@ router.get('/:key', (req, res, next) => {
       const Industry = mongoose.model('Industry');
       const query = {};
       if (req.query.launchedOnly === 'true') {
-        query.isActive = true;
+        query.is_active = true;
         query.status = 'Launched';
       }
       const list = await Industry.find(query).sort({ name: 1 }).lean().exec();
@@ -191,12 +191,12 @@ router.get('/:key', (req, res, next) => {
       }
       if (!orgId) {
         const Organization = mongoose.model('Organization');
-        const org = await Organization.findOne({ industryId: req.user?.industryId }).exec();
-        orgId = org ? org.organizationId : null;
+        const org = await Organization.findOne({ industry_id: req.user?.industryId }).exec();
+        orgId = org ? (org.organization_id || org.organizationId) : null;
       }
       const query = {};
       if (orgId) {
-        query.organizationId = orgId;
+        query.organization_id = orgId;
       }
       const usersList = await User.find(query).select('email').lean().exec();
       const options = usersList.map(u => ({ value: u.email, label: u.email }));

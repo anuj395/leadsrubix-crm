@@ -13,30 +13,30 @@ exports.ROLES = ['sales', 'teamLead', 'leadManager', 'admin', 'superAdmin'];
 
 const userSchema = new mongoose.Schema(
   {
-    organizationName: { type: String },
-    firstName: { type: String, default: '' },
-    lastName: { type: String, default: '' },
+    organization_name: { type: String, alias: 'organizationName' },
+    first_name: { type: String, default: '', alias: 'firstName' },
+    last_name: { type: String, default: '', alias: 'lastName' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, enum: exports.ROLES, default: 'sales' },
-    organizationId: { type: String, default: null },
-    industryId: { type: String },
-    contactNumber: { type: String, default: '', alias: 'contact_no' },
-    userImage: { type: String, default: '', alias: 'user_image' },
+    organization_id: { type: String, default: null, alias: 'organizationId' },
+    industry_id: { type: String, alias: 'industryId' },
+    contact_number: { type: String, default: '', alias: 'contactNumber' },
+    user_image: { type: String, default: '', alias: 'userImage' },
     designation: { type: String, default: '' },
     team: { type: String, default: '' },
     branch: { type: String, default: '' },
-    branchPermission: { type: [String], default: [] },
+    branch_permission: { type: [String], default: [], alias: 'branchPermission' },
     status: { type: String, default: 'active' },
-    isActive: { type: Boolean, default: true },
-    reportingTo: { type: String, default: '', alias: 'reporting_to' },
-    needsPasswordChange: { type: Boolean, default: false, alias: 'needs_password_change' },
-    deviceId: { type: String, default: '', alias: 'device_id' },
+    is_active: { type: Boolean, default: true, alias: 'isActive' },
+    reporting_to: { type: String, default: '', alias: 'reportingTo' },
+    needs_password_change: { type: Boolean, default: false, alias: 'needsPasswordChange' },
+    device_id: { type: String, default: '', alias: 'deviceId' },
     uid: { type: String, unique: true, index: true },
-    latestUpdateProfile: { type: Boolean, default: false, alias: 'latest_update_profile' },
-    activatedAt: { type: Date, default: null, alias: 'activated_at' },
-    deactivatedAt: { type: Date, default: null, alias: 'deactivated_at' },
-    createdBy: { type: String, default: null },
+    latest_update_profile: { type: Boolean, default: false, alias: 'latestUpdateProfile' },
+    activated_at: { type: Date, default: null, alias: 'activatedAt' },
+    deactivated_at: { type: Date, default: null, alias: 'deactivatedAt' },
+    created_by: { type: String, default: null, alias: 'createdBy' },
   },
   { 
     timestamps: true, 
@@ -76,32 +76,38 @@ exports.User = User;
 
 function shapePublic(u) {
   if (!u) return null;
+  const fName = u.firstName || u.first_name || '';
+  const lName = u.lastName || u.last_name || '';
   return {
-    ...u,
-    _id: u._id,
-    id: u._id,
-    firstName: u.firstName || '',
-    lastName: u.lastName || '',
-    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+    _id: String(u._id),
+    id: String(u._id),
+    firstName: fName,
+    lastName: lName,
+    name: `${fName} ${lName}`.trim() || u.email,
     email: u.email,
     role: u.role,
-    industryId: u.industryId || '',
-    isActive: u.isActive !== false,
-    status: (u.isActive !== false) ? 'ACTIVE' : 'INACTIVE',
+    industryId: u.industryId || u.industry_id || '',
+    isActive: u.isActive !== false && u.is_active !== false,
+    status: (u.isActive !== false && u.is_active !== false) ? 'ACTIVE' : 'INACTIVE',
     reportingTo: u.reportingTo || u.reporting_to || '',
-    reporting_to: u.reportingTo || u.reporting_to || '',
-    organizationName: u.organizationName || '',
-    organizationId: u.organizationId || '',
+    organizationName: u.organizationName || u.organization_name || '',
+    organizationId: u.organizationId || u.organization_id || '',
     needsPasswordChange: !!(u.needsPasswordChange || u.needs_password_change),
-    needs_password_change: !!(u.needsPasswordChange || u.needs_password_change),
-    contactNumber: u.contactNumber || u.contact_no || '',
+    contactNumber: u.contactNumber || u.contact_number || u.contact_no || '',
+    userImage: u.userImage || u.user_image || '',
     designation: u.designation || '',
     team: u.team || '',
     branch: u.branch || '',
-    branchPermission: u.branchPermission || [],
+    branchPermission: u.branchPermission || u.branch_permission || [],
     uid: u.uid || '',
+    deviceId: u.deviceId || u.device_id || '',
+    latestUpdateProfile: !!(u.latestUpdateProfile || u.latest_update_profile),
+    activatedAt: u.activatedAt || u.activated_at || null,
+    deactivatedAt: u.deactivatedAt || u.deactivated_at || null,
+    createdBy: u.createdBy || u.created_by || 'Super Admin',
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
+    fields: u.fields || {},
   };
 }
 exports.shapePublic = shapePublic;
@@ -113,8 +119,8 @@ exports.findAll = async () => {
 
 exports.list = async ({ industryId, role, excludeRole, organizationId } = {}) => {
   const q = {};
-  if (industryId) q.industryId = industryId;
-  if (organizationId) q.organizationId = organizationId;
+  if (industryId) q.industry_id = industryId;
+  if (organizationId) q.organization_id = organizationId;
   if (role) q.role = role;
   if (excludeRole) {
     if (Array.isArray(excludeRole)) {
@@ -143,8 +149,8 @@ exports.listPaged = async ({
   sort,
 } = {}) => {
   const filter = {};
-  if (industryId) filter.industryId = industryId;
-  if (organizationId) filter.organizationId = organizationId;
+  if (industryId) filter.industry_id = industryId;
+  if (organizationId) filter.organization_id = organizationId;
   if (role) filter.role = role;
   if (excludeRole) {
     if (Array.isArray(excludeRole)) {
@@ -156,7 +162,7 @@ exports.listPaged = async ({
   if (search) {
     const safe = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rx = new RegExp(safe, 'i');
-    filter.$or = [{ email: rx }, { firstName: rx }, { lastName: rx }];
+    filter.$or = [{ email: rx }, { first_name: rx }, { last_name: rx }];
   }
   const sortSpec = sort && Object.keys(sort).length ? sort : { createdAt: -1 };
   const safePage = Math.max(0, (Number(page) || 1) - 1);
@@ -184,52 +190,56 @@ exports.findByEmail = async (email) => {
   return User.findOne({ email: String(email).toLowerCase().trim() }).exec();
 };
 
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (!payload) return payload;
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (k.startsWith('$')) {
+      out[k] = v;
+      continue;
+    }
+    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[dbKey] = v;
+  }
+  return out;
+}
+
 exports.create = async (data) => {
-  const user = new User(data);
+  const user = new User(normalizePayload(data));
   await user.save();
   return shapePublic(user.toObject());
 };
 
 exports.update = async (id, patch) => {
-  const $set = {};
-  if (patch.firstName !== undefined || patch.first_name !== undefined) {
-    $set.firstName = patch.firstName !== undefined ? patch.firstName : patch.first_name;
-  }
-  if (patch.lastName !== undefined || patch.last_name !== undefined) {
-    $set.lastName = patch.lastName !== undefined ? patch.lastName : patch.last_name;
-  }
-  if (patch.organizationName !== undefined || patch.organizationName !== undefined) {
-    $set.organizationName = patch.organizationName !== undefined ? patch.organizationName : patch.organizationName;
-  }
-  if (patch.role !== undefined) $set.role = patch.role;
-  if (patch.industryId !== undefined || patch.industryId !== undefined) {
-    $set.industryId = patch.industryId !== undefined ? patch.industryId : patch.industryId;
-  }
+  const normalized = normalizePayload(patch);
+  const $set = { ...normalized };
+  const $unset = normalized.$unset;
+  delete $set.$unset;
+
   if (patch.isActive !== undefined) {
     const isAct = !!patch.isActive;
-    $set.isActive = isAct;
+    $set.is_active = isAct;
     $set.status = isAct ? 'ACTIVE' : 'INACTIVE';
   }
   if (patch.status !== undefined) {
     $set.status = String(patch.status).toUpperCase();
   }
-  if (patch.reportingTo !== undefined || patch.reporting_to !== undefined) {
-    $set.reportingTo = String(patch.reportingTo !== undefined ? patch.reportingTo : (patch.reporting_to || ''));
-  }
-  if (patch.contactNumber !== undefined || patch.contact_no !== undefined) {
-    $set.contactNumber = patch.contactNumber !== undefined ? patch.contactNumber : patch.contact_no;
-  }
-  if (patch.designation !== undefined) $set.designation = patch.designation;
-  if (patch.team !== undefined) $set.team = patch.team;
-  if (patch.branch !== undefined) $set.branch = patch.branch;
-  if (patch.fields !== undefined) $set.fields = patch.fields || {};
-  // Password change goes through a separate flow (pre-save hook would not run
-  // with findByIdAndUpdate). Allow it here only by hashing manually.
+
   if (patch.password) {
     $set.password = await bcrypt.hash(String(patch.password), 10);
-    $set.needsPasswordChange = false;
+    $set.needs_password_change = false;
   }
-  const updated = await User.findByIdAndUpdate(id, { $set }, { new: true })
+
+  const updateQuery = { $set };
+  if ($unset) {
+    updateQuery.$unset = $unset;
+  }
+
+  const updated = await User.findByIdAndUpdate(id, updateQuery, { new: true })
     .select('-password')
     .lean()
     .exec();

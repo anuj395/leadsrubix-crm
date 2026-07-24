@@ -19,7 +19,7 @@ const USERS_SCREEN_KEY = 'users';
 function enrichUserFields(userDoc) {
   if (!userDoc) return null;
   const u = userDoc.toObject ? userDoc.toObject() : { ...userDoc };
-  
+
   // Standard schema keys to exclude from the dynamic fields object
   const standardKeys = new Set([
     '_id', 'id', 'firstName', 'lastName', 'email', 'password', 'role', 'organizationId', 'industryId',
@@ -29,7 +29,7 @@ function enrichUserFields(userDoc) {
   ]);
 
   const dynamicFields = {};
-  
+
   if (u.designation !== undefined) dynamicFields.designation = u.designation;
   if (u.team !== undefined) dynamicFields.team = u.team;
   if (u.branch !== undefined) dynamicFields.branch = u.branch;
@@ -85,15 +85,37 @@ async function resolveAllowedFields({ industryCode, roleKey, industry_code, role
 }
 
 function pickAllowedFields(payloadFields, allowedFieldDefs) {
-  const allowedKeys = new Set(allowedFieldDefs.map((f) => f.field_key));
   const cleaned = {};
+
+  const allowedMap = {};
+  allowedFieldDefs.forEach(f => {
+    const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    allowedMap[camel] = f;
+  });
+
+  const normalizedPayload = {};
   for (const [k, v] of Object.entries(payloadFields || {})) {
-    if (allowedKeys.has(k)) cleaned[k] = v;
+    const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    normalizedPayload[camelKey] = v;
   }
-  const missing = allowedFieldDefs
-    .filter((f) => f.is_required)
-    .map((f) => f.field_key)
-    .filter((k) => cleaned[k] === undefined || cleaned[k] === null || cleaned[k] === '');
+
+  for (const [camelKey, v] of Object.entries(normalizedPayload)) {
+    const fieldDef = allowedMap[camelKey];
+    if (fieldDef) {
+      cleaned[camelKey] = v;
+    }
+  }
+
+  const missing = [];
+  allowedFieldDefs.forEach(f => {
+    if (f.is_required || f.isRequired) {
+      const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      if (cleaned[camel] === undefined || cleaned[camel] === null || cleaned[camel] === '') {
+        missing.push(f.field_key || camel);
+      }
+    }
+  });
+
   if (missing.length > 0) {
     const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
     err.status = 400;
@@ -116,7 +138,7 @@ function ensureCanAssignRole({ authedUser, targetRole }) {
   }
   // Block assigning a role strictly greater than the caller's.
   if (!isSuperAdmin && roles.hasAtLeast(targetRole, authedUser?.role)
-      && targetRole !== authedUser?.role) {
+    && targetRole !== authedUser?.role) {
     const e = new Error('Cannot assign a role higher than your own'); e.status = 403; throw e;
   }
 }
@@ -289,8 +311,8 @@ exports.create = async ({ payload, authedUser }) => {
   const existing = await userModel.findByEmail(email);
   if (existing) { const e = new Error('Email already in use'); e.status = 409; throw e; }
 
-  if (payload.reporting_to) {
-    const manager = await userModel.findById(payload.reporting_to);
+  if (payload.reportingTo || payload.reporting_to) {
+    const manager = await userModel.findById(payload.reportingTo || payload.reporting_to);
     if (manager) {
       const allowedManagers = {
         sales: ['teamLead', 'leadManager'],
@@ -309,8 +331,8 @@ exports.create = async ({ payload, authedUser }) => {
 
   const { fields: allowed } = await resolveAllowedFields({
     industry_code: industryId,
-    role_key: role,
-    isSuperAdmin: false, // honour the *new user's* role permissions
+    role_key: authedUser?.role || role,
+    isSuperAdmin: authedUser?.role === 'superAdmin',
   });
   const payloadFields = { ...(payload.fields || {}) };
   if (authedUser?.role !== 'superAdmin' && authedUser?.organizationId) {
@@ -331,7 +353,7 @@ exports.create = async ({ payload, authedUser }) => {
     }
     const existingPhone = await userModel.User.findOne({
       $or: [
-        { contactNumber: cleanNum },
+        { contact_number: cleanNum },
         { contact_no: cleanNum },
         { 'fields.contactNumber': cleanNum },
         { 'fields.phone': cleanNum }
@@ -356,12 +378,13 @@ exports.create = async ({ payload, authedUser }) => {
     organizationName: authedUser?.organizationName || '',
     isActive: payload.isActive !== false,
     status: payload.isActive !== false ? 'ACTIVE' : 'INACTIVE',
-    reporting_to: payload.reporting_to || '',
+    reporting_to: payload.reportingTo || payload.reporting_to || '',
     designation,
     team,
     branch,
     contactNumber: rawContact,
     needs_password_change: true,
+    createdBy: authedUser?.name || 'Super Admin',
     ...cleanedFields,
   };
   delete payloadData.fields;
@@ -441,7 +464,7 @@ exports.update = async ({ id, payload, authedUser }) => {
     ensureCanAssignRole({ authedUser, targetRole: nextRole });
   }
 
-  const nextReportingTo = payload.reporting_to !== undefined ? payload.reporting_to : target.reportingTo;
+  const nextReportingTo = payload.reportingTo !== undefined ? payload.reportingTo : (payload.reporting_to !== undefined ? payload.reporting_to : target.reportingTo);
 
   if (nextReportingTo) {
     const manager = await userModel.findById(nextReportingTo);
@@ -464,6 +487,18 @@ exports.update = async ({ id, payload, authedUser }) => {
   const patch = {};
   if (payload.firstName !== undefined) patch.firstName = String(payload.firstName).trim();
   if (payload.lastName !== undefined) patch.lastName = String(payload.lastName).trim();
+  if (payload.email !== undefined) {
+    const nextEmail = String(payload.email).trim().toLowerCase();
+    if (nextEmail !== target.email.toLowerCase()) {
+      const existingEmail = await userModel.findByEmail(nextEmail);
+      if (existingEmail) {
+        const err = new Error('Email already in use');
+        err.status = 409;
+        throw err;
+      }
+      patch.email = nextEmail;
+    }
+  }
   if ((payload.fields && payload.fields.designation) !== undefined || payload.role !== undefined) patch.role = nextRole;
   if (payload.isActive !== undefined) {
     patch.isActive = !!payload.isActive;
@@ -471,7 +506,8 @@ exports.update = async ({ id, payload, authedUser }) => {
   }
   if (isSuperAdmin && payload.industryId !== undefined) patch.industryId = String(payload.industryId);
   if (payload.password) patch.password = String(payload.password);
-  if (payload.reporting_to !== undefined) patch.reporting_to = String(payload.reporting_to).trim();
+  if (payload.reportingTo !== undefined) patch.reporting_to = String(payload.reportingTo).trim();
+  else if (payload.reporting_to !== undefined) patch.reporting_to = String(payload.reporting_to).trim();
 
   // Always re-validate required dynamic fields against the *next* role's
   // configuration. Merge any newly-supplied fields onto the existing record so
@@ -509,8 +545,8 @@ exports.update = async ({ id, payload, authedUser }) => {
 
     const { fields: allowed } = await resolveAllowedFields({
       industry_code: nextIndustry,
-      role_key: nextRole,
-      isSuperAdmin: false,
+      role_key: authedUser?.role || nextRole,
+      isSuperAdmin: authedUser?.role === 'superAdmin',
     });
     const cleaned = pickAllowedFields(merged, allowed);
 
@@ -546,7 +582,7 @@ exports.update = async ({ id, payload, authedUser }) => {
     const existingPhone = await userModel.User.findOne({
       _id: { $ne: id },
       $or: [
-        { contactNumber: cleanNum },
+        { contact_number: cleanNum },
         { contact_no: cleanNum },
         { 'fields.contactNumber': cleanNum },
         { 'fields.phone': cleanNum }
@@ -576,7 +612,17 @@ exports.remove = async ({ id, authedUser }) => {
   if (String(target._id) === String(authedUser?.id)) {
     const e = new Error('You cannot delete your own account'); e.status = 400; throw e;
   }
-  await userModel.remove(id);
+  // Clean up references to the deleted user
+  const User = mongoose.model('User');
+  const Task = mongoose.model('Task');
+  const Contact = mongoose.model('Contact');
+
+  await Promise.all([
+    User.updateMany({ reporting_to: id }, { $set: { reporting_to: '' } }),
+    Task.updateMany({ uid: id }, { $set: { uid: null, assigned_to: '' } }),
+    Contact.updateMany({ contact_owner_email: target.email }, { $set: { contact_owner_email: '' } }),
+    userModel.remove(id)
+  ]);
 };
 
 exports.changePasswordByEmail = async ({ email, password, authedUser }) => {

@@ -8,23 +8,23 @@ const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(
   {
-    industryId:     { type: String, default: null, index: true },
+    industry_id:     { type: String, default: null, index: true, alias: 'industryId' },
     // Optional reference to the contact this booking originated from.
-    contactId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true, alias: 'contact_id' },
-    customerName:   { type: String, default: '', alias: 'customer_name' },
-    contactNumber:   { type: String, default: '', alias: 'contact_no' },
+    contact_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true, alias: 'contactId' },
+    customer_name:   { type: String, default: '', alias: 'customerName' },
+    contact_number:   { type: String, default: '', alias: 'contactNumber' },
     project:        { type: String, default: '' },
     location:       { type: String, default: '' },
     branch:         { type: String, default: '' },
     team:           { type: String, default: '' },
-    reportingTo:    { type: String, default: '', alias: 'reporting_to' },
-    contactDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
-    bookingDetails: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    reporting_to:    { type: String, default: '', alias: 'reportingTo' },
+    contact_details: { type: mongoose.Schema.Types.Mixed, default: {}, alias: 'contactDetails' },
+    booking_details: { type: [mongoose.Schema.Types.Mixed], default: [], alias: 'bookingDetails' },
     notes:          { type: [mongoose.Schema.Types.Mixed], default: [] },
     attachments:    { type: [mongoose.Schema.Types.Mixed], default: [] },
-    callLogs:       { type: [mongoose.Schema.Types.Mixed], default: [] },
-    isActive:       { type: Boolean, default: true },
-    createdBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    call_logs:       { type: [mongoose.Schema.Types.Mixed], default: [], alias: 'callLogs' },
+    is_active:       { type: Boolean, default: true, alias: 'isActive' },
+    created_by:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, alias: 'createdBy' },
   },
   { 
     timestamps: true, 

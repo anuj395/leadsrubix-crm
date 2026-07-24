@@ -2,24 +2,24 @@ const mongoose = require('mongoose');
 
 const callLogSchema = new mongoose.Schema(
   {
-    contactId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true },
-    leadId:         { type: String, default: '', index: true },
-    organizationId: { type: String, default: null, index: true },
-    industryId:     { type: String, default: null, index: true },
-    customerName:   { type: String, default: '' },
-    contactNumber:  { type: String, default: '' },
+    contact_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true, alias: 'contactId' },
+    lead_id:         { type: String, default: '', index: true, alias: 'leadId' },
+    organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
+    industry_id:     { type: String, default: null, index: true, alias: 'industryId' },
+    customer_name:   { type: String, default: '', alias: 'customerName' },
+    contact_number:  { type: String, default: '', alias: 'contactNumber' },
     duration:       { type: Number, default: 0 },
     details:        { type: String, default: '' },
-    createdBy:      { type: String, default: '' },
+    created_by:      { type: String, default: '', alias: 'createdBy' },
     stage:          { type: String, default: '' },
-    contactOwnerEmail: { type: String, default: '' },
+    contact_owner_email: { type: String, default: '', alias: 'contactOwnerEmail' },
     location:       { type: String, default: '' },
-    projectName:    { type: String, default: '' },
+    project_name:    { type: String, default: '', alias: 'projectName' },
     budget:         { type: String, default: '' },
-    transferStatus: { type: Boolean, default: false },
+    transfer_status: { type: Boolean, default: false, alias: 'transferStatus' },
     source:         { type: String, default: '' },
     type:           { type: String, default: '' },
-    inventoryType:  { type: String, default: '' },
+    inventory_type:  { type: String, default: '', alias: 'inventoryType' },
     uid:            { type: String, default: '', index: true },
     latitude:       { type: Number, default: null },
     longitude:      { type: Number, default: null }
@@ -31,5 +31,5 @@ const callLogSchema = new mongoose.Schema(
   }
 );
 
-const CallLog = mongoose.model('CallLog', callLogSchema, 'calllogs');
+const CallLog = mongoose.model('CallLog', callLogSchema, 'call_logs');
 exports.CallLog = CallLog;

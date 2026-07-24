@@ -122,11 +122,17 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     throw err;
   }
 
+  const mongoose = require('mongoose');
   let industry = null;
   if (industryCode) {
-    industry = await industryModel.findByCode(industryCode);
+    if (mongoose.Types.ObjectId.isValid(industryCode)) {
+      const IndustryModel = mongoose.model('Industry');
+      industry = await IndustryModel.findById(industryCode).exec();
+    } else {
+      industry = await industryModel.findByCode(industryCode);
+    }
     if (!industry && !bypassPermissions) {
-      const err = new Error(`Industry with code "${industryCode}" not found`);
+      const err = new Error(`Industry with code/id "${industryCode}" not found`);
       err.status = 404;
       throw err;
     }

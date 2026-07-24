@@ -79,12 +79,17 @@ export const routeComponentMap: Record<string, any> = {
   // "/leads/bookings": BookingsListPage,
   "/leads/sorted": SortedListPage,
 
+  "/drilldown-data": ContactDrilldownPage,
   "/drilldownData": ContactDrilldownPage,
+  "/task-drilldown-data": TaskDrilldownPage,
   "/taskDrilldownData": TaskDrilldownPage,
+  "/call-drilldown-data": CallLogDrilldownPage,
   "/callDrilldownData": CallLogDrilldownPage,
-
+ 
   "/configuration/screens": ScreensPage,
+  "/configuration/screen-fields": ScreenFieldsPage,
   "/configuration/screenFields": ScreenFieldsPage,
+  "/configuration/screen-permissions": ScreenPermissionsPage,
   "/configuration/screenPermissions": ScreenPermissionsPage,
   "/configuration/projects": ProjectsListPage,
   "/configuration/projects/new": ProjectFormPage,
@@ -98,10 +103,10 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/industries": IndustriesPage,
   "/configuration/menus": MenusPage,
   "/configuration/permissions": PermissionsMatrixPage,
-  "/configuration/holidayConfig": HolidayConfigPage,
   "/configuration/holiday-config": HolidayConfigPage,
-  "/configuration/daysConfig": DaysConfigPage,
+  "/configuration/holidayConfig": HolidayConfigPage,
   "/configuration/days-config": DaysConfigPage,
+  "/configuration/daysConfig": DaysConfigPage,
 
   "/integrations": IntegrationsPage,
   "/integrations/api": ApiListPage,

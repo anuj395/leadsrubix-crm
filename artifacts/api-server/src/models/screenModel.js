@@ -6,9 +6,13 @@ const screenSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     order: { type: Number, default: 0 },
-    isActive: { type: Boolean, default: true },
+    is_active: { type: Boolean, default: true, alias: 'isActive' },
   },
-  { timestamps: true },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  },
 );
 
 screenSchema.index({ key: 1 }, { unique: true, name: 'idx_screen_key' });
@@ -18,14 +22,15 @@ const Screen = mongoose.model('Screen', screenSchema, 'screens');
 exports.Screen = Screen;
 
 exports.list = async ({ activeOnly = false } = {}) => {
-  const q = activeOnly ? { isActive: true } : {};
-  return Screen.find(q).sort({ order: 1, name: 1 }).lean().exec();
+  const q = {};
+  if (activeOnly) q.is_active = true;
+  return Screen.find(q).sort({ order: 1, name: 1 }).exec();
 };
 
-exports.findById = async (id) => Screen.findById(id).lean().exec();
+exports.findById = async (id) => Screen.findById(id).exec();
 
 exports.findByKey = async (key) =>
-  Screen.findOne({ key: String(key).trim() }).lean().exec();
+  Screen.findOne({ key: String(key).trim() }).exec();
 
 exports.create = async ({ key, name, description, order, isActive }) => {
   const doc = await Screen.create({
@@ -33,9 +38,9 @@ exports.create = async ({ key, name, description, order, isActive }) => {
     name: String(name).trim(),
     description: description || '',
     order: typeof order === 'number' ? order : 0,
-    isActive: isActive !== false,
+    is_active: isActive !== false,
   });
-  return doc.toObject();
+  return doc;
 };
 
 exports.update = async (id, patch) => {
@@ -44,11 +49,11 @@ exports.update = async (id, patch) => {
   if (patch.name !== undefined) update.name = String(patch.name).trim();
   if (patch.description !== undefined) update.description = String(patch.description);
   if (patch.order !== undefined) update.order = Number(patch.order);
-  if (patch.isActive !== undefined) update.isActive = !!patch.isActive;
-  return Screen.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec();
+  if (patch.isActive !== undefined) update.is_active = !!patch.isActive;
+  return Screen.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
 };
 
-exports.remove = async (id) => Screen.findByIdAndDelete(id).lean().exec();
+exports.remove = async (id) => Screen.findByIdAndDelete(id).exec();
 
 exports.upsertByKey = async (key, attrs) => {
   const safe = String(key).trim();
@@ -56,8 +61,8 @@ exports.upsertByKey = async (key, attrs) => {
     name: attrs.name,
     description: attrs.description || '',
     order: typeof attrs.order === 'number' ? attrs.order : 0,
-    isActive: attrs.isActive !== false,
+    is_active: attrs.isActive !== false,
   };
   await Screen.updateOne({ key: safe }, { $set, $setOnInsert: { key: safe } }, { upsert: true });
-  return Screen.findOne({ key: safe }).lean().exec();
+  return Screen.findOne({ key: safe }).exec();
 };
