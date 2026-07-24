@@ -1,0 +1,26 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH and deploy to AWS
+        uses: appleboy/ssh-action@master
+        with:
+          host: 13.232.163.144
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            cd /home/ubuntu/Leads-Rubix-CRM
+            git fetch origin prod
+            git reset --hard origin/prod
+            pnpm install --no-frozen-lockfile
+            PORT=3000 pnpm run build
+            pm2 restart api-server
