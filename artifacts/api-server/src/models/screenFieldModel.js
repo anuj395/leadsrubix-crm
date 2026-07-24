@@ -6,7 +6,7 @@ const DROPDOWN_SOURCES = ['none', 'static', 'api'];
 const screenFieldSchema = new mongoose.Schema(
   {
     screen_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true, alias: 'screenId' },
-    field_key: { type: String, required: true, trim: true, alias: 'fieldKey' },
+    field_key: { type: String, required: true, trim: true },
     label: { type: String, required: true, trim: true },
     type: { type: String, enum: FIELD_TYPES, default: 'text' },
     options: { type: [String], default: [] }, // for static select fields
@@ -26,6 +26,16 @@ const screenFieldSchema = new mongoose.Schema(
     toJSON: { virtuals: true, getters: true }
   },
 );
+
+screenFieldSchema.virtual('fieldKey')
+  .get(function() {
+    if (!this.field_key) return '';
+    return this.field_key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+  })
+  .set(function(val) {
+    if (!val) return;
+    this.field_key = val.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  });
 
 screenFieldSchema.index(
   { screen_id: 1, field_key: 1 },

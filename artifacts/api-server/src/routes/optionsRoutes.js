@@ -125,7 +125,7 @@ router.get('/:key', (req, res, next) => {
       const Industry = mongoose.model('Industry');
       const query = {};
       if (req.query.launchedOnly === 'true') {
-        query.isActive = true;
+        query.is_active = true;
         query.status = 'Launched';
       }
       const list = await Industry.find(query).sort({ name: 1 }).lean().exec();

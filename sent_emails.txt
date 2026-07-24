@@ -79,3 +79,21 @@ Organization: Organization
 Username / Email: admin@org.com
 Temp Password: 6c44WFsl
 ========================================
+
+========================================
+Timestamp: 2026-07-24T07:36:54.087Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: LeadRubix
+Username / Email: dev@digitalrubix.com
+Temp Password: a1ztyQxW
+========================================
+
+========================================
+Timestamp: 2026-07-24T07:56:47.382Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: gmjA7OXy
+========================================

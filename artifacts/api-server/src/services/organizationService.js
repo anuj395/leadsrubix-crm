@@ -63,15 +63,37 @@ async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, 
 }
 
 function pickAllowed(payload, allowedFieldDefs) {
-  const allowedKeys = new Set(allowedFieldDefs.map((f) => f.field_key || f.fieldKey));
   const cleaned = {};
+  
+  const allowedMap = {};
+  allowedFieldDefs.forEach(f => {
+    const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    allowedMap[camel] = f;
+  });
+
+  const normalizedPayload = {};
   for (const [k, v] of Object.entries(payload || {})) {
-    if (allowedKeys.has(k)) cleaned[k] = v;
+    const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    normalizedPayload[camelKey] = v;
   }
-  const missing = allowedFieldDefs
-    .filter((f) => f.is_required || f.isRequired)
-    .map((f) => f.field_key || f.fieldKey)
-    .filter((k) => cleaned[k] === undefined || cleaned[k] === null || cleaned[k] === '');
+
+  for (const [camelKey, v] of Object.entries(normalizedPayload)) {
+    const fieldDef = allowedMap[camelKey];
+    if (fieldDef) {
+      cleaned[camelKey] = v;
+    }
+  }
+
+  const missing = [];
+  allowedFieldDefs.forEach(f => {
+    if (f.is_required || f.isRequired) {
+      const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      if (cleaned[camel] === undefined || cleaned[camel] === null || cleaned[camel] === '') {
+        missing.push(f.field_key || camel);
+      }
+    }
+  });
+
   if (missing.length > 0) {
     const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
     err.status = 400;
@@ -125,7 +147,8 @@ exports.listPaged = async ({
     return acc;
   }, {});
 
-  const enrichedItems = items.map(org => {
+  const enrichedItems = items.map(orgDoc => {
+    const org = orgDoc.toObject();
     const creatorId = (org.createdBy || org.createdBy)?.toString();
     const creator = userMap[creatorId];
     let createdByVal = creatorId || '';
@@ -136,7 +159,6 @@ exports.listPaged = async ({
     }
     return {
       ...org,
-      createdBy: createdByVal,
       createdBy: createdByVal,
     };
   });

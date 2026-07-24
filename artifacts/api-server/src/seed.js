@@ -673,8 +673,9 @@ async function seedScreens() {
     );
     const fieldDocs = [];
     for (const f of spec.fields) {
+      const snakeKey = f.field_key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
       const doc = await ScreenField.findOneAndUpdate(
-        { screen_id: screen._id, field_key: f.field_key },
+        { screen_id: screen._id, field_key: snakeKey },
         {
           $set: {
             label: f.label,
@@ -690,14 +691,14 @@ async function seedScreens() {
             options: f.options || [],
             default_value: f.default_value !== undefined ? f.default_value : null,
           },
-          $setOnInsert: { screen_id: screen._id, field_key: f.field_key },
+          $setOnInsert: { screen_id: screen._id, field_key: snakeKey },
         },
         { upsert: true, new: true },
       );
       fieldDocs.push(doc);
     }
     // Clean up any fields that are no longer in the spec.
-    const specKeys = spec.fields.map((f) => f.field_key);
+    const specKeys = spec.fields.map((f) => f.field_key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`));
     await ScreenField.deleteMany({ screen_id: screen._id, field_key: { $nin: specKeys } });
     fieldsByScreen.set(String(screen._id), { screen, fields: fieldDocs });
   }

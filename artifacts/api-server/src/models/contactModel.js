@@ -8,6 +8,23 @@ const mongoose = require('mongoose');
 const contactSchema = new mongoose.Schema(
   {
     created_by: { type: mongoose.Schema.Types.Mixed, default: null, alias: 'createdBy' },
+    organization_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', alias: 'organizationId' },
+    customer_name: { type: String, alias: 'customerName' },
+    contact_number: { type: String, alias: 'contactNumber' },
+    email_id: { type: String, alias: 'emailId' },
+    alternate_no: { type: String, alias: 'alternateNo' },
+    lead_type: { type: String, alias: 'leadType' },
+    location: { type: String },
+    project_name: { type: String, alias: 'projectName' },
+    property_type: { type: String, alias: 'propertyType' },
+    property_stage: { type: String, alias: 'propertyStage' },
+    budget: { type: String },
+    property_sub_type: { type: String, alias: 'propertySubType' },
+    source: { type: String },
+    contact_owner_email: { type: String, alias: 'contactOwnerEmail' },
+    adset: { type: String },
+    campaign: { type: String },
+    notes: { type: String },
   },
   { 
     timestamps: true, 
