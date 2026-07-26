@@ -61,6 +61,7 @@ router.use('/screen-fields', screenFieldRoutes);
 router.use('/screen-permissions', screenPermissionRoutes);
 router.use('/role-action-permissions', roleActionPermissionRoutes);
 router.use('/contacts', contactRoutes);
+router.use('/leads', contactRoutes);
 router.use('/organizations', organizationRoutes);
 router.use('/branches', branchRoutes);
 router.use('/teams', teamRoutes);
