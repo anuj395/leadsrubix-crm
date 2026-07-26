@@ -1,121 +1,281 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import Box from '@mui/material/Box'
-import Rating from '@mui/material/Rating'
 import Typography from '@mui/material/Typography'
-import StarIcon from '@mui/icons-material/Star'
-import type { GridColDef } from '@mui/x-data-grid'
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import Paper from '@mui/material/Paper'
+import DownloadIcon from '@mui/icons-material/Download'
+import Snackbar from '@mui/material/Snackbar'
+import Alert from '@mui/material/Alert'
+import CircularProgress from '@mui/material/CircularProgress'
+import Grid from '@mui/material/Grid'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import InfoIcon from '@mui/icons-material/Info'
+import DescriptionIcon from '@mui/icons-material/Description'
+import DateRangeIcon from '@mui/icons-material/DateRange'
 import { AppCard } from '@/components/ui/AppCard'
-import { AppDataGrid } from '@/components/ui/AppDataGrid'
-import { listContacts, type Contact } from '@/services/contactsService'
-import { StatusBadge } from '@/components/ui/StatusBadge'
+import { api } from '@/services/api'
 
-interface SortedLead extends Contact {
-  priorityScore: number
-  priorityLabel: 'High' | 'Medium' | 'Low'
+function getCreatedAtUTC(startDateStr: string, endDateStr: string): [string, string] {
+  const startUTC = new Date(`${startDateStr}T00:00:00+05:30`).toISOString()
+  const endUTC = new Date(`${endDateStr}T23:59:59.999+05:30`).toISOString()
+  return [startUTC, endUTC]
 }
 
 export default function SortedListPage() {
-  const [items, setItems] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' | 'warning' }>({
+    open: false,
+    msg: '',
+    sev: 'success',
+  })
 
-  const refresh = async () => {
-    setLoading(true)
+  const handleExport = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!startDate) {
+      setToast({ open: true, msg: 'Enter Start Date!!', sev: 'error' })
+      return
+    }
+    if (!endDate) {
+      setToast({ open: true, msg: 'Enter End Date!!', sev: 'error' })
+      return
+    }
+
+    setExporting(true)
     try {
-      const list = await listContacts()
-      setItems(list)
-    } catch {
-      // Graceful error handling
+      const [startUTC, endUTC] = getCreatedAtUTC(startDate, endDate)
+      const res = await api.post(
+        'contacts/masterSortSearch',
+        {
+          startDate: startUTC,
+          endDate: endUTC,
+          sort: { created_at: '-1' },
+          filter: {
+            transfer_status: [false],
+          },
+        },
+        {
+          responseType: 'blob',
+        }
+      )
+
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `Leads_${new Date().toISOString().split('T')[0]}.xlsx`
+
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+
+      window.URL.revokeObjectURL(downloadUrl)
+      setToast({ open: true, msg: 'Excel file downloaded successfully!', sev: 'success' })
+    } catch (err: any) {
+      console.error('Error while exporting leads:', err)
+      setToast({ open: true, msg: 'Error while fetching sorted leads', sev: 'error' })
     } finally {
-      setLoading(false)
+      setExporting(false)
     }
   }
 
-  useEffect(() => {
-    void refresh()
-  }, [])
-
-  const sortedLeads = useMemo<SortedLead[]>(() => {
-    return items.map((item) => {
-      // Calculate dynamic priority score for demonstration
-      let score = 3 // default medium
-      if (item.lead_type === 'Inbound') score += 1
-      if (item.status === 'Active') score += 1
-      if (item.status === 'Inactive') score -= 1
-
-      const label = (score >= 4 ? 'High' : score <= 2 ? 'Low' : 'Medium') as 'High' | 'Medium' | 'Low'
-      return {
-        ...item,
-        priorityScore: score,
-        priorityLabel: label,
-      }
-    }).sort((a, b) => b.priorityScore - a.priorityScore)
-  }, [items])
-
-  const columns = useMemo<GridColDef<SortedLead>[]>(() => [
-    {
-      field: 'customer_name',
-      headerName: 'Lead Name',
-      flex: 1.2,
-      minWidth: 150,
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'priorityLabel',
-      headerName: 'Priority',
-      width: 130,
-      renderCell: (params) => <StatusBadge value={params.value} />,
-    },
-    {
-      field: 'priorityScore',
-      headerName: 'Interest Rating',
-      width: 160,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <Rating
-            value={params.value as number}
-            readOnly
-            max={5}
-            emptyIcon={<StarIcon style={{ opacity: 0.25 }} fontSize="inherit" />}
-          />
-        </Box>
-      ),
-    },
-    { field: 'email', headerName: 'Email Address', flex: 1.2, minWidth: 160 },
-    { field: 'contact_no', headerName: 'Phone', flex: 1, minWidth: 130 },
-    {
-      field: 'lead_type',
-      headerName: 'Type',
-      width: 120,
-      renderCell: (params) => <StatusBadge value={params.value} />,
-    },
-    { field: 'project', headerName: 'Interested Project', flex: 1, minWidth: 140 },
-    {
-      field: 'status',
-      headerName: 'Lead Status',
-      width: 120,
-      renderCell: (params) => <StatusBadge value={params.value || 'Pending'} />,
-    },
-  ], [])
-
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        p: { xs: 2, sm: 3 },
+        width: '100%',
+        minWidth: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       <AppCard
-        title="Sorted Leads List"
-        subtitle="Leads automatically sorted and prioritized based on active interest and inbound conversion rules."
+        title="Export Sorted Leads"
+        subtitle="Configure criteria and export your Leads database records directly into Excel spreadsheet workbooks."
         fullHeight
       >
-        <AppDataGrid onReload={refresh}
-          height="100%"
-          rows={sortedLeads}
-          columns={columns}
-          loading={loading}
-          getRowId={(r) => r._id}
-        />
+        <Box sx={{ py: { xs: 2, md: 4 }, px: { xs: 1, md: 2 }, height: '100%', overflowY: 'auto' }}>
+          <Grid container spacing={4} sx={{ minHeight: '100%' }}>
+            {/* Left Pane - Date Selector Form */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box
+                component="form"
+                onSubmit={handleExport}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3,
+                  maxWidth: 500,
+                  width: '100%',
+                  mx: 'auto',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  <DateRangeIcon color="primary" />
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Select Export Window
+                  </Typography>
+                </Box>
+
+                <TextField
+                  type="date"
+                  label="Start Date"
+                  InputLabelProps={{ shrink: true }}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <CalendarMonthIcon sx={{ mr: 1, color: 'text.secondary', fontSize: '1.25rem' }} />
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+
+                <TextField
+                  type="date"
+                  label="End Date"
+                  InputLabelProps={{ shrink: true }}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <CalendarMonthIcon sx={{ mr: 1, color: 'text.secondary', fontSize: '1.25rem' }} />
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  disabled={exporting}
+                  fullWidth
+                  sx={{
+                    py: 1.5,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    boxShadow: 'none',
+                    '&:hover': {
+                      boxShadow: 'none',
+                    },
+                  }}
+                >
+                  {exporting ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CircularProgress size={20} color="inherit" />
+                      <span>Generating Spreadsheet...</span>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DownloadIcon />
+                      <span>Export to Excel</span>
+                    </Box>
+                  )}
+                </Button>
+              </Box>
+            </Grid>
+
+            {/* Right Pane - Instructions and Guidelines Panel */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 3, sm: 4 },
+                  borderRadius: 3,
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.02)'
+                      : 'rgba(79, 106, 245, 0.02)',
+                  borderColor: 'divider',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3.5,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <DescriptionIcon color="primary" />
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Export Guidelines & Rules
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <InfoIcon color="action" sx={{ mt: 0.25, fontSize: '1.25rem' }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Timezone Compatibility
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Start and End dates are configured in Indian Standard Time (IST) and mapped to UTC range filters on the backend to match creation parameters.
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <InfoIcon color="action" sx={{ mt: 0.25, fontSize: '1.25rem' }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Workbook Formatting
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        The exported file will contain structured details on lead prioritization, contact owners, project info, locations, budgets, and transfer logs.
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <InfoIcon color="action" sx={{ mt: 0.25, fontSize: '1.25rem' }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Access Scoping
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Super Administrators can download leads globally across organizations. Tenant administrators can only retrieve records belonging to their active workspace.
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
       </AppCard>
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          severity={toast.sev}
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+          variant="filled"
+        >
+          {toast.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
