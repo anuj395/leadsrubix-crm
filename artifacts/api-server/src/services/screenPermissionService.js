@@ -109,7 +109,8 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   }
 
   const isSuperAdmin = resolvedRoleKey === 'superAdmin' || authedUser?.role === 'superAdmin';
-  const bypassPermissions = isSuperAdmin;
+  const isGuestSignup = !authedUser && screen.key === 'organization';
+  const bypassPermissions = isSuperAdmin || isGuestSignup;
 
   if (!bypassPermissions && !industryCode) {
     const err = new Error('industry_code is required (none found on user)');
@@ -189,7 +190,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   }
 
   if (!isSuperAdmin) {
-    allowed = allowed.filter((f) => f.field_key !== 'organizationId');
+    allowed = allowed.filter((f) => f.field_key !== 'organizationId' && f.field_key !== 'organization_id');
   }
 
   const tableHeaders = allowed
