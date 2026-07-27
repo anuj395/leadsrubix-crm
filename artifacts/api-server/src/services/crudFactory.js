@@ -100,7 +100,7 @@ async function enrichTasks(Model, items) {
     });
   }
 
-  const contactIds = [...new Set(items.map(item => item.contactId).filter(Boolean))];
+  const contactIds = [...new Set(items.map(item => item.contact_id || item.contactId).filter(Boolean))];
   const contactMap = {};
   if (contactIds.length > 0) {
     const contacts = await Contact.find({
@@ -108,7 +108,7 @@ async function enrichTasks(Model, items) {
     }).lean().exec();
 
     contacts.forEach(c => {
-      contactMap[String(c._id)] = c.contactNumber || c.contact_no || '';
+      contactMap[String(c._id)] = c.contact_number || c.contactNumber || '';
     });
   }
 
@@ -121,10 +121,11 @@ async function enrichTasks(Model, items) {
         item.assignedTo = userMap[String(item.assignedTo)];
       }
     }
-    if (item.contactId) {
-      const lookupContactId = String(item.contactId);
+    const cId = item.contact_id || item.contactId;
+    if (cId) {
+      const lookupContactId = String(cId);
       if (contactMap[lookupContactId]) {
-        item.contactNumber = contactMap[lookupContactId];
+        item.contact_number = contactMap[lookupContactId];
       }
     }
   });
@@ -135,28 +136,29 @@ async function enrichOrganizationNames(Model, items) {
   const mongoose = require('mongoose');
   const Organization = mongoose.model('Organization');
 
-  const orgKeys = [...new Set(items.map(item => item.organizationId).filter(Boolean))];
+  const orgKeys = [...new Set(items.map(item => item.organization_id || item.organizationId).filter(Boolean))];
   if (orgKeys.length === 0) return;
 
   const orgs = await Organization.find({
     $or: [
-      { organizationId: { $in: orgKeys } },
+      { organization_id: { $in: orgKeys } },
       { _id: { $in: orgKeys.filter(k => mongoose.Types.ObjectId.isValid(k)) } }
     ]
   }).lean().exec();
 
   const orgMap = {};
   orgs.forEach(o => {
-    const name = o.name || o.organizationName || '';
-    orgMap[String(o.organizationId)] = name;
+    const name = o.organization_name || o.organizationName || o.name || '';
+    orgMap[String(o.organization_id || o.organizationId)] = name;
     orgMap[String(o._id)] = name;
   });
 
   items.forEach(item => {
-    if (item.organizationId) {
-      const lookup = String(item.organizationId);
+    const orgIdVal = item.organization_id || item.organizationId;
+    if (orgIdVal) {
+      const lookup = String(orgIdVal);
       if (orgMap[lookup]) {
-        item.organizationId = orgMap[lookup];
+        item.organization_id = orgMap[lookup];
       }
     }
   });
