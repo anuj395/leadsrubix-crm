@@ -7,23 +7,14 @@ const router = express.Router();
 
 // Helper to resolve Organization ID
 async function resolveOrganizationId(req) {
-  const Organization = mongoose.model('Organization');
-  
   if (req.user.role === 'superAdmin') {
-    // SuperAdmin can specify organizationId in query or body
-    let targetOrgId = req.query.organizationId || req.query.organizationId || req.body.organizationId || req.body.organizationId;
+    const targetOrgId = req.query.organizationId || req.body.organizationId;
     if (targetOrgId === 'null' || targetOrgId === '') {
       return null;
     }
-    if (targetOrgId) {
-      return targetOrgId;
-    }
-    return null;
-  } else {
-    // Regular admin or user: resolve orgId via their user industryId
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    return org ? org.organizationId : null;
+    return targetOrgId || null;
   }
+  return req.user.organizationId || null;
 }
 
 // Helper to resolve Industry ID

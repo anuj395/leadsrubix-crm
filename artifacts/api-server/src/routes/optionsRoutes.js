@@ -139,16 +139,19 @@ router.get('/:key', (req, res, next) => {
   if (key === 'organizations') {
     try {
       const Organization = mongoose.model('Organization');
-      const targetIndustry = req.query.industryId || req.query.industryId || req.query.industry_code;
+      const targetIndustry = req.query.industryId || req.query.industry_code;
       let query = {};
       if (targetIndustry) {
         query.$or = [
-          { industryId: targetIndustry },
+          { industry_id: targetIndustry },
           { industryId: targetIndustry }
         ];
       }
-      const list = await Organization.find(query).sort({ name: 1 }).lean().exec();
-      const options = list.map(org => ({ value: String(org.organizationId || org.organizationId || org._id), label: org.name || org.organizationName }));
+      const list = await Organization.find(query).sort({ organization_name: 1 }).lean().exec();
+      const options = list.map(org => ({
+        value: String(org.organization_id || org.organizationId || org._id),
+        label: org.organization_name || org.organizationName || org.name
+      }));
       return res.json({ items: options });
     } catch (err) {
       return res.status(500).json({ message: 'Failed to fetch organizations' });
@@ -241,8 +244,13 @@ router.get('/:key', (req, res, next) => {
         orgId = req.user.organizationId;
         if (!orgId) {
           const Organization = mongoose.model('Organization');
-          const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-          orgId = org ? (org.organizationId || org.organizationId) : null;
+          const org = await Organization.findOne({
+            $or: [
+              { industry_id: req.user.industryId },
+              { industryId: req.user.industryId }
+            ]
+          }).exec();
+          orgId = org ? (org.organization_id || org.organizationId) : null;
         }
         if (req.user.industryId) {
           const Industry = mongoose.model('Industry');
@@ -318,6 +326,7 @@ router.get('/:key', (req, res, next) => {
         const org = await Organization.findOne({
           $or: [
             { _id: mongoose.Types.ObjectId.isValid(req.query.organizationId) ? req.query.organizationId : null },
+            { organization_id: req.query.organizationId },
             { organizationId: req.query.organizationId }
           ]
         }).lean().exec();
@@ -344,6 +353,7 @@ router.get('/:key', (req, res, next) => {
         const org = await Organization.findOne({
           $or: [
             { _id: mongoose.Types.ObjectId.isValid(req.query.organizationId) ? req.query.organizationId : null },
+            { organization_id: req.query.organizationId },
             { organizationId: req.query.organizationId }
           ]
         }).lean().exec();

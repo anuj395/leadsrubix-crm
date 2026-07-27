@@ -554,7 +554,8 @@ export function DynamicForm({
             const dropdownErr =
               f.dropdown_source === 'api' && apiUrl ? errors[`__dropdown__${apiUrl}`] : ''
 
-            if (MULTIPLE_FIELDS.has(f.key)) {
+            const isMultiple = MULTIPLE_FIELDS.has(f.key) && screen !== 'configProjects'
+            if (isMultiple) {
               const valArray = Array.isArray(value) ? (value as string[]) : (value ? [String(value)] : []);
               return (
                 <Autocomplete

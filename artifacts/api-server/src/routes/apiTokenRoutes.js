@@ -26,9 +26,9 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.user.role === 'superAdmin') {
       const orgs = await Organization.find({}).lean().exec();
       orgs.forEach(o => {
-        const idVal = o.organizationId || o.organizationId;
+        const idVal = o.organization_id || o.organizationId;
         if (idVal) {
-          orgMap[idVal] = o.name || o.organizationName || idVal;
+          orgMap[idVal] = o.organization_name || o.organizationName || o.name || idVal;
         }
       });
     } else {
@@ -36,9 +36,14 @@ router.get('/', authenticate, async (req, res, next) => {
       if (!orgId) {
         return res.json([]);
       }
-      query = { organizationId: orgId };
-      const org = await Organization.findOne({ organizationId: orgId }).exec();
-      orgMap[orgId] = org ? (org.name || org.organizationName || orgId) : orgId;
+      query = { organization_id: orgId };
+      const org = await Organization.findOne({
+        $or: [
+          { organization_id: orgId },
+          { organizationId: orgId }
+        ]
+      }).exec();
+      orgMap[orgId] = org ? (org.organization_name || org.organizationName || org.name || orgId) : orgId;
     }
 
     const tokens = await ApiToken.find(query).sort({ createdAt: -1 }).lean().exec();
@@ -46,7 +51,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const formatted = tokens.map(t => ({
       ...t,
       id: t._id,
-      organizationName: orgMap[t.organizationId || t.organizationId] || '',
+      organizationName: orgMap[t.organization_id || t.organizationId] || '',
       countryCode: t.countryCode || t.country_code || '+91',
       country_code: t.countryCode || t.country_code || '+91',
     }));
