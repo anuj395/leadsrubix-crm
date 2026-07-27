@@ -17,6 +17,23 @@ const getOrganizationName = async (orgId) => {
 const datesField = ["created_at", "updated_at", "next_follow_up_date_time", "dueDate", "nextFollowUp"];
 const booleanField = ['associateStatus', 'sourceStatus', 'transferStatus', 'transfer_status'];
 
+function convertKeysToCamelCase(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(convertKeysToCamelCase);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k.startsWith('_')) {
+      out[k] = v;
+      continue;
+    }
+    const camelKey = k.replace(/_([a-z])/g, (m, letter) => letter.toUpperCase());
+    out[camelKey] = convertKeysToCamelCase(v);
+  }
+  return out;
+}
 
 exports.list = async (req, res, next) => {
   try {
@@ -24,7 +41,7 @@ exports.list = async (req, res, next) => {
       authedUser: req.user,
       limit: Number(req.query.limit) || 200,
     });
-    res.json({ items });
+    res.json({ items: convertKeysToCamelCase(items) });
   } catch (err) {
     next(err);
   }
@@ -36,7 +53,7 @@ exports.create = async (req, res, next) => {
       payload: req.body,
       authedUser: req.user,
     });
-    res.status(201).json(item);
+    res.status(201).json(convertKeysToCamelCase(item));
   } catch (err) {
     next(err);
   }
@@ -49,7 +66,7 @@ exports.update = async (req, res, next) => {
       payload: req.body,
       authedUser: req.user,
     });
-    res.json(item);
+    res.json(convertKeysToCamelCase(item));
   } catch (err) {
     next(err);
   }

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
 const resourceItemModel = require('../models/resourceItemModel');
 const s3Service = require('../services/s3Service');
+const { convertKeysToCamelCase, normalizePayload } = require('../services/crudFactory');
 
 const router = express.Router();
 
@@ -54,12 +55,15 @@ router.get('/:resource_key', authenticate, async (req, res, next) => {
       all: req.query.all === 'true' || (req.user.role === 'superAdmin' && !orgId),
     });
 
-    const formatted = items.map(item => ({
-      id: item.id || item._id,
-      ...item,
-      created_at: item.createdAt,
-      updated_at: item.updatedAt,
-    }));
+    const formatted = items.map(item => {
+      const converted = convertKeysToCamelCase(item);
+      return {
+        id: converted.id || converted._id,
+        ...converted,
+        created_at: converted.createdAt,
+        updated_at: converted.updatedAt,
+      };
+    });
 
     res.json(formatted);
   } catch (err) {
@@ -108,14 +112,15 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
       organizationId: orgId,
       industryId: resolvedIndustryId,
       resource_key,
-      data: payloadData,
+      data: normalizePayload(payloadData),
     });
 
+    const convertedDoc = convertKeysToCamelCase(doc);
     res.status(201).json({
-      id: doc.id || doc._id,
-      ...doc,
-      created_at: doc.createdAt,
-      updated_at: doc.updatedAt,
+      id: convertedDoc.id || convertedDoc._id,
+      ...convertedDoc,
+      created_at: convertedDoc.createdAt,
+      updated_at: convertedDoc.updatedAt,
     });
   } catch (err) {
     next(err);
@@ -170,13 +175,14 @@ router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
       payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
     }
 
-    const updated = await resourceItemModel.update(id, payloadData);
+    const updated = await resourceItemModel.update(id, normalizePayload(payloadData));
 
+    const convertedUpdated = convertKeysToCamelCase(updated);
     res.json({
-      id: updated.id || updated._id,
-      ...updated,
-      created_at: updated.createdAt,
-      updated_at: updated.updatedAt,
+      id: convertedUpdated.id || convertedUpdated._id,
+      ...convertedUpdated,
+      created_at: convertedUpdated.createdAt,
+      updated_at: convertedUpdated.updatedAt,
     });
   } catch (err) {
     next(err);
