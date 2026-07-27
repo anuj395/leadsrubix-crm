@@ -138,7 +138,7 @@ export default function SortedListPage() {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
+                      borderRadius: 1,
                     },
                   }}
                 />
@@ -157,7 +157,7 @@ export default function SortedListPage() {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
+                      borderRadius: 1,
                     },
                   }}
                 />
@@ -173,7 +173,7 @@ export default function SortedListPage() {
                     py: 1.5,
                     textTransform: 'none',
                     fontWeight: 600,
-                    borderRadius: 2,
+                    borderRadius: 1,
                     boxShadow: 'none',
                     '&:hover': {
                       boxShadow: 'none',
