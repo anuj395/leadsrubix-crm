@@ -742,7 +742,7 @@ export function DynamicForm({
           }
 
           if (f.type === 'image') {
-            const hasValue = typeof value === 'string' && value.startsWith('data:image');
+            const hasValue = typeof value === 'string' && value.trim().length > 0;
             const previewUrl = typeof value === 'string' ? value : '';
             return (
               <Box key={f.key} sx={{ gridColumn: { xs: '1', sm: '1 / -1' }, mb: 1 }}>

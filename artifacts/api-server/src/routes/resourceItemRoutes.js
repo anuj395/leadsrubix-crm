@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
 const resourceItemModel = require('../models/resourceItemModel');
+const s3Service = require('../services/s3Service');
 
 const router = express.Router();
 
@@ -97,6 +98,10 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
 
 
 
+    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
+      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
+    }
+
     const resolvedIndustryId = await resolveIndustryId(req);
 
     const doc = await resourceItemModel.create({
@@ -156,6 +161,15 @@ router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
 
 
 
+    const oldUrl = doc ? doc.url : null;
+    const { resource_key } = req.params;
+    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
+      if (oldUrl) {
+        await s3Service.deleteImage(oldUrl, 'carousel');
+      }
+      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
+    }
+
     const updated = await resourceItemModel.update(id, payloadData);
 
     res.json({
@@ -191,6 +205,12 @@ router.delete('/:resource_key/:id', authenticate, async (req, res, next) => {
       }
     }
 
+
+    const { resource_key } = req.params;
+    const fileUrl = doc ? doc.url : null;
+    if (resource_key === 'resourceCarousel' && fileUrl) {
+      await s3Service.deleteImage(fileUrl, 'carousel');
+    }
 
     await resourceItemModel.remove(id);
     res.status(204).end();

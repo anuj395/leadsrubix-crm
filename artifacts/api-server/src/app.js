@@ -10,8 +10,8 @@ const { errorHandler } = require('./middlewares/errorHandler');
 const app = express();
 
 // built-in middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ limit: '25mb', extended: false }));
 
 // CORS — allow same-origin (Replit proxy) and configured frontend origins.
 // In development we reflect the request origin so the app works behind any preview proxy.
@@ -44,6 +44,9 @@ app.use(
 );
 
 app.use(morgan('dev'));
+
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // health check
 app.get('/api/healthz', (req, res) => res.json({ status: 'ok' }));
