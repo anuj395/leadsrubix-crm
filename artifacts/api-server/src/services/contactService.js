@@ -140,7 +140,7 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
   }
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
-  const filter = isSuperAdmin ? {} : { organizationId: user.organizationId };
+  const filter = isSuperAdmin ? {} : { organization_id: user.organizationId };
 
   const visibleIds = await getVisibleUserIds({
     id: String(user._id),
@@ -170,27 +170,29 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
 async function enrichOrganizationNames(items) {
   if (!items || items.length === 0) return;
   const Organization = mongoose.model('Organization');
-  const orgKeys = [...new Set(items.map(item => item.organizationId).filter(Boolean))];
+  const orgKeys = [...new Set(items.map(item => item.organization_id || item.organizationId).filter(Boolean))];
   if (orgKeys.length === 0) return;
 
   const orgs = await Organization.find({
     $or: [
-      { organizationId: { $in: orgKeys } },
+      { organization_id: { $in: orgKeys } },
       { _id: { $in: orgKeys.filter(k => mongoose.Types.ObjectId.isValid(k)) } }
     ]
   }).lean().exec();
 
   const orgMap = {};
   orgs.forEach(o => {
-    const name = o.organizationName || o.name || '';
-    orgMap[String(o.organizationId)] = name;
+    const name = o.organization_name || o.organizationName || o.name || '';
+    orgMap[String(o.organization_id || o.organizationId)] = name;
     orgMap[String(o._id)] = name;
   });
 
   items.forEach(item => {
-    if (item.organizationId) {
-      const lookup = String(item.organizationId);
+    const orgIdVal = item.organization_id || item.organizationId;
+    if (orgIdVal) {
+      const lookup = String(orgIdVal);
       if (orgMap[lookup]) {
+        item.organization_id = orgMap[lookup];
         item.organizationId = orgMap[lookup];
       }
     }
@@ -224,7 +226,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
       const Organization = mongoose.model('Organization');
       const org = await Organization.findOne({
         $or: [
-          { organizationId: orgId },
+          { organization_id: orgId },
           { _id: mongoose.Types.ObjectId.isValid(orgId) ? orgId : null }
         ]
       }).lean().exec();
@@ -262,6 +264,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   const data = payload && typeof payload === 'object' ? { ...payload } : {};
   if (!isSuperAdmin) {
+    data.organization_id = user.organizationId;
     data.organizationId = user.organizationId;
   }
 
@@ -321,12 +324,12 @@ exports.createForUser = async ({ payload, authedUser }) => {
     throw err;
   }
 
-  const targetOrgId = isSuperAdmin ? (cleaned.organizationId || payload.organizationId || payload.fields?.organizationId || data.organizationId) : user.organizationId;
+  const targetOrgId = isSuperAdmin ? (cleaned.organizationId || payload.organizationId || payload.fields?.organizationId || data.organizationId || data.organization_id || cleaned.organization_id) : user.organizationId;
 
   const Organization = mongoose.model('Organization');
   const org = await Organization.findOne({
     $or: [
-      { organizationId: targetOrgId },
+      { organization_id: targetOrgId },
       ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
     ]
   }).lean().exec();
@@ -352,7 +355,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
       if (orConditions.length > 0) {
         const Contact = mongoose.model('Contact');
         const duplicate = await Contact.findOne({
-          organizationId: targetOrgId,
+          organization_id: targetOrgId,
           $or: orConditions
         }).lean().exec();
         
@@ -369,7 +372,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
       if (cleanEmail) {
         const Contact = mongoose.model('Contact');
         const duplicateEmail = await Contact.findOne({
-          organizationId: targetOrgId,
+          organization_id: targetOrgId,
           email: cleanEmail
         }).lean().exec();
         
@@ -385,7 +388,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
   const docPayload = fillExtraFields(
     {
       ...cleaned,
-      organizationId: targetOrgId,
+      organization_id: targetOrgId,
     },
     user
   );
@@ -412,7 +415,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  if (!isSuperAdmin && String(existing.organizationId) !== String(user.organizationId)) {
+  if (!isSuperAdmin && String(existing.organization_id || existing.organizationId) !== String(user.organizationId || user.organization_id)) {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
@@ -459,8 +462,11 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   const cleaned = {};
   for (const f of allowedFormFields) {
     const k = f.field_key;
-    if (data[k] !== undefined) {
-      cleaned[k] = data[k];
+    const camelK = (k || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    if (data[camelK] !== undefined) {
+      cleaned[camelK] = data[camelK];
+    } else if (data[k] !== undefined) {
+      cleaned[camelK] = data[k];
     }
   }
 
@@ -484,12 +490,12 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
     throw err;
   }
 
-  const targetOrgId = isSuperAdmin ? (cleaned.organizationId || existing.organizationId) : user.organizationId;
+  const targetOrgId = isSuperAdmin ? (cleaned.organizationId || existing.organizationId || cleaned.organization_id || existing.organization_id) : user.organizationId;
 
   const Organization = mongoose.model('Organization');
   const org = await Organization.findOne({
     $or: [
-      { organizationId: targetOrgId },
+      { organization_id: targetOrgId },
       ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
     ]
   }).lean().exec();
@@ -519,7 +525,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
         const Contact = mongoose.model('Contact');
         const duplicate = await Contact.findOne({
           _id: { $ne: id },
-          organizationId: targetOrgId,
+          organization_id: targetOrgId,
           $or: orConditions
         }).lean().exec();
         
@@ -537,7 +543,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
         const Contact = mongoose.model('Contact');
         const duplicateEmail = await Contact.findOne({
           _id: { $ne: id },
-          organizationId: targetOrgId,
+          organization_id: targetOrgId,
           email: cleanEmail
         }).lean().exec();
         
@@ -637,7 +643,7 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
             createdBy: owner.email,
             contactOwnerEmail: owner.email,
             assignedTo: owner.email,
-            organizationId: owner.organizationId || owner.organization_id || lead.organizationId,
+            organization_id: owner.organizationId || owner.organization_id || lead.organizationId || lead.organization_id,
           }
         }
       );
@@ -684,14 +690,14 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     }
   }
 
-  if (user?.organizationId) {
+  if (user?.organizationId || user?.organization_id) {
     // Generate simulated/stored file URLs for file download parity
     const fileUrl = `/api/contacts/import-files/${requestId}_raw.csv`;
     const responseUrl = `/api/contacts/import-files/${requestId}_processed.csv`;
 
     await ImportLog.create({
       requestId,
-      organizationId: user.organizationId,
+      organization_id: user.organizationId || user.organization_id,
       createdBy: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
       uid: user.uid || String(user._id),
       status: errors.length === 0 ? 'Completed' : 'Completed with Errors',
@@ -714,7 +720,7 @@ exports.listImportLogs = async ({ authedUser }) => {
     const err = new Error('Authenticated user not found'); err.status = 401; throw err;
   }
   const ImportLog = require('../models/importLogModel');
-  const logs = await ImportLog.find({ organizationId: user.organizationId })
+  const logs = await ImportLog.find({ organization_id: user.organizationId || user.organization_id })
     .sort({ createdAt: -1 })
     .lean()
     .exec();
@@ -738,9 +744,52 @@ exports.deleteForUser = async ({ id, authedUser }) => {
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  if (!isSuperAdmin && String(existing.organizationId) !== String(user.organizationId)) {
+  if (!isSuperAdmin && String(existing.organization_id || existing.organizationId) !== String(user.organizationId || user.organization_id)) {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
+
+  // Cascading deletes
+  const Task = mongoose.model('Task');
+  const CallLog = mongoose.model('CallLog');
+  const Booking = mongoose.model('Booking');
+  const ResourceItem = mongoose.model('OrganizationResources');
+
+  await Task.deleteMany({
+    $or: [
+      { contact_id: id },
+      { contactId: id }
+    ]
+  });
+
+  await CallLog.deleteMany({
+    $or: [
+      { contact_id: id },
+      { contactId: id }
+    ]
+  });
+
+  await Booking.deleteMany({
+    $or: [
+      { contact_id: id },
+      { contactId: id }
+    ]
+  });
+
+  await ResourceItem.updateMany(
+    {},
+    {
+      $pull: {
+        notes: {
+          $or: [
+            { contact_id: id },
+            { contactId: id },
+            { contact_id: String(id) },
+            { contactId: String(id) }
+          ]
+        }
+      }
+    }
+  );
 
   await contactModel.remove(id);
 };

@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const contactSchema = new mongoose.Schema(
   {
     created_by: { type: mongoose.Schema.Types.Mixed, default: null, alias: 'createdBy' },
-    organization_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', alias: 'organizationId' },
+    organization_id: { type: String, alias: 'organizationId' },
     customer_name: { type: String, alias: 'customerName' },
     contact_number: { type: String, alias: 'contactNumber' },
     email_id: { type: String, alias: 'emailId' },

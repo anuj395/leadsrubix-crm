@@ -18,8 +18,61 @@
 // layered on top of this factory in its own controller, not pushed into the
 // factory itself.
 
+const mongoose = require('mongoose');
+
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function shouldBypass(v) {
+  if (!v || typeof v !== 'object') return true;
+  if (v instanceof Date || v instanceof RegExp) return true;
+  if (
+    v.constructor?.name === 'ObjectID' ||
+    v.constructor?.name === 'ObjectId' ||
+    v._bsontype === 'ObjectID' ||
+    v._bsontype === 'ObjectId' ||
+    (typeof v.toHexString === 'function')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function convertKeysToCamelCase(obj) {
+  if (shouldBypass(obj)) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(convertKeysToCamelCase);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k.startsWith('_')) {
+      out[k] = v;
+      continue;
+    }
+    const camelKey = k.replace(/_([a-z])/g, (m, letter) => letter.toUpperCase());
+    out[camelKey] = convertKeysToCamelCase(v);
+  }
+  return out;
+}
+
+function camelToSnakeCase(str) {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function normalizePayload(payload) {
+  if (shouldBypass(payload)) return payload;
+  if (Array.isArray(payload)) return payload.map(normalizePayload);
+  const out = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (k.startsWith('_')) {
+      out[k] = v;
+      continue;
+    }
+    const snakeKey = k.includes('_') ? k : camelToSnakeCase(k);
+    out[snakeKey] = normalizePayload(v);
+  }
+  return out;
 }
 
 async function enrichTasks(Model, items) {
@@ -47,7 +100,7 @@ async function enrichTasks(Model, items) {
     });
   }
 
-  const contactIds = [...new Set(items.map(item => item.contactId).filter(Boolean))];
+  const contactIds = [...new Set(items.map(item => item.contact_id || item.contactId).filter(Boolean))];
   const contactMap = {};
   if (contactIds.length > 0) {
     const contacts = await Contact.find({
@@ -55,7 +108,7 @@ async function enrichTasks(Model, items) {
     }).lean().exec();
 
     contacts.forEach(c => {
-      contactMap[String(c._id)] = c.contactNumber || c.contact_no || '';
+      contactMap[String(c._id)] = c.contact_number || c.contactNumber || '';
     });
   }
 
@@ -68,10 +121,11 @@ async function enrichTasks(Model, items) {
         item.assignedTo = userMap[String(item.assignedTo)];
       }
     }
-    if (item.contactId) {
-      const lookupContactId = String(item.contactId);
+    const cId = item.contact_id || item.contactId;
+    if (cId) {
+      const lookupContactId = String(cId);
       if (contactMap[lookupContactId]) {
-        item.contactNumber = contactMap[lookupContactId];
+        item.contact_number = contactMap[lookupContactId];
       }
     }
   });
@@ -82,28 +136,29 @@ async function enrichOrganizationNames(Model, items) {
   const mongoose = require('mongoose');
   const Organization = mongoose.model('Organization');
 
-  const orgKeys = [...new Set(items.map(item => item.organizationId).filter(Boolean))];
+  const orgKeys = [...new Set(items.map(item => item.organization_id || item.organizationId).filter(Boolean))];
   if (orgKeys.length === 0) return;
 
   const orgs = await Organization.find({
     $or: [
-      { organizationId: { $in: orgKeys } },
+      { organization_id: { $in: orgKeys } },
       { _id: { $in: orgKeys.filter(k => mongoose.Types.ObjectId.isValid(k)) } }
     ]
   }).lean().exec();
 
   const orgMap = {};
   orgs.forEach(o => {
-    const name = o.name || o.organizationName || '';
-    orgMap[String(o.organizationId)] = name;
+    const name = o.organization_name || o.organizationName || o.name || '';
+    orgMap[String(o.organization_id || o.organizationId)] = name;
     orgMap[String(o._id)] = name;
   });
 
   items.forEach(item => {
-    if (item.organizationId) {
-      const lookup = String(item.organizationId);
+    const orgIdVal = item.organization_id || item.organizationId;
+    if (orgIdVal) {
+      const lookup = String(orgIdVal);
       if (orgMap[lookup]) {
-        item.organizationId = orgMap[lookup];
+        item.organization_id = orgMap[lookup];
       }
     }
   });
@@ -122,15 +177,12 @@ function buildController({
     return authedUser?.role === 'superAdmin';
   }
 
-  // Resolves the industry filter the caller is allowed to see.
-  // Super-admin: pass any industryId explicitly, or omit it to see all.
-  // Everyone else: pinned to their own industry regardless of input.
   function resolveTenantFilter(authedUser, requested) {
     if (isSuperAdmin(authedUser)) {
-      if (requested) return { industryId: requested };
+      if (requested) return { industry_id: requested };
       return {};
     }
-    return authedUser?.industryId ? { industryId: authedUser.industryId } : { industryId: '__none__' };
+    return authedUser?.industryId ? { industry_id: authedUser.industryId } : { industry_id: '__none__' };
   }
 
   async function list(req, res, next) {
@@ -138,8 +190,18 @@ function buildController({
       const filter = resolveTenantFilter(req.user, req.query.industryId);
       Object.keys(req.query).forEach((key) => {
         if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId'].includes(key)) return;
+        let targetKey = key;
         if (Model.schema.paths[key]) {
-          filter[key] = req.query[key];
+          targetKey = key;
+        } else {
+          // Check snake_case version
+          const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+          if (Model.schema.paths[snake]) {
+            targetKey = snake;
+          }
+        }
+        if (Model.schema.paths[targetKey]) {
+          filter[targetKey] = req.query[key];
         }
       });
       const q = (req.query.q || '').toString().trim();
@@ -163,7 +225,7 @@ function buildController({
       ]);
       await enrichTasks(Model, items);
       await enrichOrganizationNames(Model, items);
-      res.json({ items, total });
+      res.json({ items: convertKeysToCamelCase(items), total });
     } catch (err) { next(err); }
   }
 
@@ -176,21 +238,23 @@ function buildController({
       }
       await enrichTasks(Model, [doc]);
       await enrichOrganizationNames(Model, [doc]);
-      res.json(doc);
+      res.json(convertKeysToCamelCase(doc));
     } catch (err) { next(err); }
   }
 
   async function create(req, res, next) {
     try {
-      const payload = { ...(req.body || {}) };
+      const payload = normalizePayload({ ...(req.body || {}) });
       // Tenant + ownership stamping. Super-admin may override industryId;
       // everyone else is pinned to their own.
-      payload.industryId = isSuperAdmin(req.user)
-        ? payload.industryId || req.user?.industryId
-        : req.user?.industryId;
-      payload.createdBy = req.user?.id;
+      if (isSuperAdmin(req.user)) {
+        payload.industry_id = payload.industry_id || payload.industryId || req.user?.industryId;
+      } else {
+        payload.industry_id = req.user?.industryId;
+      }
+      payload.created_by = req.user?.id;
       if (req.user?.organizationId) {
-        payload.organizationId = String(req.user.organizationId);
+        payload.organization_id = String(req.user.organizationId);
       }
       if (req.user?.uid) {
         payload.uid = String(req.user.uid);
@@ -198,7 +262,7 @@ function buildController({
       const doc = await Model.create(payload);
       const docObj = doc.toObject();
       await enrichTasks(Model, [docObj]);
-      res.status(201).json(docObj);
+      res.status(201).json(convertKeysToCamelCase(docObj));
     } catch (err) { next(err); }
   }
 
@@ -206,19 +270,24 @@ function buildController({
     try {
       const existing = await Model.findById(req.params.id).lean().exec();
       if (!existing) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && existing.industryId !== req.user?.industryId) {
+      if (!isSuperAdmin(req.user) && existing.industry_id !== req.user?.industryId && existing.industryId !== req.user?.industryId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
-      const patch = { ...(req.body || {}) };
+      const patch = normalizePayload({ ...(req.body || {}) });
       // Don't let a non-super-admin reparent the row to another tenant.
-      if (!isSuperAdmin(req.user)) delete patch.industryId;
+      if (!isSuperAdmin(req.user)) {
+        delete patch.industry_id;
+        delete patch.industryId;
+      }
+      delete patch.created_by;
       delete patch.createdBy;
+      delete patch.created_at;
       delete patch.createdAt;
       const updated = await Model.findByIdAndUpdate(req.params.id, { $set: patch }, { new: true })
         .lean()
         .exec();
       await enrichTasks(Model, [updated]);
-      res.json(updated);
+      res.json(convertKeysToCamelCase(updated));
     } catch (err) { next(err); }
   }
 
@@ -248,4 +317,4 @@ function buildRouter(controller, { authenticate }) {
   return router;
 }
 
-module.exports = { buildController, buildRouter };
+module.exports = { buildController, buildRouter, convertKeysToCamelCase, normalizePayload };

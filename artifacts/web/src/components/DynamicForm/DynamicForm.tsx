@@ -554,7 +554,8 @@ export function DynamicForm({
             const dropdownErr =
               f.dropdown_source === 'api' && apiUrl ? errors[`__dropdown__${apiUrl}`] : ''
 
-            if (MULTIPLE_FIELDS.has(f.key)) {
+            const isMultiple = MULTIPLE_FIELDS.has(f.key) && screen !== 'configProjects' && screen !== 'interested' && screen !== 'contacts'
+            if (isMultiple) {
               const valArray = Array.isArray(value) ? (value as string[]) : (value ? [String(value)] : []);
               return (
                 <Autocomplete
@@ -741,7 +742,7 @@ export function DynamicForm({
           }
 
           if (f.type === 'image') {
-            const hasValue = typeof value === 'string' && value.startsWith('data:image');
+            const hasValue = typeof value === 'string' && value.trim().length > 0;
             const previewUrl = typeof value === 'string' ? value : '';
             return (
               <Box key={f.key} sx={{ gridColumn: { xs: '1', sm: '1 / -1' }, mb: 1 }}>
@@ -793,79 +794,95 @@ export function DynamicForm({
                     reader.readAsDataURL(file);
                   }}
                 />
-                <Stack direction="row" spacing={2} alignItems="center">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, alignItems: 'center', width: '100%' }}>
                   {hasValue ? (
                     <Box
                       component="img"
                       src={previewUrl}
                       sx={{
-                        width: 120,
-                        height: 75,
-                        borderRadius: 1,
-                        objectFit: 'cover',
+                        width: '100%',
+                        maxWidth: 320,
+                        height: 180,
+                        borderRadius: 2,
+                        objectFit: 'contain',
+                        bgcolor: 'action.hover',
                         border: '1px solid',
                         borderColor: 'divider',
-                        boxShadow: 1
+                        boxShadow: 2
                       }}
                     />
                   ) : (
                     <Box
                       sx={{
-                        width: 120,
-                        height: 75,
-                        borderRadius: 1,
+                        width: '100%',
+                        maxWidth: 320,
+                        height: 180,
+                        borderRadius: 2,
                         bgcolor: 'action.hover',
-                        border: '1px dashed',
+                        border: '2px dashed',
                         borderColor: 'divider',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary">No Image</Typography>
+                      <Typography variant="body2" color="text.secondary">No Image Selected</Typography>
                     </Box>
                   )}
-                  <Stack spacing={1}>
-                    <Stack direction="row" spacing={1}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ my: 1.5 }}>
+                    <Button
+                      variant="contained"
+                      size="medium"
+                      disabled={readOnly}
+                      onClick={() => document.getElementById(`image-upload-${f.key}`)?.click()}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        borderRadius: '12px',
+                        bgcolor: '#1C1E3A',
+                        color: '#ffffff',
+                        boxShadow: '0 4px 12px rgba(28, 30, 58, 0.15)',
+                        '&:hover': {
+                          bgcolor: '#2C2E5A',
+                        }
+                      }}
+                    >
+                      {hasValue ? 'Change Image' : 'Select Image'}
+                    </Button>
+                    {hasValue && (
                       <Button
-                        variant="outlined"
-                        size="small"
+                        variant="contained"
+                        size="medium"
+                        color="error"
                         disabled={readOnly}
-                        onClick={() => document.getElementById(`image-upload-${f.key}`)?.click()}
-                        sx={{ textTransform: 'none' }}
+                        onClick={() => {
+                          setValue(f.key, '');
+                          if (values.hasOwnProperty('imageName')) {
+                            setValue('imageName', '');
+                          } else if (values.hasOwnProperty('image_name')) {
+                            setValue('image_name', '');
+                          }
+                        }}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          borderRadius: '12px',
+                          boxShadow: '0 4px 12px rgba(211, 47, 47, 0.15)',
+                        }}
                       >
-                        {hasValue ? 'Change Image' : 'Select Image'}
+                        Remove
                       </Button>
-                      {hasValue && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color="error"
-                          disabled={readOnly}
-                          onClick={() => {
-                            setValue(f.key, '');
-                            if (values.hasOwnProperty('imageName')) {
-                              setValue('imageName', '');
-                            } else if (values.hasOwnProperty('image_name')) {
-                              setValue('image_name', '');
-                            }
-                          }}
-                          sx={{ textTransform: 'none' }}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      Max size: 20MB. Supports PNG, JPG, JPEG, GIF, WebP, SVG.
-                    </Typography>
-                    {err && (
-                      <Typography variant="caption" color="error">
-                        {err}
-                      </Typography>
                     )}
                   </Stack>
-                </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                    Max size: 20MB. Supports PNG, JPG, JPEG, GIF, WebP, SVG.
+                  </Typography>
+                  {err && (
+                    <Typography variant="caption" color="error" sx={{ textAlign: 'center' }}>
+                      {err}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             );
           }

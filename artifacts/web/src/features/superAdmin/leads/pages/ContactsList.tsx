@@ -115,13 +115,6 @@ export default function ContactsListPage() {
           columns={gridColumns}
           loading={loading}
           getRowId={(r) => r._id}
-          onRowClick={(params) => navigate(`/leads/contacts/${params.row._id}`)}
-          sx={{
-            cursor: 'pointer',
-            '& .MuiDataGrid-row:hover': {
-              cursor: 'pointer'
-            }
-          }}
         />
       </AppCard>
 

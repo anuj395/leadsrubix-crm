@@ -75,6 +75,7 @@ export default function ContactDetailsPage() {
   const [attachName, setAttachName] = useState('')
   const [attachUrl, setAttachUrl] = useState('')
   const [attachType, setAttachType] = useState('file')
+  const [notes, setNotes] = useState<any[]>([])
 
   const [callbackOpen, setCallbackOpen] = useState(false)
   const [notInterestedOpen, setNotInterestedOpen] = useState(false)
@@ -105,6 +106,11 @@ export default function ContactDetailsPage() {
 
         const tasksRes = await api.get('tasks', { params: { contactId: id } })
         setTasks(tasksRes.data?.items ?? [])
+
+        const notesRes = await api.get('resources/resourceNotes')
+        const allNotes = notesRes.data ?? []
+        const contactNotes = allNotes.filter((n: any) => String(n.contactId || n.contact_id) === String(id))
+        setNotes(contactNotes)
       } else {
         setToast({ open: true, msg: 'Contact not found', sev: 'error' })
       }
@@ -366,16 +372,16 @@ export default function ContactDetailsPage() {
                   </Stack>
                   <Divider />
                   <Box sx={{ overflowY: 'auto', maxHeight: 380, display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                    {(booking?.notes ?? []).map((n: any, i: number) => (
+                    {(notes ?? []).map((n: any, i: number) => (
                       <Paper key={i} variant="outlined" sx={{ p: 1.5, bgcolor: 'background.default' }}>
                         <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                          <Typography variant="caption" fontWeight="bold" color="primary">{String(n.userEmail)}</Typography>
-                          <Typography variant="caption" color="text.secondary">{new Date(n.created_at).toLocaleDateString()}</Typography>
+                          <Typography variant="caption" fontWeight="bold" color="primary">{String(n.userEmail || n.user_email || 'System')}</Typography>
+                          <Typography variant="caption" color="text.secondary">{new Date(n.createdAt || n.created_at || new Date()).toLocaleDateString()}</Typography>
                         </Stack>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{String(n.note)}</Typography>
                       </Paper>
                     ))}
-                    {(booking?.notes ?? []).length === 0 && (
+                    {(notes ?? []).length === 0 && (
                       <Typography variant="body2" align="center" color="text.secondary" sx={{ py: 6 }}>No Notes recorded yet.</Typography>
                     )}
                   </Box>

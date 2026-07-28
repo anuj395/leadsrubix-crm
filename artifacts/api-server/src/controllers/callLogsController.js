@@ -3,6 +3,26 @@ const { User } = require('../models/userModel');
 const { Organization } = require('../models/organizationModel');
 const moment = require('moment');
 const mongoose = require('mongoose');
+const { convertKeysToCamelCase } = require('../services/crudFactory');
+
+function translateFilterKeys(filter) {
+  if (!filter || typeof filter !== 'object') return filter;
+  const camelToSnake = (s) => s.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  const out = {};
+  for (const [k, v] of Object.entries(filter)) {
+    if (k.startsWith('$')) {
+      out[k] = Array.isArray(v) ? v.map(translateFilterKeys) : translateFilterKeys(v);
+      continue;
+    }
+    const snakeKey = k.includes('_') ? k : camelToSnake(k);
+    if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) && !(v instanceof RegExp)) {
+      out[snakeKey] = translateFilterKeys(v);
+    } else {
+      out[snakeKey] = v;
+    }
+  }
+  return out;
+}
 
 function maskPhone(phone) {
   if (!phone) return '';
@@ -46,7 +66,7 @@ const booleanField = ['associateStatus', 'sourceStatus', 'transferStatus'];
 // for lead manager profile having branches
 const getBranchUsers = async (uid, organizationId, permission) => {
   const users = await User.find({
-    organizationId,
+    organization_id: organizationId,
     branch: { $in: permission },
   });
   let usersList = [uid];
@@ -56,7 +76,7 @@ const getBranchUsers = async (uid, organizationId, permission) => {
 
 // to get all the users under a certain user
 const getTeamUsers = async (uid, organizationId) => {
-  const users = await User.find({ organizationId });
+  const users = await User.find({ organization_id: organizationId });
   const user = users.filter((u) => u.uid === uid);
   if (user.length === 0) return [uid];
   let reportingToMap = {};
@@ -114,8 +134,13 @@ const mapSeconds = (time) => {
 
 const getOrganizationName = async (organizationId) => {
   try {
-    const organization = await Organization.findOne({ organizationId });
-    return organization ? organization.name : "Unknown Organization";
+    const organization = await Organization.findOne({
+      $or: [
+        { organization_id: organizationId },
+        ...(mongoose.Types.ObjectId.isValid(organizationId) ? [{ _id: organizationId }] : [])
+      ]
+    });
+    return organization ? (organization.name || organization.organizationName || '') : "Unknown Organization";
   } catch (error) {
     console.error("Error fetching organization name:", error);
     return "Unknown Organization";
@@ -133,23 +158,23 @@ callLogController.Create = async (req, res) => {
       createdBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
     }
     const data = new CallLog({
-      leadId: req.body.leadId || '',
-      customerName: req.body.customerName || req.body.customer_name || '',
-      contactNumber: req.body.contactNumber || req.body.contact_no || '',
+      lead_id: req.body.leadId || '',
+      customer_name: req.body.customerName || req.body.customer_name || '',
+      contact_number: req.body.contactNumber || req.body.contact_no || '',
       stage: req.body.stage || '',
-      contactOwnerEmail: req.body.contactOwnerEmail || req.body.contact_owner_email || '',
+      contact_owner_email: req.body.contactOwnerEmail || req.body.contact_owner_email || '',
       location: req.body.location || '',
-      projectName: req.body.projectName || req.body.project || '',
+      project_name: req.body.projectName || req.body.project || '',
       budget: req.body.budget || '',
-      transferStatus: req.body.transferStatus || req.body.transfer_status || false,
-      createdBy,
+      transfer_status: req.body.transferStatus || req.body.transfer_status || false,
+      created_by: createdBy,
       source: req.body.source || req.body.lead_source || '',
       createdAt: req.body.createdAt ? new Date(req.body.createdAt) : new Date(),
       type: req.body.type || '',
-      inventoryType: req.body.inventoryType || req.body.inventory_type || '',
+      inventory_type: req.body.inventoryType || req.body.inventory_type || '',
       duration: mapSeconds(req.body.callTime || req.body.duration),
       uid: req.body.uid || '',
-      organizationId: req.body.organizationId || req.body.organization_id || '',
+      organization_id: req.body.organizationId || req.body.organization_id || '',
       latitude: req.body.latitude || null,
       longitude: req.body.longitude || null
     });
@@ -164,7 +189,7 @@ callLogController.Create = async (req, res) => {
 callLogController.Update = async (req, res) => {
   try {
     const leadId = req.body.leadId;
-    await CallLog.updateMany({ leadId }, { $set: req.body }).exec();
+    await CallLog.updateMany({ lead_id: leadId }, { $set: translateFilterKeys(req.body) }).exec();
     res.status(200).send('Updation DONE!');
   } catch (error) {
     console.error(error);
@@ -175,7 +200,7 @@ callLogController.Update = async (req, res) => {
 callLogController.DeleteCallLogs = async (req, res) => {
   try {
     const leadId = req.body.leadId;
-    await CallLog.findOneAndDelete({ leadId }).exec();
+    await CallLog.findOneAndDelete({ lead_id: leadId }).exec();
     res.status(200).send("Deletion DONE!");
   } catch (error) {
     console.error(error);
@@ -250,6 +275,8 @@ callLogController.Search = async (req, res) => {
     const role = user.role;
     const organizationId = user.organizationId;
 
+    const dbFilter = translateFilterKeys(filter);
+
     if (role === 'leadManager' || role === 'admin') {
       const permission = user.branchPermission;
       if (
@@ -257,32 +284,32 @@ callLogController.Search = async (req, res) => {
         (permission && permission.length === 0) ||
         (permission && permission.includes('All'))
       ) {
-        const callLogs = await CallLog.find({ organizationId, ...filter })
+        const callLogs = await CallLog.find({ organization_id: organizationId, ...dbFilter })
           .sort(sort)
           .skip((page - 1) * pageSize)
           .limit(pageSize);
-        res.send(callLogs);
+        res.send(convertKeysToCamelCase(callLogs));
       } else {
         let usersList = await getBranchUsers(uid, organizationId, permission);
-        const callLogs = await CallLog.find({ uid: { $in: usersList }, ...filter })
+        const callLogs = await CallLog.find({ uid: { $in: usersList }, ...dbFilter })
           .sort(sort)
           .skip((page - 1) * pageSize)
           .limit(pageSize);
-        res.send(callLogs);
+        res.send(convertKeysToCamelCase(callLogs));
       }
     } else if (role === 'teamLead') {
       let usersList = await getTeamUsers(uid, organizationId);
-      const callLogs = await CallLog.find({ uid: { $in: usersList }, ...filter })
-          .sort(sort)
-          .skip((page - 1) * pageSize)
-          .limit(pageSize);
-      res.send(callLogs);
-    } else {
-      const callLogs = await CallLog.find({ uid, ...filter })
+      const callLogs = await CallLog.find({ uid: { $in: usersList }, ...dbFilter })
         .sort(sort)
         .skip((page - 1) * pageSize)
         .limit(pageSize);
-      res.send(callLogs);
+      res.send(convertKeysToCamelCase(callLogs));
+    } else {
+      const callLogs = await CallLog.find({ uid, ...dbFilter })
+        .sort(sort)
+        .skip((page - 1) * pageSize)
+        .limit(pageSize);
+      res.send(convertKeysToCamelCase(callLogs));
     }
   } catch (error) {
     console.error(error);
@@ -304,7 +331,7 @@ callLogController.MasterSearch = async (req, res) => {
         const orgDocs = await Organization.find(
           { name: { $in: filter.organizationName } }
         );
-        const orgIds = orgDocs.map((o) => o.organizationId);
+        const orgIds = orgDocs.map((o) => o.organization_id || o.organizationId);
         filter.organizationId = { $in: orgIds };
         delete filter.organizationName;
       } else if (datesField.includes(key)) {
@@ -356,7 +383,8 @@ callLogController.MasterSearch = async (req, res) => {
       filter["customerName"] = { $in: customer_name_list };
     }
 
-    const callLogs = await CallLog.find(filter)
+    const dbFilter = translateFilterKeys(filter);
+    const callLogs = await CallLog.find(dbFilter)
       .sort(sort)
       .skip((page - 1) * pageSize)
       .limit(pageSize);
@@ -364,12 +392,12 @@ callLogController.MasterSearch = async (req, res) => {
     const enrichedCallLogs = await Promise.all(
       callLogs.map(async (callLog) => {
         const callLogObj = (typeof callLog.toObject === "function") ? callLog.toObject() : callLog;
-        const orgId = callLogObj.organizationId;
+        const orgId = callLogObj.organization_id || callLogObj.organizationId;
         const organizationName = await getOrganizationName(orgId);
         return { ...callLogObj, organizationName };
       })
     );
-    res.send(enrichedCallLogs);
+    res.send(convertKeysToCamelCase(enrichedCallLogs));
   } catch (error) {
     console.error(error);
     res.status(500).send({ error: error.message });
@@ -390,7 +418,7 @@ callLogController.MaskMasterSearch = async (req, res) => {
         const orgDocs = await Organization.find(
           { name: { $in: filter.organizationName } }
         );
-        const orgIds = orgDocs.map((o) => o.organizationId);
+        const orgIds = orgDocs.map((o) => o.organization_id || o.organizationId);
         filter.organizationId = { $in: orgIds };
         delete filter.organizationName;
       } else if (datesField.includes(key)) {
@@ -442,7 +470,8 @@ callLogController.MaskMasterSearch = async (req, res) => {
       filter["customerName"] = { $in: customer_name_list };
     }
 
-    const callLogs = await CallLog.find(filter)
+    const dbFilter = translateFilterKeys(filter);
+    const callLogs = await CallLog.find(dbFilter)
       .sort(sort)
       .skip((page - 1) * pageSize)
       .limit(pageSize);
@@ -450,15 +479,15 @@ callLogController.MaskMasterSearch = async (req, res) => {
     const enrichedCallLogs = await Promise.all(
       callLogs.map(async (callLog) => {
         const callLogObj = (typeof callLog.toObject === "function") ? callLog.toObject() : callLog;
-        callLogObj.contactNumber = maskPhone(callLogObj.contactNumber);
-        callLogObj.alternateNumber = maskPhone(callLogObj.alternateNumber);
-        callLogObj.email = maskEmail(callLogObj.email);
-        const orgId = callLogObj.organizationId;
+        callLogObj.contactNumber = maskPhone(callLogObj.contact_number || callLogObj.contactNumber);
+        callLogObj.alternateNumber = maskPhone(callLogObj.alternate_no || callLogObj.alternateNumber);
+        callLogObj.email = maskEmail(callLogObj.email_id || callLogObj.email);
+        const orgId = callLogObj.organization_id || callLogObj.organizationId;
         const organizationName = await getOrganizationName(orgId);
         return { ...callLogObj, organizationName };
       })
     );
-    res.send(enrichedCallLogs);
+    res.send(convertKeysToCamelCase(enrichedCallLogs));
   } catch (error) {
     console.error(error);
     res.status(500).send({ error: error.message });
@@ -486,22 +515,22 @@ callLogController.MasterFilterValues = async (req, res) => {
       $group: {
         _id: 0,
         budget: { $addToSet: "$budget" },
-        contactOwnerEmail: { $addToSet: "$contactOwnerEmail" },
-        createdBy: { $addToSet: "$createdBy" },
+        contactOwnerEmail: { $addToSet: "$contact_owner_email" },
+        createdBy: { $addToSet: "$created_by" },
         source: { $addToSet: "$source" },
         location: { $addToSet: "$location" },
-        projectName: { $addToSet: "$projectName" },
+        projectName: { $addToSet: "$project_name" },
         stage: { $addToSet: "$stage" },
-        inventoryType: { $addToSet: "$inventoryType" },
+        inventoryType: { $addToSet: "$inventory_type" },
         duration: { $addToSet: "$duration" },
-        organizationId: { $addToSet: "$organizationId" },
+        organizationId: { $addToSet: "$organization_id" },
       },
     };
 
     const filters = await CallLog.aggregate([
       {
         $match: {
-          ...finalFilters,
+          ...translateFilterKeys(finalFilters),
           stage: { $nin: ["LOST", "NOT INTERESTED"] },
         },
       },
@@ -516,12 +545,12 @@ callLogController.MasterFilterValues = async (req, res) => {
 
     let organizationMap = {};
     if (result.organizationId && result.organizationId.length > 0) {
-      const orgDocs = await Organization.find(
-        { organizationId: { $in: result.organizationId } }
-      );
+      const orgDocs = await Organization.find({
+        organization_id: { $in: result.organizationId }
+      });
 
       organizationMap = orgDocs.reduce((acc, org) => {
-        acc[org.organizationId] = org.name;
+        acc[org.organization_id || org.organizationId] = org.name;
         return acc;
       }, {});
 
@@ -578,18 +607,19 @@ callLogController.FilterValues = async (req, res) => {
       $group: {
         _id: 0,
         budget: { $addToSet: '$budget' },
-        contactOwnerEmail: { $addToSet: '$contactOwnerEmail' },
-        createdBy: { $addToSet: '$createdBy' },
+        contactOwnerEmail: { $addToSet: '$contact_owner_email' },
+        createdBy: { $addToSet: '$created_by' },
         source: { $addToSet: '$source' },
         location: { $addToSet: '$location' },
-        projectName: { $addToSet: '$projectName' },
+        projectName: { $addToSet: '$project_name' },
         stage: { $addToSet: '$stage' },
-        inventoryType: { $addToSet: '$inventoryType' },
+        inventoryType: { $addToSet: '$inventory_type' },
         duration: { $addToSet: '$duration' },
       },
     };
 
     let filters;
+    const dbFinalFilters = translateFilterKeys(finalFilters);
     if (role === 'leadManager' || role === 'admin') {
       const permission = user.branchPermission;
       if (
@@ -598,25 +628,25 @@ callLogController.FilterValues = async (req, res) => {
         (permission && permission.includes('All'))
       ) {
         filters = await CallLog.aggregate([
-          { $match: { organizationId, ...finalFilters } },
+          { $match: { organization_id: organizationId, ...dbFinalFilters } },
           group,
         ]);
       } else {
         let usersList = await getBranchUsers(uid, organizationId, permission);
         filters = await CallLog.aggregate([
-          { $match: { uid: { $in: usersList }, ...finalFilters } },
+          { $match: { uid: { $in: usersList }, ...dbFinalFilters } },
           group,
         ]);
       }
     } else if (role === 'teamLead') {
       let usersList = await getTeamUsers(uid, organizationId);
       filters = await CallLog.aggregate([
-        { $match: { uid: { $in: usersList }, ...finalFilters } },
+        { $match: { uid: { $in: usersList }, ...dbFinalFilters } },
         group,
       ]);
     } else {
       filters = await CallLog.aggregate([
-        { $match: { uid, ...finalFilters } },
+        { $match: { uid, ...dbFinalFilters } },
         group,
       ]);
     }
@@ -654,7 +684,7 @@ callLogController.MasterContactCount = async (req, res) => {
       const orgDocs = await Organization.find(
         { name: { $in: leadFilter.organizationName } }
       );
-      const orgIds = orgDocs.map((o) => o.organizationId);
+      const orgIds = orgDocs.map((o) => o.organization_id || o.organizationId);
       leadFilter.organizationId = { $in: orgIds };
       delete leadFilter.organizationName;
     }
@@ -671,18 +701,19 @@ callLogController.MasterContactCount = async (req, res) => {
       }
     }
 
+    const dbLeadFilter = translateFilterKeys(leadFilter);
     const and = [];
-    if (leadFilter && Object.keys(leadFilter).length > 0) {
-      for (const key of Object.keys(leadFilter)) {
+    if (dbLeadFilter && Object.keys(dbLeadFilter).length > 0) {
+      for (const key of Object.keys(dbLeadFilter)) {
         if (!datesField.includes(key)) {
-          const val = leadFilter[key];
+          const val = dbLeadFilter[key];
           if (val && val.$in) {
             and.push({ [key]: val });
           } else {
             and.push({ [key]: { $in: Array.isArray(val) ? val : [val] } });
           }
         } else {
-          and.push({ [key]: leadFilter[key] });
+          and.push({ [key]: dbLeadFilter[key] });
         }
       }
     }
@@ -728,6 +759,7 @@ callLogController.CallLogCount = async (req, res) => {
     const user = resultUser[0];
     const role = user.role;
     const organizationId = user.organizationId;
+    const dbLeadFilter = translateFilterKeys(leadFilter);
 
     if (role === 'leadManager' || role === 'admin') {
       const permission = user.branchPermission;
@@ -736,13 +768,13 @@ callLogController.CallLogCount = async (req, res) => {
         (permission && permission.length === 0) ||
         (permission && permission.includes('All'))
       ) {
-        const and = [{ organizationId }];
-        if (!isObjectEmpty(leadFilter)) {
-          Object.keys(leadFilter).forEach((key) => {
+        const and = [{ organization_id: organizationId }];
+        if (!isObjectEmpty(dbLeadFilter)) {
+          Object.keys(dbLeadFilter).forEach((key) => {
             if (!datesField.includes(key)) {
-              and.push({ [key]: { $in: leadFilter[key] } });
+              and.push({ [key]: { $in: dbLeadFilter[key] } });
             } else {
-              and.push({ [key]: leadFilter[key] });
+              and.push({ [key]: dbLeadFilter[key] });
             }
           });
         }
@@ -754,12 +786,12 @@ callLogController.CallLogCount = async (req, res) => {
       } else {
         let usersList = await getBranchUsers(uid, organizationId, permission);
         const and = [{ uid: { $in: usersList } }];
-        if (!isObjectEmpty(leadFilter)) {
-          Object.keys(leadFilter).forEach((key) => {
+        if (!isObjectEmpty(dbLeadFilter)) {
+          Object.keys(dbLeadFilter).forEach((key) => {
             if (!datesField.includes(key)) {
-              and.push({ [key]: { $in: leadFilter[key] } });
+              and.push({ [key]: { $in: dbLeadFilter[key] } });
             } else {
-              and.push({ [key]: leadFilter[key] });
+              and.push({ [key]: dbLeadFilter[key] });
             }
           });
         }
@@ -772,12 +804,12 @@ callLogController.CallLogCount = async (req, res) => {
     } else if (role === 'teamLead') {
       let usersList = await getTeamUsers(uid, organizationId);
       const and = [{ uid: { $in: usersList } }];
-      if (!isObjectEmpty(leadFilter)) {
-        Object.keys(leadFilter).forEach((key) => {
+      if (!isObjectEmpty(dbLeadFilter)) {
+        Object.keys(dbLeadFilter).forEach((key) => {
           if (!datesField.includes(key)) {
-            and.push({ [key]: { $in: leadFilter[key] } });
+            and.push({ [key]: { $in: dbLeadFilter[key] } });
           } else {
-            and.push({ [key]: leadFilter[key] });
+            and.push({ [key]: dbLeadFilter[key] });
           }
         });
       }
@@ -788,12 +820,12 @@ callLogController.CallLogCount = async (req, res) => {
       res.send(count[0] || { total: 0 });
     } else {
       const and = [{ uid }];
-      if (!isObjectEmpty(leadFilter)) {
-        Object.keys(leadFilter).forEach((key) => {
+      if (!isObjectEmpty(dbLeadFilter)) {
+        Object.keys(dbLeadFilter).forEach((key) => {
           if (!datesField.includes(key)) {
-            and.push({ [key]: { $in: leadFilter[key] } });
+            and.push({ [key]: { $in: dbLeadFilter[key] } });
           } else {
-            and.push({ [key]: leadFilter[key] });
+            and.push({ [key]: dbLeadFilter[key] });
           }
         });
       }

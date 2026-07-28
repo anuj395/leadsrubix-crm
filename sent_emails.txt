@@ -169,3 +169,21 @@ Organization: Real Estate Workspace
 Username / Email: sales1@gmail.com
 Temp Password: cacwAXs3
 ========================================
+
+========================================
+Timestamp: 2026-07-27T07:08:10.817Z
+To: sales4@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Real Estate Workspace
+Username / Email: sales4@gmail.com
+Temp Password: wpD0tVoa
+========================================
+
+========================================
+Timestamp: 2026-07-27T12:10:12.742Z
+To: demo@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: demo
+Username / Email: demo@digitalrubix.com
+Temp Password: 2Hf4cqkn
+========================================

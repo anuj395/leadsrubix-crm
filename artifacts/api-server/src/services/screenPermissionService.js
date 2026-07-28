@@ -108,7 +108,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     if (!resolvedRoleKey) resolvedRoleKey = u?.role || authedUser?.role;
   }
 
-  const isSuperAdmin = resolvedRoleKey === 'superAdmin' || authedUser?.role === 'superAdmin';
+  const isSuperAdmin = resolvedRoleKey === 'superAdmin';
   const isGuestSignup = !authedUser && screen.key === 'organization';
   const bypassPermissions = isSuperAdmin || isGuestSignup;
 

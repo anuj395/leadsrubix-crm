@@ -1,6 +1,7 @@
 const service = require('../services/contactService');
 const ExcelJS = require('exceljs');
 const mongoose = require('mongoose');
+const { convertKeysToCamelCase } = require('../services/crudFactory');
 
 // Helper to get organization name
 const getOrganizationName = async (orgId) => {
@@ -17,14 +18,13 @@ const getOrganizationName = async (orgId) => {
 const datesField = ["created_at", "updated_at", "next_follow_up_date_time", "dueDate", "nextFollowUp"];
 const booleanField = ['associateStatus', 'sourceStatus', 'transferStatus', 'transfer_status'];
 
-
 exports.list = async (req, res, next) => {
   try {
     const items = await service.listForUser({
       authedUser: req.user,
       limit: Number(req.query.limit) || 200,
     });
-    res.json({ items });
+    res.json({ items: convertKeysToCamelCase(items) });
   } catch (err) {
     next(err);
   }
@@ -36,7 +36,7 @@ exports.create = async (req, res, next) => {
       payload: req.body,
       authedUser: req.user,
     });
-    res.status(201).json(item);
+    res.status(201).json(convertKeysToCamelCase(item));
   } catch (err) {
     next(err);
   }
@@ -49,7 +49,7 @@ exports.update = async (req, res, next) => {
       payload: req.body,
       authedUser: req.user,
     });
-    res.json(item);
+    res.json(convertKeysToCamelCase(item));
   } catch (err) {
     next(err);
   }

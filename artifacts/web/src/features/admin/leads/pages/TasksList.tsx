@@ -197,11 +197,6 @@ export default function TasksListPage() {
       <AppCard
         title="Tasks"
         subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
-        action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-            Add Task
-          </Button>
-        }
         fullHeight
       >
         <AppDataGrid

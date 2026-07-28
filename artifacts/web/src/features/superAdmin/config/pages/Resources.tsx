@@ -789,6 +789,7 @@ export default function ResourcesPage() {
               initialValues={editingItem ? editingItem : {}}
               onCancel={() => setDialogOpen(false)}
               submitLabel={editingItem ? 'Save' : 'Create'}
+              singleColumn={true}
               onSubmit={async (values) => {
                 try {
                   if (editingItem) {

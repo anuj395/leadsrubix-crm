@@ -2,28 +2,21 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
 const resourceItemModel = require('../models/resourceItemModel');
+const s3Service = require('../services/s3Service');
+const { convertKeysToCamelCase, normalizePayload } = require('../services/crudFactory');
 
 const router = express.Router();
 
 // Helper to resolve Organization ID
 async function resolveOrganizationId(req) {
-  const Organization = mongoose.model('Organization');
-  
   if (req.user.role === 'superAdmin') {
-    // SuperAdmin can specify organizationId in query or body
-    let targetOrgId = req.query.organizationId || req.query.organizationId || req.body.organizationId || req.body.organizationId;
+    const targetOrgId = req.query.organizationId || req.body.organizationId;
     if (targetOrgId === 'null' || targetOrgId === '') {
       return null;
     }
-    if (targetOrgId) {
-      return targetOrgId;
-    }
-    return null;
-  } else {
-    // Regular admin or user: resolve orgId via their user industryId
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    return org ? org.organizationId : null;
+    return targetOrgId || null;
   }
+  return req.user.organizationId || null;
 }
 
 // Helper to resolve Industry ID
@@ -62,12 +55,15 @@ router.get('/:resource_key', authenticate, async (req, res, next) => {
       all: req.query.all === 'true' || (req.user.role === 'superAdmin' && !orgId),
     });
 
-    const formatted = items.map(item => ({
-      id: item.id || item._id,
-      ...item,
-      created_at: item.createdAt,
-      updated_at: item.updatedAt,
-    }));
+    const formatted = items.map(item => {
+      const converted = convertKeysToCamelCase(item);
+      return {
+        id: converted.id || converted._id,
+        ...converted,
+        created_at: converted.createdAt,
+        updated_at: converted.updatedAt,
+      };
+    });
 
     res.json(formatted);
   } catch (err) {
@@ -106,20 +102,25 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
 
 
 
+    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
+      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
+    }
+
     const resolvedIndustryId = await resolveIndustryId(req);
 
     const doc = await resourceItemModel.create({
       organizationId: orgId,
       industryId: resolvedIndustryId,
       resource_key,
-      data: payloadData,
+      data: normalizePayload(payloadData),
     });
 
+    const convertedDoc = convertKeysToCamelCase(doc);
     res.status(201).json({
-      id: doc.id || doc._id,
-      ...doc,
-      created_at: doc.createdAt,
-      updated_at: doc.updatedAt,
+      id: convertedDoc.id || convertedDoc._id,
+      ...convertedDoc,
+      created_at: convertedDoc.createdAt,
+      updated_at: convertedDoc.updatedAt,
     });
   } catch (err) {
     next(err);
@@ -165,13 +166,23 @@ router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
 
 
 
-    const updated = await resourceItemModel.update(id, payloadData);
+    const oldUrl = doc ? doc.url : null;
+    const { resource_key } = req.params;
+    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
+      if (oldUrl) {
+        await s3Service.deleteImage(oldUrl, 'carousel');
+      }
+      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
+    }
 
+    const updated = await resourceItemModel.update(id, normalizePayload(payloadData));
+
+    const convertedUpdated = convertKeysToCamelCase(updated);
     res.json({
-      id: updated.id || updated._id,
-      ...updated,
-      created_at: updated.createdAt,
-      updated_at: updated.updatedAt,
+      id: convertedUpdated.id || convertedUpdated._id,
+      ...convertedUpdated,
+      created_at: convertedUpdated.createdAt,
+      updated_at: convertedUpdated.updatedAt,
     });
   } catch (err) {
     next(err);
@@ -200,6 +211,12 @@ router.delete('/:resource_key/:id', authenticate, async (req, res, next) => {
       }
     }
 
+
+    const { resource_key } = req.params;
+    const fileUrl = doc ? doc.url : null;
+    if (resource_key === 'resourceCarousel' && fileUrl) {
+      await s3Service.deleteImage(fileUrl, 'carousel');
+    }
 
     await resourceItemModel.remove(id);
     res.status(204).end();
