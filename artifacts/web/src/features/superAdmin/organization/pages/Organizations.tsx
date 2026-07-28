@@ -121,7 +121,7 @@ export default function OrganizationsListPage() {
   useEffect(() => { void refresh() }, [refresh])
 
   const gridColumns = useMemo<GridColDef<Organization>[]>(() => {
-    const sorted = [...columns].sort((a, b) => a.order - b.order)
+    const sorted = [...columns].filter((c) => c.visible !== false).sort((a, b) => a.order - b.order)
     const dataCols: GridColDef<Organization>[] = sorted.map((c) => ({
       field: c.key,
       headerName: c.label,
@@ -175,6 +175,16 @@ export default function OrganizationsListPage() {
         }
 
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
+        if (c.key === 'validTill') {
+          const d = new Date(String(v))
+          if (!isNaN(d.getTime())) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            const day = String(d.getDate()).padStart(2, '0')
+            const month = months[d.getMonth()]
+            const year = d.getFullYear()
+            return `${day}-${month}-${year}`
+          }
+        }
         const lowerKey = c.key.toLowerCase()
         if (lowerKey === 'isActive' || lowerKey === 'status' || typeof v === 'boolean') {
           return <StatusBadge value={v} />

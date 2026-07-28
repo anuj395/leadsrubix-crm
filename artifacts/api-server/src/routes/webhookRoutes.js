@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { fillExtraFields } = require('../services/contactService');
+const { authenticate } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -46,55 +47,142 @@ function parsePhoneNumber(rawContact, inputCountryCode, defaultCountryCode = '+9
   }
 }
 
-// Convert seconds to HH:MM:SS format
-function secToTime(duration) {
-  const hrs = ~~(duration / 3600);
-  const mins = ~~((duration % 3600) / 60);
-  const secs = duration % 60;
-  let ret = "";
-  if (hrs > 0) {
-    ret += "" + hrs + ":" + (mins < 10 ? "0" : "");
+// Helper to log API transaction details dynamically
+const logApiTransaction = async (reqData, tokenData, status, failReason, leadId = '') => {
+  try {
+    const ApiData = mongoose.model('ApiData');
+    
+    // Spread all request data to store dynamically
+    const logDoc = {
+      ...reqData,
+      organization_id: tokenData?.organizationId || tokenData?.organization_id || reqData?.organizationId || reqData?.organization_id || 'unknown',
+      status: status,
+      fail_reason: failReason,
+      lead_id: leadId || reqData.leadId || reqData.lead_id || '',
+      created_at: new Date()
+    };
+    
+    await ApiData.create(logDoc);
+  } catch (err) {
+    console.error('Failed to log API transaction:', err);
   }
-  ret += "" + mins + ":" + (secs < 10 ? "0" : "");
-  ret += "" + secs;
-  return ret;
-}
+};
+
+// GET API logs (scoped by Organization)
+router.get('/api-data', authenticate, async (req, res, next) => {
+  try {
+    const ApiData = mongoose.model('ApiData');
+    const role = req.user.role;
+    const isSuperAdmin = role === 'superAdmin';
+
+    const filter = {};
+    if (!isSuperAdmin) {
+      filter.organization_id = req.user.organizationId || req.user.organization_id || req.user.industryId;
+    } else {
+      const orgId = req.query.organizationId || req.query.organization_id;
+      if (orgId && orgId !== 'all') {
+        filter.organization_id = orgId;
+      }
+    }
+
+    const { startDate, endDate, apiFilter } = req.query;
+    const dateFilter = {};
+    let start = null;
+    let end = new Date();
+
+    if (startDate) {
+      start = new Date(startDate);
+    } else if (apiFilter === '7') {
+      start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    } else if (apiFilter === '30') {
+      start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    if (endDate) {
+      end = new Date(endDate);
+    }
+
+    if (start) {
+      dateFilter.$gte = start;
+    }
+    dateFilter.$lte = end;
+    
+    if (start || endDate) {
+      filter.created_at = dateFilter;
+    }
+
+    const items = await ApiData.find(filter).sort({ created_at: -1 }).lean().exec();
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE API logs (purge logs)
+router.delete('/api-data', authenticate, async (req, res, next) => {
+  try {
+    const ApiData = mongoose.model('ApiData');
+    const role = req.user.role;
+    const isSuperAdmin = role === 'superAdmin';
+
+    const filter = {};
+    if (!isSuperAdmin) {
+      filter.organization_id = req.user.organizationId || req.user.organization_id || req.user.industryId;
+    } else {
+      const orgId = req.query.organizationId || req.query.organization_id;
+      if (orgId && orgId !== 'all') {
+        filter.organization_id = orgId;
+      }
+    }
+
+    await ApiData.deleteMany(filter).exec();
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post('/createContacts', async (req, res, next) => {
+  let reqData = req.body || {};
+  let tokenData = null;
+  
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
     const Contact = mongoose.model('Contact');
     const User = mongoose.model('User');
 
-    let reqData = req.body || {};
     const token = reqData.token || req.query.token;
 
     if (!token) {
       return res.status(200).json({ message: "Token Not Found" });
     }
 
-    const tokenData = await ApiToken.findOne({ api_key: token }).exec();
+    tokenData = await ApiToken.findOne({ api_key: token }).exec();
     if (!tokenData) {
       return res.status(200).json({ message: "Invalid Token" });
     }
 
     if (tokenData.status === "INACTIVE") {
+      await logApiTransaction(reqData, tokenData, "FAILED", "Token is Inactive");
       return res.status(200).json({ message: "Token is Inactive" });
     }
 
-    const contactNo = reqData.contactNumber || reqData.contact_no;
+    const contactNo = reqData.contactNumber || reqData.contact_number || reqData.contact_no;
     if (!contactNo) {
+      await logApiTransaction(reqData, tokenData, "FAILED", "Mobile Empty");
       return res.status(200).json({ message: "Mobile Empty" });
     }
 
     const customerName = reqData.customerName || reqData.customer_name || reqData.name;
     if (!customerName) {
+      await logApiTransaction(reqData, tokenData, "FAILED", "Invalid Customer Name");
       return res.status(200).json({ message: "Invalid Customer Name" });
     }
 
     const propertyType = reqData.propertyType || reqData.property_type;
     if (propertyType !== undefined && typeof propertyType !== "string") {
+      await logApiTransaction(reqData, tokenData, "FAILED", "Invalid Property Type");
       return res.status(200).json({ message: "Invalid Property Type" });
     }
 
@@ -117,6 +205,7 @@ router.post('/createContacts', async (req, res, next) => {
       }).exec();
 
       if (existing) {
+        await logApiTransaction(reqData, tokenData, "FAILED", "Duplicate Lead");
         // Send success message to simulate obfuscation/avoid enumeration
         return res.status(200).json({ message: "Thank You! We will get back to you soon" });
       }
@@ -125,7 +214,7 @@ router.post('/createContacts', async (req, res, next) => {
     // Owner Resolution
     let uid = '';
     let ownerUser = null;
-    const ownerEmail = reqData.ownerEmail || reqData.owner_email;
+    const ownerEmail = reqData.ownerEmail || reqData.owner_email || reqData.contact_owner_email;
     if (ownerEmail) {
       const userDoc = await User.findOne({
         organizationId: tokenData.organizationId,
@@ -135,6 +224,7 @@ router.post('/createContacts', async (req, res, next) => {
         uid = String(userDoc._id);
         ownerUser = userDoc;
       } else {
+        await logApiTransaction(reqData, tokenData, "FAILED", "Owner Not Found!");
         return res.status(200).json({ message: "Owner Not Found!" });
       }
     }
@@ -154,8 +244,6 @@ router.post('/createContacts', async (req, res, next) => {
 
     // Lead distribution logic fallback
     if (!uid) {
-      // In the new project, we assign to organization primary lead manager or falls back
-      // Let's search for an admin user of the organization
       const adminUser = await User.findOne({
         organizationId: tokenData.organizationId,
         role: 'admin'
@@ -167,40 +255,29 @@ router.post('/createContacts', async (req, res, next) => {
       }
     }
 
-    // Create the Contact in MongoDB
+    // Create the Contact in MongoDB dynamically (spreading reqData)
     const contactPayload = {
+      ...reqData,
       customerName,
       contactNumber: phoneResult.contactNumber,
-      emailId: reqData.email || reqData.emailId || reqData.email_id || "",
-      alternateNo: reqData.alternateNo || reqData.alternate_no ? String(reqData.alternateNo || reqData.alternate_no) : "",
-      associateStatus: true,
-      budget: reqData.budget ? String(reqData.budget) : "",
       countryCode: phoneResult.countryCode,
-      createdBy: reqData.createdBy || reqData.created_by ? String(reqData.createdBy || reqData.created_by) : "API Lead Webhook",
-      customerImage: "",
-      location: reqData.location ? String(reqData.location) : "",
-      leadType: "Leads",
-      projectName: reqData.project || reqData.projectName || reqData.project_name || "",
-      propertyStage: reqData.propertyStage || reqData.property_stage || "",
-      propertyType: propertyType || "",
-      propertySubType: reqData.propertySubType || reqData.property_sub_type || "",
-      source: tokenData.source || "API Integration",
-      sourceStatus: true,
-      stage: reqData.stage ? String(reqData.stage).toUpperCase() : "FRESH",
-      transferStatus: false,
-      uid: uid || null,
       organizationId: tokenData.organizationId,
-      contactOwnerEmail: (reqData.ownerEmail || reqData.owner_email) ? String(reqData.ownerEmail || reqData.owner_email).toLowerCase() : "",
-      campaign: reqData.campaign ? String(reqData.campaign) : "",
-      adset: reqData.adset ? String(reqData.adset) : "",
+      organization_id: tokenData.organizationId,
+      uid: uid || null,
+      stage: reqData.stage ? String(reqData.stage).toUpperCase() : "FRESH",
     };
 
     const normalizedPayload = fillExtraFields(contactPayload, ownerUser);
 
     const doc = await Contact.create(normalizedPayload);
 
+    await logApiTransaction(reqData, tokenData, "SUCCESS", "", String(doc._id));
+
     return res.status(200).json({ message: "Thank You! We will get back to you soon" });
   } catch (err) {
+    if (tokenData) {
+      await logApiTransaction(reqData, tokenData, "FAILED", err.message || "Internal Error");
+    }
     next(err);
   }
 });

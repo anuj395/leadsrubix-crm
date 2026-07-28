@@ -432,13 +432,13 @@ const SCREEN_DEFAULTS = [
       { field_key: 'address',       label: 'Address',       type: 'textarea', is_required: true,  order: 12 },
       { field_key: 'costPerLicense', label: 'License Cost', type: 'number', is_required: true, order: 20 },
       { field_key: 'validTill', label: 'Valid Till', type: 'date', is_required: true, order: 21 },
-      { field_key: 'allowDuplicateLeads', label: 'Allow Duplicate Leads', type: 'checkbox', is_form_visible: false, default_value: true, order: 13 },
-      { field_key: 'showAnalytics', label: 'Show Analytics', type: 'checkbox', is_form_visible: false, default_value: true, order: 14 },
+      { field_key: 'allowDuplicateLeads', label: 'Allow Duplicate Leads', type: 'checkbox', is_form_visible: false, is_table_visible: true, default_value: true, order: 13 },
+      { field_key: 'showAnalytics', label: 'Show Analytics', type: 'checkbox', is_form_visible: false, is_table_visible: true, default_value: true, order: 14 },
       { field_key: 'showData', label: 'Show Data', type: 'checkbox', is_form_visible: false, is_table_visible: false, default_value: true, order: 15 },
       { field_key: 'trialPeriod', label: 'Trial Period', type: 'checkbox', is_form_visible: false, is_table_visible: false, default_value: true, order: 16 },
       { field_key: 'designations', label: 'Designations', type: 'text', is_form_visible: false, is_table_visible: false, default_value: [], order: 17 },
       { field_key: 'teams', label: 'Teams', type: 'text', is_form_visible: false, is_table_visible: false, default_value: [], order: 18 },
-      { field_key: 'status', label: 'Status', type: 'text', is_form_visible: false, default_value: 'ACTIVE', order: 19 },
+      { field_key: 'status', label: 'Deactivate / Activate', type: 'text', is_form_visible: false, is_table_visible: true, default_value: 'ACTIVE', order: 19 },
     ],
   },
   {
@@ -707,13 +707,13 @@ async function seedScreens() {
 
   // Enable all fields for every (industry × role) combo we know about, so the
   // existing ContactsList / TasksList pages have data out of the box.
-  const industries = await Industry.find({ isActive: true }).lean().exec();
-  const roles = await Role.find({ isActive: true }).lean().exec();
+  const industries = await Industry.find({ is_active: true }).lean().exec();
+  const roles = await Role.find({ is_active: true }).lean().exec();
 
   let permCount = 0;
   for (const [, { screen, fields }] of fieldsByScreen) {
     for (const industry of industries) {
-      const industryRoles = roles.filter((r) => String(r.industryId) === String(industry._id));
+      const industryRoles = roles.filter((r) => String(r.industry_id || r.industryId) === String(industry._id));
       for (const role of industryRoles) {
         for (const field of fields) {
           await ScreenPermission.updateOne(

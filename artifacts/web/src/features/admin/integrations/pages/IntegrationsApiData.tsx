@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -6,170 +6,65 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
+import MenuItem from '@mui/material/MenuItem'
+import Select from '@mui/material/Select'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
+import LinearProgress from '@mui/material/LinearProgress'
 import {
   Visibility as ViewIcon,
   DeleteSweep as ClearIcon,
-  ArrowForward as OutgoingIcon,
-  ArrowBack as IncomingIcon,
-  ContentCopy as CopyIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { api } from '@/services/api'
+import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
 
 export interface ApiLog {
   id: string
-  timestamp: string
-  direction: 'Incoming' | 'Outgoing'
-  endpointName: string
-  payloadPreview: string
-  payloadFull: Record<string, any>
-  statusCode: number
-  responseTime: string
+  _id: string
+  created_at: string
+  customer_name: string
+  contact_no: string
+  email: string
+  alternate_no: string
+  country_code: string
+  associate_contact: string
+  budget: string
+  location: string
+  project: string
+  property_type: string
+  property_stage: string
+  property_sub_type: string
+  stage: string
+  lead_source: string
+  campaign: string
+  add_set: string
+  contact_owner_email: string
+  status: 'SUCCESS' | 'FAILED'
+  fail_reason: string
+  lead_id: string
+  lead_assign_time: string
 }
 
-const INITIAL_LOGS: ApiLog[] = [
-  {
-    id: 'log_1',
-    timestamp: '2026-06-15 12:35:14',
-    direction: 'Incoming',
-    endpointName: 'Facebook Lead Ads Webhook',
-    payloadPreview: '{"lead_id": "891029", "name": "John Doe", "email": "john.doe@gmail.com", "phone": "+15550192"}',
-    payloadFull: {
-      object: 'page',
-      entry: [
-        {
-          id: '10482930281',
-          time: 1781504141,
-          changes: [
-            {
-              value: {
-                form_id: '3829103829',
-                leadgen_id: '891029',
-                created_time: 1781504141,
-                page_id: '10482930281',
-                adgroup_id: '29301829',
-                ad_id: '9201820',
-                name: 'John Doe',
-                email: 'john.doe@gmail.com',
-                phone: '+15550192',
-                project: 'Villas at Meadowbrook',
-              },
-              field: 'leadgen',
-            },
-          ],
-        },
-      ],
-    },
-    statusCode: 200,
-    responseTime: '45ms',
-  },
-  {
-    id: 'log_2',
-    timestamp: '2026-06-15 12:30:02',
-    direction: 'Outgoing',
-    endpointName: 'Google Sheets Exporter',
-    payloadPreview: '{"spreadsheet_id": "sheet_12345", "range": "A2:G2", "values": [["John Doe", "john.doe@gmail.com"]]}',
-    payloadFull: {
-      action: 'append_row',
-      spreadsheetId: '1pZ5V9204_j12k9aLmN428a-sheets',
-      sheetName: 'Qualified Leads',
-      data: {
-        timestamp: '2026-06-15T07:00:02.128Z',
-        name: 'John Doe',
-        email: 'john.doe@gmail.com',
-        phone: '+15550192',
-        status: 'Qualified',
-        project: 'Villas at Meadowbrook',
-        source: 'Facebook Ads',
-      },
-    },
-    statusCode: 200,
-    responseTime: '310ms',
-  },
-  {
-    id: 'log_3',
-    timestamp: '2026-06-15 11:45:22',
-    direction: 'Incoming',
-    endpointName: 'SendGrid Email Status Webhook',
-    payloadPreview: '[{"email":"marketing@company.com","timestamp":1781501122,"event":"delivered","sg_event_id":"sg_123"}]',
-    payloadFull: [
-      {
-        email: 'customer.care@rubix.com',
-        timestamp: 1781501122,
-        event: 'delivered',
-        smtp_id: '<492018.mail@sendgrid.net>',
-        sg_event_id: 'sg_delivered_9a2f1b8c',
-        sg_message_id: 'msg_8291038.sg',
-        response: '250 2.0.0 OK 1781501122 q10si29381plg.100 - gsmtp',
-        tls: 1,
-      },
-    ],
-    statusCode: 201,
-    responseTime: '58ms',
-  },
-  {
-    id: 'log_4',
-    timestamp: '2026-06-15 11:12:05',
-    direction: 'Outgoing',
-    endpointName: 'Internal ERP Sync API',
-    payloadPreview: '{"error": "Unauthorized key", "code": "AUTH_009", "message": "Failed to connect to ERP catalog"}',
-    payloadFull: {
-      request: {
-        endpoint: '/api/v2/sync/leads',
-        method: 'PUT',
-        headers: {
-          Authorization: 'Bearer expired_token_xyz',
-        },
-        body: {
-          lead_id: 'lead_9028',
-          amount: 54000,
-          currency: 'USD',
-          customer_id: 'cust_00921',
-        },
-      },
-      response: {
-        status: 401,
-        statusText: 'Unauthorized',
-        body: {
-          error: 'Unauthorized key',
-          code: 'AUTH_009',
-          message: 'Failed to connect to ERP catalog. The provided Bearer token is expired or revoked.',
-        },
-      },
-    },
-    statusCode: 401,
-    responseTime: '120ms',
-  },
-  {
-    id: 'log_5',
-    timestamp: '2026-06-15 10:05:00',
-    direction: 'Incoming',
-    endpointName: 'Facebook Lead Ads Webhook',
-    payloadPreview: '{"error": "Bad Request", "message": "Signature verification failed. Invalid payload structure."}',
-    payloadFull: {
-      headers: {
-        'x-hub-signature-256': 'sha256=invalid_signature_hash_value',
-      },
-      raw_payload: 'unstructured_text_payload_failed_to_parse',
-      error: 'Signature verification failed. The secure webhook signature did not match.',
-    },
-    statusCode: 400,
-    responseTime: '20ms',
-  },
-]
-
 export default function IntegrationsApiDataPage() {
-  const [logs, setLogs] = useState<ApiLog[]>(INITIAL_LOGS)
+  const [logs, setLogs] = useState<ApiLog[]>([])
+  const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [apiFilter, setApiFilter] = useState('7') // 7 days, 30 days, or all
+  const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
+  
   const [selectedLog, setSelectedLog] = useState<ApiLog | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -178,15 +73,44 @@ export default function IntegrationsApiDataPage() {
     sev: 'success',
   })
 
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const filterQs = apiFilter !== 'all' ? `?apiFilter=${apiFilter}` : ''
+      const [logsRes, headersRes] = await Promise.all([
+        api.get(`/webhook/api-data${filterQs}`),
+        resolveScreen({ screen_key: 'contacts' })
+      ])
+      setLogs(logsRes.data || [])
+      setResolvedScreen(headersRes)
+    } catch (e: any) {
+      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to load API transaction logs', sev: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [apiFilter])
+
   const { confirmDelete } = useConfirm()
 
   const handleClearLogs = () => {
     confirmDelete({
-      title: 'Confirm Deletion',
-      message: 'Are you sure you want to purge all API synced logs? This action cannot be undone.',
-      onConfirm: () => {
-        setLogs([])
-        setToast({ open: true, msg: 'API logs cleared successfully', sev: 'success' })
+      title: 'Confirm Purging Logs',
+      message: 'Are you sure you want to delete all incoming API logs? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          setLoading(true)
+          await api.delete('/webhook/api-data')
+          setLogs([])
+          setToast({ open: true, msg: 'API logs cleared successfully', sev: 'success' })
+        } catch (e: any) {
+          setToast({ open: true, msg: e?.response?.data?.message || 'Failed to clear logs', sev: 'error' })
+        } finally {
+          setLoading(false)
+        }
       }
     })
   }
@@ -196,96 +120,119 @@ export default function IntegrationsApiDataPage() {
     setDialogOpen(true)
   }
 
-  const handleCopyPayload = () => {
-    if (!selectedLog) return
-    const text = JSON.stringify(selectedLog.payloadFull, null, 2)
-    navigator.clipboard.writeText(text)
-    setToast({ open: true, msg: 'Formatted JSON payload copied!', sev: 'success' })
+  const exportFile = () => {
+    if (!resolvedScreen) return;
+    
+    // Construct dynamic mappings based on active screen headers
+    const mappings = resolvedScreen.tableHeaders.reduce((acc, h) => {
+      acc[h.key] = h.label;
+      return acc;
+    }, {} as Record<string, string>);
+
+    const exportData = logs.map((item) => {
+      const row: Record<string, any> = {
+        'Status': item.status,
+        'Error Reason': item.fail_reason || 'N/A',
+        'Lead ID': item.lead_id || 'N/A',
+        'Created At': item.created_at ? new Date(item.created_at).toLocaleString() : '',
+      };
+
+      // Add dynamic fields mapped to their label names
+      resolvedScreen.tableHeaders.forEach((h) => {
+        const value = (item as any)[h.key] || (item as any)[h.key.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`)] || '';
+        row[h.label] = value;
+      });
+
+      return row;
+    });
+
+    if (exportData.length === 0) {
+      setToast({ open: true, msg: 'No data to export', sev: 'error' });
+      return;
+    }
+
+    // Generate CSV file content
+    const headers = Object.keys(exportData[0]);
+    const csvRows = [
+      headers.join(','),
+      ...exportData.map(row => 
+        headers.map(fieldName => JSON.stringify(row[fieldName] || '')).join(',')
+      )
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `API_Data_Export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   const filteredLogs = useMemo(() => {
-    if (!search.trim()) return logs
-    const query = search.toLowerCase()
-    return logs.filter(
-      (l) =>
-        l.endpointName.toLowerCase().includes(query) ||
-        l.payloadPreview.toLowerCase().includes(query) ||
-        String(l.statusCode).includes(query),
-    )
-  }, [logs, search])
+    let result = logs
 
-  const columns = useMemo<GridColDef<ApiLog>[]>(
-    () => [
+    // Apply status filter
+    if (statusFilter !== 'ALL') {
+      result = result.filter(l => l.status === statusFilter)
+    }
+
+    // Apply search query
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (l) =>
+          l.customer_name.toLowerCase().includes(q) ||
+          l.contact_no.includes(q) ||
+          (l.fail_reason && l.fail_reason.toLowerCase().includes(q))
+      )
+    }
+
+    return result
+  }, [logs, search, statusFilter])
+
+  const columns = useMemo<GridColDef<ApiLog>[]>(() => {
+    const cols: GridColDef<ApiLog>[] = [
       {
-        field: 'timestamp',
+        field: 'created_at',
         headerName: 'Timestamp',
         width: 170,
         renderCell: (p) => (
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-            {p.value}
+            {p.value ? new Date(p.value as string).toLocaleString() : ''}
           </Typography>
         ),
       },
       {
-        field: 'direction',
-        headerName: 'Direction',
-        width: 140,
+        field: 'status',
+        headerName: 'Status',
+        width: 120,
         renderCell: (p) => <StatusBadge value={p.value} />,
       },
       {
-        field: 'endpointName',
-        headerName: 'Endpoint Link Name',
-        flex: 1,
-        minWidth: 200,
-        renderCell: (p) => <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.value}</Typography>,
+        field: 'customer_name',
+        headerName: 'Customer Name',
+        width: 150,
+        renderCell: (p) => <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.value || 'N/A'}</Typography>,
       },
       {
-        field: 'payloadPreview',
-        headerName: 'Payload Preview',
-        flex: 1.5,
-        minWidth: 280,
-        renderCell: (p) => (
-          <Box
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.75rem',
-              color: 'text.secondary',
-              backgroundColor: 'action.hover',
-              p: 0.5,
-              borderRadius: '4px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '95%',
-            }}
-          >
-            {p.value}
-          </Box>
-        ),
+        field: 'contact_no',
+        headerName: 'Contact Number',
+        width: 150,
+        renderCell: (p) => p.value || 'N/A',
       },
       {
-        field: 'statusCode',
-        headerName: 'HTTP Status',
-        width: 120,
-        renderCell: (p) => {
-          const code = p.value as number
-          let statusText = String(code)
-          if (code >= 200 && code < 300) statusText = `Success (${code})`
-          else if (code >= 300 && code < 500) statusText = `Warning (${code})`
-          else statusText = `Error (${code})`
-
-          return <StatusBadge value={statusText} />
-        },
+        field: 'lead_source',
+        headerName: 'Source',
+        width: 140,
+        renderCell: (p) => p.value || 'API Integration',
       },
       {
-        field: 'responseTime',
-        headerName: 'Latency',
-        width: 100,
-        renderCell: (p) => (
-          <Typography variant="body2" color="text.secondary">
-            {p.value}
-          </Typography>
-        ),
+        field: 'fail_reason',
+        headerName: 'Error Reason',
+        flex: 1.2,
+        minWidth: 180,
+        renderCell: (p) => p.value || <em style={{ color: '#aaa' }}>None</em>,
       },
       {
         field: '__actions',
@@ -294,16 +241,17 @@ export default function IntegrationsApiDataPage() {
         sortable: false,
         filterable: false,
         renderCell: (p) => (
-          <Tooltip title="View Full Payload JSON">
+          <Tooltip title="View Transaction Details">
             <IconButton size="small" onClick={() => handleOpenDetail(p.row)}>
               <ViewIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         ),
       },
-    ],
-    [],
-  )
+    ]
+
+    return cols
+  }, [resolvedScreen])
 
   return (
     <Box
@@ -319,73 +267,134 @@ export default function IntegrationsApiDataPage() {
     >
       <AppCard
         title="API Data Transaction Logs"
-        subtitle="Monitor incoming webhooks payloads, outgoing sync packets, latency profiles, and API endpoint delivery receipts."
+        subtitle="Monitor incoming webhooks payloads, duplicate validations, status codes, and API transaction metrics."
         action={
-          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-            <TextField
-              size="small"
-              placeholder="Search logs..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ width: 220 }}
-            />
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<ClearIcon />}
-              onClick={handleClearLogs}
-              disabled={logs.length === 0}
-            >
-              Clear Logs
-            </Button>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <FormControl size="small" sx={{ width: 140 }}>
+              <InputLabel>Date Filter</InputLabel>
+              <Select
+                value={apiFilter}
+                label="Date Filter"
+                onChange={(e) => setApiFilter(e.target.value)}
+              >
+                <MenuItem value="7">Last 7 Days</MenuItem>
+                <MenuItem value="30">Last 30 Days</MenuItem>
+                <MenuItem value="all">All Logs</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ width: 140 }}>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Status"
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="ALL">All Statuses</MenuItem>
+                <MenuItem value="SUCCESS">Success Only</MenuItem>
+                <MenuItem value="FAILED">Failed Only</MenuItem>
+              </Select>
+            </FormControl>
           </Stack>
         }
         fullHeight
       >
-        <AppDataGrid height="100%" rows={filteredLogs} columns={columns} getRowId={(r) => r.id} />
+        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative', mt: 1 }}>
+          {loading && (
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+              <LinearProgress />
+            </Box>
+          )}
+          <AppDataGrid height="100%" rows={filteredLogs} columns={columns} getRowId={(r) => r._id || r.id} />
+        </Box>
       </AppCard>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h6" component="span">
-              Payload Sync Details
+              API Transaction Details
             </Typography>
             <Typography variant="caption" display="block" color="text.secondary">
-              ID: {selectedLog?.id} | {selectedLog?.timestamp}
+              ID: {selectedLog?._id || selectedLog?.id} | {selectedLog?.created_at ? new Date(selectedLog.created_at).toLocaleString() : ''}
             </Typography>
           </Box>
-          <Button startIcon={<CopyIcon />} size="small" onClick={handleCopyPayload} variant="outlined">
-            Copy JSON
-          </Button>
         </DialogTitle>
-        <DialogContent dividers sx={{ p: 0 }}>
-          <Box
-            sx={{
-              p: 2,
-              backgroundColor: '#1E1E1E',
-              color: '#D4D4D4',
-              fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
-              fontSize: '0.85rem',
-              overflowX: 'auto',
-              maxHeight: '400px',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {selectedLog ? JSON.stringify(selectedLog.payloadFull, null, 2) : ''}
-          </Box>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Customer Name</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.customer_name || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Contact Number</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.contact_no || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Email ID</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.email || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Project</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.project || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Budget</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.budget || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Location</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.location || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Property Type</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.property_type || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Lead Source</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.lead_source || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Owner Email</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.contact_owner_email || 'N/A'}</Typography>
+              </Box>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" color="text.secondary">Full Payload Attributes</Typography>
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 2,
+                  backgroundColor: '#1E1E1E',
+                  color: '#D4D4D4',
+                  fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
+                  fontSize: '0.85rem',
+                  overflowX: 'auto',
+                  maxHeight: '250px',
+                  whiteSpace: 'pre-wrap',
+                  borderRadius: 1
+                }}
+              >
+                {selectedLog ? JSON.stringify(selectedLog, null, 2) : ''}
+              </Box>
+            </Box>
+          </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, px: 1 }}>
             <Typography variant="body2">
-              Status Code:{' '}
-              <span style={{ fontWeight: 700, color: selectedLog && selectedLog.statusCode < 300 ? '#4CAF50' : '#FF9800' }}>
-                {selectedLog?.statusCode}
+              Status:{' '}
+              <span style={{ fontWeight: 700, color: selectedLog && selectedLog.status === 'SUCCESS' ? '#4CAF50' : '#FF9800' }}>
+                {selectedLog?.status}
               </span>
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              | Latency: {selectedLog?.responseTime}
-            </Typography>
+            {selectedLog?.fail_reason && (
+              <Typography variant="body2" color="error" sx={{ ml: 2 }}>
+                Reason: {selectedLog.fail_reason}
+              </Typography>
+            )}
           </Box>
           <Button onClick={() => setDialogOpen(false)} variant="contained">
             Close
