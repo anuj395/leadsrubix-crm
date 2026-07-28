@@ -44,6 +44,8 @@ import { getScreens, resolveScreen, type Screen, type ResolvedScreen, type Resol
 import { getResources, createResource, updateResource, deleteResource } from '@/services/resourcesService'
 import { api } from '@/services/api'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { compressImage } from '@/utils/imageCompressor'
+
 
 export default function ResourcesPage() {
   const user = useAppSelector((s) => s.auth.user)
@@ -730,9 +732,8 @@ export default function ResourcesPage() {
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) {
-                  const reader = new FileReader()
-                  reader.onload = (event) => {
-                    const base64 = event.target?.result as string
+                  compressImage(file).then((base64) => {
+                    if (!base64) return
                     setFormValues((prev) => {
                       const next: Record<string, any> = { ...prev, [field.key]: base64 }
                       if (prev.hasOwnProperty('image_name')) {
@@ -740,8 +741,7 @@ export default function ResourcesPage() {
                       }
                       return next
                     })
-                  }
-                  reader.readAsDataURL(file)
+                  })
                 }
               }}
             />

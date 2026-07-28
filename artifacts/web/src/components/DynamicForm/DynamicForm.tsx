@@ -35,6 +35,8 @@ import Autocomplete from '@mui/material/Autocomplete'
 import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
 import { api } from '@/services/api'
 import { useAuth } from '@/hooks/useAuth'
+import { compressImage } from '@/utils/imageCompressor'
+
 
 type Value = string | number | boolean | null | string[]
 
@@ -780,9 +782,8 @@ export function DynamicForm({
                       return next;
                     });
 
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      const base64 = event.target?.result as string;
+                    compressImage(file).then((base64) => {
+                      if (!base64) return;
                       setValue(f.key, base64);
                       // If the form has an imageName field, update it automatically
                       if (values.hasOwnProperty('imageName')) {
@@ -790,8 +791,7 @@ export function DynamicForm({
                       } else if (values.hasOwnProperty('image_name')) {
                         setValue('image_name', file.name);
                       }
-                    };
-                    reader.readAsDataURL(file);
+                    });
                   }}
                 />
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, alignItems: 'center', width: '100%' }}>
