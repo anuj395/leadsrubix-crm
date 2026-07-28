@@ -748,6 +748,49 @@ exports.deleteForUser = async ({ id, authedUser }) => {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
+  // Cascading deletes
+  const Task = mongoose.model('Task');
+  const CallLog = mongoose.model('CallLog');
+  const Booking = mongoose.model('Booking');
+  const ResourceItem = mongoose.model('OrganizationResources');
+
+  await Task.deleteMany({
+    $or: [
+      { contact_id: id },
+      { contactId: id }
+    ]
+  });
+
+  await CallLog.deleteMany({
+    $or: [
+      { contact_id: id },
+      { contactId: id }
+    ]
+  });
+
+  await Booking.deleteMany({
+    $or: [
+      { contact_id: id },
+      { contactId: id }
+    ]
+  });
+
+  await ResourceItem.updateMany(
+    {},
+    {
+      $pull: {
+        notes: {
+          $or: [
+            { contact_id: id },
+            { contactId: id },
+            { contact_id: String(id) },
+            { contactId: String(id) }
+          ]
+        }
+      }
+    }
+  );
+
   await contactModel.remove(id);
 };
 
