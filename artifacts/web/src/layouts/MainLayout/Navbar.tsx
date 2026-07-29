@@ -86,6 +86,24 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
     const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null)
     const [isRotating, setIsRotating] = useState(false)
 
+    const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null)
+    const [notifications, setNotifications] = useState([
+        { id: '1', title: 'New Facebook Lead Synced', message: 'John Doe via Facebook Ads', time: 'Just now', unread: true },
+        { id: '2', title: 'WhatsApp Connected', message: 'WhatsApp API Configuration successfully integrated', time: '1 hour ago', unread: true },
+        { id: '3', title: 'Welcome to Leads Rubix', message: 'Get started by configuring your screens and settings.', time: '1 day ago', unread: false }
+    ])
+    const unreadCount = notifications.filter(n => n.unread).length
+
+    const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
+        setNotificationAnchor(event.currentTarget)
+    }
+    const handleNotificationClose = () => {
+        setNotificationAnchor(null)
+    }
+    const handleMarkAllNotificationsAsRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, unread: false })))
+    }
+
     const handleThemeToggle = () => {
         setIsRotating(true)
         toggleMode()
@@ -336,8 +354,16 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     </IconButton>
 
                     {/* Notifications */}
-                    <IconButton sx={iconBtnSx} aria-label="Notifications">
-                        <Badge color="error" variant="dot" overlap="circular">
+                    <IconButton 
+                        sx={{
+                            ...iconBtnSx,
+                            borderColor: Boolean(notificationAnchor) ? theme.palette.secondary.main : theme.palette.divider,
+                            backgroundColor: Boolean(notificationAnchor) ? alpha(theme.palette.secondary.main, 0.05) : theme.palette.background.default,
+                        }} 
+                        onClick={handleNotificationOpen}
+                        aria-label="Notifications"
+                    >
+                        <Badge color="error" badgeContent={unreadCount} invisible={unreadCount === 0} overlap="circular">
                             <NotificationsNoneRoundedIcon fontSize="small" />
                         </Badge>
                     </IconButton>
@@ -429,6 +455,80 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     </ButtonBase>
                 </Stack>
             </Stack>
+
+            {/* Notifications Popover */}
+            <Popover
+                id="navbar-notifications-popover"
+                open={Boolean(notificationAnchor)}
+                anchorEl={notificationAnchor}
+                onClose={handleNotificationClose}
+                slots={{ transition: Fade }}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            mt: 0.75,
+                            width: { xs: 'calc(100vw - 2rem)', sm: 320 },
+                            maxWidth: 'calc(100vw - 2rem)',
+                            overflow: 'hidden',
+                            borderRadius: '14px',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+                        },
+                    },
+                }}
+                transitionDuration={{ appear: 0, enter: 160, exit: 120 }}
+            >
+                <Stack sx={{ p: 2, pb: 1.5 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'rgb(39, 41, 68)' }}>
+                            Notifications
+                        </Typography>
+                        {unreadCount > 0 && (
+                            <ButtonBase 
+                                onClick={handleMarkAllNotificationsAsRead}
+                                sx={{ 
+                                    color: theme.palette.secondary.main, 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: 600,
+                                    '&:hover': { textDecoration: 'underline' }
+                                }}
+                            >
+                                Mark all as read
+                            </ButtonBase>
+                        )}
+                    </Stack>
+                    <Divider sx={{ mx: -2, mb: 1 }} />
+                    <Stack spacing={1.5} sx={{ maxHeight: 280, overflowY: 'auto', pr: 0.5 }}>
+                        {notifications.length === 0 ? (
+                            <Box sx={{ py: 4, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    No new notifications
+                                </Typography>
+                            </Box>
+                        ) : (
+                            notifications.map((n) => (
+                                <Box key={n.id} sx={{ position: 'relative', display: 'flex', flexDirection: 'column', p: 1.25, borderRadius: '8px', bgcolor: n.unread ? alpha(theme.palette.secondary.main, 0.04) : 'transparent', border: `1px solid ${n.unread ? alpha(theme.palette.secondary.main, 0.08) : 'transparent'}` }}>
+                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                                        {n.unread && (
+                                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'error.main' }} />
+                                        )}
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgb(39, 41, 68)', fontSize: '0.8125rem' }}>
+                                            {n.title}
+                                        </Typography>
+                                    </Stack>
+                                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                                        {n.message}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6875rem' }}>
+                                        {n.time}
+                                    </Typography>
+                                </Box>
+                            ))
+                        )}
+                    </Stack>
+                </Stack>
+            </Popover>
 
             {/* Profile popover */}
             <Popover

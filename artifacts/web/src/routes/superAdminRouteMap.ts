@@ -6,6 +6,7 @@ import UserFormPage from '@/features/superAdmin/users/pages/UserForm'
 import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
 
 import ContactsListPage from '@/features/superAdmin/leads/pages/ContactsList'
+import AddContactPage from '@/features/admin/leads/pages/AddContact'
 import TasksListPage from '@/features/superAdmin/leads/pages/TasksList'
 import CallLogsListPage from '@/features/superAdmin/leads/pages/CallLogsList'
 import BookingsListPage from '@/features/superAdmin/leads/pages/BookingsList'
@@ -72,8 +73,10 @@ export const routeComponentMap: Record<string, any> = {
   "/users/roles": RolesAndPermissionsPage,
 
   "/leads/contacts": ContactsListPage,
+  "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,
   "/leads/contacts/:id/interested": InterestedDetailsPage,
+  "/leads/contacts/:id/edit": AddContactPage,
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
   // "/leads/bookings": BookingsListPage,
