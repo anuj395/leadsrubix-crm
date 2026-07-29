@@ -8,11 +8,11 @@ const apiTokenSchema = new mongoose.Schema(
     lead_source_id: { type: String, default: null, alias: 'leadSourceId' }, // camelCase matching Firebase
     country_code: { type: String, default: '+91', alias: 'countryCode' },
     status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },
-    access_token: { type: String },
-    facebook_pages: { type: Array },
-    page_id: { type: Array },
-    app_id: { type: String },
-    app_secret: { type: String },
+    access_token: { type: String, alias: 'accessToken' },
+    facebook_pages: { type: Array, alias: 'facebookPages' },
+    page_id: { type: Array, alias: 'pageId' },
+    app_id: { type: String, alias: 'appId' },
+    app_secret: { type: String, alias: 'appSecret' },
   },
   { 
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

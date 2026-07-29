@@ -24,6 +24,7 @@ require('./models/newsModel');
 require('./models/whatsappConfigModel');
 require('./models/resourceItemModel');
 require('./models/apiTokenModel');
+require('./models/apiDataModel');
 require('./models/leadDistributionModel');
 require('./models/dropdownOptionModel');
 require('./models/teamModel');

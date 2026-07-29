@@ -229,6 +229,27 @@ router.delete('/:id', authenticate, async (req, res, next) => {
 
 // --- Facebook Integration Endpoints ---
 
+router.post('/facebook/exchange', authenticate, async (req, res, next) => {
+  try {
+    const { shortToken } = req.body;
+    if (!shortToken) {
+      return res.status(400).json({ message: 'shortToken is required' });
+    }
+    const axios = require('axios');
+    const response = await axios.get('https://graph.facebook.com/oauth/access_token', {
+      params: {
+        grant_type: 'fb_exchange_token',
+        client_id: process.env.FB_APP_ID || '296542553118517',
+        client_secret: process.env.FB_APP_SECRET || '143f8ed7ddec986f25598654d8b686f6',
+        fb_exchange_token: shortToken,
+      },
+    });
+    res.json({ longToken: response.data.access_token });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/facebook', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
@@ -259,10 +280,10 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
     const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
     const orgId = org ? (org.organizationId || org.organizationId) : null;
     
-    const { access_token, app_id, app_secret } = req.body;
+    const { accessToken, appId, appSecret } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
       { organizationId: orgId, source: { $regex: /^facebook$/i } },
-      { access_token, app_id, app_secret },
+      { access_token: accessToken, app_id: appId, app_secret: appSecret },
       { new: true, upsert: true }
     );
     res.json(doc);
@@ -278,10 +299,10 @@ router.put('/facebook/pages', authenticate, async (req, res, next) => {
     const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
     const orgId = org ? (org.organizationId || org.organizationId) : null;
     
-    const { facebook_pages } = req.body;
+    const { facebookPages } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
       { organizationId: orgId, source: { $regex: /^facebook$/i } },
-      { facebook_pages },
+      { facebook_pages: facebookPages },
       { new: true, upsert: true }
     );
     res.json(doc);
@@ -297,10 +318,10 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
     const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
     const orgId = org ? (org.organizationId || org.organizationId) : null;
     
-    const { page_id } = req.body;
+    const { pageId } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
       { organizationId: orgId, source: { $regex: /^facebook$/i } },
-      { $addToSet: { page_id: { $each: Array.isArray(page_id) ? page_id : [page_id] } } },
+      { $addToSet: { page_id: { $each: Array.isArray(pageId) ? pageId : [pageId] } } },
       { new: true, upsert: true }
     );
     res.json(doc);
@@ -316,10 +337,10 @@ router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
     const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
     const orgId = org ? (org.organizationId || org.organizationId) : null;
     
-    const { page_id } = req.body;
+    const { pageId } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
       { organizationId: orgId, source: { $regex: /^facebook$/i } },
-      { $pull: { page_id: page_id } },
+      { $pull: { page_id: pageId } },
       { new: true }
     );
     res.json(doc);

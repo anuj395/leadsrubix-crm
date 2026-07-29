@@ -77,10 +77,18 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
   // 2. Fetch list of organizations from the Organizations collection (Super Admin only)
   let organizationsList = [];
   if (isSuperAdmin) {
-    const orgDocs = await Organization.find({ isActive: { $ne: false } }).select('organizationId organizationName industryId').lean().exec();
+    const orgDocs = await Organization.find({
+      $or: [
+        { isActive: { $ne: false } },
+        { is_active: { $ne: false } }
+      ]
+    })
+      .select('organizationId organization_id organizationName organization_name industryId industry_id')
+      .lean()
+      .exec();
     organizationsList = orgDocs.map(o => ({
-      code: o.organizationId,
-      name: o.organizationName || 'Unnamed Organization'
+      code: o.organizationId || o.organization_id,
+      name: o.organizationName || o.organization_name || 'Unnamed Organization'
     }));
   }
 
