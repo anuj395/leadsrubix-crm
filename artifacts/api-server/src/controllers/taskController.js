@@ -3,6 +3,24 @@ const moment = require('moment');
 const { Task } = require('../models/taskModel');
 const { User } = require('../models/userModel');
 const { Contact } = require('../models/contactModel');
+const { convertKeysToCamelCase } = require('../services/crudFactory');
+
+function maskPhone(phone) {
+  if (!phone) return '';
+  const clean = String(phone).replace(/\s+/g, '');
+  if (clean.length <= 4) return clean;
+  return '*'.repeat(clean.length - 4) + clean.slice(-4);
+}
+
+function maskEmail(email) {
+  if (!email) return '';
+  const parts = String(email).split('@');
+  if (parts.length !== 2) return email;
+  const name = parts[0];
+  const domain = parts[1];
+  if (name.length <= 2) return '*'.repeat(name.length) + '@' + domain;
+  return name.slice(0, 2) + '*'.repeat(name.length - 2) + '@' + domain;
+}
 
 const datesField = [
   'createdAt',
@@ -560,3 +578,230 @@ taskController.TasksReport = async (req, res) => {
 };
 
 module.exports = taskController;
+
+const getOrganizationName = async (orgId) => {
+  try {
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({ organization_id: orgId }).lean().exec();
+    return org ? (org.organization_name || org.name) : "Unknown Organization";
+  } catch (error) {
+    console.error("Error fetching organization name:", error);
+    return "Unknown Organization";
+  }
+};
+
+const buildTaskQuery = async (req) => {
+  let filter = req.body.filter || {};
+  const missed = req.body.missed;
+  const searchString = req.body.searchString ? req.body.searchString.trim() : '';
+
+  const resolvedFilter = {};
+
+  if (filter.organization_name) {
+    const Organization = mongoose.model('Organization');
+    const orgDocs = await Organization.find(
+      { organization_name: { $in: filter.organization_name } },
+      { organization_id: 1, _id: 0 }
+    );
+    const orgIds = orgDocs.map((o) => o.organization_id.toString());
+    resolvedFilter.organization_id = { $in: orgIds };
+  }
+
+  const taskDates = ['dueDate', 'due_date', 'completedAt', 'completed_at', 'createdAt', 'updatedAt'];
+  const taskBools = ['transferStatus', 'transfer_status', 'uniqueMeeting', 'unique_meeting', 'uniqueSiteVisit', 'unique_site_visit'];
+
+  Object.keys(filter).forEach((key) => {
+    if (key === 'organization_name') return;
+
+    let dbKey = key;
+    if (key === 'organizationId') dbKey = 'organization_id';
+    else if (key === 'dueDate') dbKey = 'due_date';
+    else if (key === 'callbackReason') dbKey = 'callback_reason';
+    else if (key === 'customerName') dbKey = 'customer_name';
+    else if (key === 'contactNumber') dbKey = 'contact_number';
+    else if (key === 'createdBy') dbKey = 'created_by';
+    else if (key === 'contactOwnerEmail') dbKey = 'contact_owner_email';
+    else if (key === 'projectName') dbKey = 'project_name';
+    else if (key === 'transferStatus') dbKey = 'transfer_status';
+    else if (key === 'uniqueMeeting') dbKey = 'unique_meeting';
+    else if (key === 'uniqueSiteVisit') dbKey = 'unique_site_visit';
+    else if (key === 'completedAt') dbKey = 'completed_at';
+    else if (key === 'inventoryType') dbKey = 'inventory_type';
+    else if (key === 'taskType') dbKey = 'task_type';
+    else if (key === 'nextFollowUp') dbKey = 'next_follow_up';
+
+    if (taskDates.includes(key) || taskDates.includes(dbKey)) {
+      if (Array.isArray(filter[key]) && filter[key].length === 2) {
+        resolvedFilter[dbKey] = {
+          $gte: new Date(filter[key][0]),
+          $lte: new Date(filter[key][1]),
+        };
+      }
+    } else if (taskBools.includes(key) || taskBools.includes(dbKey)) {
+      resolvedFilter[dbKey] = filter[key].map((v) =>
+        v === "True" || v === true ? true : false
+      );
+    } else {
+      resolvedFilter[dbKey] = { $in: filter[key] };
+      
+      if (dbKey === 'status' && resolvedFilter[dbKey]['$in'].includes('Overdue')) {
+        resolvedFilter[dbKey]['$in'] = resolvedFilter[dbKey]['$in'].filter((k) => k !== 'Overdue');
+        if (!resolvedFilter[dbKey]['$in'].includes('PENDING') && !resolvedFilter[dbKey]['$in'].includes('Pending')) {
+          resolvedFilter[dbKey]['$in'].push('PENDING');
+          resolvedFilter['due_date'] = { $lte: moment().utcOffset('+05:30').toDate() };
+        }
+      } else if (
+        dbKey === 'status' &&
+        (resolvedFilter[dbKey]['$in'].includes('PENDING') || resolvedFilter[dbKey]['$in'].includes('Pending')) &&
+        !resolvedFilter[dbKey]['$in'].includes('Overdue')
+      ) {
+        resolvedFilter['due_date'] = { $gt: moment().utcOffset('+05:30').toDate() };
+      }
+    }
+  });
+
+  if (missed === true) {
+    resolvedFilter['next_follow_up'] = {
+      $lt: moment().utcOffset('+05:30').toDate(),
+    };
+  }
+
+  let customer_name_list = [];
+  let contact_list = [];
+
+  if (searchString) {
+    searchString.split(',').forEach((string) => {
+      const search = string.trim();
+      if (!search) return;
+      const re = new RegExp(search, 'i');
+      if (search.match(/^[0-9]+$/)) {
+        contact_list.push(re);
+      } else {
+        customer_name_list.push(re);
+      }
+    });
+  }
+
+  if (contact_list.length > 0) {
+    resolvedFilter['$or'] = [
+      { contact_number: { $in: contact_list } }
+    ];
+  }
+
+  if (customer_name_list.length > 0) {
+    resolvedFilter['customer_name'] = { $in: customer_name_list };
+  }
+
+  if (req.user?.role !== 'superAdmin') {
+    resolvedFilter['organization_id'] = req.user?.organizationId;
+  }
+
+  return resolvedFilter;
+};
+
+taskController.MasterSearch = async (req, res, next) => {
+  try {
+    const page = Number(req.body.page) || 1;
+    const pageSize = Number(req.body.pageSize) || 50;
+    const sort = req.body.sort || {};
+
+    const query = await buildTaskQuery(req);
+    const tasks = await Task.find(query)
+      .sort(sort)
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
+
+    const enrichedTasks = await Promise.all(
+      tasks.map(async (task) => {
+        const orgId = task.organization_id || task.organizationId;
+        const orgName = await getOrganizationName(orgId);
+        return {
+          ...(task.toObject?.() || task),
+          organization_name: orgName,
+        };
+      })
+    );
+
+    res.json(convertKeysToCamelCase(enrichedTasks));
+  } catch (err) {
+    next(err);
+  }
+};
+
+taskController.MaskMasterSearch = async (req, res, next) => {
+  try {
+    const page = Number(req.body.page) || 1;
+    const pageSize = Number(req.body.pageSize) || 50;
+    const sort = req.body.sort || {};
+
+    const query = await buildTaskQuery(req);
+    const tasks = await Task.find(query)
+      .sort(sort)
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
+
+    const enrichedTasks = await Promise.all(
+      tasks.map(async (task) => {
+        const orgId = task.organization_id || task.organizationId;
+        const orgName = await getOrganizationName(orgId);
+        const taskObj = task.toObject?.() || task;
+
+        if (taskObj.contact_number) taskObj.contact_number = maskPhone(taskObj.contact_number);
+        if (taskObj.contactNumber) taskObj.contactNumber = maskPhone(taskObj.contactNumber);
+        if (taskObj.email) taskObj.email = maskEmail(taskObj.email);
+        if (taskObj.contactOwnerEmail) taskObj.contactOwnerEmail = maskEmail(taskObj.contactOwnerEmail);
+
+        return {
+          ...taskObj,
+          organization_name: orgName,
+        };
+      })
+    );
+
+    res.json(convertKeysToCamelCase(enrichedTasks));
+  } catch (err) {
+    next(err);
+  }
+};
+
+taskController.MasterContactCount = async (req, res, next) => {
+  try {
+    const query = await buildTaskQuery(req);
+    const total = await Task.countDocuments(query);
+    res.json({ total });
+  } catch (err) {
+    next(err);
+  }
+};
+
+taskController.MasterFilterValues = async (req, res, next) => {
+  try {
+    const query = await buildTaskQuery(req);
+    
+    const budget = await Task.distinct('budget', query);
+    const source = await Task.distinct('source', query);
+    const location = await Task.distinct('location', query);
+    const stage = await Task.distinct('stage', query);
+    const projectName = await Task.distinct('project_name', query);
+    const type = await Task.distinct('type', query);
+    const contactOwnerEmail = await Task.distinct('contact_owner_email', query);
+
+    const organizationIds = await Task.distinct('organization_id', query);
+    const Organization = mongoose.model('Organization');
+    const orgDocs = await Organization.find({ organization_id: { $in: organizationIds } }).lean().exec();
+    const organizationNames = orgDocs.map(o => o.organization_name || o.name).filter(Boolean);
+
+    res.json([{
+      budget: budget.filter(Boolean).sort(),
+      source: source.filter(Boolean).sort(),
+      location: location.filter(Boolean).sort(),
+      stage: stage.filter(Boolean).sort(),
+      projectName: projectName.filter(Boolean).sort(),
+      type: type.filter(Boolean).sort(),
+      contactOwnerEmail: contactOwnerEmail.filter(Boolean).sort(),
+      organizationName: organizationNames.sort(),
+    }]);
+  } catch (err) {
+    next(err);
+  }
+};

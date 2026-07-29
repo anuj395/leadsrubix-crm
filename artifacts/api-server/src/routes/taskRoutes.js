@@ -9,7 +9,13 @@ const controller = buildController({
   allowedSort: ['createdAt', 'updatedAt', 'dueDate'],
 });
 
+const taskController = require('../controllers/taskController');
 const router = buildRouter(controller, { authenticate });
+
+router.post('/masterSearch', authenticate, taskController.MasterSearch);
+router.post('/maskMasterSearch', authenticate, taskController.MaskMasterSearch);
+router.post('/masterFilterValues', authenticate, taskController.MasterFilterValues);
+router.post('/masterContactCount', authenticate, taskController.MasterContactCount);
 
 router.post('/uniqueTaskTypeUpdate', authenticate, async (req, res, next) => {
   try {
