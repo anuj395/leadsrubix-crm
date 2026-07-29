@@ -17,25 +17,52 @@ interface FormModelProps {
   dispatcher: any
   projectsList: any[]
   setExpandedId: (id: string | null) => void
+  onSave?: (updatedPages: any[]) => Promise<void>
 }
 
 export default function FormModel({
   pageFormsData = [],
   pageId,
+  allFacebookPages = [],
   projectsList = [],
   setExpandedId,
+  onSave,
 }: FormModelProps) {
-  const [mappings, setMappings] = useState<Record<string, string>>({})
+  const [mappings, setMappings] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    pageFormsData.forEach((form) => {
+      initial[form.id] = form.projectId || form.project_id || ''
+    })
+    return initial
+  })
 
   const handleProjectChange = (formId: string, projectId: string) => {
-    setMappings(prev => ({
+    setMappings((prev) => ({
       ...prev,
       [formId]: projectId,
     }))
   }
 
-  const handleSaveMapping = (formId: string) => {
-    alert(`Successfully mapped Form ID ${formId} to Project ID ${mappings[formId] || 'None'}`)
+  const handleSaveMapping = async (formId: string) => {
+    const targetProjId = mappings[formId] || ''
+    const updatedPages = allFacebookPages.map((page: any) => {
+      if (String(page.id) === String(pageId)) {
+        const updatedForms = (page.form_data || page.formData || []).map((form: any) => {
+          if (String(form.id) === String(formId)) {
+            return { ...form, projectId: targetProjId }
+          }
+          return form
+        })
+        return { ...page, form_data: updatedForms }
+      }
+      return page
+    })
+
+    if (onSave) {
+      await onSave(updatedPages)
+    } else {
+      alert(`Mapped Form ID ${formId} to Project ID ${targetProjId}`)
+    }
     setExpandedId(null)
   }
 

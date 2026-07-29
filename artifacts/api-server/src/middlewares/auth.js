@@ -27,7 +27,7 @@ module.exports.authenticate = async (req, res, next) => {
     req.user = {
       id: String(fresh._id),
       role: fresh.role,
-      industryId: fresh.industryId,
+      industryId: fresh.industry_id?.code || String(fresh.industry_id || ''),
       organizationId: fresh.organizationId,
       organizationName: fresh.organizationName,
       email: fresh.email,
@@ -39,7 +39,7 @@ module.exports.authenticate = async (req, res, next) => {
     if (fresh.role !== 'superAdmin' && fresh.industryId) {
       const mongoose = require('mongoose');
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: fresh.industryId });
+      const org = await Organization.findOne({ industry_id: fresh.industry_id?.code || fresh.industry_id });
       if (org) {
         let isExpired = false;
         const now = new Date();

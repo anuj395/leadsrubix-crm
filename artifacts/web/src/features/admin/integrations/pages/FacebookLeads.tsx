@@ -54,11 +54,11 @@ export default function FacebookLeadsPage() {
       setFbConfig(resConfig.data)
       setProjectsList(resProjects.data || [])
 
-      if (resConfig.data?.access_token) {
+      if (resConfig.data?.accessToken) {
         setLoginStatus(true)
         // Set loaded active pages
-        const allPages = resConfig.data.facebook_pages || []
-        const pageIds = resConfig.data.page_id || []
+        const allPages = resConfig.data.facebookPages || []
+        const pageIds = resConfig.data.pageId || []
         setActivePages(allPages.filter((p: any) => pageIds.includes(p.id)))
       }
     } catch (e: any) {
@@ -120,22 +120,16 @@ export default function FacebookLeadsPage() {
 
   const APICallAccessToken = async (authResponse: any) => {
     try {
-      // Exchange short-lived token for long-lived access token
-      const resExchange = await axios.get('https://graph.facebook.com/oauth/access_token', {
-        params: {
-          grant_type: 'fb_exchange_token',
-          client_id: '296542553118517',
-          client_secret: '143f8ed7ddec986f25598654d8b686f6',
-          fb_exchange_token: authResponse.accessToken,
-        },
+      const resExchange = await api.post('/api-tokens/facebook/exchange', {
+        shortToken: authResponse.accessToken,
       })
-      const longToken = resExchange.data.access_token
+      const longToken = resExchange.data.longToken
 
       // Save token to backend
       const resSave = await api.put('/api-tokens/facebook/token', {
-        access_token: longToken,
-        app_id: '296542553118517',
-        app_secret: '143f8ed7ddec986f25598654d8b686f6',
+        accessToken: longToken,
+        appId: '296542553118517',
+        appSecret: '143f8ed7ddec986f25598654d8b686f6',
       })
       setFbConfig(resSave.data)
 
@@ -160,7 +154,7 @@ export default function FacebookLeadsPage() {
           )
 
           // Save pages list to DB
-          const resPages = await api.put('/api-tokens/facebook/pages', { facebook_pages: pagesWithForms })
+          const resPages = await api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
           setFbConfig(resPages.data)
 
           // Subscribe all pages to leadgen Webhook
@@ -180,7 +174,7 @@ export default function FacebookLeadsPage() {
           }
 
           // Save active subscribed page ids to DB
-          const resSubscribed = await api.put('/api-tokens/facebook/subscribe', { page_id: pageIds })
+          const resSubscribed = await api.put('/api-tokens/facebook/subscribe', { pageId: pageIds })
           setFbConfig(resSubscribed.data)
           setActivePages(pagesWithForms.filter((p: any) => pageIds.includes(p.id)))
           setToast({ open: true, msg: 'Facebook pages integrated successfully!', sev: 'success' })
@@ -193,8 +187,23 @@ export default function FacebookLeadsPage() {
     }
   }
 
+  const handleSavePageMappings = async (updatedPages: any[]) => {
+    try {
+      setLoading(true)
+      const res = await api.put('/api-tokens/facebook/pages', { facebookPages: updatedPages })
+      setFbConfig(res.data)
+      const pageIds = res.data.pageId || []
+      setActivePages(updatedPages.filter((p: any) => pageIds.includes(p.id)))
+      setToast({ open: true, msg: 'Form mapped successfully!', sev: 'success' })
+    } catch (e: any) {
+      setToast({ open: true, msg: 'Failed to map form to project', sev: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleUnsubscribe = async (pageId: string) => {
-    const selectedPage = fbConfig?.facebook_pages?.find((p: any) => p.id === pageId)
+    const selectedPage = fbConfig?.facebookPages?.find((p: any) => p.id === pageId)
     if (!selectedPage) return
 
     try {
@@ -206,7 +215,7 @@ export default function FacebookLeadsPage() {
         },
       })
 
-      const res = await api.put('/api-tokens/facebook/unsubscribe', { page_id: pageId })
+      const res = await api.put('/api-tokens/facebook/unsubscribe', { pageId: pageId })
       setFbConfig(res.data)
       setActivePages(activePages.filter((p) => p.id !== pageId))
       setToast({ open: true, msg: 'Page removed successfully!', sev: 'success' })
@@ -341,10 +350,11 @@ export default function FacebookLeadsPage() {
                           <FormModel
                             pageFormsData={page.form_data || []}
                             pageId={page.id}
-                            allFacebookPages={fbConfig?.facebook_pages || []}
+                            allFacebookPages={fbConfig?.facebookPages || []}
                             dispatcher={null}
                             projectsList={projectsList}
                             setExpandedId={setExpandedId}
+                            onSave={handleSavePageMappings}
                           />
                         </TableCell>
                       </TableRow>

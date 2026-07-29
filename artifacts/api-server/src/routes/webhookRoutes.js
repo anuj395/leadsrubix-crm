@@ -271,6 +271,17 @@ router.post('/createContacts', async (req, res, next) => {
 
     const doc = await Contact.create(normalizedPayload);
 
+    try {
+      const { sendNotification } = require('../services/whatsappService');
+      sendNotification({
+        organizationId: tokenData.organizationId,
+        contact: doc,
+        eventType: 'incoming'
+      }).catch(err => console.error('[WhatsApp] Incoming API lead notification dispatch error:', err));
+    } catch (e) {
+      console.error('[WhatsApp] Failed to initiate incoming API lead notification:', e);
+    }
+
     await logApiTransaction(reqData, tokenData, "SUCCESS", "", String(doc._id));
 
     return res.status(200).json({ message: "Thank You! We will get back to you soon" });
@@ -279,6 +290,210 @@ router.post('/createContacts', async (req, res, next) => {
       await logApiTransaction(reqData, tokenData, "FAILED", err.message || "Internal Error");
     }
     next(err);
+  }
+});
+
+// --- Facebook Webhooks Ingest Endpoints ---
+
+router.get('/facebook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  const verifyToken = process.env.FB_VERIFY_TOKEN || 'leadsrubix_fb_webhook_token';
+
+  if (mode && token) {
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('WEBHOOK_VERIFIED');
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
+  } else {
+    res.sendStatus(400);
+  }
+});
+
+router.post('/facebook', async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    console.log('Incoming Facebook Webhook:', JSON.stringify(body, null, 2));
+
+    if (body.object !== 'page') {
+      return res.status(200).json({ message: 'Not a page event' });
+    }
+
+    const ApiToken = mongoose.model('ApiToken');
+    const Organization = mongoose.model('Organization');
+    const Contact = mongoose.model('Contact');
+    const User = mongoose.model('User');
+    const axios = require('axios');
+
+    // Promptly respond to Facebook with 200 OK to avoid timeouts/retry cascades
+    res.status(200).json({ message: 'EVENT_RECEIVED' });
+
+    const entries = body.entry || [];
+    for (const entry of entries) {
+      const pageId = entry.id;
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        if (change.field !== 'leadgen') continue;
+
+        const leadgenValue = change.value;
+        if (!leadgenValue) continue;
+
+        const leadgenId = leadgenValue.leadgen_id;
+        const formId = leadgenValue.form_id;
+        if (!leadgenId) continue;
+
+        // 1. Fetch the organization's Facebook ApiToken
+        const tokenDoc = await ApiToken.findOne({
+          source: { $regex: /^facebook$/i },
+          page_id: pageId
+        }).exec();
+
+        if (!tokenDoc) {
+          console.warn(`No ApiToken configuration found for Facebook page: ${pageId}`);
+          continue;
+        }
+
+        // 2. Resolve target Page access token
+        const pages = tokenDoc.facebook_pages || [];
+        const pageInfo = pages.find(p => String(p.id) === String(pageId));
+        if (!pageInfo || !pageInfo.access_token) {
+          console.warn(`No active page access token found for page: ${pageId}`);
+          continue;
+        }
+
+        // 3. Request lead values from Graph API
+        let leadDetails;
+        try {
+          const leadRes = await axios.get(`https://graph.facebook.com/v17.0/${leadgenId}`, {
+            params: { access_token: pageInfo.access_token }
+          });
+          leadDetails = leadRes.data;
+        } catch (err) {
+          console.error(`Failed to fetch Facebook lead details for leadgenId ${leadgenId}:`, err.message);
+          continue;
+        }
+
+        // 4. Map lead field values
+        const fieldData = leadDetails.field_data || [];
+        const rawFields = {};
+        fieldData.forEach(item => {
+          const key = item.name;
+          const val = item.values && item.values[0] ? item.values[0] : '';
+          rawFields[key] = val;
+        });
+
+        const nameField = rawFields.full_name || rawFields.name || rawFields.first_name || '';
+        const emailField = rawFields.email || '';
+        const phoneField = rawFields.phone_number || rawFields.contact_number || rawFields.contact_no || '';
+        const cityField = rawFields.city || '';
+
+        // 5. Lookup Form Project / Location mapping config
+        const forms = pageInfo.form_data || [];
+        const formInfo = forms.find(f => String(f.id) === String(formId));
+
+        let projectId = '';
+        let locationId = '';
+        let budgetId = '';
+        let leadSourcesId = '';
+
+        if (formInfo) {
+          projectId = formInfo.projectId || formInfo.project_id || '';
+          locationId = formInfo.locationId || formInfo.location_id || '';
+          budgetId = formInfo.budgetId || formInfo.budget_id || '';
+          leadSourcesId = formInfo.leadSourcesId || formInfo.lead_sources_id || '';
+        }
+
+        // Normalize phone number
+        const phoneResult = parsePhoneNumber(
+          phoneField,
+          '',
+          tokenDoc.countryCode || tokenDoc.country_code || '+91'
+        );
+
+        // Duplicate check
+        const organizationData = await Organization.findOne({ organizationId: tokenDoc.organizationId }).exec();
+        if (organizationData && organizationData.allowDuplicateLeads === false) {
+          const existing = await Contact.findOne({
+            organizationId: tokenDoc.organizationId,
+            $or: [
+              { contactNumber: phoneResult.contactNumber },
+              { alternateNo: phoneResult.contactNumber }
+            ]
+          }).exec();
+
+          if (existing) {
+            await logApiTransaction(
+              { leadgen_id: leadgenId, form_id: formId, ...rawFields },
+              tokenDoc,
+              "FAILED",
+              "Duplicate Lead"
+            );
+            continue;
+          }
+        }
+
+        // 6. Resolve Owner User
+        let uid = '';
+        let ownerUser = null;
+        const adminUser = await User.findOne({
+          organizationId: tokenDoc.organizationId,
+          role: 'admin'
+        }).exec();
+        if (adminUser) {
+          uid = String(adminUser._id);
+          ownerUser = adminUser;
+        }
+
+        const contactPayload = {
+          customerName: nameField || 'Facebook Lead',
+          contactNumber: phoneResult.contactNumber,
+          countryCode: phoneResult.countryCode,
+          emailId: emailField,
+          location: cityField || locationId || '',
+          projectId: projectId,
+          project_name: projectId,
+          budgetId: budgetId,
+          source: 'Facebook Ads',
+          leadType: 'Leads',
+          stage: 'FRESH',
+          organizationId: tokenDoc.organizationId,
+          organization_id: tokenDoc.organizationId,
+          uid: uid || null,
+          ad_id: leadgenValue.ad_id || '',
+          campaign: leadgenValue.campaign_id || '',
+          adset: leadgenValue.adgroup_id || '',
+        };
+
+        const normalizedPayload = fillExtraFields(contactPayload, ownerUser);
+        const createdContact = await Contact.create(normalizedPayload);
+
+        try {
+          const { sendNotification } = require('../services/whatsappService');
+          sendNotification({
+            organizationId: tokenDoc.organizationId,
+            contact: createdContact,
+            eventType: 'incoming'
+          }).catch(err => console.error('[WhatsApp] Incoming Facebook lead notification dispatch error:', err));
+        } catch (e) {
+          console.error('[WhatsApp] Failed to initiate incoming Facebook lead notification:', e);
+        }
+
+        // Log transaction success
+        await logApiTransaction(
+          { leadgen_id: leadgenId, form_id: formId, ...rawFields },
+          tokenDoc,
+          "SUCCESS",
+          "",
+          String(createdContact._id)
+        );
+      }
+    }
+  } catch (err) {
+    console.error('Facebook Webhook Processing Error:', err);
   }
 });
 

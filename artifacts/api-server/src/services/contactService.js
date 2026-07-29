@@ -395,6 +395,18 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   const created = await contactModel.create(docPayload);
   await enrichOrganizationNames([created]);
+
+  try {
+    const { sendNotification } = require('./whatsappService');
+    sendNotification({
+      organizationId: targetOrgId,
+      contact: created,
+      eventType: 'incoming'
+    }).catch(err => console.error('[WhatsApp] Incoming notification dispatch error:', err));
+  } catch (e) {
+    console.error('[WhatsApp] Failed to initiate incoming notification:', e);
+  }
+
   return created;
 };
 
@@ -633,6 +645,17 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
     // Direct update on existing lead
     await Contact.findByIdAndUpdate(lead._id, { $set: updatePayload });
 
+    try {
+      const { sendNotification } = require('./whatsappService');
+      sendNotification({
+        organizationId: lead.organization_id || lead.organizationId,
+        contact: { ...lead.toObject(), ...updatePayload },
+        eventType: 'transfer'
+      }).catch(err => console.error('[WhatsApp] Transfer notification dispatch error:', err));
+    } catch (e) {
+      console.error('[WhatsApp] Failed to initiate transfer notification:', e);
+    }
+
     // Update existing pending tasks for this lead to new owner if options.task is true
     if (options.task === true) {
       await Task.updateMany(
@@ -658,10 +681,27 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     const err = new Error('No contact IDs specified'); err.status = 400; throw err;
   }
   const Contact = mongoose.model('Contact');
+  
+  const leads = await Contact.find({ _id: { $in: ids } }).exec();
+  
   const result = await Contact.updateMany(
     { _id: { $in: ids } },
     { $set: { contactOwnerEmail, uid: uid || null, modifiedAt: new Date() } }
   );
+
+  try {
+    const { sendNotification } = require('./whatsappService');
+    for (const lead of leads) {
+      sendNotification({
+        organizationId: lead.organization_id || lead.organizationId,
+        contact: { ...lead.toObject(), contactOwnerEmail, uid: uid || null },
+        eventType: 'transfer'
+      }).catch(err => console.error('[WhatsApp] Bulk transfer notification dispatch error:', err));
+    }
+  } catch (e) {
+    console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
+  }
+
   return { modifiedCount: result.modifiedCount };
 };
 
