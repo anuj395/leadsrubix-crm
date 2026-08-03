@@ -10,9 +10,13 @@ router.get('/', authenticate, async (req, res, next) => {
     const Organization = mongoose.model('Organization');
 
     let orgId = null;
-    if (req.user.role !== 'superAdmin') {
+    if (req.user.role === 'superAdmin') {
+      if (req.query.organizationId && req.query.organizationId !== 'all') {
+        orgId = req.query.organizationId;
+      }
+    } else {
       const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      orgId = org ? org.organizationId : null;
+      orgId = org ? (org.organizationId || String(org._id)) : req.user.organizationId;
     }
 
     // Try finding the organization specific config
@@ -70,12 +74,14 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     let orgId = null;
-    if (req.user.role === 'admin') {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      orgId = org ? org.organizationId : null;
-      if (!orgId) {
-        return res.status(400).json({ message: 'Error: User organization not found' });
+    if (req.user.role === 'superAdmin') {
+      const requestedOrg = req.body.organizationId || req.query.organizationId;
+      if (requestedOrg && requestedOrg !== 'all') {
+        orgId = requestedOrg;
       }
+    } else {
+      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
+      orgId = org ? (org.organizationId || String(org._id)) : req.user.organizationId;
     }
 
     // Upsert the WhatsApp config
@@ -86,13 +92,16 @@ router.post('/', authenticate, async (req, res, next) => {
 
     // Assign payload fields (simply, wapi, chatSimplified)
     if (req.body.simply) {
-      config.simply = { ...config.simply.toObject(), ...req.body.simply };
+      const existingSimply = config.simply ? (config.simply.toObject ? config.simply.toObject() : config.simply) : {};
+      config.simply = { ...existingSimply, ...req.body.simply };
     }
     if (req.body.wapi) {
-      config.wapi = { ...config.wapi.toObject(), ...req.body.wapi };
+      const existingWapi = config.wapi ? (config.wapi.toObject ? config.wapi.toObject() : config.wapi) : {};
+      config.wapi = { ...existingWapi, ...req.body.wapi };
     }
     if (req.body.chatSimplified) {
-      config.chatSimplified = { ...config.chatSimplified.toObject(), ...req.body.chatSimplified };
+      const existingCS = config.chatSimplified ? (config.chatSimplified.toObject ? config.chatSimplified.toObject() : config.chatSimplified) : {};
+      config.chatSimplified = { ...existingCS, ...req.body.chatSimplified };
     }
 
     await config.save();

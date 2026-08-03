@@ -13,6 +13,10 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import api from '@/services/axiosInstance'
 
+import { useAppSelector } from '@/store/hooks'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
+
 interface WhatsAppConfig {
   type: string
   url: string
@@ -117,6 +121,17 @@ const JSON_PAYLOADS = {
 }
 
 export default function WhatsappApiPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [configs, setConfigs] = useState<Record<string, WhatsAppConfig>>(DEFAULT_CONFIGS)
   const [activeView, setActiveView] = useState<'list' | 'simply_whatsapp' | 'wapi' | 'chatsimplified'>('list')
   const [editFields, setEditFields] = useState<Record<string, string>>({})
@@ -128,9 +143,11 @@ export default function WhatsappApiPage() {
     sev: 'success',
   })
 
-  const loadConfig = async () => {
+  const loadConfig = async (orgId?: string) => {
     try {
-      const response = await api.get('/whatsapp-config')
+      const activeOrg = orgId || selectedOrg
+      const params = activeOrg ? `?organizationId=${activeOrg}` : ''
+      const response = await api.get(`/whatsapp-config${params}`)
       const data = response.data
       if (data) {
         setConfigs({
@@ -175,10 +192,11 @@ export default function WhatsappApiPage() {
     }
   }
 
-  // Load from API on mount
   useEffect(() => {
-    loadConfig()
-  }, [])
+    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
+    void loadConfig(selectedOrg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndustry, selectedOrg, isSuperAdmin])
 
   const mapResponseData = (data: any) => {
     setConfigs({
@@ -224,6 +242,7 @@ export default function WhatsappApiPage() {
 
     // Build payload so only ONE is active
     const payload = {
+      organizationId: selectedOrg,
       simply: {
         active: key === 'simply_whatsapp' ? nextActive : false,
       },
@@ -236,7 +255,7 @@ export default function WhatsappApiPage() {
     }
 
     try {
-      const response = await api.post('/whatsapp-config', payload)
+      const response = await api.post(`/whatsapp-config?organizationId=${selectedOrg || ''}`, payload)
       mapResponseData(response.data)
       setToast({
         open: true,
@@ -718,6 +737,15 @@ export default function WhatsappApiPage() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', overflowY: 'auto' }}>
       <AppCard title="WhatsApp API List" subtitle="Enable, deactivate, or configure your integrations.">
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
         <Box sx={{ height: 350, width: '100%' }}>
           <AppDataGrid onReload={loadConfig}
             height="100%"
