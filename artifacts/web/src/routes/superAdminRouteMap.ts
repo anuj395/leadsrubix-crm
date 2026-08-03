@@ -24,6 +24,7 @@ import WhatsappApiPage from '@/features/superAdmin/config/pages/WhatsappApi'
 import IndustriesPage from '@/features/superAdmin/config/pages/Industries'
 import MenusPage from '@/features/superAdmin/config/pages/Menus'
 import PermissionsMatrixPage from '@/features/superAdmin/config/pages/PermissionsMatrix'
+import AnalyticsConfigPage from '@/features/superAdmin/config/pages/AnalyticsConfig'
 
 import NewsListPage from '@/features/superAdmin/support/pages/NewsList'
 import FaqListPage from '@/features/superAdmin/support/pages/FaqList'
@@ -103,6 +104,7 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/industries": IndustriesPage,
   "/configuration/menus": MenusPage,
   "/configuration/permissions": PermissionsMatrixPage,
+  "/configuration/analytics-config": AnalyticsConfigPage,
   "/configuration/holiday-config": HolidayConfigPage,
   "/configuration/holidayConfig": HolidayConfigPage,
   "/configuration/days-config": DaysConfigPage,

@@ -3,7 +3,8 @@ const permissionService = require('../services/screenPermissionService');
 
 exports.list = async (req, res, next) => {
   try {
-    const items = await service.list({ activeOnly: req.query.active === 'true' });
+    const organizationId = req.user?.role === 'superAdmin' ? undefined : (req.user?.organizationId || null);
+    const items = await service.list({ activeOnly: req.query.active === 'true', organizationId });
     res.json({ items });
   } catch (err) {
     next(err);

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { withDualCase } = require('../utils/caseConverter');
 
 /**
  * Organizations use a freeform schema (`strict: false`) because their
@@ -58,7 +59,7 @@ function escapeRegex(s) {
 function shapePublic(org) {
   if (!org) return null;
   const o = org.toObject ? org.toObject() : { ...org };
-  return {
+  const mapped = {
     _id: String(o._id),
     id: String(o._id),
     organizationId: o.organizationId || o.organization_id || '',
@@ -93,6 +94,8 @@ function shapePublic(org) {
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   };
+
+  return withDualCase(mapped);
 }
 exports.shapePublic = shapePublic;
 

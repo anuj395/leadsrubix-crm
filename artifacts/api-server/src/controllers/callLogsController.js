@@ -24,6 +24,38 @@ function translateFilterKeys(filter) {
   return out;
 }
 
+async function applyCallLogTenantFilter(user, filter, industryId, organizationId) {
+  const isSuperAdmin = user?.role === 'superAdmin';
+  if (isSuperAdmin) {
+    if (organizationId && organizationId !== 'all') {
+      filter.organizationId = organizationId;
+    } else if (industryId && industryId !== 'all') {
+      const Industry = mongoose.model('Industry');
+      const Organization = mongoose.model('Organization');
+      let industryDoc = null;
+      if (mongoose.Types.ObjectId.isValid(industryId)) {
+        industryDoc = await Industry.findById(industryId).lean().exec();
+      } else {
+        industryDoc = await Industry.findOne({ code: industryId }).lean().exec();
+      }
+      if (industryDoc) {
+        const orgDocs = await Organization.find({
+          $or: [
+            { industryId: String(industryDoc._id) },
+            { industry_id: industryDoc._id },
+            { industryId: industryDoc.code },
+            { industry_code: industryDoc.code }
+          ]
+        }).lean().exec();
+        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id).filter(Boolean);
+        filter.organizationId = { $in: orgIds };
+      }
+    }
+  } else {
+    filter.organizationId = user?.organizationId;
+  }
+}
+
 function maskPhone(phone) {
   if (!phone) return '';
   const clean = String(phone).replace(/\s+/g, '');
@@ -212,6 +244,7 @@ callLogController.Search = async (req, res) => {
   try {
     const uid = req.body.uid;
     let filter = req.body.filter || {};
+    await applyCallLogTenantFilter(req.user, filter, req.body.industryId, req.body.organizationId);
     const sort = req.body.sort || {};
     const missed = req.body.missed;
     const searchString = req.body.searchString ? req.body.searchString : '';
@@ -320,6 +353,7 @@ callLogController.Search = async (req, res) => {
 callLogController.MasterSearch = async (req, res) => {
   try {
     let filter = req.body.filter || {};
+    await applyCallLogTenantFilter(req.user, filter, req.body.industryId || req.query.industryId, req.body.organizationId || req.query.organizationId);
     const sort = req.body.sort || {};
     const missed = req.body.missed;
     const searchString = req.body.searchString ? req.body.searchString.trim() : "";
@@ -407,6 +441,7 @@ callLogController.MasterSearch = async (req, res) => {
 callLogController.MaskMasterSearch = async (req, res) => {
   try {
     let filter = req.body.filter || {};
+    await applyCallLogTenantFilter(req.user, filter, req.body.industryId || req.query.industryId, req.body.organizationId || req.query.organizationId);
     const sort = req.body.sort || {};
     const missed = req.body.missed;
     const searchString = req.body.searchString ? req.body.searchString.trim() : "";

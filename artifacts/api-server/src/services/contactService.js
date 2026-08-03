@@ -130,7 +130,7 @@ function fillExtraFields(aligned, user) {
  *   - SuperAdmin → sees all contacts across all industries.
  *   - Everyone else → scoped to their own industry only (multi-tenant isolation).
  */
-exports.listForUser = async ({ authedUser, limit = 200 }) => {
+exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery, limit = 200 }) => {
   if (!authedUser?.id) {
     const err = new Error('Authentication required'); err.status = 401; throw err;
   }
@@ -140,7 +140,37 @@ exports.listForUser = async ({ authedUser, limit = 200 }) => {
   }
   const role = user.role || authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
-  const filter = isSuperAdmin ? {} : { organization_id: user.organizationId };
+
+  const filter = {};
+  if (isSuperAdmin) {
+    if (organizationIdQuery && organizationIdQuery !== 'all') {
+      filter.organization_id = organizationIdQuery;
+    } else if (industryIdQuery && industryIdQuery !== 'all') {
+      const Organization = mongoose.model('Organization');
+      const Industry = mongoose.model('Industry');
+      let industryDoc = null;
+      if (mongoose.Types.ObjectId.isValid(industryIdQuery)) {
+        industryDoc = await Industry.findById(industryIdQuery).lean().exec();
+      } else {
+        industryDoc = await Industry.findOne({ code: industryIdQuery }).lean().exec();
+      }
+
+      if (industryDoc) {
+        const orgDocs = await Organization.find({
+          $or: [
+            { industryId: String(industryDoc._id) },
+            { industry_id: industryDoc._id },
+            { industryId: industryDoc.code },
+            { industry_code: industryDoc.code }
+          ]
+        }).lean().exec();
+        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id).filter(Boolean);
+        filter.organization_id = { $in: orgIds };
+      }
+    }
+  } else {
+    filter.organization_id = user.organizationId;
+  }
 
   const visibleIds = await getVisibleUserIds({
     id: String(user._id),

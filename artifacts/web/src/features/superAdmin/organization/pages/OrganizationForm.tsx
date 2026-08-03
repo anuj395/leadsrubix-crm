@@ -147,7 +147,7 @@ export default function OrganizationFormPage() {
                   screen="organization"
                   industryCode={selectedIndustry}
                   roleKey="admin"
-                  initialValues={editingItem ? toFormValues(editingItem) : { industryId: selectedIndustry }}
+                  initialValues={editingItem ? toFormValues(editingItem) : { industryId: selectedIndustry, industry_id: selectedIndustry }}
                   onCancel={handleCancel}
                   submitLabel={id ? 'Save' : 'Create'}
                   onSubmit={async (values) => {

@@ -11,7 +11,8 @@ const permModel = require('../models/sidebarPermissionModel');
  * Returns { industryId, industry_code, role, menus } where `menus` is a
  * flat array; each item carries `parent_id` so the client can build a tree.
  */
-async function resolveSidebar({ industryCode, roleKey, industry_code, role_key }) {
+async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, organizationId, workspaceId }) {
+  const mongoose = require('mongoose');
   const code = industryCode || industry_code;
   const key = roleKey || role_key;
   if (!code || !key) {
@@ -23,8 +24,14 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key }
     return { industryCode: code, roleKey: key, menus: [] };
   }
 
-  const role = await roleModel.findByIndustryAndKey(industry._id, key);
-  if (!role || role.isActive === false) {
+  const RoleModel = mongoose.model('Role');
+  const role = await RoleModel.findOne({
+    organization_id: organizationId || null,
+    industry_id: industry._id,
+    key: key
+  }).exec();
+
+  if (!role || role.is_active === false) {
     return {
       industryId: String(industry._id),
       industryCode: code,
@@ -33,50 +40,58 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key }
     };
   }
 
-  const perms = await permModel.list({
-    roleId: role._id,
-    industryId: industry._id,
-    visibleOnly: true,
-  });
+  const SidebarPermissionModel = mongoose.model('SidebarPermission');
+  const perms = await SidebarPermissionModel.find({
+    organization_id: organizationId || null,
+    role_id: role._id,
+    industry_id: industry._id,
+    is_visible: true
+  }).lean().exec();
+
   if (!perms.length) {
     return {
       industryId: String(industry._id),
-      industry_code,
-      role: role_key,
+      industry_code: code,
+      role: key,
       menus: [],
     };
   }
 
-  const menus = await menuModel.findByIds(perms.map((p) => p.menuId || p.menu_id));
+  const SidebarMenuModel = mongoose.model('SidebarMenu');
+  const menus = await SidebarMenuModel.find({
+    organization_id: organizationId || null,
+    _id: { $in: perms.map((p) => p.menu_id) }
+  }).lean().exec();
+
   const menuById = new Map(
-    menus.filter((m) => m.isActive !== false).map((m) => [String(m._id), m]),
+    menus.filter((m) => m.is_active !== false).map((m) => [String(m._id), m]),
   );
 
-  // Ensure all parents referenced by visible children are included so
-  // hierarchy renders correctly even if no explicit permission exists for
-  // the parent menu itself.
   const includedIds = new Set([...menuById.keys()]);
   const parentIdsToFetch = [];
   for (const m of menuById.values()) {
-    const pId = m.parentId || m.parent_id;
+    const pId = m.parent_id;
     if (pId && !includedIds.has(String(pId))) {
       parentIdsToFetch.push(pId);
       includedIds.add(String(pId));
     }
   }
   if (parentIdsToFetch.length) {
-    const parents = await menuModel.findByIds(parentIdsToFetch);
+    const parents = await SidebarMenuModel.find({
+      organization_id: organizationId || null,
+      _id: { $in: parentIdsToFetch }
+    }).lean().exec();
     for (const p of parents) {
-      if (p.isActive !== false) menuById.set(String(p._id), p);
+      if (p.is_active !== false) menuById.set(String(p._id), p);
     }
   }
 
-  const permByMenu = new Map(perms.map((p) => [String(p.menuId || p.menu_id), p]));
+  const permByMenu = new Map(perms.map((p) => [String(p.menu_id), p]));
 
   const items = [...menuById.values()]
     .map((m) => {
       const perm = permByMenu.get(String(m._id));
-      const orderOverride = perm ? (perm.orderOverride !== undefined ? perm.orderOverride : perm.order_override) : undefined;
+      const orderOverride = perm ? perm.order_override : undefined;
       const order =
         typeof orderOverride === 'number'
           ? orderOverride
@@ -89,8 +104,8 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key }
         name: m.name,
         icon: m.icon || '',
         route: m.route || '',
-        parent_id: (m.parentId || m.parent_id) ? String(m.parentId || m.parent_id) : null,
-        parentId: (m.parentId || m.parent_id) ? String(m.parentId || m.parent_id) : null,
+        parent_id: m.parent_id ? String(m.parent_id) : null,
+        parentId: m.parent_id ? String(m.parent_id) : null,
         order,
         module: m.module || '',
       };

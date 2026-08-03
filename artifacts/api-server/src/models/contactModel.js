@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { mapWithDualCase } = require('../utils/caseConverter');
 
 /**
  * Contacts use a freeform schema (`strict: false`) because the available
@@ -9,6 +10,8 @@ const contactSchema = new mongoose.Schema(
   {
     created_by: { type: mongoose.Schema.Types.Mixed, default: null, alias: 'createdBy' },
     organization_id: { type: String, alias: 'organizationId' },
+    workspace_id: { type: String, alias: 'workspaceId' },
+    industry_id: { type: String, alias: 'industryId' },
     customer_name: { type: String, alias: 'customerName' },
     contact_number: { type: String, alias: 'contactNumber' },
     email_id: { type: String, alias: 'emailId' },
@@ -39,8 +42,10 @@ const Contact = mongoose.model('Contact', contactSchema, 'contacts');
 
 exports.Contact = Contact;
 
-exports.list = async ({ filter = {}, limit = 200 } = {}) =>
-  Contact.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
+exports.list = async ({ filter = {}, limit = 200 } = {}) => {
+  const docs = await Contact.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
+  return mapWithDualCase(docs);
+};
 
 function camelToSnakeCase(str) {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);

@@ -20,6 +20,8 @@ import { resolveScreen, type ResolvedTableHeader } from '@/services/screenAdminS
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 export interface Task {
   _id: string
@@ -44,6 +46,7 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
 export default function TasksListPage() {
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
+  const isSuperAdmin = user?.role === 'superAdmin'
   const [items, setItems] = useState<Task[]>([])
   const [columns, setColumns] = useState<ResolvedTableHeader[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,15 +57,31 @@ export default function TasksListPage() {
     open: false, msg: '', sev: 'success',
   })
 
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
+
   const refresh = async () => {
     setLoading(true)
     try {
+      const activeIndustry = isSuperAdmin ? selectedIndustry || undefined : undefined
+      const activeOrg = isSuperAdmin ? selectedOrg || undefined : undefined
+
+      const params = new URLSearchParams()
+      if (activeIndustry) params.set('industryId', activeIndustry)
+      if (activeOrg) params.set('organizationId', activeOrg)
+
       const [listRes, resolved] = await Promise.all([
-        api.get('tasks'),
+        api.get(`tasks?${params.toString()}`),
         resolveScreen({
           screenKey: 'tasks',
-          industryCode: user?.role === 'superAdmin' ? 'temp0001' : undefined,
-          roleKey: user?.role === 'superAdmin' ? 'admin' : undefined,
+          industryCode: isSuperAdmin ? activeIndustry || 'temp0001' : undefined,
+          roleKey: isSuperAdmin ? 'admin' : undefined,
         }),
       ])
       const rawItems = listRes.data?.items ?? []
@@ -85,9 +104,10 @@ export default function TasksListPage() {
   }
 
   useEffect(() => {
+    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedIndustry, selectedOrg, isSuperAdmin])
 
   const gridColumns = useMemo<GridColDef<Task>[]>(() => {
     const sNoCol: GridColDef<Task> = {
@@ -110,7 +130,12 @@ export default function TasksListPage() {
       flex: 1,
       minWidth: 140,
       sortable: c.sortable !== false,
-      valueGetter: (_v: unknown, row: Task) => (row as Record<string, unknown>)[c.key],
+      valueGetter: (_v: unknown, row: Task) => {
+        const r = row as Record<string, unknown>
+        const camelKey = c.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+        const snakeKey = c.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+        return r[c.key] ?? r[camelKey] ?? r[snakeKey]
+      },
       renderCell: (p) => {
         const v = p.value
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
@@ -195,6 +220,15 @@ export default function TasksListPage() {
         subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
         fullHeight
       >
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
         <AppDataGrid onReload={refresh}
           height="100%"
           rows={items}

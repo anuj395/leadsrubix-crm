@@ -19,8 +19,11 @@ export type CreateApiTokenInput = Omit<ApiTokenConfig, 'id' | 'api_key'> & {
   api_key?: string
 }
 
-export async function getApiTokens(): Promise<ApiTokenConfig[]> {
-  const res = await api.get('api-tokens')
+export async function getApiTokens(params?: { industryId?: string; organizationId?: string }): Promise<ApiTokenConfig[]> {
+  const query = new URLSearchParams()
+  if (params?.industryId) query.set('industryId', params.industryId)
+  if (params?.organizationId) query.set('organizationId', params.organizationId)
+  const res = await api.get(`api-tokens?${query.toString()}`)
   return (res.data ?? []) as ApiTokenConfig[]
 }
 

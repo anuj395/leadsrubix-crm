@@ -188,12 +188,9 @@ async function migrateAndSeedSidebar() {
   const SidebarPermission = mongoose.model('SidebarPermission');
 
   const industryCount = await Industry.estimatedDocumentCount();
-  if (industryCount > 0) {
-    console.log(
-      `[seed] industries already populated (${industryCount}) — skipping sidebar migration`,
-    );
-    return;
-  }
+  // Comment out to allow updates/seeding new menus/roles like superAdmin dynamically
+  // if (industryCount > 0) { ... }
+  console.log('[seed] Seeding sidebar menus and permissions matrix...');
 
   // Source 1: legacy sidebar_configs collection
   let sources = [];
@@ -241,13 +238,13 @@ async function migrateAndSeedSidebar() {
     for (const [roleKey, menuList] of Object.entries(rolesObj)) {
       // Role
       const role = await Role.findOneAndUpdate(
-        { industryId: industry._id, key: roleKey },
+        { industry_id: industry._id, key: roleKey },
         {
           $setOnInsert: {
-            industryId: industry._id,
+            industry_id: industry._id,
             key: roleKey,
             name: ROLE_DISPLAY_NAMES[roleKey] || roleKey,
-            isActive: true,
+            is_active: true,
           },
         },
         { upsert: true, new: true },
@@ -288,14 +285,13 @@ async function migrateAndSeedSidebar() {
         const menu = await SidebarMenu.findOneAndUpdate(
           { key: m.key },
           {
+            $set: { parent_id: parentId, order: i },
             $setOnInsert: {
               key: m.key,
               name: m.name,
               icon: m.icon || '',
               route: m.route || '',
-              parentId: parentId,
               module: moduleKey,
-              order: i,
               isActive: true,
             },
           },
@@ -304,13 +300,13 @@ async function migrateAndSeedSidebar() {
         menuCount++;
 
         await SidebarPermission.updateOne(
-          { roleId: role._id, industryId: industry._id, menuId: menu._id },
+          { role_id: role._id, industry_id: industry._id, menu_id: menu._id },
           {
-            $set: { isVisible: true, orderOverride: i },
+            $set: { is_visible: true, order_override: i },
             $setOnInsert: {
-              roleId: role._id,
-              industryId: industry._id,
-              menuId: menu._id,
+              role_id: role._id,
+              industry_id: industry._id,
+              menu_id: menu._id,
             },
           },
           { upsert: true },
@@ -914,12 +910,14 @@ async function seedLeadDistributionSidebar() {
 
   // Fix other parent menus orders in database for stable sorting
   await SidebarMenu.updateOne({ key: 'analytics' }, { $set: { order: 0 } });
-  await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 1 } });
-  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 5 } });
+  await SidebarMenu.updateOne({ key: 'organization' }, { $set: { order: 1 } });
+  await SidebarMenu.updateOne({ key: 'users' }, { $set: { order: 2 } });
+  await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 3 } });
+  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 4 } });
+  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 5 } });
+  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 6 } });
   await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 10 } });
-  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 13 } });
   await SidebarMenu.updateOne({ key: 'tool' }, { $set: { order: 14 } });
-  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 15 } });
 
   // 3. Upsert parent menu: leadDistribution
   const parentMenu = await SidebarMenu.findOneAndUpdate(
@@ -964,13 +962,13 @@ async function seedLeadDistributionSidebar() {
 
     // Ensure permissions exist for the admin role
     await SidebarPermission.updateOne(
-      { roleId: adminRole._id, industryId: industry._id, menuId: childMenu._id },
+      { role_id: adminRole._id, industry_id: industry._id, menu_id: childMenu._id },
       {
-        $set: { isVisible: true, orderOverride: 9.2 + (i * 0.1) },
+        $set: { is_visible: true, order_override: 9.2 + (i * 0.1) },
         $setOnInsert: {
-          roleId: adminRole._id,
-          industryId: industry._id,
-          menuId: childMenu._id,
+          role_id: adminRole._id,
+          industry_id: industry._id,
+          menu_id: childMenu._id,
         }
       },
       { upsert: true }
@@ -979,13 +977,13 @@ async function seedLeadDistributionSidebar() {
 
   // Ensure the parent menu has permission
   await SidebarPermission.updateOne(
-    { roleId: adminRole._id, industryId: industry._id, menuId: parentMenu._id },
+    { role_id: adminRole._id, industry_id: industry._id, menu_id: parentMenu._id },
     {
-      $set: { isVisible: true, orderOverride: 9.1 },
+      $set: { is_visible: true, order_override: 9.1 },
       $setOnInsert: {
-        roleId: adminRole._id,
-        industryId: industry._id,
-        menuId: parentMenu._id,
+        role_id: adminRole._id,
+        industry_id: industry._id,
+        menu_id: parentMenu._id,
       }
     },
     { upsert: true }
@@ -1172,6 +1170,199 @@ async function seedDropdownOptions() {
   }
 }
 
+async function seedAnalyticsConfig() {
+  const AnalyticsConfig = mongoose.model('AnalyticsConfig');
+  const Industry = mongoose.model('Industry');
+  
+  const industry = await Industry.findOne({ code: 'temp0001' });
+  if (!industry) return;
+  
+  const existing = await AnalyticsConfig.findOne({ industry_id: String(industry._id) });
+  if (existing && existing.tabs && existing.tabs[0] && existing.tabs[0].sections && existing.tabs[0].sections.length > 0) {
+    console.log('[seed] AnalyticsConfig for Real Estate already populated with sections — skipping seed');
+    return;
+  }
+  
+  if (existing) {
+    await AnalyticsConfig.deleteOne({ _id: existing._id });
+  }
+  
+  console.log('[seed] Seeding dynamic Analytics configurations with sections...');
+  await AnalyticsConfig.create({
+    industry_id: String(industry._id),
+    dashboard_key: 'default',
+    tabs: [
+      {
+        id: 0,
+        label: 'Contacts Overview',
+        widgets: [],
+        sections: [
+          {
+            id: 'contacts_kpis',
+            title: 'Key Metrics Overview',
+            order: 0,
+            is_active: true,
+            widgets: [
+              { id: 'totalLeads', type: 'KPI', title: 'Total Leads', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'PeopleIcon', data_key: 'cards.totalLeads' },
+              { id: 'fresh', type: 'KPI', title: 'Fresh', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'AssignmentIcon', data_key: 'cards.fresh' },
+              { id: 'callBack', type: 'KPI', title: 'Call Back', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'PhoneCallbackIcon', data_key: 'cards.callBack' },
+              { id: 'interested', type: 'KPI', title: 'Interested', color: '#EAB308', bg: 'rgba(234,179,8,0.06)', icon: 'ThumbUpIcon', data_key: 'cards.interested' },
+              { id: 'closedWon', type: 'KPI', title: 'Closed Won', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' },
+              { id: 'notInterested', type: 'KPI', title: 'Not Interested', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'CancelIcon', data_key: 'cards.notInterested' },
+              { id: 'closedLost', type: 'KPI', title: 'Closed Lost', color: '#F97316', bg: 'rgba(249,115,22,0.06)', icon: 'TrendingDownIcon', data_key: 'cards.closedLost' },
+              { id: 'completedVisits', type: 'KPI', title: 'Completed Visits', color: '#14B8A6', bg: 'rgba(20,184,166,0.06)', icon: 'EventAvailableIcon', data_key: 'cards.completedVisits' },
+              { id: 'scheduledVisits', type: 'KPI', title: 'Scheduled Visits', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'EventIcon', data_key: 'cards.scheduledVisits' }
+            ]
+          },
+          {
+            id: 'contacts_details',
+            title: 'Leads Conversion & Breakdown',
+            order: 1,
+            is_active: true,
+            widgets: [
+              {
+                id: 'contacts_feedback',
+                type: 'TABLE',
+                title: 'Leads Feedback Breakdown',
+                data_key: 'contacts.feedbackSummary',
+                columns: [
+                  { key: 'associate', label: 'Associate/Group' },
+                  { key: 'total', label: 'Total' },
+                  { key: 'fresh', label: 'Fresh' },
+                  { key: 'callBack', label: 'Call Back' },
+                  { key: 'interested', label: 'Interested' },
+                  { key: 'won', label: 'Won' },
+                  { key: 'notInterested', label: 'Not Interested' },
+                  { key: 'lost', label: 'Lost' },
+                  { key: 'completedVisits', label: 'Completed Visits' }
+                ]
+              },
+              {
+                id: 'contacts_callback',
+                type: 'TABLE',
+                title: 'Callback Reasons Summary',
+                data_key: 'contacts.callBackReasons',
+                columns: [
+                  { key: 'associate', label: 'Associate/Group' },
+                  { key: 'total', label: 'Total Call Backs' }
+                ]
+              },
+              {
+                id: 'contacts_conversion_donut',
+                type: 'CHART',
+                title: 'Leads Conversion Distribution',
+                chart_type: 'donut',
+                data_key: 'contacts.chartData'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 1,
+        label: 'Tasks & Meetings',
+        widgets: [],
+        sections: [
+          {
+            id: 'tasks_overview',
+            title: 'Completed Task Metrics',
+            order: 0,
+            is_active: true,
+            widgets: [
+              {
+                id: 'tasks_completed',
+                type: 'TABLE',
+                title: 'Completed Tasks by Associate',
+                data_key: 'tasks.completedTasks',
+                columns: [
+                  { key: 'associate', label: 'Associate/Group' },
+                  { key: 'total', label: 'Total Completed' },
+                  { key: 'meeting', label: 'Meeting' },
+                  { key: 'callBack', label: 'Call Back' },
+                  { key: 'siteVisit', label: 'Site Visit' }
+                ]
+              },
+              {
+                id: 'tasks_completed_donut',
+                type: 'CHART',
+                title: 'Completed Tasks Distribution',
+                chart_type: 'donut',
+                data_key: 'tasks.completedChartData'
+              }
+            ]
+          },
+          {
+            id: 'tasks_pending_section',
+            title: 'Pending Task Metrics',
+            order: 1,
+            is_active: true,
+            widgets: [
+              {
+                id: 'tasks_pending',
+                type: 'TABLE',
+                title: 'Pending Tasks by Associate',
+                data_key: 'tasks.pendingTasks',
+                columns: [
+                  { key: 'associate', label: 'Associate/Group' },
+                  { key: 'total', label: 'Total Pending' },
+                  { key: 'meeting', label: 'Meeting' },
+                  { key: 'callBack', label: 'Call Back' },
+                  { key: 'siteVisit', label: 'Site Visit' }
+                ]
+              },
+              {
+                id: 'tasks_pending_donut',
+                type: 'CHART',
+                title: 'Pending Tasks Distribution',
+                chart_type: 'donut',
+                data_key: 'tasks.pendingChartData'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 2,
+        label: 'Calling Analytics',
+        widgets: [],
+        sections: [
+          {
+            id: 'calling_insights',
+            title: 'Call Tracking & Durations',
+            order: 0,
+            is_active: true,
+            widgets: [
+              {
+                id: 'call_trends_trend',
+                type: 'CHART',
+                title: 'Calling Trend',
+                chart_type: 'trend',
+                data_key: 'callLogs.callingTrends'
+              },
+              {
+                id: 'call_logs_table',
+                type: 'TABLE',
+                title: 'Call Duration Summary',
+                data_key: 'callLogs.callLogSummary',
+                columns: [
+                  { key: 'associate', label: 'Associate/Group' },
+                  { key: 'total', label: 'Total Calls' },
+                  { key: 'duration0', label: '0 Sec' },
+                  { key: 'duration0_30', label: '0-30 Sec' },
+                  { key: 'duration31_60', label: '31-60 Sec' },
+                  { key: 'duration61_120', label: '61-120 Sec' },
+                  { key: 'durationAbove120', label: '>120 Sec' }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  });
+  console.log('[seed] Successfully seeded dynamic Analytics configurations with sections.');
+}
+
 module.exports = {
   seedUsers,
   migrateAndSeedSidebar,
@@ -1183,4 +1374,5 @@ module.exports = {
   fixIntegrationsSidebar,
   seedDropdownOptions,
   seedLeadDistributionSidebar,
+  seedAnalyticsConfig,
 };

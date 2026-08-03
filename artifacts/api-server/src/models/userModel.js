@@ -7,6 +7,7 @@
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { withDualCase } = require('../utils/caseConverter');
 
 // Predefined roles (machine-friendly keys)
 exports.ROLES = ['sales', 'teamLead', 'leadManager', 'admin', 'superAdmin'];
@@ -20,6 +21,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: { type: String, enum: exports.ROLES, default: 'sales' },
     organization_id: { type: String, default: null, alias: 'organizationId' },
+    workspace_id: { type: String, default: null, alias: 'workspaceId' },
     industry_id: { type: String, alias: 'industryId' },
     contact_number: { type: String, default: '', alias: 'contactNumber' },
     user_image: { type: String, default: '', alias: 'userImage' },
@@ -78,7 +80,7 @@ function shapePublic(u) {
   if (!u) return null;
   const fName = u.firstName || u.first_name || '';
   const lName = u.lastName || u.last_name || '';
-  return {
+  return withDualCase({
     _id: String(u._id),
     id: String(u._id),
     firstName: fName,
@@ -92,6 +94,7 @@ function shapePublic(u) {
     reportingTo: u.reportingTo || u.reporting_to || '',
     organizationName: u.organizationName || u.organization_name || '',
     organizationId: u.organizationId || u.organization_id || '',
+    workspaceId: u.workspaceId || u.workspace_id || '',
     needsPasswordChange: !!(u.needsPasswordChange || u.needs_password_change),
     contactNumber: u.contactNumber || u.contact_number || u.contact_no || '',
     userImage: u.userImage || u.user_image || '',
@@ -108,7 +111,7 @@ function shapePublic(u) {
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
     fields: u.fields || {},
-  };
+  });
 }
 exports.shapePublic = shapePublic;
 

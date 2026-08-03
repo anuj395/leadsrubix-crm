@@ -33,6 +33,7 @@ import EventIcon from '@mui/icons-material/Event'
 
 import { useAuth } from '@/hooks/useAuth'
 import axiosInstance from '@/services/axiosInstance'
+import { getIndustries, type Industry } from '@/services/sidebarAdminService'
 
 // Types matching backend payload
 interface FeedbackRow {
@@ -193,10 +194,13 @@ export default function AnalyticsPage() {
   // General State
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardPayload | null>(null)
+  const [dashboardConfig, setDashboardConfig] = useState<any>(null)
   const [activeTab, setActiveTab] = useState(0)
 
   // Filters State
   const [groupBy, setGroupBy] = useState<'team' | 'source' | 'teamWise'>('team')
+  const [industries, setIndustries] = useState<Industry[]>([])
+  const [selectedIndustry, setSelectedIndustry] = useState('')
   const [selectedOrg, setSelectedOrg] = useState('')
   const [showDatePanel, setShowDatePanel] = useState(false)
   const [startDate, setStartDate] = useState('')
@@ -213,8 +217,9 @@ export default function AnalyticsPage() {
     try {
       setLoading(true)
       let url = `/analytics/dashboard?groupBy=${groupBy}`
-      if (isSuperAdmin && selectedOrg) {
-        url += `&industryId=${selectedOrg}`
+      if (isSuperAdmin) {
+        if (selectedIndustry) url += `&industryId=${selectedIndustry}`
+        if (selectedOrg) url += `&organizationId=${selectedOrg}`
       }
       if (startDate) url += `&startDate=${startDate}`
       if (endDate) url += `&endDate=${endDate}`
@@ -228,26 +233,73 @@ export default function AnalyticsPage() {
     }
   }
 
-  // Automatically select the first organization for Super Admin
-  useEffect(() => {
-    if (isSuperAdmin && data?.organizationsList && data.organizationsList.length > 0) {
-      const firstOrg = data.organizationsList[0].code
-      const isValid = data.organizationsList.some(org => org.code === selectedOrg)
-      if (!isValid || !selectedOrg) {
-        setSelectedOrg(firstOrg)
+  const fetchDashboardConfig = async () => {
+    try {
+      let url = `/analytics/dashboard-config`
+      if (isSuperAdmin) {
+        const queryParams = []
+        if (selectedIndustry) queryParams.push(`industryId=${selectedIndustry}`)
+        if (selectedOrg) queryParams.push(`organizationId=${selectedOrg}`)
+        if (queryParams.length > 0) {
+          url += `?${queryParams.join('&')}`
+        }
       }
+      const res = await axiosInstance.get(url)
+      setDashboardConfig(res.data)
+    } catch (err) {
+      console.error('Failed to fetch dashboard config', err)
     }
-  }, [data?.organizationsList, isSuperAdmin, selectedOrg])
+  }
+
+  // Fetch industries on mount (if user is superAdmin)
+  useEffect(() => {
+    if (isSuperAdmin) {
+      getIndustries(true)
+        .then((list) => {
+          setIndustries(list)
+          if (list.length > 0) {
+            setSelectedIndustry(list[0].code || '')
+          }
+        })
+        .catch((err) => console.error('Failed to load industries', err))
+    }
+  }, [isSuperAdmin])
+
+  const filteredOrgs = useMemo(() => {
+    if (!data?.organizationsList) return []
+    if (!selectedIndustry) return data.organizationsList
+    return data.organizationsList.filter(org => {
+      const orgIndId = String((org as any).industryId || '').toLowerCase()
+      const selIndId = String(selectedIndustry).toLowerCase()
+      return orgIndId === selIndId
+    })
+  }, [data?.organizationsList, selectedIndustry])
+
+  // Automatically select the first organization for Super Admin when filteredOrgs changes
+  useEffect(() => {
+    if (isSuperAdmin && filteredOrgs.length > 0) {
+      const isValid = filteredOrgs.some(org => org.code === selectedOrg)
+      if (!isValid || !selectedOrg) {
+        setSelectedOrg(filteredOrgs[0].code)
+      }
+    } else if (isSuperAdmin) {
+      setSelectedOrg('')
+    }
+  }, [filteredOrgs, isSuperAdmin, selectedOrg])
 
   useEffect(() => {
     void fetchDashboardData()
-  }, [groupBy, selectedOrg, startDate, endDate])
+    void fetchDashboardConfig()
+  }, [groupBy, selectedIndustry, selectedOrg, startDate, endDate])
 
   const handleClearFilters = () => {
     setStartDate('')
     setEndDate('')
     setGroupBy('team')
-    setSelectedOrg(isSuperAdmin && data?.organizationsList && data.organizationsList.length > 0 ? data.organizationsList[0].code : '')
+    if (isSuperAdmin && industries.length > 0) {
+      setSelectedIndustry(industries[0].code || '')
+    }
+    setSelectedOrg(isSuperAdmin && filteredOrgs.length > 0 ? filteredOrgs[0].code : '')
     setShowDatePanel(false)
   }
 
@@ -264,9 +316,56 @@ export default function AnalyticsPage() {
     setShowDatePanel(true)
   }
 
+  // Detect currently active date range preset
+  const activePreset = useMemo(() => {
+    if (!startDate || !endDate) return null
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const diffTime = Math.abs(end.getTime() - start.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (diffDays === 7) return 7
+    if (diffDays === 30) return 30
+    return null
+  }, [startDate, endDate])
+
   // Card configuration
   const cardConfigs = useMemo(() => {
     if (!data?.cards) return []
+
+    if (dashboardConfig?.tabs) {
+      const tab0 = dashboardConfig.tabs.find((t: any) => t.id === 0)
+      if (tab0) {
+        const kpis = tab0.widgets.filter((w: any) => w.type === 'KPI')
+        if (kpis.length > 0) {
+          return kpis.map((w: any) => {
+            const path = w.data_key.split('.')
+            let val = data as any
+            for (const key of path) {
+              val = val?.[key]
+            }
+
+            let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+            else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+
+            return {
+              label: w.title,
+              val: val !== undefined ? val : 0,
+              color: w.color || '#EC4899',
+              bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+              icon: iconNode
+            }
+          })
+        }
+      }
+    }
+
     const c = data.cards
     return [
       { label: 'Total Leads', val: c.totalLeads, color: '#F43F5E', bg: 'linear-gradient(135deg, rgba(244,63,94,0.06) 0%, rgba(244,63,94,0.01) 100%)', icon: <PeopleIcon sx={{ fontSize: '1.4rem', color: '#F43F5E' }} /> }, // rose
@@ -279,7 +378,19 @@ export default function AnalyticsPage() {
       { label: 'Completed Visits', val: c.completedVisits, color: '#14B8A6', bg: 'linear-gradient(135deg, rgba(20,184,166,0.06) 0%, rgba(20,184,166,0.01) 100%)', icon: <EventAvailableIcon sx={{ fontSize: '1.4rem', color: '#14B8A6' }} /> }, // teal
       { label: 'Scheduled Visits', val: c.scheduledVisits, color: '#06B6D4', bg: 'linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(6,182,212,0.01) 100%)', icon: <EventIcon sx={{ fontSize: '1.4rem', color: '#06B6D4' }} /> }, // cyan
     ]
-  }, [data?.cards])
+  }, [data, dashboardConfig])
+
+  // Key Metrics Overview section lookup
+  const keyMetricsSection = useMemo(() => {
+    if (!dashboardConfig?.tabs) return null
+    for (const t of dashboardConfig.tabs) {
+      if (t.sections) {
+        const found = t.sections.find((s: any) => s.title === 'Key Metrics Overview')
+        if (found) return found
+      }
+    }
+    return null
+  }, [dashboardConfig])
 
   // Custom SVG Curved Trend Area configurations
   const trendLineConfig = useMemo(() => {
@@ -401,6 +512,444 @@ export default function AnalyticsPage() {
     document.body.removeChild(link)
   }
 
+  const renderDynamicWidgets = () => {
+    if (!dashboardConfig?.tabs) return null
+    const tab = dashboardConfig.tabs.find((t: any) => t.id === activeTab)
+    if (!tab) return null
+
+    const renderWidget = (w: any) => {
+      const path = w.data_key.split('.')
+      let dataList = data as any
+      for (const key of path) {
+        dataList = dataList?.[key]
+      }
+      if (!Array.isArray(dataList)) dataList = []
+
+      if (w.type === 'TABLE') {
+        return (
+          <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {w.title}
+              </Typography>
+              <Tooltip title="Download CSV">
+                <IconButton size="small" onClick={() => downloadCSV(w.id)} sx={{ color: 'text.secondary' }}>
+                  <DownloadOutlinedIcon sx={{ fontSize: '1.2rem' }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            <Box sx={{ overflowX: 'auto', width: '100%' }}>
+              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 500 }}>
+                <thead>
+                  <Box component="tr" sx={{ 
+                    borderBottom: '1.5px solid', 
+                    borderColor: 'divider', 
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+                    '& th': { 
+                      py: 1.5, 
+                      px: 2, 
+                      fontWeight: 700, 
+                      fontSize: '0.78rem', 
+                      color: 'text.secondary', 
+                      textTransform: 'uppercase', 
+                      letterSpacing: 0.5,
+                      whiteSpace: 'nowrap'
+                    } 
+                  }}>
+                    <th>S.No</th>
+                    {w.columns?.map((col: any) => (
+                      <th key={col.key}>{col.label}</th>
+                    ))}
+                  </Box>
+                </thead>
+                <tbody>
+                  {dataList.length > 0 ? (
+                    dataList.map((r: any, idx: number) => (
+                      <Box
+                        component="tr"
+                        key={idx}
+                        sx={{
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          '&:hover': { backgroundColor: isDark ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.015)' },
+                          '& td': { 
+                            py: 1.4, 
+                            px: 2, 
+                            fontSize: '0.8125rem', 
+                            color: 'text.primary',
+                            whiteSpace: 'nowrap'
+                          }
+                        }}
+                      >
+                        <td>{idx + 1}</td>
+                        {w.columns?.map((col: any) => (
+                          <td key={col.key} style={col.key === 'associate' ? { fontWeight: 600 } : col.key === 'total' ? { fontWeight: 700 } : {}}>
+                            {r[col.key]}
+                          </td>
+                        ))}
+                      </Box>
+                    ))
+                  ) : (
+                    <Box component="tr">
+                      <td colSpan={(w.columns?.length || 0) + 1} style={{ textAlign: 'center', padding: '20px', color: theme.palette.text.secondary }}>
+                        No data available
+                      </td>
+                    </Box>
+                  )}
+                </tbody>
+              </Box>
+            </Box>
+          </Card>
+        )
+      } else if (w.type === 'CHART') {
+        if (w.chart_type === 'donut') {
+          const totalVal = dataList.reduce((sum: number, item: any) => sum + item.value, 0)
+          let accumulatedPercentage = 0
+          const colors = ['#10B981', '#3B82F6', '#06B6D4', '#8B5CF6', '#F97316']
+          const slices = dataList.map((item: any, idx: number) => {
+            const percentage = totalVal > 0 ? (item.value / totalVal) * 100 : 0
+            const strokeDasharray = `${(percentage / 100) * 376.99} 376.99`
+            const strokeDashoffset = `${- (accumulatedPercentage / 100) * 376.99}`
+            accumulatedPercentage += percentage
+            return {
+              name: item.name,
+              value: item.value,
+              percentage: Math.round(percentage),
+              strokeDasharray,
+              strokeDashoffset,
+              color: colors[idx] || '#CCCCCC'
+            }
+          })
+
+          return (
+            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3, color: 'text.primary' }}>
+                {w.title}
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'center', gap: 4, flexGrow: 1 }}>
+                {totalVal > 0 ? (
+                  <Box sx={{ position: 'relative', width: 160, height: 160 }}>
+                    <svg width="100%" height="100%" viewBox="0 0 160 160" style={{ transform: 'rotate(-90deg)' }}>
+                      <circle cx="80" cy="80" r="60" fill="transparent" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'} strokeWidth="16" />
+                      {slices.map((slice: any, idx: number) => (
+                        <circle
+                          key={idx}
+                          cx="80"
+                          cy="80"
+                          r="60"
+                          fill="transparent"
+                          stroke={slice.color}
+                          strokeWidth="16"
+                          strokeDasharray={slice.strokeDasharray}
+                          strokeDashoffset={slice.strokeDashoffset}
+                          strokeLinecap="round"
+                          style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                          onMouseEnter={() => setHoveredDonutSlice(slice)}
+                          onMouseLeave={() => setHoveredDonutSlice(null)}
+                        />
+                      ))}
+                    </svg>
+                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1 }}>
+                        {hoveredDonutSlice ? hoveredDonutSlice.value : totalVal}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mt: 0.5, display: 'block' }}>
+                        {hoveredDonutSlice ? hoveredDonutSlice.name : 'Total'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ position: 'relative', width: 160, height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
+                    No chart data
+                  </Box>
+                )}
+
+                <Stack spacing={1.5} sx={{ minWidth: 140 }}>
+                  {slices.map((slice: any, idx: number) => (
+                    <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: slice.color }} />
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                          {slice.name}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                        {slice.percentage}%
+                      </Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Box>
+            </Card>
+          )
+        } else if (w.chart_type === 'trend') {
+          const trends = dataList
+          const width = 800
+          const height = 180
+          const paddingLeft = 40
+          const paddingRight = 40
+          const paddingTop = 20
+          const paddingBottom = 20
+
+          const chartWidth = width - paddingLeft - paddingRight
+          const chartHeight = height - paddingTop - paddingBottom
+
+          const stepX = trends.length > 1 ? chartWidth / (trends.length - 1) : chartWidth
+          const maxVal = Math.max(...trends.map((t: any) => t.calls || t.value || 0), 2)
+
+          const points = trends.map((t: any, idx: number) => {
+            const x = paddingLeft + idx * stepX
+            const val = t.calls || t.value || 0
+            const y = paddingTop + chartHeight - (val / maxVal) * chartHeight
+            return { x, y, date: t.date || t.name, calls: val }
+          })
+
+          const linePath = points.map((pt: any, idx: number) => 
+            `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`
+          ).join(' ')
+
+          return (
+            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', gridColumn: 'span 2' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+                {w.title}
+              </Typography>
+              <Box sx={{ position: 'relative', width: '100%', height: 180, mt: 3 }}>
+                {points.length > 0 ? (
+                  <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                    <path d={linePath} fill="none" stroke="#3B82F6" strokeWidth="3" />
+                    {points.map((pt: any, idx: number) => (
+                      <g key={idx}>
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r="5"
+                          fill="#ffffff"
+                          stroke="#3B82F6"
+                          strokeWidth="3"
+                          style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                          onMouseEnter={() => setHoveredTrend({ date: pt.date, calls: pt.calls, x: pt.x, y: pt.y - 10 })}
+                          onMouseLeave={() => setHoveredTrend(null)}
+                        />
+                      </g>
+                    ))}
+                  </svg>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'text.secondary' }}>
+                    No call data found for this range
+                  </Box>
+                )}
+              </Box>
+            </Card>
+          )
+        }
+      }
+      return null
+    }
+
+    if (tab.sections && tab.sections.length > 0) {
+      return (
+        <Stack spacing={4}>
+          {tab.sections.filter((s: any) => s.is_active !== false && s.title !== 'Key Metrics Overview').map((sec: any) => {
+            const secKPIs = sec.widgets.filter((w: any) => w.type === 'KPI')
+            const secLayoutWidgets = sec.widgets.filter((w: any) => w.type !== 'KPI')
+
+            return (
+              <Box key={sec.id}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', mb: 2, display: 'block', borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+                  {sec.title}
+                </Typography>
+
+                {secKPIs.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: 'repeat(2, 1fr)',
+                        sm: 'repeat(3, 1fr)',
+                        md: 'repeat(5, 1fr)',
+                        lg: `repeat(${Math.min(9, secKPIs.length)}, 1fr)`,
+                      },
+                      gap: 1.25,
+                      mb: 2.5
+                    }}
+                  >
+                    {secKPIs.map((w: any) => {
+                      const path = w.data_key.split('.')
+                      let val = data as any
+                      for (const key of path) {
+                        val = val?.[key]
+                      }
+                      
+                      let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+
+                      const cardPayload = {
+                        label: w.title,
+                        val: val !== undefined ? val : 0,
+                        color: w.color || '#EC4899',
+                        bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+                        icon: iconNode
+                      }
+
+                      return (
+                        <Card
+                          key={w.id}
+                          onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: '10px',
+                            border: '1px solid',
+                            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                            background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                            borderLeft: `3px solid ${cardPayload.color}`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            minHeight: 80,
+                            cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                            transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': w.id === 'totalLeads' ? {} : {
+                              transform: 'translateY(-2px)',
+                              boxShadow: isDark
+                                ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                                : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                              borderColor: alpha(cardPayload.color, 0.5),
+                            }
+                          }}
+                        >
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {cardPayload.label}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                              {cardPayload.icon}
+                            </Box>
+                          </Stack>
+                          <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                            {cardPayload.val}
+                          </Typography>
+                        </Card>
+                      )
+                    })}
+                  </Box>
+                )}
+
+                {secLayoutWidgets.length > 0 && (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.5, mb: 2 }}>
+                    {secLayoutWidgets.map((w: any) => renderWidget(w))}
+                  </Box>
+                )}
+              </Box>
+            )
+          })}
+        </Stack>
+      )
+    }
+
+    const flatKPIs = tab.widgets?.filter((w: any) => w.type === 'KPI') || []
+    const flatLayoutWidgets = tab.widgets?.filter((w: any) => w.type !== 'KPI') || []
+
+    return (
+      <Stack spacing={3}>
+        {flatKPIs.length > 0 && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, 1fr)',
+                sm: 'repeat(3, 1fr)',
+                md: 'repeat(5, 1fr)',
+                lg: `repeat(${Math.min(9, flatKPIs.length)}, 1fr)`,
+              },
+              gap: 1.25,
+            }}
+          >
+            {flatKPIs.map((w: any) => {
+              const path = w.data_key.split('.')
+              let val = data as any
+              for (const key of path) {
+                val = val?.[key]
+              }
+
+              let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+
+              const cardPayload = {
+                label: w.title,
+                val: val !== undefined ? val : 0,
+                color: w.color || '#EC4899',
+                bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+                icon: iconNode
+              }
+
+              return (
+                <Card
+                  key={w.id}
+                  onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                    background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                    borderLeft: `3px solid ${cardPayload.color}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: 80,
+                    cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                    transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': w.id === 'totalLeads' ? {} : {
+                      transform: 'translateY(-2px)',
+                      boxShadow: isDark
+                        ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                        : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                      borderColor: alpha(cardPayload.color, 0.5),
+                    }
+                  }}
+                >
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      {cardPayload.label}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                      {cardPayload.icon}
+                    </Box>
+                  </Stack>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                    {cardPayload.val}
+                  </Typography>
+                </Card>
+              )
+            })}
+          </Box>
+        )}
+
+        {flatLayoutWidgets.length > 0 && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.5 }}>
+            {flatLayoutWidgets.map((w: any) => renderWidget(w))}
+          </Box>
+        )}
+      </Stack>
+    )
+  }
+
   return (
     <Box
       sx={{
@@ -485,7 +1034,24 @@ export default function AnalyticsPage() {
         >
           {/* Left Controls: Org Dropdown + Grouping Selection */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            {isSuperAdmin && data?.organizationsList && (
+            {isSuperAdmin && industries.length > 0 && (
+              <TextField
+                select
+                size="small"
+                label="Industry"
+                value={selectedIndustry}
+                onChange={(e) => setSelectedIndustry(e.target.value)}
+                sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+              >
+                {industries.map((ind) => (
+                  <MenuItem key={ind._id} value={ind.code}>
+                    {ind.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {isSuperAdmin && filteredOrgs.length > 0 && (
               <TextField
                 select
                 size="small"
@@ -494,7 +1060,7 @@ export default function AnalyticsPage() {
                 onChange={(e) => setSelectedOrg(e.target.value)}
                 sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
               >
-                {data.organizationsList.map((org) => (
+                {filteredOrgs.map((org) => (
                   <MenuItem key={org.code} value={org.code}>
                     {org.name}
                   </MenuItem>
@@ -573,8 +1139,40 @@ export default function AnalyticsPage() {
                 borderRadius: '10px'
               }}
             >
-              <Button size="small" variant="text" onClick={() => applyPresetFilter(7)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1.5, borderRadius: '8px' }}>7 Days</Button>
-              <Button size="small" variant="text" onClick={() => applyPresetFilter(30)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1.5, borderRadius: '8px' }}>30 Days</Button>
+              <Button
+                size="small"
+                variant={activePreset === 7 ? 'contained' : 'text'}
+                color={activePreset === 7 ? 'secondary' : 'inherit'}
+                onClick={() => applyPresetFilter(7)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  px: 1.5,
+                  borderRadius: '8px',
+                  boxShadow: 'none',
+                  '&:hover': { boxShadow: 'none' }
+                }}
+              >
+                7 Days
+              </Button>
+              <Button
+                size="small"
+                variant={activePreset === 30 ? 'contained' : 'text'}
+                color={activePreset === 30 ? 'secondary' : 'inherit'}
+                onClick={() => applyPresetFilter(30)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  px: 1.5,
+                  borderRadius: '8px',
+                  boxShadow: 'none',
+                  '&:hover': { boxShadow: 'none' }
+                }}
+              >
+                30 Days
+              </Button>
             </Stack>
 
             {/* Date Inputs Inline */}
@@ -629,67 +1227,156 @@ export default function AnalyticsPage() {
         <Alert severity="error">Failed to load Analytics data. Please check connection.</Alert>
       ) : (
         <>
-          {/* ── KPI METRICS CARDS GRID (Compact & Branded) ───── */}
-          <Box sx={{ flexShrink: 0 }}>
-            <Typography variant="caption" sx={{ display: 'block', mb: 1.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Workspace Performance Metrics
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: 'repeat(2, 1fr)',
-                  sm: 'repeat(3, 1fr)',
-                  md: 'repeat(5, 1fr)',
-                  lg: 'repeat(9, 1fr)',
-                },
-                gap: 1.25,
-              }}
-            >
-              {cardConfigs.map((c) => {
-                const isTotalLeads = c.label === 'Total Leads'
-                return (
-                  <Card
-                    key={c.label}
-                    onClick={isTotalLeads ? undefined : () => handleCardClick(c.label)}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: '10px',
-                      border: '1px solid',
-                      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                      background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                      borderLeft: `3px solid ${c.color}`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      minHeight: 80,
-                      cursor: isTotalLeads ? 'default' : 'pointer',
-                      transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': isTotalLeads ? {} : {
-                        transform: 'translateY(-2px)',
-                        boxShadow: isDark
-                          ? `0 4px 20px ${alpha(c.color, 0.2)}`
-                          : `0 4px 16px ${alpha(c.color, 0.1)}`,
-                        borderColor: alpha(c.color, 0.5),
-                      }
-                    }}
-                  >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {c.label}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                      {c.icon}
-                    </Box>
-                  </Stack>
-                  <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                    {c.val}
-                  </Typography>
-                </Card>
-              );
-            })}
+          {/* Key Metrics Overview rendered at the top level for Super Admin */}
+          {keyMetricsSection && (
+            <Box sx={{ flexShrink: 0, mb: 3 }}>
+              <Typography variant="caption" sx={{ display: 'block', mb: 1.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Key Metrics Overview
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, 1fr)',
+                    sm: 'repeat(3, 1fr)',
+                    md: 'repeat(5, 1fr)',
+                    lg: `repeat(${Math.min(9, keyMetricsSection.widgets.length)}, 1fr)`,
+                  },
+                  gap: 1.25,
+                }}
+              >
+                {keyMetricsSection.widgets.map((w: any) => {
+                  const path = w.data_key.split('.')
+                  let val = data as any
+                  for (const key of path) {
+                    val = val?.[key]
+                  }
+
+                  let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+
+                  const cardPayload = {
+                    label: w.title,
+                    val: val !== undefined ? val : 0,
+                    color: w.color || '#EC4899',
+                    bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+                    icon: iconNode
+                  }
+
+                  return (
+                    <Card
+                      key={w.id}
+                      onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: '10px',
+                        border: '1px solid',
+                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                        background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                        borderLeft: `3px solid ${cardPayload.color}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: 80,
+                        cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                        transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': w.id === 'totalLeads' ? {} : {
+                          transform: 'translateY(-2px)',
+                          boxShadow: isDark
+                            ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                            : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                          borderColor: alpha(cardPayload.color, 0.5),
+                        }
+                      }}
+                    >
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                          {cardPayload.label}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                          {cardPayload.icon}
+                        </Box>
+                      </Stack>
+                      <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                        {cardPayload.val}
+                      </Typography>
+                    </Card>
+                  );
+                })}
+              </Box>
             </Box>
-          </Box>
+          )}
+
+          {/* ── KPI METRICS CARDS GRID (Compact & Branded) ───── */}
+          {!dashboardConfig?.tabs && (
+            <Box sx={{ flexShrink: 0 }}>
+              <Typography variant="caption" sx={{ display: 'block', mb: 1.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Workspace Performance Metrics
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, 1fr)',
+                    sm: 'repeat(3, 1fr)',
+                    md: 'repeat(5, 1fr)',
+                    lg: 'repeat(9, 1fr)',
+                  },
+                  gap: 1.25,
+                }}
+              >
+                {cardConfigs.map((c: any) => {
+                  const isTotalLeads = c.label === 'Total Leads'
+                  return (
+                    <Card
+                      key={c.label}
+                      onClick={isTotalLeads ? undefined : () => handleCardClick(c.label)}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: '10px',
+                        border: '1px solid',
+                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                        background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                        borderLeft: `3px solid ${c.color}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: 80,
+                        cursor: isTotalLeads ? 'default' : 'pointer',
+                        transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': isTotalLeads ? {} : {
+                          transform: 'translateY(-2px)',
+                          boxShadow: isDark
+                            ? `0 4px 20px ${alpha(c.color, 0.2)}`
+                            : `0 4px 16px ${alpha(c.color, 0.1)}`,
+                          borderColor: alpha(c.color, 0.5),
+                        }
+                      }}
+                    >
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                          {c.label}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                          {c.icon}
+                        </Box>
+                      </Stack>
+                      <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                        {c.val}
+                      </Typography>
+                    </Card>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
 
           {/* ── TABS BAR (sleek custom styling) ───────────────────────────────── */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 1, flexShrink: 0 }}>
@@ -714,14 +1401,26 @@ export default function AnalyticsPage() {
                 }
               }}
             >
-              <Tab label="Contacts Overview" />
-              <Tab label="Tasks & Meetings" />
-              <Tab label="Calling Analytics" />
+              {dashboardConfig?.tabs ? (
+                dashboardConfig.tabs.map((tab: any) => (
+                  <Tab key={tab.id} label={tab.label} />
+                ))
+              ) : (
+                <>
+                  <Tab label="Contacts Overview" />
+                  <Tab label="Tasks & Meetings" />
+                  <Tab label="Calling Analytics" />
+                </>
+              )}
             </Tabs>
           </Box>
 
           {/* ── TAB CONTENT: CONTACTS OVERVIEW ────────────────────────────────── */}
-          {activeTab === 0 && (
+          {dashboardConfig?.tabs ? (
+            renderDynamicWidgets()
+          ) : (
+            <>
+              {activeTab === 0 && (
             <Stack spacing={3}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.5 }}>
                 
@@ -1499,6 +2198,8 @@ export default function AnalyticsPage() {
                 </Box>
               </Card>
             </Stack>
+          )}
+            </>
           )}
         </>
       )}

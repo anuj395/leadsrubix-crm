@@ -3,7 +3,15 @@ const roleModel = require('../models/roleModel');
 const industryModel = require('../models/industryModel');
 const menuModel = require('../models/sidebarMenuModel');
 
-exports.list = (opts) => permModel.list(opts);
+exports.list = async (opts) => {
+  if (opts && opts.industryId) {
+    const indDoc = await industryModel.findByCode(opts.industryId);
+    if (indDoc) {
+      opts.industryId = indDoc._id;
+    }
+  }
+  return permModel.list(opts);
+};
 
 exports.upsert = async (payload) => {
   const { roleId, industryId, menu_id } = payload || {};
@@ -12,13 +20,18 @@ exports.upsert = async (payload) => {
     err.status = 400;
     throw err;
   }
-  const [role, industry, menu] = await Promise.all([
+  const industry = await industryModel.findByCode(industryId);
+  if (!industry) {
+    const err = new Error('industry not found');
+    err.status = 404;
+    throw err;
+  }
+  const [role, menu] = await Promise.all([
     roleModel.findById(roleId),
-    industryModel.findById(industryId),
     menuModel.findById(menu_id),
   ]);
-  if (!role || !industry || !menu) {
-    const err = new Error('role, industry or menu not found');
+  if (!role || !menu) {
+    const err = new Error('role or menu not found');
     err.status = 404;
     throw err;
   }
@@ -28,6 +41,7 @@ exports.upsert = async (payload) => {
     err.status = 400;
     throw err;
   }
+  payload.industryId = industry._id;
   return permModel.upsert(payload);
 };
 
@@ -37,12 +51,15 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids }) => {
     err.status = 400;
     throw err;
   }
-  const [role, industry] = await Promise.all([
-    roleModel.findById(roleId),
-    industryModel.findById(industryId),
-  ]);
-  if (!role || !industry) {
-    const err = new Error('role or industry not found');
+  const industry = await industryModel.findByCode(industryId);
+  if (!industry) {
+    const err = new Error('industry not found');
+    err.status = 404;
+    throw err;
+  }
+  const role = await roleModel.findById(roleId);
+  if (!role) {
+    const err = new Error('role not found');
     err.status = 404;
     throw err;
   }
@@ -52,7 +69,7 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids }) => {
     err.status = 400;
     throw err;
   }
-  return permModel.bulkSetForRoleIndustry({ roleId, industryId, menu_ids });
+  return permModel.bulkSetForRoleIndustry({ roleId, industryId: industry._id, menu_ids });
 };
 
 exports.remove = async (id) => permModel.remove(id);

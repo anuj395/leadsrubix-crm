@@ -37,14 +37,14 @@ exports.RoleActionPermission = RoleActionPermission;
 
 exports.list = async ({ roleId, industryId, screenId } = {}) => {
   const q = {};
-  if (roleId) q.roleId = roleId;
-  if (industryId) q.industryId = industryId;
-  if (screenId) q.screenId = screenId;
+  if (roleId) q.role_id = roleId;
+  if (industryId) q.industry_id = industryId;
+  if (screenId) q.screen_id = screenId;
   return RoleActionPermission.find(q).lean().exec();
 };
 
 exports.findFor = ({ roleId, industryId, screenId }) => {
-  return RoleActionPermission.findOne({ roleId, industryId, screenId }).lean().exec();
+  return RoleActionPermission.findOne({ role_id: roleId, industry_id: industryId, screen_id: screenId }).lean().exec();
 };
 
 exports.upsert = async ({
@@ -56,16 +56,16 @@ exports.upsert = async ({
   const cEdit = canEdit !== undefined ? canEdit : can_edit;
   const cDel = canDelete !== undefined ? canDelete : can_delete;
   const $set = {};
-  if (cView !== undefined) $set.canView = !!cView;
-  if (cAdd  !== undefined) $set.canAdd  = !!cAdd;
-  if (cEdit !== undefined) $set.canEdit = !!cEdit;
-  if (cDel  !== undefined) $set.canDelete = !!cDel;
+  if (cView !== undefined) $set.can_view = !!cView;
+  if (cAdd  !== undefined) $set.can_add  = !!cAdd;
+  if (cEdit !== undefined) $set.can_edit = !!cEdit;
+  if (cDel  !== undefined) $set.can_delete = !!cDel;
   await RoleActionPermission.updateOne(
-    { roleId, industryId, screenId },
-    { $set, $setOnInsert: { roleId, industryId, screenId } },
+    { role_id: roleId, industry_id: industryId, screen_id: screenId },
+    { $set, $setOnInsert: { role_id: roleId, industry_id: industryId, screen_id: screenId } },
     { upsert: true },
   );
-  return RoleActionPermission.findOne({ roleId, industryId, screenId }).lean().exec();
+  return RoleActionPermission.findOne({ role_id: roleId, industry_id: industryId, screen_id: screenId }).lean().exec();
 };
 
 exports.removeByRole     = (roleId)     => RoleActionPermission.deleteMany({ roleId }).exec();

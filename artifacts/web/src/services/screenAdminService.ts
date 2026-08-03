@@ -135,8 +135,9 @@ async function safeList<T>(path: string): Promise<T[]> {
 }
 
 // ── Screens CRUD ─────────────────────────────────────────────────────────────
-export async function getScreens(): Promise<Screen[]> {
-  return safeList<Screen>('screens')
+export async function getScreens(organizationId?: string): Promise<Screen[]> {
+  const path = organizationId ? `screens?organizationId=${organizationId}` : 'screens'
+  return safeList<Screen>(path)
 }
 export async function createScreen(data: ScreenInput): Promise<Screen> {
   const res = await api.post('screens', data)

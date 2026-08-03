@@ -57,14 +57,18 @@ export interface AdminRole {
 
 export interface RoleInput {
   industryId: string
+  organizationId?: string
   key: string
   name: string
   description?: string
   isActive?: boolean
 }
 
-export async function getRoles(industryId?: string): Promise<AdminRole[]> {
-  const path = industryId ? `roles?industryId=${industryId}` : 'roles'
+export async function getRoles(industryId?: string, organizationId?: string): Promise<AdminRole[]> {
+  const query = new URLSearchParams()
+  if (industryId) query.set('industryId', industryId)
+  if (organizationId) query.set('organizationId', organizationId)
+  const path = query.toString() ? `roles?${query.toString()}` : 'roles'
   return safeList<AdminRole>(path)
 }
 

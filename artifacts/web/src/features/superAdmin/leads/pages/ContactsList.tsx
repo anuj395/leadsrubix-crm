@@ -16,10 +16,13 @@ import { listContacts, createContact, type Contact } from '@/services/contactsSe
 import { resolveScreen, type ResolvedTableHeader } from '@/services/screenAdminService'
 import { useAppSelector } from '@/store/hooks'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 export default function ContactsListPage() {
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
+  const isSuperAdmin = user?.role === 'superAdmin'
   const [items, setItems] = useState<Contact[]>([])
   const [columns, setColumns] = useState<ResolvedTableHeader[]>([])
   const [loading, setLoading] = useState(false)
@@ -28,15 +31,27 @@ export default function ContactsListPage() {
     open: false, msg: '', sev: 'success',
   })
 
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
+
   const refresh = async () => {
     setLoading(true)
     try {
+      const activeIndustry = isSuperAdmin ? selectedIndustry || undefined : undefined
+      const activeOrg = isSuperAdmin ? selectedOrg || undefined : undefined
+
       const [list, resolved] = await Promise.all([
-        listContacts(),
+        listContacts({ industryId: activeIndustry, organizationId: activeOrg }),
         resolveScreen({
           screenKey: 'contacts',
-          industryCode: user?.role === 'superAdmin' ? 'temp0001' : undefined,
-          roleKey: user?.role === 'superAdmin' ? 'admin' : undefined,
+          industryCode: isSuperAdmin ? activeIndustry || 'temp0001' : undefined,
+          roleKey: isSuperAdmin ? 'admin' : undefined,
         }),
       ])
       setItems(list)
@@ -50,9 +65,10 @@ export default function ContactsListPage() {
   }
 
   useEffect(() => {
+    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedIndustry, selectedOrg, isSuperAdmin])
 
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
     const sNoCol: GridColDef<Contact> = {
@@ -75,7 +91,12 @@ export default function ContactsListPage() {
       flex: 1,
       minWidth: 140,
       sortable: c.sortable !== false,
-      valueGetter: (_v, row) => (row as Record<string, unknown>)[c.key],
+      valueGetter: (_v, row) => {
+        const r = row as Record<string, unknown>
+        const camelKey = c.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+        const snakeKey = c.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+        return r[c.key] ?? r[camelKey] ?? r[snakeKey]
+      },
       renderCell: (p) => {
         const v = p.value
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
@@ -109,6 +130,15 @@ export default function ContactsListPage() {
         }
         fullHeight
       >
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
         <AppDataGrid onReload={refresh}
           height="100%"
           rows={items}

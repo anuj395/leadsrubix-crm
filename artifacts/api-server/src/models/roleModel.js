@@ -5,6 +5,8 @@ const ROLE_KEYS = ['superAdmin', 'admin', 'leadManager', 'teamLead', 'sales'];
 const roleSchema = new mongoose.Schema(
   {
     industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true, alias: 'industryId' },
+    organization_id: { type: String, default: null, alias: 'organizationId' },
+    workspace_id: { type: String, default: null, alias: 'workspaceId' },
     key: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
@@ -17,7 +19,7 @@ const roleSchema = new mongoose.Schema(
   },
 );
 
-roleSchema.index({ industry_id: 1, key: 1 }, { unique: true, name: 'idx_role_industry_key' });
+roleSchema.index({ organization_id: 1, industry_id: 1, key: 1 }, { unique: true, name: 'idx_role_org_industry_key' });
 
 const Role = mongoose.model('Role', roleSchema, 'roles');
 
@@ -26,8 +28,8 @@ const industryModel = require('./industryModel');
 exports.Role = Role;
 exports.ROLE_KEYS = ROLE_KEYS;
 
-exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
-  const q = { key: { $ne: 'superAdmin' } };
+exports.list = async ({ industryId, organizationId, activeOnly = false, excludeRole } = {}) => {
+  const q = {};
   if (industryId) {
     const industryDoc = await industryModel.findByCode(industryId);
     if (industryDoc) {
@@ -36,11 +38,28 @@ exports.list = async ({ industryId, activeOnly = false, excludeRole } = {}) => {
       q.industry_id = industryId;
     }
   }
-  if (activeOnly) q.is_active = true;
-  if (excludeRole) {
-    q.key = { $nin: ['superAdmin', excludeRole] };
+  if (organizationId !== undefined && organizationId !== null && organizationId !== 'all' && organizationId !== '') {
+    q.$or = [{ organization_id: organizationId }, { organization_id: null }, { organization_id: { $exists: false } }];
   }
-  return Role.find(q).populate('industry_id').sort({ key: 1 }).exec();
+  if (activeOnly) q.is_active = true;
+
+  const excludedKeys = ['superAdmin', 'replicateAdmin'];
+  if (excludeRole) excludedKeys.push(excludeRole);
+  q.key = { $nin: excludedKeys };
+
+  const rawList = await Role.find(q).populate('industry_id').sort({ key: 1 }).exec();
+
+  const roleMap = new Map();
+  for (const r of rawList) {
+    const key = r.key;
+    const existing = roleMap.get(key);
+    if (!existing) {
+      roleMap.set(key, r);
+    } else if (organizationId && (r.organization_id === organizationId || r.organizationId === organizationId)) {
+      roleMap.set(key, r);
+    }
+  }
+  return Array.from(roleMap.values());
 };
 
 exports.findById = async (id) => Role.findById(id).populate('industry_id').exec();

@@ -15,6 +15,9 @@ import DescriptionIcon from '@mui/icons-material/Description'
 import DateRangeIcon from '@mui/icons-material/DateRange'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
+import { useAppSelector } from '@/store/hooks'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 function getCreatedAtUTC(startDateStr: string, endDateStr: string): [string, string] {
   const startUTC = new Date(`${startDateStr}T00:00:00+05:30`).toISOString()
@@ -23,6 +26,8 @@ function getCreatedAtUTC(startDateStr: string, endDateStr: string): [string, str
 }
 
 export default function SortedListPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const isSuperAdmin = user?.role === 'superAdmin'
   const [exporting, setExporting] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -31,6 +36,15 @@ export default function SortedListPage() {
     msg: '',
     sev: 'success',
   })
+
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
 
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,6 +65,8 @@ export default function SortedListPage() {
         {
           startDate: startUTC,
           endDate: endUTC,
+          industryId: isSuperAdmin ? selectedIndustry || undefined : undefined,
+          organizationId: isSuperAdmin ? selectedOrg || undefined : undefined,
           sort: { created_at: '-1' },
           filter: {
             transfer_status: [false],
@@ -101,6 +117,15 @@ export default function SortedListPage() {
         subtitle="Configure criteria and export your Leads database records directly into Excel spreadsheet workbooks."
         fullHeight
       >
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
         <Box sx={{ py: { xs: 2, md: 4 }, px: { xs: 1, md: 2 }, height: '100%', overflowY: 'auto' }}>
           <Grid container spacing={4} sx={{ minHeight: '100%' }}>
             {/* Left Pane - Date Selector Form */}

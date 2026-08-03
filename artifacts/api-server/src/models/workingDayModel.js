@@ -10,7 +10,9 @@ const daySchema = new mongoose.Schema({
 
 const workingDaySchema = new mongoose.Schema(
   {
-    organization_id: { type: String, required: true, unique: true, index: true, alias: 'organizationId' },
+    organization_id: { type: String, required: true, index: true, alias: 'organizationId' },
+    workspace_id: { type: String, default: null, index: true, alias: 'workspaceId' },
+    industry_id: { type: String, default: null, index: true, alias: 'industryId' },
     days: [daySchema],
   },
   { 

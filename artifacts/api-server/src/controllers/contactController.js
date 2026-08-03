@@ -18,13 +18,17 @@ const getOrganizationName = async (orgId) => {
 const datesField = ["created_at", "updated_at", "next_follow_up_date_time", "dueDate", "nextFollowUp"];
 const booleanField = ['associateStatus', 'sourceStatus', 'transferStatus', 'transfer_status'];
 
+const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
+
 exports.list = async (req, res, next) => {
   try {
     const items = await service.listForUser({
       authedUser: req.user,
+      industryIdQuery: req.query.industryId,
+      organizationIdQuery: req.query.organizationId,
       limit: Number(req.query.limit) || 200,
     });
-    res.json({ items: convertKeysToCamelCase(items) });
+    res.json({ items: mapWithDualCase(items) });
   } catch (err) {
     next(err);
   }
@@ -138,30 +142,34 @@ exports.masterSortSearch = async (req, res, next) => {
     const endDate = req.body.endDate;
     const dateField = req.body.dateField || "created_at"; // default field
 
-    // 1. Resolve Columns Dynamically
-    const columns = [];
-    columns.push({
-      header: 'Organization Name',
-      key: 'organization_name',
-      width: 25,
-    });
+    const requestedIndustry = req.body.industryId || req.query.industryId;
+    const requestedOrganization = req.body.organizationId || req.query.organizationId;
 
-    const screenDoc = await Screen.findOne({ key: 'contacts' }).exec();
-    if (screenDoc) {
-      const fields = await ScreenField.find({ screen_id: screenDoc._id, is_active: true })
-        .sort({ order: 1, label: 1 })
-        .exec();
-
-      fields.forEach((f) => {
-        const key = f.field_key || f.fieldKey;
-        if (key !== 'organization_id' && key !== 'organizationId') {
-          columns.push({
-            header: f.label,
-            key: key,
-            width: 25,
-          });
-        }
+    // --- Dynamic Column Resolution via Screen Permission Service ---
+    const screenPermissionService = require('../services/screenPermissionService');
+    const targetIndustryCode = requestedIndustry || req.user?.industryId || 'temp0001';
+    
+    let columns = [{ header: 'Organization Name', key: 'organization_name', width: 25 }];
+    
+    try {
+      const resolved = await screenPermissionService.resolve({
+        screenKey: 'contacts',
+        industryCode: targetIndustryCode,
+        roleKey: req.user?.role || 'admin',
       });
+      if (resolved && Array.isArray(resolved.table_headers)) {
+        resolved.table_headers.forEach((h) => {
+          if (h.key !== 'organization_id' && h.key !== 'organizationId') {
+            columns.push({
+              header: h.label,
+              key: h.key,
+              width: 25,
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to resolve dynamic screen headers for export:', e);
     }
 
     // --- Handle date & boolean filters ---
@@ -230,9 +238,20 @@ exports.masterSortSearch = async (req, res, next) => {
       filter["stage"] = { $nin: ["LOST", "NOT INTERESTED"] };
     }
 
-    // SuperAdmin gets all, but Admin/others should filter by organizationId
-    if (req.user?.role !== 'superAdmin') {
-      filter["organization_id"] = req.user?.organizationId;
+    // --- Multi-Tenant Scope Filtering ---
+    if (req.user?.role === 'superAdmin') {
+      if (requestedOrganization && requestedOrganization !== 'all') {
+        filter["$or"] = [{ organization_id: requestedOrganization }, { organizationId: requestedOrganization }];
+      } else if (requestedIndustry && requestedIndustry !== 'all') {
+        const Organization = mongoose.model('Organization');
+        const orgs = await Organization.find({ industry_code: requestedIndustry }).lean().exec();
+        const orgIds = orgs.map(o => o.organization_id || String(o._id));
+        filter["$or"] = [{ organization_id: { $in: orgIds } }, { organizationId: { $in: orgIds } }];
+      }
+    } else {
+      if (req.user?.organizationId) {
+        filter["$or"] = [{ organization_id: req.user.organizationId }, { organizationId: req.user.organizationId }];
+      }
     }
 
     // --- Fetch all sorted data ---

@@ -4,34 +4,49 @@ const model = require('../models/roleActionPermissionModel');
 const screenModel = require('../models/screenModel');
 const roleModel = require('../models/roleModel');
 
+const industryModel = require('../models/industryModel');
+
 const isObjectId = (v) => mongoose.Types.ObjectId.isValid(String(v ?? ''));
 
 const ACTIONS = ['view', 'add', 'edit', 'delete'];
 
 exports.ACTIONS = ACTIONS;
 
-exports.list = ({ roleId, industryId, screenId }) =>
-  model.list({ roleId, industryId, screenId });
+async function resolveIndustryId(industryId) {
+  if (!industryId) return null;
+  if (mongoose.Types.ObjectId.isValid(String(industryId))) {
+    const doc = await industryModel.findById(industryId);
+    if (doc) return doc._id;
+  }
+  const doc = await industryModel.findByCode(industryId);
+  return doc ? doc._id : null;
+}
+
+exports.list = async ({ roleId, industryId, screenId }) => {
+  const targetIndustryId = (await resolveIndustryId(industryId)) || industryId;
+  return model.list({ roleId, industryId: targetIndustryId, screenId });
+};
 
 exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete }) => {
   if (!roleId || !industryId || !screenId) {
     const e = new Error('roleId, industryId and screenId are required'); e.status = 400; throw e;
   }
-  if (!isObjectId(roleId) || !isObjectId(industryId) || !isObjectId(screenId)) {
+  const targetIndustryId = await resolveIndustryId(industryId);
+  if (!targetIndustryId) {
+    const e = new Error('Industry not found'); e.status = 404; throw e;
+  }
+  if (!isObjectId(roleId) || !isObjectId(targetIndustryId) || !isObjectId(screenId)) {
     const e = new Error('roleId, industryId and screenId must be valid ObjectIds'); e.status = 400; throw e;
   }
-  // Ensure referenced docs actually exist and that the role belongs to the
-  // requested industry — prevents orphan / cross-industry rows from direct API calls.
+  // Ensure referenced docs actually exist
   const [role, screen] = await Promise.all([
     roleModel.findById(roleId),
     screenModel.findById(screenId),
   ]);
   if (!role)   { const e = new Error('Role not found');   e.status = 404; throw e; }
   if (!screen) { const e = new Error('Screen not found'); e.status = 404; throw e; }
-  if (String(role.industryId) !== String(industryId)) {
-    const e = new Error('Role does not belong to the specified industry'); e.status = 400; throw e;
-  }
-  return model.upsert({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete });
+
+  return model.upsert({ roleId, industryId: targetIndustryId, screenId, can_view, can_add, can_edit, can_delete });
 };
 
 /**

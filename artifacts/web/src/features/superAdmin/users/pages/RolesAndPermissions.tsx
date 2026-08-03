@@ -47,6 +47,8 @@ import {
   type Industry,
   type AdminRole,
 } from '@/services/sidebarAdminService'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 import {
   getScreens,
   getScreenFields,
@@ -130,10 +132,20 @@ export default function RolesAndPermissionsPage() {
   const showToast = (msg: string, sev: ToastSev = 'success') =>
     setToast({ open: true, msg, sev })
 
-  // ── Shared state ──────────────────────────────────────────────────────────
-  const [industries, setIndustries] = useState<Industry[]>([])
+  // Shared Super Admin Scope Context
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
+
+  const filterIndustry = selectedIndustry
+  const setFilterIndustry = setSelectedIndustry
+
   const [roleKeys, setRoleKeys] = useState<{ _id: string; value: string; label: string }[]>([])
-  const [filterIndustry, setFilterIndustry] = useState<string>('') // industry _id
   const [roles, setRoles] = useState<AdminRole[]>([])
 
   useEffect(() => {
@@ -183,19 +195,7 @@ export default function RolesAndPermissionsPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [inds, screens] = await Promise.all([getIndustries(), getScreens()])
-        setIndustries(inds)
-        if (!filterIndustry) {
-          if (user?.industryId) {
-            const matchedInd = inds.find((i) => i._id === user.industryId || i.code === user.industryId)
-            if (matchedInd) setFilterIndustry(matchedInd._id)
-            else setFilterIndustry(user.industryId)
-          } else {
-            const realEstate = inds.find((i) => i.code === 'temp0001')
-            if (realEstate) setFilterIndustry(realEstate._id)
-            else if (inds[0]) setFilterIndustry(inds[0]._id)
-          }
-        }
+        const screens = await getScreens(selectedOrg)
         setAllScreens(screens.filter((s) => s.isActive))
         const u = screens.find((s) => s.key === 'users')
         if (!u) {
@@ -209,16 +209,20 @@ export default function RolesAndPermissionsPage() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedOrg])
 
   // ── Roles list (drives both tabs) ─────────────────────────────────────────
   useEffect(() => {
-    if (!filterIndustry) { setRoles([]); return }
+    if (!selectedIndustry || !selectedOrg) {
+      setRoles([])
+      setRolesLoading(false)
+      return
+    }
     let cancelled = false
     setRolesLoading(true)
     void (async () => {
       try {
-        const list = await getRoles(filterIndustry)
+        const list = await getRoles(selectedIndustry, selectedOrg)
         if (cancelled) return
         setRoles(list)
         // Default the role selector on the field tab.
@@ -249,7 +253,7 @@ export default function RolesAndPermissionsPage() {
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterIndustry])
+  }, [selectedIndustry, selectedOrg])
 
   // ── Fields list (from the 'users' screen) ────────────────────────────────
   const refreshFields = async () => {
@@ -327,6 +331,7 @@ export default function RolesAndPermissionsPage() {
       } else {
         await createRoleRecord({
           industryId: roleForm.industryId,
+          organizationId: selectedOrg || undefined,
           key: roleForm.key,
           name: roleForm.name,
           description: roleForm.description,
@@ -335,7 +340,7 @@ export default function RolesAndPermissionsPage() {
       }
       setRoleDialogOpen(false)
       showToast('Saved')
-      const list = await getRoles(filterIndustry)
+      const list = await getRoles(selectedIndustry, selectedOrg)
       setRoles(list)
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } }
@@ -352,7 +357,7 @@ export default function RolesAndPermissionsPage() {
         try {
           await deleteRoleRecord(r._id)
           showToast('Deleted')
-          const list = await getRoles(filterIndustry)
+          const list = await getRoles(selectedIndustry, selectedOrg)
           setRoles(list)
           if (selectedRoleId === r._id) setSelectedRoleId(list[0]?._id ?? '')
         } catch (e) {
@@ -372,13 +377,13 @@ export default function RolesAndPermissionsPage() {
     })
   }
   const savePerms = async () => {
-    if (!usersScreen || !selectedRoleId || !filterIndustry) return
+    if (!usersScreen || !selectedRoleId || !selectedIndustry) return
     setPermsSaving(true)
     try {
       await bulkSetScreenPermissions({
         screenId: usersScreen._id,
         roleId: selectedRoleId,
-        industryId: filterIndustry,
+        industryId: selectedIndustry,
         fieldIds: Array.from(enabledFieldIds),
       })
       showToast('Permissions saved')
@@ -478,14 +483,14 @@ export default function RolesAndPermissionsPage() {
 
   // ── Action permissions: load rows whenever role/industry change ──────────
   useEffect(() => {
-    if (!actionRoleId || !filterIndustry) { setActionRows([]); return }
+    if (!actionRoleId || !selectedIndustry) { setActionRows([]); return }
     let cancelled = false
     setActionLoading(true)
     void (async () => {
       try {
         const list = await listRoleActionPermissions({
           roleId: actionRoleId,
-          industryId: filterIndustry,
+          industryId: selectedIndustry,
         })
         if (!cancelled) setActionRows(list)
       } catch (e) {
@@ -496,7 +501,7 @@ export default function RolesAndPermissionsPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [actionRoleId, filterIndustry])
+  }, [actionRoleId, selectedIndustry])
 
   const actionByScreen = useMemo(() => {
     const m = new Map<string, RoleActionPermission>()
@@ -515,7 +520,7 @@ export default function RolesAndPermissionsPage() {
     screenId: string,
     action: 'view' | 'add' | 'edit' | 'delete',
   ) => {
-    if (!actionRoleId || !filterIndustry || isPrivilegedRole) return
+    if (!actionRoleId || !selectedIndustry || isPrivilegedRole) return
     const cur = actionByScreen.get(screenId)
     const next = {
       can_view:   cur?.can_view   ?? false,
@@ -528,7 +533,7 @@ export default function RolesAndPermissionsPage() {
     try {
       const saved = await upsertRoleActionPermission({
         roleId: actionRoleId,
-        industryId: filterIndustry,
+        industryId: selectedIndustry,
         screenId,
         ...next,
       })
@@ -546,7 +551,7 @@ export default function RolesAndPermissionsPage() {
 
   // ── Load permission fields and state for selected module inside Tab 3 ────
   useEffect(() => {
-    if (!selectedScreenForPerms || !actionRoleId || !filterIndustry) {
+    if (!selectedScreenForPerms || !actionRoleId || !selectedIndustry) {
       setPermFields([])
       setEnabledPermFieldIds(new Set())
       return
@@ -560,7 +565,7 @@ export default function RolesAndPermissionsPage() {
           getScreenPermissions({
             screenId: selectedScreenForPerms._id,
             roleId: actionRoleId,
-            industryId: filterIndustry,
+            industryId: selectedIndustry,
             enabledOnly: true,
           })
         ])
@@ -575,16 +580,16 @@ export default function RolesAndPermissionsPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [selectedScreenForPerms, actionRoleId, filterIndustry])
+  }, [selectedScreenForPerms, actionRoleId, selectedIndustry])
 
   const savePermFields = async () => {
-    if (!selectedScreenForPerms || !actionRoleId || !filterIndustry) return
+    if (!selectedScreenForPerms || !actionRoleId || !selectedIndustry) return
     setPermFieldsSaving(true)
     try {
       await bulkSetScreenPermissions({
         screenId: selectedScreenForPerms._id,
         roleId: actionRoleId,
-        industryId: filterIndustry,
+        industryId: selectedIndustry,
         fieldIds: [...enabledPermFieldIds],
       })
       showToast('Permissions updated')
@@ -887,29 +892,24 @@ export default function RolesAndPermissionsPage() {
         ))}
       </Tabs>
 
-      {/* Industry selector — shared by tabs */}
-      {isSuperAdmin && (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5, flexShrink: 0 }}>
-          <TextField
-            select
-            size="small"
-            label="Industry"
-            value={filterIndustry}
-            onChange={(e) => {
-              setFilterIndustry(e.target.value)
-              setSelectedRoleId('')
-              setActionRoleId('')
-            }}
-            sx={{ minWidth: 260 }}
-          >
-            {industries.map((i) => (
-              <MenuItem key={i._id} value={i._id}>
-                {i.name} ({i.code})
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-      )}
+      {/* Industry + Organization Scope selector */}
+      <SuperAdminScopeSelector
+        isSuperAdmin={isSuperAdmin}
+        industries={industries}
+        selectedIndustry={selectedIndustry}
+        setSelectedIndustry={(val) => {
+          setSelectedIndustry(val)
+          setSelectedRoleId('')
+          setActionRoleId('')
+        }}
+        filteredOrgs={filteredOrgs}
+        selectedOrg={selectedOrg}
+        setSelectedOrg={(val) => {
+          setSelectedOrg(val)
+          setSelectedRoleId('')
+          setActionRoleId('')
+        }}
+      />
 
       {/* ── Tab 1: Roles ───────────────────────────────────────────────────── */}
       {activeTabId === 'roles' && (

@@ -12,6 +12,9 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import api from '@/services/axiosInstance'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
+import { useAppSelector } from '@/store/hooks'
 
 interface CallLog {
   _id: string
@@ -35,11 +38,22 @@ interface CallLog {
 }
 
 export default function CallLogsListPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const isSuperAdmin = user?.role === 'superAdmin'
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [logs, setLogs] = useState<CallLog[]>([])
   const [loading, setLoading] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
+
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
 
   const fetchLogs = async () => {
     setLoading(true)
@@ -55,6 +69,8 @@ export default function CallLogsListPage() {
         searchString: search,
         page: paginationModel.page + 1,
         pageSize: paginationModel.pageSize,
+        industryId: isSuperAdmin ? selectedIndustry || undefined : undefined,
+        organizationId: isSuperAdmin ? selectedOrg || undefined : undefined,
       })
 
       setLogs(res.data || [])
@@ -66,9 +82,10 @@ export default function CallLogsListPage() {
   }
 
   useEffect(() => {
+    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
     fetchLogs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, paginationModel.page, paginationModel.pageSize])
+  }, [search, statusFilter, paginationModel.page, paginationModel.pageSize, selectedIndustry, selectedOrg, isSuperAdmin])
 
   const stats = useMemo(() => {
     const total = logs.length
@@ -226,6 +243,15 @@ export default function CallLogsListPage() {
         subtitle="Curated agent call details and client conversations."
         fullHeight
       >
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
           <TextField
             size="small"

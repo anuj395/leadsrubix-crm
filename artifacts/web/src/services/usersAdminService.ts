@@ -86,6 +86,7 @@ export interface PagedUsers {
 
 export interface ListUsersPagedArgs {
   industryId?: string
+  organizationId?: string
   page: number
   pageSize: number
   q?: string
@@ -100,6 +101,7 @@ export interface ListUsersPagedArgs {
 export async function listUsersPaged(args: ListUsersPagedArgs): Promise<PagedUsers> {
   const params = new URLSearchParams()
   if (args.industryId) params.set('industryId', args.industryId)
+  if (args.organizationId) params.set('organizationId', args.organizationId)
   params.set('page', String(args.page))
   params.set('pageSize', String(args.pageSize))
   if (args.q) params.set('q', args.q)

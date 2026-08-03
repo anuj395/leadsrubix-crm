@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { withDualCase, mapWithDualCase } = require('../utils/caseConverter');
 
 const callLogSchema = new mongoose.Schema(
   {
@@ -33,3 +34,8 @@ const callLogSchema = new mongoose.Schema(
 
 const CallLog = mongoose.model('CallLog', callLogSchema, 'call_logs');
 exports.CallLog = CallLog;
+exports.shapePublic = (doc) => withDualCase(doc);
+exports.list = async ({ filter = {}, limit = 200 } = {}) => {
+  const docs = await CallLog.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
+  return mapWithDualCase(docs);
+};

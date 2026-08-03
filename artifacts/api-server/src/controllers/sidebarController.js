@@ -41,7 +41,12 @@ exports.resolve = async (req, res, next) => {
     const body = req.body || {};
     const industryCode = body.industryCode || body.industryId || body.industry_code;
     const roleKey = body.roleKey || body.role || body.role_key;
-    const result = await sidebarService.resolveSidebar({ industryCode, roleKey });
+    const result = await sidebarService.resolveSidebar({
+      industryCode,
+      roleKey,
+      organizationId: req.user?.organizationId,
+      workspaceId: req.user?.workspaceId,
+    });
     return res.json(result);
   } catch (err) {
     next(err);

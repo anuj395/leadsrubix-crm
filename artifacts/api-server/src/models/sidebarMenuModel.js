@@ -2,11 +2,13 @@ const mongoose = require('mongoose');
 
 const sidebarMenuSchema = new mongoose.Schema(
   {
-    key: { type: String, required: true, unique: true, trim: true },
+    key: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
     icon: { type: String, default: '' },
     route: { type: String, default: '' },
     parent_id: { type: mongoose.Schema.Types.ObjectId, ref: 'SidebarMenu', default: null, alias: 'parentId' },
+    organization_id: { type: String, default: null, alias: 'organizationId' },
+    workspace_id: { type: String, default: null, alias: 'workspaceId' },
     order: { type: Number, default: 0 },
     module: { type: String, default: '' },
     is_active: { type: Boolean, default: true, alias: 'isActive' },
@@ -18,18 +20,20 @@ const sidebarMenuSchema = new mongoose.Schema(
   },
 );
 
-sidebarMenuSchema.index({ key: 1 }, { unique: true, name: 'idx_menu_key' });
-sidebarMenuSchema.index({ parent_id: 1, order: 1 }, { name: 'idx_menu_parent_order' });
+sidebarMenuSchema.index({ organization_id: 1, key: 1 }, { unique: true, name: 'idx_menu_org_key' });
+sidebarMenuSchema.index({ organization_id: 1, parent_id: 1, order: 1 }, { name: 'idx_menu_org_parent_order' });
 
 const SidebarMenu = mongoose.model('SidebarMenu', sidebarMenuSchema, 'sidebar_menus');
 
 exports.SidebarMenu = SidebarMenu;
 
-exports.list = async ({ activeOnly = false, parentId, parent_id } = {}) => {
+exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId, organization_id } = {}) => {
   const pId = parentId !== undefined ? parentId : parent_id;
   const q = {};
   if (activeOnly) q.is_active = true;
   if (pId !== undefined) q.parent_id = pId;
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
+  if (orgId !== undefined) q.organization_id = orgId;
   return SidebarMenu.find(q).sort({ order: 1, name: 1 }).exec();
 };
 
@@ -38,8 +42,11 @@ exports.findChildren = async (parentId) =>
 
 exports.findById = async (id) => SidebarMenu.findById(id).exec();
 
-exports.findByKey = async (key) =>
-  SidebarMenu.findOne({ key: String(key).trim() }).exec();
+exports.findByKey = async (key, organizationId) => {
+  const q = { key: String(key).trim() };
+  if (organizationId !== undefined) q.organization_id = organizationId;
+  return SidebarMenu.findOne(q).exec();
+};
 
 exports.findByIds = async (ids) =>
   SidebarMenu.find({ _id: { $in: ids } }).exec();

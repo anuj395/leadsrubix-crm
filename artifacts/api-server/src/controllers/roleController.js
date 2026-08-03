@@ -2,10 +2,11 @@ const service = require('../services/roleService');
 
 exports.list = async (req, res, next) => {
   try {
-    const { industryId, active } = req.query;
+    const { industryId, organizationId, active } = req.query;
     const excludeRole = req.user?.role === 'admin' ? 'admin' : undefined;
     const docs = await service.list({
       industryId,
+      organizationId: organizationId || null,
       activeOnly: active === 'true',
       excludeRole,
     });

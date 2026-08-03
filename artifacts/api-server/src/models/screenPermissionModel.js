@@ -6,6 +6,8 @@ const screenPermissionSchema = new mongoose.Schema(
     role_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true, alias: 'roleId' },
     industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', required: true, alias: 'industryId' },
     field_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ScreenField', required: true, alias: 'fieldId' },
+    organization_id: { type: String, default: null, alias: 'organizationId' },
+    workspace_id: { type: String, default: null, alias: 'workspaceId' },
     is_enabled: { type: Boolean, default: true, alias: 'isEnabled' },
   },
   { 
@@ -16,12 +18,12 @@ const screenPermissionSchema = new mongoose.Schema(
 );
 
 screenPermissionSchema.index(
-  { screen_id: 1, role_id: 1, industry_id: 1, field_id: 1 },
-  { unique: true, name: 'idx_screen_perm_unique' },
+  { organization_id: 1, screen_id: 1, role_id: 1, industry_id: 1, field_id: 1 },
+  { unique: true, name: 'idx_screen_perm_org_unique' },
 );
 screenPermissionSchema.index(
-  { screen_id: 1, role_id: 1, industry_id: 1, is_enabled: 1 },
-  { name: 'idx_screen_perm_lookup' },
+  { organization_id: 1, screen_id: 1, role_id: 1, industry_id: 1, is_enabled: 1 },
+  { name: 'idx_screen_perm_org_lookup' },
 );
 
 const ScreenPermission = mongoose.model(

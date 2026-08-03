@@ -6,6 +6,12 @@ const industryModel = require('../models/industryModel');
 const userModel = require('../models/userModel');
 
 exports.list = async (opts) => {
+  if (opts && opts.industryId) {
+    const indDoc = await industryModel.findByCode(opts.industryId);
+    if (indDoc) {
+      opts.industryId = indDoc._id;
+    }
+  }
   const items = await permissionModel.list(opts);
   const q = { activeOnly: true };
   if (opts && opts.screenId) {
@@ -28,24 +34,27 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
     throw err;
   }
 
+  // Resolve industry by code or ID
+  const industry = await industryModel.findByCode(industryId);
+  if (!industry) {
+    const err = new Error('Industry not found'); err.status = 404; throw err;
+  }
+  const resolvedIndustryId = industry._id;
+
   // Verify the (screen, role, industry) triple is internally consistent before
   // we write rows that would otherwise drift from real FKs.
-  const [screen, role, industry] = await Promise.all([
+  const [screen, role] = await Promise.all([
     screenModel.findById(screenId),
     roleModel.findById(roleId),
-    industryModel.findById(industryId),
   ]);
   if (!screen) {
     const err = new Error('Screen not found'); err.status = 404; throw err;
-  }
-  if (!industry) {
-    const err = new Error('Industry not found'); err.status = 404; throw err;
   }
   if (!role) {
     const err = new Error('Role not found'); err.status = 404; throw err;
   }
   const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
-  if (roleIndustryId !== String(industryId)) {
+  if (roleIndustryId !== String(resolvedIndustryId)) {
     const err = new Error('Role does not belong to the given industry');
     err.status = 400;
     throw err;
@@ -65,7 +74,7 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
     }
   }
 
-  return permissionModel.bulkSetForCombo({ screenId, roleId, industryId, fieldIds });
+  return permissionModel.bulkSetForCombo({ screenId, roleId, industryId: resolvedIndustryId, fieldIds });
 };
 
 /**
@@ -84,7 +93,7 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
  *   - A permission row with is_enabled=true must exist for (screen, role, industry, field).
  *   - is_table_visible / is_form_visible on the field decide which buckets it goes into.
  */
-exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, industryCode: inputIndustryCode, roleKey: inputRoleKey, authedUser }) => {
+exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, industryCode: inputIndustryCode, roleKey: inputRoleKey, authedUser, organizationId }) => {
   const finalScreenKey = screenKey || screen_key;
   if (!finalScreenKey) {
     const err = new Error('screenKey is required');
@@ -92,8 +101,12 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     throw err;
   }
 
-  const screen = await screenModel.findByKey(finalScreenKey);
-  if (!screen || !screen.isActive) {
+  const mongoose = require('mongoose');
+  const orgId = organizationId || authedUser?.organizationId || null;
+
+  const ScreenModel = mongoose.model('Screen');
+  const screen = await ScreenModel.findOne({ key: finalScreenKey, organization_id: orgId });
+  if (!screen || !screen.is_active) {
     const err = new Error('Screen not found');
     err.status = 404;
     throw err;
@@ -112,6 +125,10 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const isGuestSignup = !authedUser && screen.key === 'organization';
   const bypassPermissions = isSuperAdmin || isGuestSignup;
 
+  if (!industryCode && bypassPermissions) {
+    industryCode = 'temp0001';
+  }
+
   if (!bypassPermissions && !industryCode) {
     const err = new Error('industry_code is required (none found on user)');
     err.status = 400;
@@ -123,7 +140,6 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     throw err;
   }
 
-  const mongoose = require('mongoose');
   let industry = null;
   if (industryCode) {
     if (mongoose.Types.ObjectId.isValid(industryCode)) {
@@ -141,14 +157,21 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
 
   let role = null;
   if (!bypassPermissions) {
-    role = await roleModel.findByIndustryAndKey(industry._id, resolvedRoleKey);
+    const RoleModel = mongoose.model('Role');
+    role = await RoleModel.findOne({
+      organization_id: orgId,
+      industry_id: industry._id,
+      key: resolvedRoleKey
+    }).exec();
+
     if (!role && resolvedRoleKey === 'superAdmin') {
       try {
-        role = await roleModel.create({
-          industryId: industry._id,
+        role = await RoleModel.create({
+          industry_id: industry._id,
+          organization_id: orgId,
           key: 'superAdmin',
           name: 'Super Administrator',
-          isActive: true
+          is_active: true
         });
       } catch (e) {
         // ignore
@@ -162,7 +185,13 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   }
 
   // Active fields for this screen.
-  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
+  const ScreenFieldModel = mongoose.model('ScreenField');
+  const fields = await ScreenFieldModel.find({
+    screen_id: screen._id,
+    organization_id: orgId,
+    is_active: true
+  }).lean().exec();
+
   if (fields.length === 0) {
     return {
       screen: { _id: screen._id, key: screen.key, name: screen.name },
@@ -175,17 +204,18 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
 
   let allowed;
   if (bypassPermissions) {
-    // SuperAdmin sees every active field on the screen.
     allowed = fields;
   } else {
-    // Enabled permissions for this triple.
-    const perms = await permissionModel.list({
-      screenId: screen._id,
-      roleId: role._id,
-      industryId: industry._id,
-      enabledOnly: true,
-    });
-    const allowedFieldIds = new Set(perms.map((p) => String(p.fieldId)));
+    const ScreenPermissionModel = mongoose.model('ScreenPermission');
+    const perms = await ScreenPermissionModel.find({
+      organization_id: orgId,
+      screen_id: screen._id,
+      role_id: role._id,
+      industry_id: industry._id,
+      is_enabled: true
+    }).lean().exec();
+
+    const allowedFieldIds = new Set(perms.map((p) => String(p.field_id)));
     allowed = fields.filter((f) => allowedFieldIds.has(String(f._id)));
   }
 
@@ -196,28 +226,28 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const tableHeaders = allowed
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
-      key: f.fieldKey || f.field_key,
+      key: f.field_key,
       label: f.label,
       type: f.type,
       sortable: f.sortable,
       order: f.order,
       options: f.options || [],
-      visible: f.isTableVisible !== undefined ? f.isTableVisible : f.is_table_visible,
+      visible: f.is_table_visible,
     }));
 
   const formFields = allowed
-    .filter((f) => (f.isFormVisible !== undefined ? f.isFormVisible : f.is_form_visible))
+    .filter((f) => f.is_form_visible)
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
-      key: f.fieldKey || f.field_key,
+      key: f.field_key,
       label: f.label,
       type: f.type,
-      required: f.isRequired !== undefined ? f.isRequired : f.is_required,
+      required: f.is_required,
       options: f.options || [],
-      dropdownSource: f.dropdownSource || f.dropdown_source || 'none',
-      dropdownApi: f.dropdownApi || f.dropdown_api || '',
-      dropdown_source: f.dropdownSource || f.dropdown_source || 'none',
-      dropdown_api: f.dropdownApi || f.dropdown_api || '',
+      dropdownSource: f.dropdown_source || 'none',
+      dropdownApi: f.dropdown_api || '',
+      dropdown_source: f.dropdown_source || 'none',
+      dropdown_api: f.dropdown_api || '',
       order: f.order,
     }));
 

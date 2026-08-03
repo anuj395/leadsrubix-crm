@@ -148,16 +148,17 @@ function ensureCanAssignRole({ authedUser, targetRole }) {
  *   - SuperAdmin → all users (optionally filtered by ?industryId=...)
  *   - admin/etc. → scoped to their own industry
  */
-exports.fetchAll = async ({ authedUser, industryId, includeAdmin } = {}) => {
+exports.fetchAll = async ({ authedUser, industryId, organizationId, includeAdmin } = {}) => {
   const isSuperAdmin = authedUser?.role === 'superAdmin';
   const industryFilter = isSuperAdmin ? industryId : authedUser?.industryId;
   if (!isSuperAdmin && !industryFilter) {
     // Defense-in-depth: don't fall back to "no filter" for tenant callers.
     return [];
   }
+  const orgFilter = isSuperAdmin ? (organizationId || undefined) : authedUser?.organizationId;
   const items = await userModel.list({
     industryId: industryFilter,
-    organizationId: isSuperAdmin ? undefined : authedUser?.organizationId,
+    organizationId: orgFilter,
     excludeRole: includeAdmin ? ['superAdmin'] : ['admin', 'superAdmin'],
   });
 
@@ -182,6 +183,7 @@ exports.fetchAll = async ({ authedUser, industryId, includeAdmin } = {}) => {
 exports.fetchPaged = async ({
   authedUser,
   industryId,
+  organizationId,
   q,
   page,
   pageSize,
@@ -192,6 +194,8 @@ exports.fetchPaged = async ({
   const industryFilter = isSuperAdmin ? industryId : authedUser?.industryId;
   if (!isSuperAdmin && !industryFilter) return { items: [], total: 0 };
 
+  const orgFilter = isSuperAdmin ? (organizationId || undefined) : authedUser?.organizationId;
+
   // Whitelist sortable columns; reject anything else to avoid arbitrary
   // mongo paths leaking through user input.
   const ALLOWED_SORT = new Set(['name', 'email', 'role', 'isActive', 'createdAt', 'updatedAt']);
@@ -201,7 +205,7 @@ exports.fetchPaged = async ({
   }
   const { items, total } = await userModel.listPaged({
     industryId: industryFilter,
-    organizationId: isSuperAdmin ? undefined : authedUser?.organizationId,
+    organizationId: orgFilter,
     excludeRole: ['admin', 'superAdmin'],
     q,
     page,

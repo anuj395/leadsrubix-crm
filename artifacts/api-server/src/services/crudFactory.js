@@ -177,19 +177,26 @@ function buildController({
     return authedUser?.role === 'superAdmin';
   }
 
-  function resolveTenantFilter(authedUser, requested) {
+  function resolveTenantFilter(authedUser, requestedIndustry, requestedOrganization) {
+    const filter = {};
     if (isSuperAdmin(authedUser)) {
-      if (requested) return { industry_id: requested };
-      return {};
+      if (requestedOrganization && requestedOrganization !== 'all') {
+        filter.organization_id = requestedOrganization;
+      } else if (requestedIndustry && requestedIndustry !== 'all') {
+        filter.industry_id = requestedIndustry;
+      }
+    } else {
+      if (authedUser?.industryId) filter.industry_id = authedUser.industryId;
+      if (authedUser?.organizationId) filter.organization_id = authedUser.organizationId;
     }
-    return authedUser?.industryId ? { industry_id: authedUser.industryId } : { industry_id: '__none__' };
+    return filter;
   }
 
   async function list(req, res, next) {
     try {
-      const filter = resolveTenantFilter(req.user, req.query.industryId);
+      const filter = resolveTenantFilter(req.user, req.query.industryId, req.query.organizationId);
       Object.keys(req.query).forEach((key) => {
-        if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId'].includes(key)) return;
+        if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId', 'organizationId'].includes(key)) return;
         let targetKey = key;
         if (Model.schema.paths[key]) {
           targetKey = key;
@@ -223,9 +230,11 @@ function buildController({
           .exec(),
         Model.countDocuments(filter).exec(),
       ]);
+const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
+
       await enrichTasks(Model, items);
       await enrichOrganizationNames(Model, items);
-      res.json({ items: convertKeysToCamelCase(items), total });
+      res.json({ items: mapWithDualCase(items), total });
     } catch (err) { next(err); }
   }
 
@@ -238,15 +247,13 @@ function buildController({
       }
       await enrichTasks(Model, [doc]);
       await enrichOrganizationNames(Model, [doc]);
-      res.json(convertKeysToCamelCase(doc));
+      res.json(withDualCase(doc));
     } catch (err) { next(err); }
   }
 
   async function create(req, res, next) {
     try {
       const payload = normalizePayload({ ...(req.body || {}) });
-      // Tenant + ownership stamping. Super-admin may override industryId;
-      // everyone else is pinned to their own.
       if (isSuperAdmin(req.user)) {
         payload.industry_id = payload.industry_id || payload.industryId || req.user?.industryId;
       } else {
@@ -262,7 +269,7 @@ function buildController({
       const doc = await Model.create(payload);
       const docObj = doc.toObject();
       await enrichTasks(Model, [docObj]);
-      res.status(201).json(convertKeysToCamelCase(docObj));
+      res.status(201).json(withDualCase(docObj));
     } catch (err) { next(err); }
   }
 
@@ -274,7 +281,6 @@ function buildController({
         return res.status(403).json({ message: 'Forbidden' });
       }
       const patch = normalizePayload({ ...(req.body || {}) });
-      // Don't let a non-super-admin reparent the row to another tenant.
       if (!isSuperAdmin(req.user)) {
         delete patch.industry_id;
         delete patch.industryId;
@@ -287,7 +293,7 @@ function buildController({
         .lean()
         .exec();
       await enrichTasks(Model, [updated]);
-      res.json(convertKeysToCamelCase(updated));
+      res.json(withDualCase(updated));
     } catch (err) { next(err); }
   }
 

@@ -90,6 +90,20 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
     module: "Analytics"
   },
   {
+    key: "analytics.dashboard",
+    name: "Dashboard",
+    route: "/analytics",
+    icon: "analytics",
+    module: "Analytics"
+  },
+  {
+    key: "analytics.config",
+    name: "Analytics Config",
+    route: "/configuration/analytics-config",
+    icon: "settings",
+    module: "Analytics"
+  },
+  {
     key: "organization",
     name: "Organizations",
     route: "/organization/list",

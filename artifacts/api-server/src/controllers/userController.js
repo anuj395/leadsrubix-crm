@@ -43,6 +43,7 @@ exports.getAllUsers = async (req, res, next) => {
       const { items, total } = await userService.fetchPaged({
         authedUser: req.user,
         industryId: req.query.industryId,
+        organizationId: req.query.organizationId,
         q: req.query.q,
         page: req.query.page,
         pageSize: req.query.pageSize,
@@ -55,6 +56,7 @@ exports.getAllUsers = async (req, res, next) => {
     const items = await userService.fetchAll({
       authedUser: req.user,
       industryId: req.query.industryId,
+      organizationId: req.query.organizationId,
       includeAdmin: req.query.includeAdmin === 'true',
     });
     res.json({ items });

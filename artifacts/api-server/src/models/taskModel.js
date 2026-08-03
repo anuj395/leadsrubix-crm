@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
+const { withDualCase, mapWithDualCase } = require('../utils/caseConverter');
 
 const taskSchema = new mongoose.Schema(
   {
     contact_id:          { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: true, index: true, alias: 'contactId' },
     organization_id:     { type: String, default: null, index: true, alias: 'organizationId' },
+    workspace_id:        { type: String, default: null, index: true, alias: 'workspaceId' },
     uid:                { type: String, default: null, index: true },
     industry_id:         { type: String, default: null, index: true, alias: 'industryId' },
     type:               { type: String, required: true }, // e.g., Call Back, Site Visit
@@ -57,3 +59,8 @@ taskSchema.pre('validate', function(next) {
 
 const Task = mongoose.model('Task', taskSchema, 'tasks');
 exports.Task = Task;
+exports.shapePublic = (doc) => withDualCase(doc);
+exports.list = async ({ filter = {}, limit = 200 } = {}) => {
+  const docs = await Task.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
+  return mapWithDualCase(docs);
+};

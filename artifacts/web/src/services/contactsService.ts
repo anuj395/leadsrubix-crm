@@ -11,8 +11,11 @@ export interface Contact {
   [k: string]: unknown
 }
 
-export async function listContacts(): Promise<Contact[]> {
-  const res = await api.get('contacts')
+export async function listContacts(params?: { industryId?: string; organizationId?: string }): Promise<Contact[]> {
+  const query = new URLSearchParams()
+  if (params?.industryId) query.set('industryId', params.industryId)
+  if (params?.organizationId) query.set('organizationId', params.organizationId)
+  const res = await api.get(`contacts?${query.toString()}`)
   return (res.data?.items ?? []) as Contact[]
 }
 

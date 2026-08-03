@@ -187,3 +187,21 @@ Organization: demo
 Username / Email: demo@digitalrubix.com
 Temp Password: 2Hf4cqkn
 ========================================
+
+========================================
+Timestamp: 2026-08-03T08:00:58.364Z
+To: czhcbzxhjc@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: xklzkczcx
+Username / Email: czhcbzxhjc@gmail.com
+Temp Password: aTYPQk7s
+========================================
+
+========================================
+Timestamp: 2026-08-03T09:14:37.484Z
+To: dshdhsd@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: helath 
+Username / Email: dshdhsd@gmail.com
+Temp Password: IOZTPCZk
+========================================

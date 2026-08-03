@@ -21,8 +21,9 @@ import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { api } from '@/services/api'
 import { listOrganizationsPaged, type Organization } from '@/services/organizationsService'
-import { getIndustries, type Industry } from '@/services/sidebarAdminService'
 import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 export interface Project {
   id: string
@@ -45,8 +46,17 @@ export default function ProjectsListPage() {
   const navigate = useNavigate()
   const [items, setItems] = useState<Project[]>([])
   const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+  // Shared Super Admin Scope Context
+  const isSuperAdmin = true // Since this is a Super Admin only config page
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [loading, setLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -57,26 +67,23 @@ export default function ProjectsListPage() {
     sev: 'success',
   })
 
-  const loadData = async (targetIndustry?: string) => {
+  const loadData = async () => {
     setLoading(true)
     try {
-      let currentIndustries = industries
-      if (currentIndustries.length === 0) {
-        currentIndustries = await getIndustries(true)
-        setIndustries(currentIndustries)
-      }
+      const activeIndustry = selectedIndustry || undefined
+      const activeOrg = selectedOrg || undefined
 
-      const activeIndustry = targetIndustry || selectedIndustry || currentIndustries[0]?.code || ''
-      if (activeIndustry && selectedIndustry !== activeIndustry) {
-        setSelectedIndustry(activeIndustry)
-      }
+      const params = new URLSearchParams()
+      if (activeIndustry) params.set('industryId', activeIndustry)
+      if (activeOrg) params.set('organizationId', activeOrg)
 
       const [resProjects, orgsResult, resolved] = await Promise.all([
-        api.get('/resources/resourceProjects'),
-        listOrganizationsPaged({ page: 0, pageSize: 1000 }),
+        api.get(`/resources/resourceProjects?${params.toString()}`),
+        listOrganizationsPaged({ page: 1, pageSize: 200 }),
         resolveScreen({
-          screen_key: 'configProjects',
-          industry_code: activeIndustry || undefined,
+          screenKey: 'configProjects',
+          industryCode: activeIndustry || 'temp0001',
+          roleKey: 'admin',
         }),
       ])
 
@@ -95,8 +102,10 @@ export default function ProjectsListPage() {
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!selectedIndustry || !selectedOrg) return
+    void loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndustry, selectedOrg])
 
   const handleDeleteClick = (id: string) => {
     setDeletingId(id)
@@ -124,6 +133,19 @@ export default function ProjectsListPage() {
   const columns = useMemo<GridColDef<Project>[]>(() => {
     if (!resolvedScreen) return []
 
+    const sNoCol: GridColDef<Project> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = filteredItems.findIndex((item) => item.id === row.id || (item as any)._id === (row as any)._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
     const baseCols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
       if (header.key === 'organizationId' || header.key === 'organizationName') return null
 
@@ -131,34 +153,32 @@ export default function ProjectsListPage() {
         field: header.key as keyof Project,
         headerName: header.label,
         flex: 1,
-        minWidth: 120,
+        minWidth: 140,
         sortable: header.sortable,
-      }
-
-      if (header.key === 'projectName') {
-        col.flex = 1.2
-        col.minWidth = 180
-        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value}</Box>
-      } else if (header.key === 'status') {
-        col.width = 120
-        col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
-      } else if (header.key === 'createdAt') {
-        col.field = 'created_at' as any
-        col.width = 180
-        col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
+        valueGetter: (_v, row) => {
+          const r = (row as unknown) as Record<string, unknown>
+          const camelKey = header.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+          const snakeKey = header.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+          return r[header.key] ?? r[camelKey] ?? r[snakeKey]
+        },
+        renderCell: (p) => {
+          const v = p.value
+          if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
+          if (header.key === 'status') {
+            return <StatusBadge value={v === 'ACTIVE' ? 'Active' : 'Inactive'} />
+          }
+          if (header.key === 'created_at' || header.key === 'createdAt') {
+            return new Date(v as string).toLocaleString()
+          }
+          return String(v)
+        }
       }
 
       return col
     }).filter(Boolean) as GridColDef<Project>[]
 
     const cols: GridColDef<Project>[] = [
-      {
-        field: 'organizationName',
-        headerName: 'Organization Name',
-        flex: 1.2,
-        minWidth: 180,
-        renderCell: (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || <em>Global Default</em>}</Box>,
-      },
+      sNoCol,
       ...baseCols
     ]
 
@@ -171,12 +191,12 @@ export default function ProjectsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id}/edit?industry=${selectedIndustry}`)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id || (p.row as any)._id}/edit?industry=${selectedIndustry}`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDeleteClick(p.row.id)}>
+            <IconButton size="small" color="error" onClick={() => handleDeleteClick(p.row.id || (p.row as any)._id)}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -185,7 +205,7 @@ export default function ProjectsListPage() {
     })
 
     return cols
-  }, [resolvedScreen, filteredItems, selectedIndustry])
+  }, [resolvedScreen, filteredItems, navigate, selectedIndustry])
 
   return (
     <Box
@@ -209,25 +229,15 @@ export default function ProjectsListPage() {
         }
         fullHeight
       >
-        <Stack direction="row" spacing={2} sx={{ mb: 2, pt: 1 }}>
-          <TextField
-            select
-            size="small"
-            label="Select Industry"
-            value={selectedIndustry}
-            onChange={(e) => {
-              setSelectedIndustry(e.target.value)
-              void loadData(e.target.value)
-            }}
-            sx={{ minWidth: 240 }}
-          >
-            {industries.map((ind) => (
-              <MenuItem key={ind.code} value={ind.code}>
-                {ind.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
 
         <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
           {loading && (

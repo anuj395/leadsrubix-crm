@@ -40,8 +40,8 @@ function mapSuperAdminConfig(): SidebarNavItem[] {
 /**
  * `useSidebarMenu` — single source of truth for sidebar navigation.
  *
- * - role === "superAdmin"  → returns static adminMenuConfig (no API call)
- * - all other roles        → POST /sidebar/user, persisted to localStorage
+ * - Reads dynamically from DB for all roles (including superAdmin)
+ * - Gated and persisted to localStorage.
  *
  * Returns { menu, loading, error, refresh }
  */
@@ -57,9 +57,12 @@ export function useSidebarMenu(): UseSidebarMenuResult {
 
   // ── Fetch from API ──────────────────────────────────────────────────────────
   const fetchMenu = useCallback(async () => {
-    if (!user || isSuperAdmin) return
+    if (!user) return
 
-    const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
+    let industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
+    if (!industryId && isSuperAdmin) {
+      industryId = 'temp0001'
+    }
     const role = user.role || (user as any).roleKey || (user as any).role_key
     if (!industryId) {
       console.warn('[useSidebarMenu] user.industryId is missing — skipping API fetch.')
@@ -81,11 +84,6 @@ export function useSidebarMenu(): UseSidebarMenuResult {
       return
     }
 
-    if (isSuperAdmin) {
-      dispatch(setSidebarItems(mapSuperAdminConfig()))
-      return
-    }
-
     // Hydrate from localStorage immediately for instant UX
     const cached = loadPersistedMenu()
     if (cached?.length) dispatch(setSidebarItems(cached))
@@ -96,7 +94,7 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   }, [user?.role, isAuthenticated])
 
   const menu = useMemo(() => {
-    let list = isSuperAdmin ? mapSuperAdminConfig() : reduxItems
+    let list = reduxItems
 
     // Filter out all booking items
     list = list
@@ -107,12 +105,12 @@ export function useSidebarMenu(): UseSidebarMenuResult {
       }))
 
     return list
-  }, [isSuperAdmin, reduxItems])
+  }, [reduxItems])
 
   return {
     menu,
-    loading: isSuperAdmin ? false : loading,
-    error:   isSuperAdmin ? null  : error,
+    loading,
+    error,
     refresh: fetchMenu,
   }
 }

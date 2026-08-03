@@ -232,9 +232,17 @@ export function DynamicForm({
         // Seed defaults for newly-introduced fields without clobbering user input.
         setValues((prev) => {
           const next = { ...prev }
+          if (finalIndustryCode) {
+            next.industryId = finalIndustryCode
+            next.industry_id = finalIndustryCode
+          }
           for (const f of loadedFields) {
-            if (next[f.key] === undefined) {
-              next[f.key] = f.type === 'checkbox' ? false : ''
+            if (next[f.key] === undefined || next[f.key] === '') {
+              if (f.key === 'industryId' || f.key === 'industry_id') {
+                next[f.key] = finalIndustryCode || ''
+              } else if (next[f.key] === undefined) {
+                next[f.key] = f.type === 'checkbox' ? false : ''
+              }
             }
           }
           return next
@@ -604,7 +612,7 @@ export function DynamicForm({
                 onChange={(e) => setValue(f.key, e.target.value)}
                 error={!!err || !!dropdownErr}
                 helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}
-                disabled={isLoading || readOnly || f.key === 'industryId' || f.key === 'industryId'}
+                disabled={isLoading || readOnly || f.key === 'industryId' || f.key === 'industry_id'}
                 fullWidth
                 SelectProps={{
                   MenuProps: {
@@ -927,7 +935,7 @@ export function DynamicForm({
               error={!!err}
               helperText={err}
               fullWidth
-              disabled={readOnly || f.key === 'industryId' || f.key === 'industryId'}
+              disabled={readOnly || f.key === 'industryId' || f.key === 'industry_id'}
               InputLabelProps={inputType === 'datetime-local' ? { shrink: true } : undefined}
             />
           )

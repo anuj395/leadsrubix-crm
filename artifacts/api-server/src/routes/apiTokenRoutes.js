@@ -24,6 +24,36 @@ router.get('/', authenticate, async (req, res, next) => {
     let orgMap = {};
 
     if (req.user.role === 'superAdmin') {
+      const { industryId, organizationId } = req.query;
+      let targetOrgIds = [];
+      if (organizationId && organizationId !== 'all') {
+        targetOrgIds = [organizationId];
+      } else if (industryId && industryId !== 'all') {
+        const Industry = mongoose.model('Industry');
+        let industryDoc = null;
+        if (mongoose.Types.ObjectId.isValid(industryId)) {
+          industryDoc = await Industry.findById(industryId).lean().exec();
+        } else {
+          industryDoc = await Industry.findOne({ code: industryId }).lean().exec();
+        }
+
+        if (industryDoc) {
+          const orgDocs = await Organization.find({
+            $or: [
+              { industryId: String(industryDoc._id) },
+              { industry_id: industryDoc._id },
+              { industryId: industryDoc.code },
+              { industry_code: industryDoc.code }
+            ]
+          }).lean().exec();
+          targetOrgIds = orgDocs.map(o => o.organizationId || o.organization_id).filter(Boolean);
+        }
+      }
+
+      if (targetOrgIds.length > 0) {
+        query.organization_id = { $in: targetOrgIds };
+      }
+
       const orgs = await Organization.find({}).lean().exec();
       orgs.forEach(o => {
         const idVal = o.organization_id || o.organizationId;

@@ -327,18 +327,31 @@ exports.create = async ({ payload, authedUser }) => {
     validFrom,
     validTill,
     organizationId: orgId,
-    organizationId: orgId,
     industryId: industryId,
     isActive: payload.isActive !== false,
     createdBy: creatorId,
-    createdBy: creatorId,
   });
 
+  const Workspace = mongoose.model('Workspace');
+  const workspaceId = 'ws_' + orgId;
+  await Workspace.create({
+    workspace_id: workspaceId,
+    organization_id: orgId,
+    industry_id: industryId,
+    status: 'ACTIVE',
+    created_by: creatorId,
+  });
+
+  const { cloneWorkspace } = require('./workspaceCloner');
+  await cloneWorkspace(orgId, workspaceId, industryId);
+
   // Automatically create an Admin user for this organization
-  const orgName = cleaned.organizationName || cleaned.organizationName || (cleaned.firstName
-    ? `${cleaned.firstName} ${cleaned.lastName || ''}`.trim()
+  const firstNameVal = cleaned.firstName || cleaned.first_name || '';
+  const lastNameVal = cleaned.lastName || cleaned.last_name || '';
+  const orgName = cleaned.organizationName || cleaned.organization_name || (firstNameVal
+    ? `${firstNameVal} ${lastNameVal}`.trim()
     : cleaned.name || payload.name || 'Organization');
-  const orgEmail = cleaned.emailId || cleaned.email || payload.email;
+  const orgEmail = cleaned.emailId || cleaned.email_id || cleaned.email || payload.email;
   let adminEmail = orgEmail || `admin@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   
   // Ensure unique admin email
@@ -347,8 +360,8 @@ exports.create = async ({ payload, authedUser }) => {
     adminEmail = `admin-${Date.now()}@${(cleaned.code || payload.code || 'org').toLowerCase()}.com`;
   }
 
-  const adminName = cleaned.firstName
-    ? `${cleaned.firstName} ${cleaned.lastName || ''}`.trim()
+  const adminName = firstNameVal
+    ? `${firstNameVal} ${lastNameVal}`.trim()
     : `${orgName} Admin`;
   
   // Generate random 8-character temporary password or use custom password
@@ -372,7 +385,8 @@ exports.create = async ({ payload, authedUser }) => {
     email: adminEmail.toLowerCase().trim(),
     password: adminPassword,
     role: 'admin',
-    organizationId: orgDoc.organizationId || orgDoc.organizationId,
+    organizationId: orgDoc.organizationId,
+    workspaceId: workspaceId,
     industryId: industryId,
     contactNumber: cleaned.contactNumber || cleaned.contact_no || cleaned.contact || '',
     userImage: '',

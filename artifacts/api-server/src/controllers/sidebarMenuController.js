@@ -3,7 +3,8 @@ const service = require('../services/sidebarMenuService');
 exports.list = async (req, res, next) => {
   try {
     const { active } = req.query;
-    const docs = await service.list({ activeOnly: active === 'true' });
+    const organizationId = req.user?.role === 'superAdmin' ? undefined : (req.user?.organizationId || null);
+    const docs = await service.list({ activeOnly: active === 'true', organizationId });
     res.json({ items: docs });
   } catch (err) {
     next(err);

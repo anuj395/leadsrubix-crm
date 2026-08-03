@@ -2,8 +2,10 @@ const mongoose = require('mongoose');
 
 const screenSchema = new mongoose.Schema(
   {
-    key: { type: String, required: true, unique: true, trim: true },
+    key: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
+    organization_id: { type: String, default: null, alias: 'organizationId' },
+    workspace_id: { type: String, default: null, alias: 'workspaceId' },
     description: { type: String, default: '' },
     order: { type: Number, default: 0 },
     is_active: { type: Boolean, default: true, alias: 'isActive' },
@@ -15,22 +17,41 @@ const screenSchema = new mongoose.Schema(
   },
 );
 
-screenSchema.index({ key: 1 }, { unique: true, name: 'idx_screen_key' });
+screenSchema.index({ organization_id: 1, key: 1 }, { unique: true, name: 'idx_screen_org_key' });
 
 const Screen = mongoose.model('Screen', screenSchema, 'screens');
 
 exports.Screen = Screen;
 
-exports.list = async ({ activeOnly = false } = {}) => {
+exports.list = async ({ activeOnly = false, organizationId, organization_id } = {}) => {
   const q = {};
   if (activeOnly) q.is_active = true;
-  return Screen.find(q).sort({ order: 1, name: 1 }).exec();
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
+  if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
+    q.$or = [{ organization_id: orgId }, { organization_id: null }, { organization_id: { $exists: false } }];
+  }
+  const rawList = await Screen.find(q).sort({ order: 1, name: 1 }).exec();
+
+  const screenMap = new Map();
+  for (const s of rawList) {
+    const key = s.key;
+    const existing = screenMap.get(key);
+    if (!existing) {
+      screenMap.set(key, s);
+    } else if (orgId && (s.organization_id === orgId || s.organizationId === orgId)) {
+      screenMap.set(key, s);
+    }
+  }
+  return Array.from(screenMap.values());
 };
 
 exports.findById = async (id) => Screen.findById(id).exec();
 
-exports.findByKey = async (key) =>
-  Screen.findOne({ key: String(key).trim() }).exec();
+exports.findByKey = async (key, organizationId) => {
+  const q = { key: String(key).trim() };
+  if (organizationId !== undefined) q.organization_id = organizationId;
+  return Screen.findOne(q).exec();
+};
 
 exports.create = async ({ key, name, description, order, isActive }) => {
   const doc = await Screen.create({

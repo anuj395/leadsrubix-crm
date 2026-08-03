@@ -47,11 +47,24 @@ import { api } from '@/services/api'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { useConfirm } from '@/components/common/ConfirmContext'
 
+import { useAppSelector } from '@/store/hooks'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
+
 export default function ResourcesPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [selectedOrgId, setSelectedOrgId] = useState<string>('')
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [selectedIndustryState, setSelectedIndustryState] = useState<string>('')
+  const selectedOrgId = selectedOrg || 'null'
   const [resourceScreens, setResourceScreens] = useState<Screen[]>([])
   const [activeTab, setActiveTab] = useState(0)
   const [selectedRowIds, setSelectedRowIds] = useState<any[]>([])
@@ -90,16 +103,11 @@ export default function ResourcesPage() {
     void (async () => {
       try {
         setLoading(true)
-        const [orgsData, scrs, inds] = await Promise.all([
+        const [orgsData, scrs] = await Promise.all([
           listOrganizationsPaged({ page: 0, pageSize: 100 }),
           getScreens(),
-          getIndustries(true)
         ])
         setOrganizations(orgsData.items)
-        setIndustries(inds)
-        if (inds[0]) {
-          setSelectedIndustryState(inds[0].code)
-        }
         
         // Filter screens starting with resource_
         const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive)
@@ -115,8 +123,6 @@ export default function ResourcesPage() {
         }
         const sorted = [...filtered].sort((a, b) => (orderMap[a.key] || 999) - (orderMap[b.key] || 999))
         setResourceScreens(sorted)
-
-        setSelectedOrgId('null')
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load initial data', sev: 'error' })
       } finally {
@@ -127,8 +133,6 @@ export default function ResourcesPage() {
 
   // Load configuration and data for selected screen / organization
   const activeScreen = resourceScreens[activeTab]
-  const activeOrg = organizations.find((o) => (o.organizationId || o.organizationId) === selectedOrgId)
-  const selectedIndustry = activeOrg?.industryId || selectedIndustryState || 'temp0001'
 
   useEffect(() => {
     setSelectedRowIds([])
@@ -541,13 +545,45 @@ export default function ResourcesPage() {
   const gridColumns = useMemo<GridColDef[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef[] = resolvedScreen.table_headers.map((header) => {
+    const sNoCol: GridColDef = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = rows.findIndex((item) => item.id === row.id || (item as any)._id === (row as any)._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
+    const baseCols: GridColDef[] = resolvedScreen.table_headers.map((header) => {
       const col: GridColDef = {
         field: header.key,
         headerName: header.label,
         flex: 1,
-        minWidth: 120,
+        minWidth: 140,
         sortable: header.sortable,
+        valueGetter: (_v, row) => {
+          const r = (row as unknown) as Record<string, unknown>
+          const camelKey = header.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+          const snakeKey = header.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+          
+          let val = r[header.key] ?? r[camelKey] ?? r[snakeKey]
+          if (val !== undefined && val !== null) return val
+
+          // Fallbacks for known resource fields (e.g., location_name -> location)
+          if (header.key.includes('location')) return r.location ?? r.locationName ?? r.location_name
+          if (header.key.includes('source')) return r.leadSource ?? r.lead_source ?? r.source ?? r.name
+          if (header.key.includes('reason')) return r.reason ?? r.transferReason ?? r.name
+          if (header.key.includes('type') && !header.key.includes('sub')) return r.propertyType ?? r.property_type ?? r.type ?? r.name
+          if (header.key.includes('sub')) return r.propertySubType ?? r.property_sub_type ?? r.subType ?? r.name
+          if (header.key.includes('stage')) return r.propertyStage ?? r.property_stage ?? r.stage ?? r.name
+          if (header.key.includes('budget')) return r.budget ?? r.budgetRange ?? r.name
+
+          return r.name ?? r.label ?? r.value
+        },
       }
 
       if (header.type === 'image') {
@@ -576,6 +612,11 @@ export default function ResourcesPage() {
       return col
     })
 
+    const cols: GridColDef[] = [
+      sNoCol,
+      ...baseCols
+    ]
+
     // Action column placed at the end
     cols.push({
       field: 'actions',
@@ -602,32 +643,25 @@ export default function ResourcesPage() {
     return cols
   }, [resolvedScreen, rows])
 
-
-
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
       
-      {/* Industry Selector & Header */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} gap={2}>
+      {/* Industry & Organization Scope Selector & Header */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>Resources Management</Typography>
           <Typography variant="body2" color="text.secondary">Configure and load lookup resources dynamically per industry.</Typography>
         </Box>
-        <TextField
-          select
-          size="small"
-          label="Select Industry"
-          value={selectedIndustryState}
-          onChange={(e) => setSelectedIndustryState(e.target.value)}
-          sx={{ minWidth: 240 }}
-        >
-          {industries.map((ind) => (
-            <MenuItem key={ind.code} value={ind.code}>
-              {ind.name}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
+      </Box>
 
       {resourceScreens.length === 0 ? (
         <Alert severity="info" sx={{ mt: 2 }}>

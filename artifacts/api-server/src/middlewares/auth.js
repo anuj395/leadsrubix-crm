@@ -29,6 +29,7 @@ module.exports.authenticate = async (req, res, next) => {
       role: fresh.role,
       industryId: fresh.industry_id?.code || String(fresh.industry_id || ''),
       organizationId: fresh.organizationId,
+      workspaceId: fresh.workspaceId,
       organizationName: fresh.organizationName,
       email: fresh.email,
       uid: fresh.uid,
@@ -36,10 +37,10 @@ module.exports.authenticate = async (req, res, next) => {
     };
 
     // Subscription & Trial expiration checks for non-superAdmin users
-    if (fresh.role !== 'superAdmin' && fresh.industryId) {
+    if (fresh.role !== 'superAdmin' && fresh.organizationId) {
       const mongoose = require('mongoose');
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industry_id: fresh.industry_id?.code || fresh.industry_id });
+      const org = await Organization.findOne({ organization_id: fresh.organizationId });
       if (org) {
         let isExpired = false;
         const now = new Date();

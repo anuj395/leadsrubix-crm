@@ -32,6 +32,8 @@ import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 import {
   listUsersPaged,
   deleteUser,
@@ -72,9 +74,15 @@ export default function UserListPage() {
   const [loading, setLoading] = useState(false)
   const [rowCount, setRowCount] = useState(0)
 
-  // Industries list (superAdmin only)
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [filterIndustry, setFilterIndustry] = useState<string>('')
+  // Shared Super Admin Scope Context
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
 
   // Permissions mapping
   const [perms, setPerms] = useState<MyActionPerms>({
@@ -111,29 +119,19 @@ export default function UserListPage() {
 
 
 
-  // Load superAdmin metadata
-  useEffect(() => {
-    if (!isSuperAdmin) return
-    void (async () => {
-      try {
-        const list = await getIndustries(true)
-        setIndustries(list)
-        if (list.length > 0) {
-          setFilterIndustry(list[0].code)
-        }
-      } catch (err) {
-        showToast('Failed to load industries', 'error')
-      }
-    })()
-  }, [isSuperAdmin])
+  // Metadata loading simplified via useSuperAdminScope hook
 
   // Refresh user list and headers
   const refresh = async () => {
     setLoading(true)
     try {
       const activeIndustry = isSuperAdmin
-        ? filterIndustry || undefined
+        ? selectedIndustry || undefined
         : authedUser?.industryId
+
+      const activeOrg = isSuperAdmin
+        ? selectedOrg || undefined
+        : (authedUser as any)?.organizationId || (authedUser as any)?.organization_id
 
       // 1. Fetch action permissions
       const actionPerms = await getMyActionPerms('users')
@@ -154,6 +152,7 @@ export default function UserListPage() {
 
       const paged = await listUsersPaged({
         industryId: activeIndustry,
+        organizationId: activeOrg,
         page: paginationModel.page + 1,
         pageSize: paginationModel.pageSize,
         q: searchQuery || undefined,
@@ -171,9 +170,9 @@ export default function UserListPage() {
   }
 
   useEffect(() => {
-    if (isSuperAdmin && !filterIndustry) return
+    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
     void refresh()
-  }, [paginationModel, sortModel, searchQuery, filterIndustry, isSuperAdmin])
+  }, [paginationModel, sortModel, searchQuery, selectedIndustry, selectedOrg, isSuperAdmin])
 
   const { confirmDelete } = useConfirm()
 
@@ -343,24 +342,15 @@ export default function UserListPage() {
         }
         fullHeight
       >
-        {isSuperAdmin && (
-          <Box sx={{ mb: 2, pt: 1.5 }}>
-            <TextField
-              select
-              size="small"
-              label="Select Industry"
-              value={filterIndustry}
-              onChange={(e) => setFilterIndustry(e.target.value)}
-              sx={{ minWidth: 240 }}
-            >
-              {industries.map((ind) => (
-                <MenuItem key={ind._id} value={ind.code}>
-                  {ind.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Box>
-        )}
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
 
         <AppDataGrid
           height="100%"

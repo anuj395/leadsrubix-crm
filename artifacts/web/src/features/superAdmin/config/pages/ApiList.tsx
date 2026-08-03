@@ -24,7 +24,8 @@ import { getApiTokens, deleteApiToken, type ApiTokenConfig } from '@/services/ap
 import { listOrganizationsPaged, type Organization } from '@/services/organizationsService'
 import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
 import { useConfirm } from '@/components/common/ConfirmContext'
-import { getIndustries, type Industry } from '@/services/sidebarAdminService'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 // Stale-while-revalidate frontend caches for instant loading
 const tokensCache = { data: [] as ApiTokenConfig[], initialized: false }
@@ -34,8 +35,17 @@ export default function ApiListPage() {
   const navigate = useNavigate()
   const [items, setItems] = useState<ApiTokenConfig[]>(tokensCache.data)
   const [organizations, setOrganizations] = useState<Organization[]>(organizationsCache.data)
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+  // Shared Super Admin Scope Context
+  const isSuperAdmin = true // Since this is a Super Admin only config page
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [loading, setLoading] = useState(false)
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
   
@@ -45,27 +55,19 @@ export default function ApiListPage() {
     sev: 'success',
   })
 
-  const loadData = async (targetIndustry?: string) => {
+  const loadData = async () => {
     try {
       if (!tokensCache.initialized || !organizationsCache.initialized) {
         setLoading(true)
       }
-      
-      let currentIndustries = industries
-      if (currentIndustries.length === 0) {
-        currentIndustries = await getIndustries(true)
-        setIndustries(currentIndustries)
-      }
 
-      const activeIndustry = targetIndustry || selectedIndustry || currentIndustries[0]?.code || ''
-      if (activeIndustry && selectedIndustry !== activeIndustry) {
-        setSelectedIndustry(activeIndustry)
-      }
+      const activeIndustry = selectedIndustry || undefined
+      const activeOrg = selectedOrg || undefined
 
       const [tokens, orgsData, resolved] = await Promise.all([
-        getApiTokens(),
-        listOrganizationsPaged({ page: 0, pageSize: 100 }),
-        resolveScreen({ screen_key: 'configApi', industry_code: activeIndustry || undefined })
+        getApiTokens({ industryId: activeIndustry, organizationId: activeOrg }),
+        listOrganizationsPaged({ page: 1, pageSize: 200 }),
+        resolveScreen({ screenKey: 'configApi', industryCode: activeIndustry || 'temp0001' })
       ])
 
       // Update cache
@@ -85,8 +87,10 @@ export default function ApiListPage() {
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!selectedIndustry || !selectedOrg) return
+    void loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndustry, selectedOrg])
 
   const { confirmDelete } = useConfirm()
 
@@ -105,7 +109,7 @@ export default function ApiListPage() {
         } finally {
           setLoading(false)
         }
-      }
+      },
     })
   }
 
@@ -125,6 +129,19 @@ export default function ApiListPage() {
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
     if (!resolvedScreen) return []
 
+    const sNoCol: GridColDef<ApiTokenConfig> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = filteredItems.findIndex((item) => item.id === row.id || item._id === row._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
     const baseCols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
       .filter((h) => h.key !== 'organizationId' && h.key !== 'organizationName')
       .map((header) => {
@@ -132,38 +149,35 @@ export default function ApiListPage() {
           field: header.key as keyof ApiTokenConfig,
           headerName: header.label,
           flex: 1,
-          minWidth: 120,
+          minWidth: 140,
           sortable: header.sortable,
-        }
-
-        if (header.key === 'source') {
-          col.flex = 1.2
-          col.minWidth = 180
-          col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value || <em>Not Mapped</em>}</Box>
-        } else if (header.key === 'status') {
-          col.width = 120
-          col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
-        } else if (header.key === 'countryCode' || header.key === 'country_code') {
-          col.width = 120
-          col.renderCell = (p) => p.value || '+91'
-        } else if (header.key === 'createdAt') {
-          col.field = 'created_at' as any
-          col.width = 180
-          col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
-        } else if (header.key === 'api_key' || header.key === 'apiKey') {
-          col.field = 'api_key' as any
-          col.flex = 1.2
-          col.minWidth = 200
-          col.renderCell = (p) => {
-            const val = p.row.api_key || (p.row as any).apiKey || ''
-            return (
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <code style={{ fontSize: '0.85rem' }}>{val}</code>
-                <IconButton size="small" onClick={() => handleCopy(val)}>
-                  <ContentCopyIcon fontSize="inherit" />
-                </IconButton>
-              </Stack>
-            )
+          valueGetter: (_v, row) => {
+            const r = (row as unknown) as Record<string, unknown>
+            const camelKey = header.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+            const snakeKey = header.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+            return r[header.key] ?? r[camelKey] ?? r[snakeKey]
+          },
+          renderCell: (p) => {
+            const v = p.value
+            if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
+            if (header.key === 'status' || header.key === 'isActive') {
+              return <StatusBadge value={v === true || v === 'ACTIVE' || v === 'Active' ? 'Active' : 'Inactive'} />
+            }
+            if (header.key === 'created_at' || header.key === 'createdAt') {
+              return new Date(v as string).toLocaleString()
+            }
+            if (header.key === 'api_key' || header.key === 'apiKey') {
+              const val = p.row.api_key || (p.row as any).apiKey || ''
+              return (
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <code style={{ fontSize: '0.85rem' }}>{val}</code>
+                  <IconButton size="small" onClick={() => handleCopy(val)}>
+                    <ContentCopyIcon fontSize="inherit" />
+                  </IconButton>
+                </Stack>
+              )
+            }
+            return String(v)
           }
         }
 
@@ -171,13 +185,7 @@ export default function ApiListPage() {
       })
 
     const cols: GridColDef<ApiTokenConfig>[] = [
-      {
-        field: 'organizationName',
-        headerName: 'Organization Name',
-        flex: 1.2,
-        minWidth: 180,
-        renderCell: (p) => <Box sx={{ fontWeight: 600 }}>{p.row.organizationName || <em>Global Default</em>}</Box>,
-      },
+      sNoCol,
       ...baseCols
     ]
 
@@ -190,12 +198,12 @@ export default function ApiListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit?industry=${selectedIndustry}`)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id || p.row._id}/edit?industry=${selectedIndustry}`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id)}>
+            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id || p.row._id || '')}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -204,7 +212,7 @@ export default function ApiListPage() {
     })
 
     return cols
-  }, [resolvedScreen, filteredItems, selectedIndustry])
+  }, [resolvedScreen, filteredItems, navigate, selectedIndustry])
 
   return (
     <Box
@@ -228,25 +236,15 @@ export default function ApiListPage() {
         }
         fullHeight
       >
-        <Stack direction="row" spacing={2} sx={{ mb: 2, pt: 1 }}>
-          <TextField
-            select
-            size="small"
-            label="Select Industry"
-            value={selectedIndustry}
-            onChange={(e) => {
-              setSelectedIndustry(e.target.value)
-              void loadData(e.target.value)
-            }}
-            sx={{ minWidth: 240 }}
-          >
-            {industries.map((ind) => (
-              <MenuItem key={ind.code} value={ind.code}>
-                {ind.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
 
         <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
           {loading && (

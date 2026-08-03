@@ -92,6 +92,10 @@ export default function OrganizationsListPage() {
       const sort = sortModel[0]
       const sortField = sort?.field && SERVER_SORTABLE.has(sort.field) ? sort.field : undefined
       const sortDir = sort?.sort === 'asc' ? 'asc' : sort?.sort === 'desc' ? 'desc' : undefined
+      const fallbackIndustry = industries[0]?.code || 'temp0001'
+      const isAll = !selectedFilterIndustry || selectedFilterIndustry === 'ALL'
+      const targetIndustryId = isAll ? undefined : selectedFilterIndustry
+      const resolveIndustryCode = isAll ? fallbackIndustry : selectedFilterIndustry
       const [paged, resolved] = await Promise.all([
         listOrganizationsPaged({
           page: paginationModel.page,
@@ -99,11 +103,11 @@ export default function OrganizationsListPage() {
           q: search || undefined,
           sortField,
           sortDir,
-          industryId: isSuperAdmin ? (selectedFilterIndustry || undefined) : undefined,
+          industryId: isSuperAdmin ? targetIndustryId : undefined,
         }),
         resolveScreen({
           screen_key: 'organization',
-          industry_code: isSuperAdmin ? (selectedFilterIndustry || undefined) : undefined,
+          industry_code: isSuperAdmin ? resolveIndustryCode : undefined,
           role_key: isSuperAdmin ? 'admin' : undefined,
         }).catch(() => ({ table_headers: [] as ResolvedTableHeader[], form_fields: [] })),
       ])
@@ -116,7 +120,7 @@ export default function OrganizationsListPage() {
     } finally {
       setLoading(false)
     }
-  }, [paginationModel.page, paginationModel.pageSize, sortModel, search, isSuperAdmin, selectedFilterIndustry])
+  }, [paginationModel.page, paginationModel.pageSize, sortModel, search, isSuperAdmin, selectedFilterIndustry, industries])
 
   useEffect(() => { void refresh() }, [refresh])
 
@@ -275,7 +279,7 @@ export default function OrganizationsListPage() {
         title="Organizations"
         subtitle="Organization records. Columns and the Add/Edit form are driven by the Screen Configuration system (screen key: organization)."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/organization/new${selectedFilterIndustry ? `?industry=${selectedFilterIndustry}` : ''}`)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/organization/new${selectedFilterIndustry && selectedFilterIndustry !== 'ALL' ? `?industry=${selectedFilterIndustry}` : ''}`)}>
             Add Organization
           </Button>
         }
@@ -294,8 +298,8 @@ export default function OrganizationsListPage() {
               }}
               sx={{ minWidth: 240 }}
             >
-              <MenuItem value="">
-                <em>All Industries</em>
+              <MenuItem value="ALL">
+                All Industries
               </MenuItem>
               {industries.map((ind) => (
                 <MenuItem key={ind.code} value={ind.code}>

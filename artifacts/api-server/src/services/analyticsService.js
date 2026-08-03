@@ -41,37 +41,55 @@ function resolveAssociateName(creatorId, userMap) {
   return 'System / Unassigned';
 }
 
-async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy = 'team', startDate, endDate }) {
+async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organizationIdQuery, groupBy = 'team', startDate, endDate }) {
   const User = mongoose.model('User');
   const Contact = mongoose.model('Contact');
   const Task = mongoose.model('Task');
   const CallLog = mongoose.model('CallLog');
   const Organization = mongoose.model('Organization');
+  const Industry = mongoose.model('Industry');
 
   const role = authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
   // 1. Resolve organization/tenant filters
   let targetIndustry = null;
+  let targetOrgId = null;
+
   if (isSuperAdmin) {
     if (industryIdQuery && industryIdQuery !== 'all') {
       targetIndustry = industryIdQuery;
     }
+    if (organizationIdQuery && organizationIdQuery !== 'all') {
+      targetOrgId = organizationIdQuery;
+    }
   } else {
     targetIndustry = authedUser.industryId;
+    targetOrgId = authedUser.organizationId;
   }
 
-  let targetOrgId = null;
+  let industryDoc = null;
   if (targetIndustry) {
-    const org = await Organization.findOne({
+    if (mongoose.Types.ObjectId.isValid(targetIndustry)) {
+      industryDoc = await Industry.findById(targetIndustry).lean().exec();
+    } else {
+      industryDoc = await Industry.findOne({ code: targetIndustry }).lean().exec();
+    }
+  }
+
+  let allowedOrgIds = [];
+  if (targetOrgId) {
+    allowedOrgIds = [targetOrgId];
+  } else if (industryDoc) {
+    const orgs = await Organization.find({
       $or: [
-        { industryId: targetIndustry },
-        { organizationId: targetIndustry }
+        { industryId: String(industryDoc._id) },
+        { industry_id: industryDoc._id },
+        { industryId: industryDoc.code },
+        { industry_code: industryDoc.code }
       ]
     }).lean().exec();
-    targetOrgId = org ? org.organizationId : targetIndustry;
-  } else if (authedUser.organizationId) {
-    targetOrgId = authedUser.organizationId;
+    allowedOrgIds = orgs.map(o => o.organizationId || o.organization_id).filter(Boolean);
   }
 
   // 2. Fetch list of organizations from the Organizations collection (Super Admin only)
@@ -88,7 +106,8 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
       .exec();
     organizationsList = orgDocs.map(o => ({
       code: o.organizationId || o.organization_id,
-      name: o.organizationName || o.organization_name || 'Unnamed Organization'
+      name: o.organizationName || o.organization_name || 'Unnamed Organization',
+      industryId: String(o.industryId || o.industry_id || '')
     }));
   }
 
@@ -100,10 +119,16 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
   const taskFilter = {};
   const callLogFilter = {};
 
-  if (targetOrgId) {
-    contactFilter.organizationId = targetOrgId;
-    taskFilter.organizationId = targetOrgId;
-    callLogFilter.organizationId = targetOrgId;
+  if (allowedOrgIds.length > 0) {
+    contactFilter.organization_id = { $in: allowedOrgIds };
+    taskFilter.organization_id = { $in: allowedOrgIds };
+    callLogFilter.organization_id = { $in: allowedOrgIds };
+  } else if (targetOrgId || targetIndustry) {
+    // If a specific organization or industry was requested but resolved to no active orgs,
+    // explicitly restrict to an empty set so we do not fall back to exposing all records.
+    contactFilter.organization_id = { $in: [] };
+    taskFilter.organization_id = { $in: [] };
+    callLogFilter.organization_id = { $in: [] };
   }
 
   // Enforce hierarchical user permissions securely
@@ -152,7 +177,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
     Contact.find(contactFilter).lean().exec(),
     Task.find(taskFilter).lean().exec(),
     CallLog.find(callLogFilter).lean().exec(),
-    User.find(targetOrgId ? { organizationId: targetOrgId } : {}).select('_id uid name firstName lastName email role team').lean().exec()
+    User.find(targetOrgId ? { organization_id: targetOrgId } : {}).select('_id uid name firstName lastName email role team').lean().exec()
   ]);
 
   // Create lookups
@@ -440,4 +465,59 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, groupBy 
   };
 }
 
-module.exports = { getAnalyticsDashboardData };
+async function getDashboardConfig({ authedUser, industryIdQuery, organizationIdQuery }) {
+  const AnalyticsConfig = mongoose.model('AnalyticsConfig');
+  const Industry = mongoose.model('Industry');
+  const Organization = mongoose.model('Organization');
+
+  let orgId = authedUser.organizationId;
+  let industryCode = authedUser.industryId || 'temp0001';
+
+  // Super admin can request configuration for a specific organization/industry
+  if (authedUser.role === 'superAdmin') {
+    if (organizationIdQuery && organizationIdQuery !== 'all') {
+      orgId = organizationIdQuery;
+    } else {
+      orgId = null;
+    }
+
+    if (industryIdQuery && industryIdQuery !== 'all') {
+      const org = await Organization.findOne({
+        $or: [
+          { organizationId: industryIdQuery },
+          { industryId: industryIdQuery }
+        ]
+      }).lean().exec();
+
+      if (org) {
+        if (!orgId) orgId = org.organizationId;
+        industryCode = org.industryId;
+      } else {
+        industryCode = industryIdQuery;
+      }
+    }
+  }
+
+  // 1. Try to find organization-specific config
+  if (orgId) {
+    const orgConfig = await AnalyticsConfig.findOne({ organization_id: orgId }).lean().exec();
+    if (orgConfig) return orgConfig;
+  }
+
+  // 2. Try to find industry-specific config
+  let industryDoc = await Industry.findOne({ code: industryCode }).lean().exec();
+  if (!industryDoc && mongoose.Types.ObjectId.isValid(industryCode)) {
+    industryDoc = await Industry.findById(industryCode).lean().exec();
+  }
+
+  if (industryDoc) {
+    const indConfig = await AnalyticsConfig.findOne({ industry_id: String(industryDoc._id) }).lean().exec();
+    if (indConfig) return indConfig;
+  }
+
+  // 3. Fallback to default Real Estate config
+  const fallback = await AnalyticsConfig.findOne({ organization_id: null }).lean().exec();
+  return fallback;
+}
+
+module.exports = { getAnalyticsDashboardData, getDashboardConfig };
