@@ -86,10 +86,10 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "organization", name: "Organization", route: "/organization/list", icon: "organization", module: "organization" },
   { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
 
-  { key: "leads.contacts", name: "Contacts", route: "/leads/contacts", icon: "contact", module: "leads" },
-  { key: "leads.tasks", name: "Tasks", route: "/leads/tasks", icon: "tasks", module: "leads" },
-  { key: "leads.callLogs", name: "Call Logs", route: "/leads/call-logs", icon: "call", module: "leads" },
-  { key: "leads.sorted", name: "Sorted", route: "/leads/sorted", icon: "sort", module: "leads" },
+  { key: "leads.contacts", name: "Contacts List", route: "/leads/contacts", icon: "contact", module: "leads" },
+  { key: "leads.tasks", name: "Tasks List", route: "/leads/tasks", icon: "tasks", module: "leads" },
+  { key: "leads.callLogs", name: "Call Logs List", route: "/leads/call-logs", icon: "call", module: "leads" },
+  { key: "leads.sorted", name: "Sorted List", route: "/leads/sorted", icon: "sort", module: "leads" },
 
   { key: "configuration.industries", name: "Industries", route: "/configuration/industries", icon: "organization", module: "configuration" },
   { key: "configuration.projects", name: "Projects", route: "/configuration/projects", icon: "projects", module: "configuration" },

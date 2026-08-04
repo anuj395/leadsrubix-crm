@@ -118,13 +118,13 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
         item.module = 'accesscontrol'
         item.name = 'Roles & Permissions'
       } else if (k === 'leads.contact' || k === 'leads.contacts') {
-        item.name = 'Contacts'
+        item.name = 'Contacts List'
       } else if (k === 'leads.tasks') {
-        item.name = 'Tasks'
+        item.name = 'Tasks List'
       } else if (k === 'leads.call' || k === 'leads.callLogs') {
-        item.name = 'Call Logs'
+        item.name = 'Call Logs List'
       } else if (k === 'leads.sorted') {
-        item.name = 'Sorted'
+        item.name = 'Sorted List'
       }
     })
   }

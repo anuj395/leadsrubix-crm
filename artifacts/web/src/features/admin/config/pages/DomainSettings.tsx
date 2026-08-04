@@ -222,10 +222,11 @@ export default function DomainSettingsPage() {
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
                 variant="contained"
-                size="large"
-                startIcon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
+                size="medium"
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                 onClick={saveSettings}
                 disabled={saving}
+                sx={{ height: 38, px: 2.5, fontWeight: 600, textTransform: 'none' }}
               >
                 Save Workspace Configuration
               </Button>
