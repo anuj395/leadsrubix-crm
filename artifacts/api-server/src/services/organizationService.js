@@ -85,23 +85,25 @@ function pickAllowed(payload, allowedFieldDefs, isCreate = false) {
   }
 
   const missing = [];
-  allowedFieldDefs.forEach(f => {
-    if (f.is_required || f.isRequired) {
-      const fieldKey = f.field_key || f.fieldKey || '';
-      if (isCreate && (fieldKey === 'cost_per_license' || fieldKey === 'valid_till' || fieldKey === 'costPerLicense' || fieldKey === 'validTill')) {
-        return;
+  if (isCreate) {
+    allowedFieldDefs.forEach(f => {
+      if (f.is_required || f.isRequired) {
+        const fieldKey = f.field_key || f.fieldKey || '';
+        if (fieldKey === 'cost_per_license' || fieldKey === 'valid_till' || fieldKey === 'costPerLicense' || fieldKey === 'validTill') {
+          return;
+        }
+        const camel = fieldKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+        if (cleaned[camel] === undefined || cleaned[camel] === null || cleaned[camel] === '') {
+          missing.push(f.field_key || camel);
+        }
       }
-      const camel = fieldKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-      if (cleaned[camel] === undefined || cleaned[camel] === null || cleaned[camel] === '') {
-        missing.push(f.field_key || camel);
-      }
-    }
-  });
+    });
 
-  if (missing.length > 0) {
-    const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
-    err.status = 400;
-    throw err;
+    if (missing.length > 0) {
+      const err = new Error(`Missing required field(s): ${missing.join(', ')}`);
+      err.status = 400;
+      throw err;
+    }
   }
 
   // Dynamic Format Validation
@@ -222,8 +224,12 @@ exports.fetchById = async ({ id, authedUser }) => {
   }
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
   const org = await organizationModel.findById(id);
-  if (org && !isSuperAdmin && org.industryId && org.industryId !== user.industryId) {
-    return null;
+  if (org && !isSuperAdmin) {
+    const userOrgId = user.organizationId || user.organization_id;
+    const targetOrgId = org.organizationId || org.organization_id || String(org._id);
+    if (userOrgId && targetOrgId && userOrgId !== targetOrgId) {
+      const err = new Error('Unauthorized cross-tenant access'); err.status = 403; throw err;
+    }
   }
   if (org) {
     const creatorId = (org.createdBy || org.createdBy)?.toString();
@@ -559,8 +565,12 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (!existing) {
     const err = new Error('Organization not found'); err.status = 404; throw err;
   }
-  if (!isSuperAdmin && existing.industryId && existing.industryId !== user.industryId) {
-    const err = new Error('Organization not found'); err.status = 404; throw err;
+  if (!isSuperAdmin) {
+    const userOrgId = user.organizationId || user.organization_id;
+    const existingOrgId = existing.organizationId || existing.organization_id || String(existing._id);
+    if (userOrgId && existingOrgId && userOrgId !== existingOrgId) {
+      const err = new Error('Unauthorized cross-tenant modification'); err.status = 403; throw err;
+    }
   }
 
   const { fields: allowedFields } = await resolveAllowedFormFields({
@@ -573,7 +583,65 @@ exports.update = async ({ id, payload, authedUser }) => {
   const patch = { ...cleaned };
   if (isSuperAdmin && payload.industryId) patch.industryId = payload.industryId;
 
-  // 1. Valid Till Date Validation
+  // Support direct subdomain, customDomain, appName, logoUrl, primaryColor updates from DomainSettings
+  if (payload.subdomain !== undefined) patch.subdomain = payload.subdomain;
+  if (payload.customDomain !== undefined) patch.customDomain = payload.customDomain;
+  if (payload.appName !== undefined) patch.appName = payload.appName;
+  if (payload.logoUrl !== undefined) patch.logoUrl = payload.logoUrl;
+  if (payload.primaryColor !== undefined) patch.primaryColor = payload.primaryColor;
+
+  // 1a. Subdomain Format & Uniqueness Validation
+  if (patch.subdomain !== undefined && patch.subdomain !== null && patch.subdomain !== '') {
+    const cleanSub = String(patch.subdomain).toLowerCase().trim();
+    const reservedSubdomains = new Set(['www', 'api', 'app', 'admin', 'mail', 'smtp', 'pop', 'imap', 'ftp', 'custom', 'auth', 'dev', 'staging']);
+    if (reservedSubdomains.has(cleanSub)) {
+      const err = new Error(`Subdomain '${cleanSub}' is reserved and cannot be used.`);
+      err.status = 400;
+      throw err;
+    }
+    const subRx = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+    if (!subRx.test(cleanSub) || cleanSub.length < 3 || cleanSub.length > 63) {
+      const err = new Error(`Invalid subdomain '${cleanSub}'. Must be 3-63 lowercase alphanumeric characters and hyphens.`);
+      err.status = 400;
+      throw err;
+    }
+    const Organization = mongoose.model('Organization');
+    const existingSub = await Organization.findOne({
+      _id: { $ne: existing._id },
+      subdomain: cleanSub
+    }).lean().exec();
+    if (existingSub) {
+      const err = new Error(`Subdomain '${cleanSub}' is already in use by another organization.`);
+      err.status = 400;
+      throw err;
+    }
+    patch.subdomain = cleanSub;
+  }
+
+  // 1b. Custom Domain Format & Uniqueness Validation
+  if (patch.customDomain !== undefined && patch.customDomain !== null && patch.customDomain !== '') {
+    let cleanCustom = String(patch.customDomain).toLowerCase().trim();
+    cleanCustom = cleanCustom.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    const domainRx = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/;
+    if (!domainRx.test(cleanCustom)) {
+      const err = new Error(`Invalid custom domain '${cleanCustom}'. Must be a valid FQDN (e.g. crm.yourcompany.com).`);
+      err.status = 400;
+      throw err;
+    }
+    const Organization = mongoose.model('Organization');
+    const existingCustom = await Organization.findOne({
+      _id: { $ne: existing._id },
+      custom_domain: cleanCustom
+    }).lean().exec();
+    if (existingCustom) {
+      const err = new Error(`Custom domain '${cleanCustom}' is already registered to another organization.`);
+      err.status = 400;
+      throw err;
+    }
+    patch.customDomain = cleanCustom;
+  }
+
+  // 1. Valid Till Date Validation & Automatic Subscription Renewal Flow
   if (patch.validTill) {
     const targetDate = new Date(patch.validTill);
     const currentDate = new Date();
@@ -581,6 +649,39 @@ exports.update = async ({ id, payload, authedUser }) => {
       const err = new Error('Valid Till date must be later than the current date');
       err.status = 400;
       throw err;
+    }
+
+    // Immediately renew active subscription status and transition from trial to active paid plan
+    patch.paymentStatus = true;
+    patch.payment_status = true;
+    patch.status = 'ACTIVE';
+    patch.trialPeriod = false;
+    patch.trial_period = false;
+    patch.isActive = true;
+    patch.is_active = true;
+
+    // Reactivate all users associated with this organization if previously deactivated due to subscription expiry
+    try {
+      const User = mongoose.model('User');
+      const orgIdStr = existing.organizationId || existing.organization_id || existing._id.toString();
+      await User.updateMany(
+        {
+          $or: [
+            { organization_id: existing._id },
+            { organization_id: orgIdStr },
+            { organizationId: orgIdStr }
+          ]
+        },
+        {
+          $set: {
+            is_active: true,
+            status: 'active',
+            deactivated_at: null
+          }
+        }
+      );
+    } catch (err) {
+      console.error('[organizationService] Failed to reactivate users upon subscription renewal:', err);
     }
   }
 

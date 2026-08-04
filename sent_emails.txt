@@ -286,3 +286,12 @@ Organization: Cascade Test Org Ltd
 Username / Email: cascadetest-1785829208591@testorg.com
 Temp Password: 3thh21hY
 ========================================
+
+========================================
+Timestamp: 2026-08-04T09:06:58.261Z
+To: sssss@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: dasdkadnsjk
+Username / Email: sssss@gmail.com
+Temp Password: dFBbhOv7
+========================================

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSubscription } from '@/hooks/useSubscription'
 
 import ApiOutlinedIcon from '@mui/icons-material/ApiOutlined'
 import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined'
@@ -104,45 +105,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const { menu, loading, error } = useSidebarMenu()
 
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
-  const [showTrialBanner, setShowTrialBanner] = useState(false)
-  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
-
   const toggleExpand = (id: string) =>
     setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }))
-
-  useEffect(() => {
-    const role = user?.role || (user as any)?.roleKey || (user as any)?.role_key
-    if (!user || role === 'superAdmin') return
-
-    void (async () => {
-      try {
-        const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
-        const res = await api.get(`/organizations?industryId=${industryId}`)
-        const orgs = res.data?.items ?? []
-        const org = orgs[0]
-        if (org) {
-          if (org.trialPeriod === true || org.trialPeriod === 'true') {
-            const now = Date.now()
-            const createdAt = org.createdAt ? new Date(org.createdAt).getTime() : now
-            const trialDays = typeof org.trialPeriodDays === 'number' ? org.trialPeriodDays : 7
-            const trialExpiry = createdAt + trialDays * 24 * 60 * 60 * 1000
-            const diff = trialExpiry - now
-            if (diff > 0) {
-              const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
-              setTrialDaysLeft(days)
-              setShowTrialBanner(true)
-            } else {
-              setShowTrialBanner(false)
-            }
-          } else {
-            setShowTrialBanner(false)
-          }
-        }
-      } catch (err) {
-        console.error('[Sidebar] Failed to load trial status', err)
-      }
-    })()
-  }, [user])
+  const { isTrial, isGracePeriod, daysRemaining } = useSubscription()
+  const showSubscriptionBanner = (isTrial || isGracePeriod) && daysRemaining > 0
 
   // Expand all parents that have children by default
   useEffect(() => {
@@ -435,7 +401,8 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
       </Stack>
 
       {/* ── Trial Period Banner ───────────────────────────────────────── */}
-      {showTrialBanner && (
+      {/* ── Subscription / Trial / Grace Period Banner ────────────────── */}
+      {showSubscriptionBanner && (
         <Box
           sx={{
             p: collapsed ? 1 : 1.75,
@@ -451,7 +418,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
           }}
         >
           {collapsed ? (
-            <Tooltip title={`Trial Period Active - ${trialDaysLeft} days remaining. Click to Renew.`} placement="right">
+            <Tooltip title={`${isTrial ? 'Trial Period Active' : 'Grace Period Active'} - ${daysRemaining} days remaining. Click to Renew.`} placement="right">
               <IconButton
                 component={NavLink}
                 to="/account/subscription-details"
@@ -480,7 +447,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'linear-gradient(135deg, #3b3e66 0%, #272944 100%)',
+                    background: isGracePeriod ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'linear-gradient(135deg, #3b3e66 0%, #272944 100%)',
                     color: '#ffffff',
                     flexShrink: 0,
                     boxShadow: '0 2px 8px rgba(39, 41, 68, 0.3)',
@@ -490,10 +457,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                 </Box>
                 <Box minWidth={0}>
                   <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.8125rem', lineHeight: 1.2 }}>
-                    Trial Period Active
+                    {isTrial ? 'Trial Period Active' : 'Grace Period Active'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                    {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} remaining
+                    {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining
                   </Typography>
                 </Box>
               </Stack>
@@ -510,10 +477,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                   py: 0.5,
                   mt: 0.5,
                   borderRadius: '6px',
-                  background: 'linear-gradient(135deg, #3b3e66 0%, #272944 100%)',
+                  background: isGracePeriod ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'linear-gradient(135deg, #3b3e66 0%, #272944 100%)',
                   boxShadow: '0 2px 6px rgba(39, 41, 68, 0.25)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #2f3254 0%, #1b1d31 100%)',
+                    background: isGracePeriod ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' : 'linear-gradient(135deg, #2f3254 0%, #1b1d31 100%)',
                   }
                 }}
               >

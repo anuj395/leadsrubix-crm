@@ -12,6 +12,7 @@ import { Outlet as RouterOutlet, useNavigate } from 'react-router-dom'
 
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth/store/authSlice'
+import { useSubscription } from '@/hooks/useSubscription'
 import { api } from '@/services/api'
 
 import { Navbar } from './Navbar'
@@ -24,66 +25,19 @@ export function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   const { user } = useAppSelector(selectAuth)
+  const { subscription, isGracePeriod, daysRemaining } = useSubscription()
   const [graceDialogOpen, setGraceDialogOpen] = useState(false)
-  const [graceDaysLeft, setGraceDaysLeft] = useState<number | null>(null)
-  const [orgName, setOrgName] = useState('')
+  const orgName = subscription?.organizationName || 'Your Organization'
 
   useEffect(() => {
-    if (!user) {
-      console.log('[MainLayout] No user found in auth state');
-      return;
-    }
+    if (!user) return
     const role = user.role || (user as any).roleKey || (user as any).role_key
-    if (role === 'superAdmin') {
-      console.log('[MainLayout] User is superAdmin, skipping popup');
-      return;
+    if (role === 'superAdmin') return
+
+    if (isGracePeriod) {
+      setGraceDialogOpen(true)
     }
-
-    console.log('[MainLayout] Running subscription popup check for user:', user);
-
-    void (async () => {
-      try {
-        const industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
-        const res = await api.get(`/organizations?industryId=${industryId}`)
-        console.log('[MainLayout] Organization fetch response:', res.data);
-        const orgs = res.data?.items ?? []
-        const org = orgs[0]
-        if (org) {
-          console.log('[MainLayout] Matching organization found:', org);
-          setOrgName((org.organizationName || org.name || 'Your Organization') as string)
-          const now = Date.now()
-
-          if (org.trialPeriod === true || org.trialPeriod === 'true') {
-            // Trial period check is handled persistently by the Sidebar banner, bypass dialog popup
-            return
-          } else {
-            // trialPeriod === false / 'false'
-            if (user.role !== 'admin') {
-              console.log('[MainLayout] User role is not admin, skipping Grace warning popup. Role:', user.role);
-              return
-            }
-
-            const validTill = org.validTill ? new Date(org.validTill).getTime() : now
-            const graceDays = typeof org.gracePeriodDays === 'number' ? org.gracePeriodDays : 7
-            const graceExpiry = validTill + graceDays * 24 * 60 * 60 * 1000
-            
-            console.log('[MainLayout] Grace check - validTill:', new Date(validTill), 'graceExpiry:', new Date(graceExpiry), 'now:', new Date(now));
-            if (now > validTill && now <= graceExpiry) {
-              const diff = graceExpiry - now
-              const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
-              setGraceDaysLeft(days)
-              setGraceDialogOpen(true)
-              console.log('[MainLayout] Opened Grace warning popup. graceDaysLeft:', days);
-            }
-          }
-        } else {
-          console.log('[MainLayout] No organization document matching user industryId:', user.industryId);
-        }
-      } catch (err) {
-        console.error('[MainLayout] Failed to load organization status details', err)
-      }
-    })()
-  }, [user])
+  }, [user, isGracePeriod])
 
   const handleToggle = useCallback(() => {
     setIsSidebarCollapsed((c) => !c)
@@ -256,13 +210,13 @@ export function MainLayout() {
                 borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)',
               }}
             >
-              {graceDaysLeft !== null ? (
+              {daysRemaining > 0 ? (
                 <>
                   <Typography variant="h3" fontWeight={800} color="warning.main" sx={{ mb: 0.5 }}>
-                    {graceDaysLeft}
+                    {daysRemaining}
                   </Typography>
                   <Typography variant="caption" fontWeight={600} color="warning.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {graceDaysLeft === 1 ? 'Grace Day Remaining' : 'Grace Days Remaining'}
+                    {daysRemaining === 1 ? 'Grace Day Remaining' : 'Grace Days Remaining'}
                   </Typography>
                 </>
               ) : (

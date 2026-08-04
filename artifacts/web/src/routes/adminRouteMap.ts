@@ -47,9 +47,11 @@ import HousingPage from '@/features/admin/integrations/pages/Housing'
 import NewsListPage from '@/features/admin/support/pages/NewsList'
 import FaqListPage from '@/features/admin/support/pages/FaqList'
 
-import UpdatePasswordPage from '@/features/admin/setting/pages/UpdatePassword'
-import SubscriptionDetailsPage from '@/features/admin/setting/pages/SubscriptionDetails'
 import SettingsPage from '@/features/admin/setting/pages/Settings'
+import SubscriptionDetailsPage from '@/features/admin/setting/pages/SubscriptionDetails'
+import PaymentInvoicesPage from '@/features/admin/setting/pages/PaymentInvoices'
+import ReceiptsHistoryPage from '@/features/admin/setting/pages/ReceiptsHistory'
+import UpdatePasswordPage from '@/features/admin/setting/pages/UpdatePassword'
 
 import AddContactPage from '@/features/admin/leads/pages/AddContact'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
@@ -127,6 +129,8 @@ export const routeComponentMap: Record<string, any> = {
   "/support/faq": FaqListPage,
 
   "/account/subscription-details": SubscriptionDetailsPage,
+  "/account/payment-invoices": PaymentInvoicesPage,
+  "/account/receipts-history": ReceiptsHistoryPage,
   "/account/update-password": UpdatePasswordPage,
   "/settings": SettingsPage,
 

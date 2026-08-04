@@ -160,6 +160,13 @@ const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.POR
   }
 
   try {
+    const { startSubscriptionCron } = require('./cron/subscriptionCron');
+    startSubscriptionCron();
+  } catch (err) {
+    console.error('[subscriptionCron] failed to start subscription cron:', err.message || err);
+  }
+
+  try {
     await seedIndustries();
   } catch (err) {
     console.error('[seed] failed to seed industries:', err.message || err);

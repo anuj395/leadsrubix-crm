@@ -214,7 +214,7 @@ export default function CouponsPage() {
         width: 140,
         renderCell: (p) => {
           const type = p.row.discountType
-          return type === 'Percentage' ? `${p.value}% Off` : `$${p.value} Off`
+          return type === 'Percentage' ? `${p.value}% Off` : `₹${p.value} Off`
         },
       },
       {
@@ -330,7 +330,7 @@ export default function CouponsPage() {
                 onChange={(e) => setForm({ ...form, discountType: e.target.value as Coupon['discountType'] })}
               >
                 <MenuItem value="Percentage">Percentage (%)</MenuItem>
-                <MenuItem value="Fixed Amount">Fixed Amount ($)</MenuItem>
+                <MenuItem value="Fixed Amount">Fixed Amount (₹)</MenuItem>
               </TextField>
             </Box>
             <Box>

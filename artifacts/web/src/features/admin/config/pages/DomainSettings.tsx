@@ -42,14 +42,30 @@ export default function DomainSettingsPage() {
     sev: 'success',
   })
 
-  const orgId = (user as any)?.organizationId || (user as any)?.organization_id
+  const [resolvedOrgId, setResolvedOrgId] = useState<string | null>(null)
 
   const loadSettings = async () => {
-    if (!orgId) return
+    let targetOrgId = resolvedOrgId || (user as any)?.organizationId || (user as any)?.organization_id || (user as any)?.organization
+    if (!targetOrgId) {
+      try {
+        const subRes = await api.get('organizations/my-subscription')
+        targetOrgId = subRes.data?.organizationId
+      } catch { /* ignore */ }
+    }
+    if (!targetOrgId) {
+      try {
+        const listRes = await api.get('organizations?pageSize=1')
+        targetOrgId = listRes.data?.items?.[0]?.organizationId || listRes.data?.items?.[0]?.id || listRes.data?.items?.[0]?._id
+      } catch { /* ignore */ }
+    }
+
+    if (!targetOrgId) return
+
     setLoading(true)
     try {
-      const res = await api.get(`organizations/${orgId}`)
+      const res = await api.get(`organizations/${targetOrgId}`)
       const data = res.data
+      setResolvedOrgId(targetOrgId)
       setForm({
         subdomain: data.subdomain || '',
         customDomain: data.customDomain || data.custom_domain || '',
@@ -66,15 +82,27 @@ export default function DomainSettingsPage() {
 
   useEffect(() => {
     void loadSettings()
-  }, [orgId])
+  }, [(user as any)?.organizationId, (user as any)?.organization_id])
 
   const saveSettings = async () => {
-    if (!orgId) return
+    let targetOrgId = resolvedOrgId || (user as any)?.organizationId || (user as any)?.organization_id
+    if (!targetOrgId) {
+      try {
+        const subRes = await api.get('organizations/my-subscription')
+        targetOrgId = subRes.data?.organizationId
+      } catch { /* ignore */ }
+    }
+
+    if (!targetOrgId) {
+      setToast({ open: true, msg: 'Unable to resolve Organization ID to save settings', sev: 'error' })
+      return
+    }
+
     setSaving(true)
     try {
-      await api.put(`organizations/${orgId}`, {
-        subdomain: form.subdomain.toLowerCase().trim() || undefined,
-        customDomain: form.customDomain.toLowerCase().trim() || undefined,
+      await api.put(`organizations/${targetOrgId}`, {
+        subdomain: form.subdomain ? form.subdomain.toLowerCase().trim() : '',
+        customDomain: form.customDomain ? form.customDomain.toLowerCase().trim() : '',
         appName: form.appName,
         logoUrl: form.logoUrl,
         primaryColor: form.primaryColor,
@@ -182,7 +210,7 @@ export default function DomainSettingsPage() {
                   Workspace Identity & Theme Branding
                 </Typography>
 
-                <Stack spacing={2}>
+                <Stack spacing={2.5}>
                   <TextField
                     label="Application Name"
                     value={form.appName}
@@ -213,6 +241,23 @@ export default function DomainSettingsPage() {
                       Hex Code: <code>{form.primaryColor}</code>
                     </Typography>
                   </Stack>
+
+                  {/* Live Workspace Branding Preview Box */}
+                  <Box sx={{ p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.default' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block" sx={{ mb: 1, textTransform: 'uppercase' }}>
+                      Live Workspace Header Preview
+                    </Typography>
+                    <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: form.primaryColor || '#1976d2', color: '#fff', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {form.logoUrl ? (
+                        <Box component="img" src={form.logoUrl} alt="Logo Preview" sx={{ height: 28, maxWidth: 120, objectFit: 'contain' }} onError={(e: any) => { e.target.style.display = 'none' }} />
+                      ) : (
+                        <LanguageIcon />
+                      )}
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        {form.appName || 'Leads Rubix CRM'}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </Stack>
               </CardContent>
             </Card>

@@ -95,6 +95,7 @@ function shapePublic(org) {
     showAnalytics: o.showAnalytics !== false && o.show_analytics !== false,
     showData: o.showData !== false && o.show_data !== false,
     trialPeriod: o.trialPeriod !== false && o.trial_period !== false,
+    paymentStatus: o.paymentStatus !== false && o.payment_status !== false,
     designations: o.designations || [],
     teams: o.teams || [],
     status: o.status || 'ACTIVE',

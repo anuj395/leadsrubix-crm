@@ -23,6 +23,7 @@ const MODULE_DISPLAY_NAMES: Record<string, string> = {
   accesscontrol: 'Access Control',
   leaddistribution: 'Lead Distribution',
   account: 'Account & Settings',
+  invoices: 'Invoices',
   configuration: 'Configuration',
   integrations: 'Integrations',
   analytics: 'Analytics',
@@ -42,6 +43,7 @@ const ADMIN_MODULE_ORDER: Record<string, number> = {
   uinavigation: 70,
   accesscontrol: 80,
   account: 90,
+  invoices: 92,
   support: 100,
 }
 
@@ -55,6 +57,7 @@ const SUPER_ADMIN_MODULE_ORDER: Record<string, number> = {
   uinavigation: 70,
   accesscontrol: 80,
   account: 90,
+  invoices: 92,
   support: 100,
 }
 

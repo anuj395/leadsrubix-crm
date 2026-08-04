@@ -109,6 +109,8 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
 
   { key: "account.licenses", name: "Licenses Cost", route: "/account/licenses", icon: "billing", module: "account" },
   { key: "account.coupons", name: "Coupon", route: "/account/coupons", icon: "coupon", module: "account" },
+  { key: "invoices.paymentLogs", name: "Payment Invoice Logs", route: "/account/payment-invoices", icon: "billing", module: "invoices" },
+  { key: "invoices.receiptsHistory", name: "Receipts & Historical Charges", route: "/account/receipts-history", icon: "subscription", module: "invoices" },
   { key: "account.password", name: "Update Password", route: "/account/update-password", icon: "password", module: "account" },
 
   { key: "support.news", name: "News List", route: "/support/news", icon: "news", module: "support" },
@@ -257,6 +259,20 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     route: "/account/subscription-details",
     icon: "subscription",
     module: "Account"
+  },
+  {
+    key: "invoices.paymentLogs",
+    name: "Payment Invoice Logs",
+    route: "/account/payment-invoices",
+    icon: "billing",
+    module: "Invoices"
+  },
+  {
+    key: "invoices.receiptsHistory",
+    name: "Receipts & Historical Charges",
+    route: "/account/receipts-history",
+    icon: "subscription",
+    module: "Invoices"
   },
   {
     key: "account.password",

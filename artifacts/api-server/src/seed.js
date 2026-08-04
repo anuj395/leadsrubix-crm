@@ -53,6 +53,8 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
         { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
+        { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/account/payment-invoices', icon: 'billing', module: 'invoices' },
+        { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/account/receipts-history', icon: 'subscription', module: 'invoices' },
         { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' }
       ],
       leadManager: [
@@ -1467,6 +1469,9 @@ async function seedAdminAnalyticsSidebarPermissions() {
     }
   }
 
+  const invoicesLogsMenu = await SidebarMenu.findOne({ key: 'invoices.paymentLogs' }).lean().exec();
+  const receiptsMenu = await SidebarMenu.findOne({ key: 'invoices.receiptsHistory' }).lean().exec();
+
   const superAdminRoles = await Role.find({ key: 'superAdmin' }).lean().exec();
   for (const r of superAdminRoles) {
     const orgId = r.organization_id || null;
@@ -1475,6 +1480,20 @@ async function seedAdminAnalyticsSidebarPermissions() {
       await SidebarPermission.updateOne(
         { role_id: r._id, menu_id: uiNavConfigMenu._id, organization_id: orgId },
         { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'uiNavigation.analyticsConfig' } },
+        { upsert: true }
+      );
+    }
+    if (invoicesLogsMenu) {
+      await SidebarPermission.updateOne(
+        { role_id: r._id, menu_id: invoicesLogsMenu._id, organization_id: orgId },
+        { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'invoices.paymentLogs' } },
+        { upsert: true }
+      );
+    }
+    if (receiptsMenu) {
+      await SidebarPermission.updateOne(
+        { role_id: r._id, menu_id: receiptsMenu._id, organization_id: orgId },
+        { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'invoices.receiptsHistory' } },
         { upsert: true }
       );
     }

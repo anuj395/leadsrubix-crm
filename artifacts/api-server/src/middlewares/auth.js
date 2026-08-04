@@ -40,6 +40,7 @@ module.exports.authenticate = async (req, res, next) => {
     if (fresh.role !== 'superAdmin' && (fresh.organizationId || fresh.organization_id)) {
       const mongoose = require('mongoose');
       const Organization = mongoose.model('Organization');
+      const { calculateSubscriptionStatus } = require('../utils/subscriptionUtils');
       const userOrgId = fresh.organizationId || fresh.organization_id;
       const isObjectId = mongoose.Types.ObjectId.isValid(userOrgId);
       const orgQuery = isObjectId
@@ -48,37 +49,22 @@ module.exports.authenticate = async (req, res, next) => {
       const org = await Organization.findOne(orgQuery).exec();
 
       if (org) {
-        let isExpired = false;
-        const now = new Date();
-        const createdAt = new Date(org.createdAt || org.created_at || now);
+        const subState = calculateSubscriptionStatus(org);
 
-        const isTrial = org.trial_period === true || org.trial_period === 'true' || org.trialPeriod === true || org.trialPeriod === 'true';
-        const trialDays = typeof org.trial_period_days === 'number' ? org.trial_period_days : (typeof org.trialPeriodDays === 'number' ? org.trialPeriodDays : 7);
-        const graceDays = typeof org.grace_period_days === 'number' ? org.grace_period_days : (typeof org.gracePeriodDays === 'number' ? org.gracePeriodDays : 7);
-
-        if (isTrial) {
-          const trialExpiry = new Date(createdAt.getTime() + trialDays * 24 * 60 * 60 * 1000);
-          if (now > trialExpiry) {
-            isExpired = true;
-          }
-        } else {
-          const rawValidTill = org.valid_till || org.validTill;
-          if (rawValidTill) {
-            const validTill = new Date(rawValidTill);
-            const graceExpiry = new Date(validTill.getTime() + graceDays * 24 * 60 * 60 * 1000);
-            if (now > graceExpiry) {
-              isExpired = true;
-            }
-          }
-        }
-
-        if (isExpired) {
-          if (org.payment_status !== false && org.paymentStatus !== false) {
-            await Organization.updateOne({ _id: org._id }, { $set: { payment_status: false, paymentStatus: false } });
+        if (subState.isExpired) {
+          if (org.payment_status !== false) {
+            await Organization.updateOne(
+              { _id: org._id },
+              {
+                $set: { payment_status: false, status: 'EXPIRED' },
+                $unset: { paymentStatus: 1 }
+              }
+            );
           }
           // Permit navigation, sidebar menus, screens, subscription details, licenses, pricing plans
           const reqPath = req.originalUrl || req.url || '';
           const isAllowedPath = 
+            reqPath.includes('/api/organizations/my-subscription') ||
             reqPath.includes('/api/organizations') ||
             reqPath.includes('/api/pricing-plans') ||
             reqPath.includes('/api/coupons') ||
@@ -88,7 +74,12 @@ module.exports.authenticate = async (req, res, next) => {
             reqPath.includes('/api/auth/me');
 
           if (!isAllowedPath) {
-            return res.status(402).json({ message: 'Subscription expired. Please renew.' });
+            return res.status(402).json({
+              message: 'Subscription expired. Please renew your plan to restore access.',
+              code: 'SUBSCRIPTION_EXPIRED',
+              subscription: subState,
+              redirectTo: '/account/subscription-details',
+            });
           }
         }
       }

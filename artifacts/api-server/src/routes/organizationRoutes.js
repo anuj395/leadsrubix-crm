@@ -8,6 +8,8 @@ const router = express.Router();
 // Writes are open to any authed user but the service rejects fields the role
 // hasn't been granted on the `organization` screen — same model as Contacts.
 router.get('/', authenticate, ctrl.list);
+router.get('/my-subscription', authenticate, ctrl.getMySubscription);
+router.post('/my-subscription/upgrade', authenticate, ctrl.upgradeSubscription);
 router.get('/:id', authenticate, ctrl.getOne);
 router.post('/', authenticate, ctrl.create);
 router.put('/:id', authenticate, ctrl.update);
