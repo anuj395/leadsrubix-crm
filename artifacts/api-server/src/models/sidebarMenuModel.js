@@ -7,6 +7,7 @@ const sidebarMenuSchema = new mongoose.Schema(
     icon: { type: String, default: '' },
     route: { type: String, default: '' },
     parent_id: { type: mongoose.Schema.Types.ObjectId, ref: 'SidebarMenu', default: null, alias: 'parentId' },
+    industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, default: null, alias: 'organizationId' },
     workspace_id: { type: String, default: null, alias: 'workspaceId' },
     order: { type: Number, default: 0 },

@@ -47,6 +47,7 @@ const {
   seedDropdownOptions,
   seedLeadDistributionSidebar,
   seedAnalyticsConfig,
+  seedAdminAnalyticsSidebarPermissions,
 } = require('./seed');
 
 const migrateExistingWorkspaces = async () => {
@@ -125,10 +126,14 @@ const migrateExistingWorkspaces = async () => {
   }
 };
 
-const PORT = config.port || 3001;
+const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.PORT : 8080;
 
 (async () => {
   await db.connect();
+
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 
   try {
     await seedUsers();
@@ -179,12 +184,14 @@ const PORT = config.port || 3001;
   }
 
   try {
+    await seedAdminAnalyticsSidebarPermissions();
+  } catch (err) {
+    console.error('[seed] failed to seed admin analytics sidebar permissions:', err.message || err);
+  }
+
+  try {
     await migrateExistingWorkspaces();
   } catch (err) {
     console.error('[migration] failed to migrate existing workspaces:', err.message || err);
   }
-
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
 })();

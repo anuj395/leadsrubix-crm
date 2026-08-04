@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const leadDistributionRuleSchema = new mongoose.Schema(
   {
+    industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, required: true, alias: 'organizationId' },
     source: { type: String, required: true },
     project: { type: [String], default: [] },
@@ -34,6 +35,7 @@ const leadDistributionRuleSchema = new mongoose.Schema(
 
 const leadRotationRuleSchema = new mongoose.Schema(
   {
+    industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, required: true, alias: 'organizationId' },
     source: { type: String, required: true },
     project: { type: [String], default: [] },

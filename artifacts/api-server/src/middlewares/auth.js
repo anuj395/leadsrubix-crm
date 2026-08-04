@@ -27,50 +27,65 @@ module.exports.authenticate = async (req, res, next) => {
     req.user = {
       id: String(fresh._id),
       role: fresh.role,
-      industryId: fresh.industry_id?.code || String(fresh.industry_id || ''),
-      organizationId: fresh.organizationId,
-      workspaceId: fresh.workspaceId,
-      organizationName: fresh.organizationName,
+      industryId: fresh.industry_id?.code || String(fresh.industry_id || fresh.industryId || ''),
+      organizationId: fresh.organizationId || fresh.organization_id || '',
+      workspaceId: fresh.workspaceId || fresh.workspace_id || '',
+      organizationName: fresh.organizationName || fresh.organization_name || '',
       email: fresh.email,
       uid: fresh.uid,
       name: fresh.name || fresh.email,
     };
 
     // Subscription & Trial expiration checks for non-superAdmin users
-    if (fresh.role !== 'superAdmin' && fresh.organizationId) {
+    if (fresh.role !== 'superAdmin' && (fresh.organizationId || fresh.organization_id)) {
       const mongoose = require('mongoose');
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ organization_id: fresh.organizationId });
+      const userOrgId = fresh.organizationId || fresh.organization_id;
+      const isObjectId = mongoose.Types.ObjectId.isValid(userOrgId);
+      const orgQuery = isObjectId
+        ? { $or: [{ organization_id: userOrgId }, { organizationId: userOrgId }, { _id: userOrgId }] }
+        : { $or: [{ organization_id: userOrgId }, { organizationId: userOrgId }] };
+      const org = await Organization.findOne(orgQuery).exec();
+
       if (org) {
         let isExpired = false;
         const now = new Date();
-        const createdAt = new Date(org.createdAt);
+        const createdAt = new Date(org.createdAt || org.created_at || now);
 
-        if (org.trialPeriod === true || org.trialPeriod === 'true') {
-          const trialDays = typeof org.trialPeriodDays === 'number' ? org.trialPeriodDays : 7;
+        const isTrial = org.trial_period === true || org.trial_period === 'true' || org.trialPeriod === true || org.trialPeriod === 'true';
+        const trialDays = typeof org.trial_period_days === 'number' ? org.trial_period_days : (typeof org.trialPeriodDays === 'number' ? org.trialPeriodDays : 7);
+        const graceDays = typeof org.grace_period_days === 'number' ? org.grace_period_days : (typeof org.gracePeriodDays === 'number' ? org.gracePeriodDays : 7);
+
+        if (isTrial) {
           const trialExpiry = new Date(createdAt.getTime() + trialDays * 24 * 60 * 60 * 1000);
           if (now > trialExpiry) {
             isExpired = true;
           }
         } else {
-          // trialPeriod === false
-          const validTill = new Date(org.validTill);
-          const graceDays = typeof org.gracePeriodDays === 'number' ? org.gracePeriodDays : 7;
-          const graceExpiry = new Date(validTill.getTime() + graceDays * 24 * 60 * 60 * 1000);
-          if (now > graceExpiry) {
-            isExpired = true;
+          const rawValidTill = org.valid_till || org.validTill;
+          if (rawValidTill) {
+            const validTill = new Date(rawValidTill);
+            const graceExpiry = new Date(validTill.getTime() + graceDays * 24 * 60 * 60 * 1000);
+            if (now > graceExpiry) {
+              isExpired = true;
+            }
           }
         }
 
         if (isExpired) {
-          if (org.paymentStatus !== false && org.paymentStatus !== 'false') {
-            await Organization.updateOne({ _id: org._id }, { $set: { paymentStatus: false } });
+          if (org.payment_status !== false && org.paymentStatus !== false) {
+            await Organization.updateOne({ _id: org._id }, { $set: { payment_status: false, paymentStatus: false } });
           }
-          // Permit subscription detail checks / updates
+          // Permit navigation, sidebar menus, screens, subscription details, licenses, pricing plans
+          const reqPath = req.originalUrl || req.url || '';
           const isAllowedPath = 
-            (req.method === 'GET' && req.baseUrl === '/api/organizations') ||
-            (req.baseUrl.startsWith('/api/organizations/')) || 
-            (req.method === 'GET' && req.baseUrl === '/api/pricing-plans');
+            reqPath.includes('/api/organizations') ||
+            reqPath.includes('/api/pricing-plans') ||
+            reqPath.includes('/api/coupons') ||
+            reqPath.includes('/api/sidebar') ||
+            reqPath.includes('/api/menus') ||
+            reqPath.includes('/api/screens') ||
+            reqPath.includes('/api/auth/me');
 
           if (!isAllowedPath) {
             return res.status(402).json({ message: 'Subscription expired. Please renew.' });

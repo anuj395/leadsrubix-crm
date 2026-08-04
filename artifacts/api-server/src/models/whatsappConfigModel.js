@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const whatsappConfigSchema = new mongoose.Schema(
   {
+    industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, default: null, alias: 'organizationId' }, // null for global default
     simply: {
       active: { type: Boolean, default: false },

@@ -1,10 +1,11 @@
 // src/config/index.js
 // configuration loader; reads from environment variables or defaults
+const cliPort = process.env.PORT;
 require('dotenv').config();
 
 module.exports = {
   // use a port that doesn't conflict with a frontend dev server
-  port: process.env.PORT || 3001,
+  port: cliPort || process.env.PORT || 8080,
   nodeEnv: process.env.NODE_ENV || 'development',
   mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/leadsrubix-migrate-crm',
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',

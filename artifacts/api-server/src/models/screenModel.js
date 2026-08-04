@@ -4,6 +4,7 @@ const screenSchema = new mongoose.Schema(
   {
     key: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
+    industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, default: null, alias: 'organizationId' },
     workspace_id: { type: String, default: null, alias: 'workspaceId' },
     description: { type: String, default: '' },

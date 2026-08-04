@@ -6,6 +6,7 @@ const DROPDOWN_SOURCES = ['none', 'static', 'api'];
 const screenFieldSchema = new mongoose.Schema(
   {
     screen_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Screen', required: true, alias: 'screenId' },
+    industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, default: null, alias: 'organizationId' },
     workspace_id: { type: String, default: null, alias: 'workspaceId' },
     field_key: { type: String, required: true, trim: true },

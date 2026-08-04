@@ -29,8 +29,14 @@ exports.getByIndustry = async (req, res, next) => {
 exports.getForUser = async (req, res, next) => {
   try {
     const { industryId, role } = req.body || {};
-    const menus = await sidebarService.getRoleMenus(industryId, role);
-    return res.json({ industryId, role, menus });
+    let industryCode = industryId || req.user?.industryId;
+    if (!industryCode && req.user?.role === 'superAdmin') {
+      industryCode = 'temp0001';
+    }
+    const roleKey = role || req.user?.role;
+    const organizationId = req.user?.organizationId;
+    const menus = await sidebarService.getRoleMenus(industryCode, roleKey, organizationId);
+    return res.json({ industryId: industryCode, role: roleKey, menus });
   } catch (err) {
     next(err);
   }
@@ -39,8 +45,11 @@ exports.getForUser = async (req, res, next) => {
 exports.resolve = async (req, res, next) => {
   try {
     const body = req.body || {};
-    const industryCode = body.industryCode || body.industryId || body.industry_code;
-    const roleKey = body.roleKey || body.role || body.role_key;
+    let industryCode = body.industryCode || body.industryId || body.industry_code || req.user?.industryId;
+    if (!industryCode && req.user?.role === 'superAdmin') {
+      industryCode = 'temp0001';
+    }
+    const roleKey = body.roleKey || body.role || body.role_key || req.user?.role;
     const result = await sidebarService.resolveSidebar({
       industryCode,
       roleKey,

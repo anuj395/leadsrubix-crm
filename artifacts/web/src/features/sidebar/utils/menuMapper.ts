@@ -74,13 +74,20 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[]): SidebarNavItem
         })
       }
     } else {
-      // Parent + children
-      const childItems: SidebarChildItem[] = children.map((c) => ({
-        id: c.key,
-        name: c.name,
-        route: c.route ?? '#',
-        icon: toIconKey(c.icon),
-      }))
+      // Parent + children: deduplicate child items by key and route
+      const uniqueChildrenMap = new Map<string, SidebarChildItem>()
+      children.forEach((c) => {
+        const dedupeKey = c.key || c.route || c.name
+        if (!uniqueChildrenMap.has(dedupeKey)) {
+          uniqueChildrenMap.set(dedupeKey, {
+            id: c.key,
+            name: c.name,
+            route: c.route ?? '#',
+            icon: toIconKey(c.icon),
+          })
+        }
+      })
+      const childItems: SidebarChildItem[] = Array.from(uniqueChildrenMap.values())
 
       result.push({
         id: parent?.key ?? mod,

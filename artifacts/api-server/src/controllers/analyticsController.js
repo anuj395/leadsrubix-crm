@@ -45,10 +45,33 @@ const mongoose = require('mongoose');
 exports.listConfigs = async (req, res, next) => {
   try {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
+    const Industry = mongoose.model('Industry');
     const { industryId, organizationId } = req.query;
-    const query = {};
-    if (industryId) query.industry_id = industryId;
-    if (organizationId) query.organization_id = organizationId;
+    const isSuperAdmin = req.user.role === 'superAdmin';
+
+    let targetIndCode = industryId || req.user.industryId || req.user.industry_id || 'temp0001';
+    let industryDoc = await Industry.findOne({ code: targetIndCode }).lean().exec();
+    if (!industryDoc && mongoose.Types.ObjectId.isValid(targetIndCode)) {
+      industryDoc = await Industry.findById(targetIndCode).lean().exec();
+    }
+
+    const industryIds = [targetIndCode];
+    if (industryDoc) {
+      industryIds.push(String(industryDoc._id));
+      if (industryDoc.code) industryIds.push(industryDoc.code);
+    }
+
+    const query = { industry_id: { $in: industryIds } };
+
+    if (isSuperAdmin) {
+      if (organizationId) query.organization_id = organizationId;
+    } else {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      if (userOrgId) {
+        query.$or = [{ organization_id: userOrgId }, { organization_id: null }];
+      }
+    }
+
     const docs = await AnalyticsConfig.find(query).lean().exec();
     res.json({ items: docs });
   } catch (err) {
@@ -61,6 +84,15 @@ exports.getConfigById = async (req, res, next) => {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
     const doc = await AnalyticsConfig.findById(req.params.id).lean().exec();
     if (!doc) return res.status(404).json({ message: 'Config not found' });
+
+    if (req.user.role !== 'superAdmin') {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      const docOrgId = doc.organization_id || doc.organizationId;
+      if (docOrgId && userOrgId && docOrgId !== userOrgId) {
+        return res.status(403).json({ message: 'Forbidden: Access denied to other organization configuration' });
+      }
+    }
+
     res.json(doc);
   } catch (err) {
     next(err);
@@ -70,7 +102,17 @@ exports.getConfigById = async (req, res, next) => {
 exports.createConfig = async (req, res, next) => {
   try {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
-    const doc = await AnalyticsConfig.create(req.body || {});
+    const payload = req.body || {};
+
+    if (req.user.role !== 'superAdmin') {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      const userIndId = req.user.industryId || req.user.industry_id;
+      payload.organization_id = userOrgId;
+      payload.organizationId = userOrgId;
+      payload.industry_id = userIndId;
+    }
+
+    const doc = await AnalyticsConfig.create(payload);
     res.status(201).json(doc);
   } catch (err) {
     next(err);
@@ -80,8 +122,22 @@ exports.createConfig = async (req, res, next) => {
 exports.updateConfig = async (req, res, next) => {
   try {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
+    const existing = await AnalyticsConfig.findById(req.params.id).lean().exec();
+    if (!existing) return res.status(404).json({ message: 'Config not found' });
+
+    if (req.user.role !== 'superAdmin') {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      const docOrgId = existing.organization_id || existing.organizationId;
+      if (docOrgId && userOrgId && docOrgId !== userOrgId) {
+        return res.status(403).json({ message: 'Forbidden: Cannot update other organization configuration' });
+      }
+      if (req.body) {
+        req.body.organization_id = userOrgId;
+        req.body.organizationId = userOrgId;
+      }
+    }
+
     const doc = await AnalyticsConfig.findByIdAndUpdate(req.params.id, { $set: req.body || {} }, { new: true }).lean().exec();
-    if (!doc) return res.status(404).json({ message: 'Config not found' });
     res.json(doc);
   } catch (err) {
     next(err);
@@ -91,8 +147,18 @@ exports.updateConfig = async (req, res, next) => {
 exports.deleteConfig = async (req, res, next) => {
   try {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
-    const doc = await AnalyticsConfig.findByIdAndDelete(req.params.id).exec();
-    if (!doc) return res.status(404).json({ message: 'Config not found' });
+    const existing = await AnalyticsConfig.findById(req.params.id).lean().exec();
+    if (!existing) return res.status(404).json({ message: 'Config not found' });
+
+    if (req.user.role !== 'superAdmin') {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      const docOrgId = existing.organization_id || existing.organizationId;
+      if (docOrgId && userOrgId && docOrgId !== userOrgId) {
+        return res.status(403).json({ message: 'Forbidden: Cannot delete other organization configuration' });
+      }
+    }
+
+    await AnalyticsConfig.findByIdAndDelete(req.params.id).exec();
     res.status(204).end();
   } catch (err) {
     next(err);

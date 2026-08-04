@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const bookingSchema = new mongoose.Schema(
   {
     industry_id:     { type: String, default: null, index: true, alias: 'industryId' },
+    organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
     // Optional reference to the contact this booking originated from.
     contact_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true, alias: 'contactId' },
     customer_name:   { type: String, default: '', alias: 'customerName' },

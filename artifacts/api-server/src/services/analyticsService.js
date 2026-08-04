@@ -81,14 +81,16 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   if (targetOrgId) {
     allowedOrgIds = [targetOrgId];
   } else if (industryDoc) {
-    const orgs = await Organization.find({
-      $or: [
-        { industryId: String(industryDoc._id) },
-        { industry_id: industryDoc._id },
-        { industryId: industryDoc.code },
-        { industry_code: industryDoc.code }
-      ]
-    }).lean().exec();
+    const orgOrFilter = [
+      { industryId: industryDoc.code },
+      { industry_code: industryDoc.code },
+      { industryId: String(industryDoc._id) },
+      { industry_id: String(industryDoc._id) }
+    ];
+    if (mongoose.Types.ObjectId.isValid(industryDoc._id)) {
+      orgOrFilter.push({ industry_id: industryDoc._id });
+    }
+    const orgs = await Organization.find({ $or: orgOrFilter }).lean().exec();
     allowedOrgIds = orgs.map(o => o.organizationId || o.organization_id).filter(Boolean);
   }
 

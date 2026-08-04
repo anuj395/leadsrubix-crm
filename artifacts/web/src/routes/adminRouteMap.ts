@@ -22,6 +22,7 @@ import WhatsappApiPage from '@/features/admin/config/pages/WhatsappApi'
 import HolidayConfigPage from '@/features/admin/config/pages/HolidayConfig'
 import HolidayConfigFormPage from '@/features/admin/config/pages/HolidayConfigForm'
 import DaysConfigPage from '@/features/admin/config/pages/DaysConfig'
+import AnalyticsConfigPage from '@/features/admin/config/pages/AnalyticsConfig'
 
 import IntegrationsPage from '@/features/admin/integrations/pages/Integrations'
 import IntegrationsApiPage from '@/features/admin/integrations/pages/IntegrationsApi'
@@ -89,6 +90,8 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/holiday-config": HolidayConfigPage,
   "/configuration/daysConfig": DaysConfigPage,
   "/configuration/days-config": DaysConfigPage,
+  "/configuration/analytics-config": AnalyticsConfigPage,
+  "/configuration/analyticsConfig": AnalyticsConfigPage,
 
   "/integrations": IntegrationsPage,
   "/integrations/api": ApiListPage,

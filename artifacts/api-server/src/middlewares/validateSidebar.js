@@ -52,12 +52,17 @@ module.exports.validateGet = (req, res, next) => {
 
 module.exports.validateUserRequest = (req, res, next) => {
   const { industryId, role } = req.body || {};
-  if (!industryId || typeof industryId !== 'string') {
+  let industryCode = industryId || req.user?.industryId;
+  if (!industryCode && req.user?.role === 'superAdmin') {
+    industryCode = 'temp0001';
+  }
+  const roleKey = role || req.user?.role;
+  if (!industryCode || typeof industryCode !== 'string') {
     const err = new Error('industryId is required and must be a string');
     err.status = 400;
     return next(err);
   }
-  if (!role || typeof role !== 'string' || !ALLOWED_ROLES.includes(role)) {
+  if (!roleKey || typeof roleKey !== 'string' || !ALLOWED_ROLES.includes(roleKey)) {
     const err = new Error(`role is required and must be one of: ${ALLOWED_ROLES.join(', ')}`);
     err.status = 400;
     return next(err);
@@ -69,8 +74,11 @@ module.exports.validateUserRequest = (req, res, next) => {
 // {industry_code, role_key} (preferred) or {industryId, role} (legacy).
 module.exports.validateResolve = (req, res, next) => {
   const body = req.body || {};
-  const industry = body.industry_code || body.industryId;
-  const role = body.role_key || body.role;
+  let industry = body.industry_code || body.industryId || req.user?.industryId;
+  if (!industry && req.user?.role === 'superAdmin') {
+    industry = 'temp0001';
+  }
+  const role = body.role_key || body.role || req.user?.role;
   if (!industry || typeof industry !== 'string') {
     const err = new Error('industry_code (or industryId) is required and must be a string');
     err.status = 400;

@@ -19,17 +19,33 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     return { industryCode: code, roleKey: key, menus: [] };
   }
 
+  const targetOrgId = (organizationId && String(organizationId).trim() !== '') ? organizationId : null;
+
   const industry = await industryModel.findByCode(code);
   if (!industry || industry.isActive === false) {
     return { industryCode: code, roleKey: key, menus: [] };
   }
 
   const RoleModel = mongoose.model('Role');
-  const role = await RoleModel.findOne({
-    organization_id: organizationId || null,
-    industry_id: industry._id,
-    key: key
-  }).exec();
+  let role = null;
+  if (targetOrgId) {
+    role = await RoleModel.findOne({
+      $or: [
+        { organization_id: targetOrgId },
+        { organizationId: targetOrgId }
+      ],
+      industry_id: industry._id,
+      key: key
+    }).exec();
+  }
+
+  if (!role) {
+    role = await RoleModel.findOne({
+      organization_id: null,
+      industry_id: industry._id,
+      key: key
+    }).exec();
+  }
 
   if (!role || role.is_active === false) {
     return {
@@ -41,12 +57,24 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
 
   const SidebarPermissionModel = mongoose.model('SidebarPermission');
-  const perms = await SidebarPermissionModel.find({
-    organization_id: organizationId || null,
-    role_id: role._id,
-    industry_id: industry._id,
-    is_visible: true
-  }).lean().exec();
+  let perms = [];
+  if (targetOrgId) {
+    perms = await SidebarPermissionModel.find({
+      organization_id: targetOrgId,
+      role_id: role._id,
+      industry_id: industry._id,
+      is_visible: true
+    }).lean().exec();
+  }
+
+  if (!perms.length) {
+    perms = await SidebarPermissionModel.find({
+      organization_id: null,
+      role_id: role._id,
+      industry_id: industry._id,
+      is_visible: true
+    }).lean().exec();
+  }
 
   if (!perms.length) {
     return {
@@ -58,8 +86,11 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
 
   const SidebarMenuModel = mongoose.model('SidebarMenu');
-  const menus = await SidebarMenuModel.find({
-    organization_id: organizationId || null,
+  let menus = await SidebarMenuModel.find({
+    $or: [
+      { organization_id: targetOrgId },
+      { organization_id: null }
+    ],
     _id: { $in: perms.map((p) => p.menu_id) }
   }).lean().exec();
 
@@ -78,7 +109,10 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
   if (parentIdsToFetch.length) {
     const parents = await SidebarMenuModel.find({
-      organization_id: organizationId || null,
+      $or: [
+        { organization_id: organizationId },
+        { organization_id: null }
+      ],
       _id: { $in: parentIdsToFetch }
     }).lean().exec();
     for (const p of parents) {
@@ -88,7 +122,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
 
   const permByMenu = new Map(perms.map((p) => [String(p.menu_id), p]));
 
-  const items = [...menuById.values()]
+  const rawItems = [...menuById.values()]
     .map((m) => {
       const perm = permByMenu.get(String(m._id));
       const orderOverride = perm ? perm.order_override : undefined;
@@ -108,9 +142,30 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
         parentId: m.parent_id ? String(m.parent_id) : null,
         order,
         module: m.module || '',
+        organization_id: m.organization_id || null
       };
     })
     .sort((a, b) => a.order - b.order);
+
+  // Deduplicate by menu key to guarantee zero duplicate sidebar items
+  const itemsMap = new Map();
+  for (const item of rawItems) {
+    if (item.key === 'configuration.analyticsConfig' && rawItems.some((i) => i.key === 'analytics.config')) {
+      continue;
+    }
+    if (item.key === 'account.subscriptionDetails' && rawItems.some((i) => i.key === 'account.subscription')) {
+      continue;
+    }
+
+    const existing = itemsMap.get(item.key);
+    if (!existing) {
+      itemsMap.set(item.key, item);
+    } else if (item.organization_id && !existing.organization_id) {
+      itemsMap.set(item.key, item);
+    }
+  }
+
+  const items = Array.from(itemsMap.values());
 
   return {
     industryId: String(industry._id),
@@ -130,13 +185,13 @@ exports.resolveSidebar = resolveSidebar;
  * Legacy: returns the list of menus for (industry_code, role_key) in the same
  * flat shape the existing frontend expects from POST /sidebar/user.
  */
-exports.getRoleMenus = async (industry_code, role_key) => {
+exports.getRoleMenus = async (industry_code, role_key, organizationId) => {
   if (!industry_code || !role_key) {
     const err = new Error('industryId and role are required');
     err.status = 400;
     throw err;
   }
-  const result = await resolveSidebar({ industry_code, role_key });
+  const result = await resolveSidebar({ industry_code, role_key, organizationId });
   return result.menus;
 };
 

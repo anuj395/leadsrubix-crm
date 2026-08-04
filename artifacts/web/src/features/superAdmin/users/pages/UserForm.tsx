@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
@@ -29,6 +29,11 @@ import {
   type AdminRole,
 } from '@/services/sidebarAdminService'
 
+import {
+  listOrganizationsPaged,
+  type Organization,
+} from '@/services/organizationsService'
+
 const ROLES_WITH_MANAGER = new Set(['sales', 'teamLead', 'leadManager', 'admin'])
 
 const inputSx = {
@@ -44,6 +49,7 @@ export default function UserFormPage() {
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(true)
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [roles, setRoles] = useState<AdminRole[]>([])
   
   const [editingItem, setEditingItem] = useState<AdminUser | null>(null)
@@ -54,6 +60,7 @@ export default function UserFormPage() {
     email: '',
     role: isSuperAdmin ? 'admin' : 'sales',
     industryId: isSuperAdmin ? '' : (authedUser?.industryId || ''),
+    organizationId: isSuperAdmin ? '' : ((authedUser as any)?.organizationId || ''),
     isActive: true,
     reportingTo: '',
   })
@@ -69,12 +76,16 @@ export default function UserFormPage() {
     sev: 'success',
   })
 
-  // Load industries and edit-mode user details
+  // Load industries, organizations, and edit-mode user details
   useEffect(() => {
     void (async () => {
       try {
-        const inds = isSuperAdmin ? await getIndustries(true) : []
+        const [inds, orgsData] = await Promise.all([
+          isSuperAdmin ? getIndustries(true) : Promise.resolve([]),
+          listOrganizationsPaged({ page: 0, pageSize: 200 })
+        ])
         setIndustries(inds)
+        setOrganizations(orgsData.items)
 
         if (id) {
           const allUsers = await listUsers(isSuperAdmin ? undefined : authedUser?.industryId)
@@ -87,6 +98,7 @@ export default function UserFormPage() {
               email: match.email,
               role: match.role,
               industryId: match.industryId ?? '',
+              organizationId: (match as any).organizationId ?? (match as any).organization_id ?? '',
               isActive: !!match.isActive,
               reportingTo: match.reportingTo ?? (match as any).reporting_to ?? '',
             })
@@ -102,6 +114,11 @@ export default function UserFormPage() {
       }
     })()
   }, [id, isSuperAdmin, authedUser])
+
+  const filteredOrgs = useMemo<Organization[]>(() => {
+    if (!core.industryId) return organizations
+    return organizations.filter((o: Organization) => o.industryId === core.industryId)
+  }, [organizations, core.industryId])
 
   // Load roles dynamically when industry changes
   useEffect(() => {
@@ -166,6 +183,7 @@ export default function UserFormPage() {
         lastName: core.lastName.trim(),
         role: core.role,
         industryId: core.industryId || undefined,
+        organizationId: core.organizationId || undefined,
         isActive: core.isActive,
         reportingTo: reportingTo || undefined,
         fields: dynVals,
@@ -290,24 +308,45 @@ export default function UserFormPage() {
                   </Grid>
 
                   {isSuperAdmin && (
-                    <Grid size={{ xs: 12, sm: 4 }}>
-                      <TextField
-                        select
-                        size="small"
-                        label="Industry"
-                        value={core.industryId}
-                        onChange={(e) => setCore({ ...core, industryId: e.target.value })}
-                        disabled={!!id}
-                        required
-                        sx={inputSx}
-                      >
-                        {industries.map((i) => (
-                          <MenuItem key={i._id} value={i.code}>
-                            {i.name} ({i.code})
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
+                    <>
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <TextField
+                          select
+                          size="small"
+                          label="Industry"
+                          value={core.industryId}
+                          onChange={(e) => setCore({ ...core, industryId: e.target.value, organizationId: '' })}
+                          disabled={!!id}
+                          required
+                          sx={inputSx}
+                        >
+                          {industries.map((i) => (
+                            <MenuItem key={i._id} value={i.code}>
+                              {i.name} ({i.code})
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <TextField
+                          select
+                          size="small"
+                          label="Organization"
+                          value={core.organizationId}
+                          onChange={(e) => setCore({ ...core, organizationId: e.target.value })}
+                          disabled={!!id || !core.industryId}
+                          required
+                          sx={inputSx}
+                        >
+                          {filteredOrgs.map((o: any) => (
+                            <MenuItem key={o.organizationId || o.id || o._id} value={o.organizationId || o.id || o._id}>
+                              {o.name || o.organizationName || o.organization_name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                    </>
                   )}
 
                   {ROLES_WITH_MANAGER.has(core.role) && (

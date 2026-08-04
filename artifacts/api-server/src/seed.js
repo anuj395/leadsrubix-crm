@@ -21,7 +21,10 @@ const DEFAULT_SIDEBAR_CONFIGS = [
     is_ready_to_launch: true,
     roles: {
       admin: [
-        { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', module: 'analytics' },
+        { key: 'analytics.dashboard', name: 'Dashboard', route: '/analytics', icon: 'analytics', module: 'analytics' },
+        { key: 'analytics.config', name: 'Analytics Config', route: '/configuration/analytics-config', icon: 'settings', module: 'analytics' },
+        { key: 'users.list', name: 'Users List', route: '/users', icon: 'users', module: 'users' },
+        { key: 'users.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'roles', module: 'users' },
         { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', module: 'leads' },
         { key: 'leads.tasks', name: 'Tasks List', route: '/leads/tasks', icon: 'tasks', module: 'leads' },
         { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', module: 'leads' },
@@ -31,15 +34,15 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
         { key: 'configuration.holiday', name: 'Holiday Config', route: '/configuration/holidayConfig', icon: 'holiday', module: 'configuration' },
         { key: 'configuration.days', name: 'Days Config', route: '/configuration/daysConfig', icon: 'days', module: 'configuration' },
+        { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list', module: 'leadDistribution' },
+        { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' },
         { key: 'integrations.integrations', name: 'Integrations', route: '/integrations', icon: 'integrations', module: 'integrations' },
         { key: 'integrations.api', name: 'API List', route: '/integrations/api', icon: 'api', module: 'integrations' },
         { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', module: 'integrations' },
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
         { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
-        { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' },
-        { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list', module: 'leadDistribution' },
-        { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' }
+        { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' }
       ],
       leadManager: [
         { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', module: 'analytics' },
@@ -260,6 +263,11 @@ async function migrateAndSeedSidebar() {
         const moduleKey = String(
           m.module || (isChild ? m.key.split('.')[0] : m.key),
         ).toLowerCase();
+
+        // Skip Tool module permissions for Admin role
+        if (roleKey === 'admin' && (moduleKey === 'tool' || String(m.key).startsWith('tool'))) {
+          continue;
+        }
 
         let parentId = null;
         if (isChild) {
@@ -914,6 +922,7 @@ async function seedLeadDistributionSidebar() {
   await SidebarMenu.updateOne({ key: 'users' }, { $set: { order: 2 } });
   await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 3 } });
   await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 4 } });
+  await SidebarMenu.updateMany({ key: { $in: ['leadDistribution', 'leaddistribution'] } }, { $set: { order: 4.5 } });
   await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 5 } });
   await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 6 } });
   await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 10 } });
@@ -930,7 +939,7 @@ async function seedLeadDistributionSidebar() {
         parentId: null,
         route: '',
         isActive: true,
-        order: 9.1,
+        order: 4.5,
       }
     },
     { upsert: true, new: true }
@@ -1363,6 +1372,49 @@ async function seedAnalyticsConfig() {
   console.log('[seed] Successfully seeded dynamic Analytics configurations with sections.');
 }
 
+async function seedAdminAnalyticsSidebarPermissions() {
+  const SidebarMenu = mongoose.model('SidebarMenu');
+  const SidebarPermission = mongoose.model('SidebarPermission');
+  const Role = mongoose.model('Role');
+
+  const parentAnalytics = await SidebarMenu.findOne({ key: 'analytics', parent_id: null, organization_id: null }).lean().exec();
+  const dashChild = await SidebarMenu.findOne({ key: 'analytics.dashboard', organization_id: null }).lean().exec();
+  const configChild = await SidebarMenu.findOne({ key: 'analytics.config', organization_id: null }).lean().exec();
+  const oldConfigMenu = await SidebarMenu.findOne({ key: 'configuration.analyticsConfig', organization_id: null }).lean().exec();
+
+  if (!parentAnalytics || !dashChild || !configChild) return;
+
+  const adminRoles = await Role.find({ key: 'admin' }).lean().exec();
+
+  for (const r of adminRoles) {
+    const orgId = r.organization_id || null;
+    const indId = r.industry_id;
+
+    await SidebarPermission.updateOne(
+      { role_id: r._id, menu_id: parentAnalytics._id, organization_id: orgId },
+      { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics' } },
+      { upsert: true }
+    );
+
+    await SidebarPermission.updateOne(
+      { role_id: r._id, menu_id: dashChild._id, organization_id: orgId },
+      { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics.dashboard' } },
+      { upsert: true }
+    );
+
+    await SidebarPermission.updateOne(
+      { role_id: r._id, menu_id: configChild._id, organization_id: orgId },
+      { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics.config' } },
+      { upsert: true }
+    );
+
+    if (oldConfigMenu) {
+      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: oldConfigMenu._id });
+    }
+  }
+  console.log('[seed] Successfully seeded Admin Analytics sidebar permissions.');
+}
+
 module.exports = {
   seedUsers,
   migrateAndSeedSidebar,
@@ -1375,4 +1427,5 @@ module.exports = {
   seedDropdownOptions,
   seedLeadDistributionSidebar,
   seedAnalyticsConfig,
+  seedAdminAnalyticsSidebarPermissions,
 };

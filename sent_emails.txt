@@ -205,3 +205,21 @@ Organization: helath
 Username / Email: dshdhsd@gmail.com
 Temp Password: IOZTPCZk
 ========================================
+
+========================================
+Timestamp: 2026-08-03T12:58:50.483Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: 22TM9LLj
+========================================
+
+========================================
+Timestamp: 2026-08-04T04:45:29.790Z
+To: demo@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Demo
+Username / Email: demo@gmail.com
+Temp Password: 42XFNjf3
+========================================

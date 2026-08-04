@@ -132,8 +132,28 @@ exports.listPaged = async ({
   return { items: items.map(shapePublic), total };
 };
 
+function buildQueryFilter(id) {
+  if (!id) return { _id: null };
+  const isObjectId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === String(id);
+  if (isObjectId) {
+    return {
+      $or: [
+        { _id: id },
+        { organization_id: id },
+        { organizationId: id }
+      ]
+    };
+  }
+  return {
+    $or: [
+      { organization_id: id },
+      { organizationId: id }
+    ]
+  };
+}
+
 exports.findById = async (id) => {
-  const doc = await Organization.findById(id).exec();
+  const doc = await Organization.findOne(buildQueryFilter(id)).exec();
   return shapePublic(doc);
 };
 
@@ -183,8 +203,8 @@ exports.update = async (id, patch) => {
     $set.created_by = patch.createdBy;
     delete $set.createdBy;
   }
-  const updated = await Organization.findByIdAndUpdate(id, { $set }, { new: true }).exec();
+  const updated = await Organization.findOneAndUpdate(buildQueryFilter(id), { $set }, { new: true }).exec();
   return shapePublic(updated);
 };
 
-exports.remove = async (id) => Organization.findByIdAndDelete(id).exec();
+exports.remove = async (id) => Organization.findOneAndDelete(buildQueryFilter(id)).exec();
