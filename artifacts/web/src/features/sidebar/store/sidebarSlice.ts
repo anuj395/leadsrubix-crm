@@ -24,7 +24,7 @@ export const loadSidebarMenu = createAsyncThunk(
   async ({ industryId, role }: { industryId: string; role: string }, { rejectWithValue }) => {
     try {
       const raw = await fetchSidebarMenu(industryId, role)
-      return mapApiMenusToNavItems(raw)
+      return mapApiMenusToNavItems(raw, role)
     } catch (err) {
       return rejectWithValue(err instanceof Error ? err.message : 'Failed to load sidebar.')
     }

@@ -93,8 +93,8 @@ export default function ResourcesPage() {
         setLoading(true)
         const scrs = await getScreens()
         
-        // Filter screens starting with resource_
-        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive)
+        // Filter screens starting with resource
+        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive !== false)
         const orderMap: Record<string, number> = {
           'resourceCarousel': 10,
           'resourceLocations': 20,

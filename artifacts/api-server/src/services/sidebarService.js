@@ -150,9 +150,6 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   // Deduplicate by menu key to guarantee zero duplicate sidebar items
   const itemsMap = new Map();
   for (const item of rawItems) {
-    if (item.key === 'configuration.analyticsConfig' && rawItems.some((i) => i.key === 'analytics.config')) {
-      continue;
-    }
     if (item.key === 'account.subscriptionDetails' && rawItems.some((i) => i.key === 'account.subscription')) {
       continue;
     }

@@ -21,24 +21,35 @@ const DEFAULT_SIDEBAR_CONFIGS = [
     is_ready_to_launch: true,
     roles: {
       admin: [
-        { key: 'analytics.dashboard', name: 'Dashboard', route: '/analytics', icon: 'analytics', module: 'analytics' },
-        { key: 'analytics.config', name: 'Analytics Config', route: '/configuration/analytics-config', icon: 'settings', module: 'analytics' },
-        { key: 'users.list', name: 'Users List', route: '/users', icon: 'users', module: 'users' },
-        { key: 'users.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'roles', module: 'users' },
+        { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', module: 'analytics' },
+        { key: 'users', name: 'Users', route: '/users', icon: 'users', module: 'users' },
         { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', module: 'leads' },
         { key: 'leads.tasks', name: 'Tasks List', route: '/leads/tasks', icon: 'tasks', module: 'leads' },
         { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', module: 'leads' },
         { key: 'leads.booking', name: 'Bookings List', route: '/leads/bookings', icon: 'booking', module: 'leads' },
-        { key: 'configuration.projects', name: 'Projects List', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
-        { key: 'configuration.whatsapp', name: 'Whatsapp API', route: '/configuration/whatsapp', icon: 'whatsapp', module: 'configuration' },
+
+        { key: 'configuration.projects', name: 'Projects', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
         { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
-        { key: 'configuration.holiday', name: 'Holiday Config', route: '/configuration/holidayConfig', icon: 'holiday', module: 'configuration' },
-        { key: 'configuration.days', name: 'Days Config', route: '/configuration/daysConfig', icon: 'days', module: 'configuration' },
+        { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holidayConfig', icon: 'holiday', module: 'configuration' },
+        { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/daysConfig', icon: 'days', module: 'configuration' },
+
         { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list', module: 'leadDistribution' },
         { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' },
-        { key: 'integrations.integrations', name: 'Integrations', route: '/integrations', icon: 'integrations', module: 'integrations' },
-        { key: 'integrations.api', name: 'API List', route: '/integrations/api', icon: 'api', module: 'integrations' },
+
+        { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', module: 'integrations' },
         { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', module: 'integrations' },
+        { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/configuration/whatsapp', icon: 'whatsapp', module: 'integrations' },
+        { key: 'integrations.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', module: 'integrations' },
+
+        { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/configuration/menus', icon: 'sidebar', module: 'uiNavigation' },
+        { key: 'uiNavigation.screens', name: 'Screens', route: '/configuration/screens', icon: 'screen', module: 'uiNavigation' },
+        { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/configuration/screen-fields', icon: 'field', module: 'uiNavigation' },
+        { key: 'uiNavigation.analyticsConfig', name: 'Layout Builder', route: '/configuration/analytics-config', icon: 'settings', module: 'uiNavigation' },
+
+        { key: 'accessControl.permissions', name: 'Permissions Matrix', route: '/configuration/permissions', icon: 'shield', module: 'accessControl' },
+        { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/configuration/screen-permissions', icon: 'lock', module: 'accessControl' },
+        { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'roles', module: 'accessControl' },
+
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
         { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
@@ -271,16 +282,41 @@ async function migrateAndSeedSidebar() {
 
         let parentId = null;
         if (isChild) {
+          const PARENT_NAMES = {
+            uinavigation: 'UI & Navigation',
+            accesscontrol: 'Access Control',
+            leaddistribution: 'Lead Distribution',
+            account: 'Account & Settings',
+            configuration: 'Configuration',
+            integrations: 'Integrations',
+            analytics: 'Analytics',
+            users: 'Users',
+            leads: 'Leads',
+            support: 'Support',
+          };
+          const PARENT_ORDERS = {
+            analytics: 10,
+            users: 20,
+            leads: 30,
+            leaddistribution: 40,
+            configuration: 50,
+            integrations: 60,
+            uinavigation: 70,
+            accesscontrol: 80,
+            account: 90,
+            support: 100,
+          };
+          const pName = PARENT_NAMES[moduleKey.toLowerCase()] || capitalize(moduleKey);
+          const pOrder = PARENT_ORDERS[moduleKey.toLowerCase()] ?? 999;
           const parent = await SidebarMenu.findOneAndUpdate(
             { key: moduleKey },
             {
+              $set: { name: pName, order: pOrder },
               $setOnInsert: {
                 key: moduleKey,
-                name: capitalize(moduleKey),
                 icon: moduleKey,
                 module: moduleKey,
                 parentId: null,
-                order: 0,
                 isActive: true,
               },
             },
@@ -1380,9 +1416,11 @@ async function seedAdminAnalyticsSidebarPermissions() {
   const parentAnalytics = await SidebarMenu.findOne({ key: 'analytics', parent_id: null, organization_id: null }).lean().exec();
   const dashChild = await SidebarMenu.findOne({ key: 'analytics.dashboard', organization_id: null }).lean().exec();
   const configChild = await SidebarMenu.findOne({ key: 'analytics.config', organization_id: null }).lean().exec();
-  const oldConfigMenu = await SidebarMenu.findOne({ key: 'configuration.analyticsConfig', organization_id: null }).lean().exec();
+  const parentUsers = await SidebarMenu.findOne({ key: 'users', parent_id: null, organization_id: null }).lean().exec();
+  const usersListChild = await SidebarMenu.findOne({ key: 'users.list', organization_id: null }).lean().exec();
+  const uiNavConfigMenu = await SidebarMenu.findOne({ key: 'uiNavigation.analyticsConfig', organization_id: null }).lean().exec();
 
-  if (!parentAnalytics || !dashChild || !configChild) return;
+  if (!parentAnalytics) return;
 
   const adminRoles = await Role.find({ key: 'admin' }).lean().exec();
 
@@ -1390,29 +1428,59 @@ async function seedAdminAnalyticsSidebarPermissions() {
     const orgId = r.organization_id || null;
     const indId = r.industry_id;
 
+    // Analytics: Top level leaf route /analytics
+    await SidebarMenu.updateOne({ _id: parentAnalytics._id }, { $set: { route: '/analytics' } });
     await SidebarPermission.updateOne(
       { role_id: r._id, menu_id: parentAnalytics._id, organization_id: orgId },
       { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics' } },
       { upsert: true }
     );
 
-    await SidebarPermission.updateOne(
-      { role_id: r._id, menu_id: dashChild._id, organization_id: orgId },
-      { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics.dashboard' } },
-      { upsert: true }
-    );
+    // Remove submenus under Analytics for admin role
+    if (dashChild) {
+      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: dashChild._id, organization_id: orgId });
+    }
+    if (configChild) {
+      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: configChild._id, organization_id: orgId });
+    }
 
-    await SidebarPermission.updateOne(
-      { role_id: r._id, menu_id: configChild._id, organization_id: orgId },
-      { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics.config' } },
-      { upsert: true }
-    );
+    // Users: Top level leaf route /users
+    if (parentUsers) {
+      await SidebarMenu.updateOne({ _id: parentUsers._id }, { $set: { route: '/users' } });
+      await SidebarPermission.updateOne(
+        { role_id: r._id, menu_id: parentUsers._id, organization_id: orgId },
+        { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'users' } },
+        { upsert: true }
+      );
+    }
+    if (usersListChild) {
+      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: usersListChild._id, organization_id: orgId });
+    }
 
-    if (oldConfigMenu) {
-      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: oldConfigMenu._id });
+    // Ensure Layout Builder (uiNavigation.analyticsConfig) under UI & Navigation is visible for admin and superAdmin
+    if (uiNavConfigMenu) {
+      await SidebarPermission.updateOne(
+        { role_id: r._id, menu_id: uiNavConfigMenu._id, organization_id: orgId },
+        { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'uiNavigation.analyticsConfig' } },
+        { upsert: true }
+      );
     }
   }
-  console.log('[seed] Successfully seeded Admin Analytics sidebar permissions.');
+
+  const superAdminRoles = await Role.find({ key: 'superAdmin' }).lean().exec();
+  for (const r of superAdminRoles) {
+    const orgId = r.organization_id || null;
+    const indId = r.industry_id;
+    if (uiNavConfigMenu) {
+      await SidebarPermission.updateOne(
+        { role_id: r._id, menu_id: uiNavConfigMenu._id, organization_id: orgId },
+        { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'uiNavigation.analyticsConfig' } },
+        { upsert: true }
+      );
+    }
+  }
+
+  console.log('[seed] Successfully updated Admin and SuperAdmin sidebar permissions (Layout Builder included).');
 }
 
 module.exports = {

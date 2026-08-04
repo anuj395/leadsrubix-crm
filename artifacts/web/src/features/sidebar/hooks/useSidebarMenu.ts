@@ -31,7 +31,7 @@ function clearPersistedMenu() {
 }
 
 // ── Map static superAdmin config to SidebarNavItem[] ─────────────────────────
-const mappedSuperAdminMenu: SidebarNavItem[] = mapApiMenusToNavItems(superAdminMenuConfig as any)
+const mappedSuperAdminMenu: SidebarNavItem[] = mapApiMenusToNavItems(superAdminMenuConfig as any, 'superAdmin')
 function mapSuperAdminConfig(): SidebarNavItem[] {
   return mappedSuperAdminMenu
 }

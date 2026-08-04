@@ -43,6 +43,9 @@ app.use(
   }),
 );
 
+const tenantResolver = require('./middlewares/tenantResolver');
+app.use(tenantResolver);
+
 app.use(morgan('dev'));
 
 const path = require('path');

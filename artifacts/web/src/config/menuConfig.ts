@@ -82,191 +82,37 @@ export interface SuperAdminMenuItem {
 }
 
 export const superAdminMenuConfig: SuperAdminMenuItem[] = [
-  {
-    key: "analytics",
-    name: "Analytics",
-    route: "/analytics",
-    icon: "analytics",
-    module: "Analytics"
-  },
-  {
-    key: "analytics.dashboard",
-    name: "Dashboard",
-    route: "/analytics",
-    icon: "analytics",
-    module: "Analytics"
-  },
-  {
-    key: "analytics.config",
-    name: "Analytics Config",
-    route: "/configuration/analytics-config",
-    icon: "settings",
-    module: "Analytics"
-  },
-  {
-    key: "organization",
-    name: "Organizations",
-    route: "/organization/list",
-    icon: "organization",
-    module: "Organization"
-  },
-  {
-    key: "users.list",
-    name: "Users List",
-    route: "/users",
-    icon: "users",
-    module: "Users"
-  },
-  {
-    key: "users.roles",
-    name: "Roles & Permissions",
-    route: "/users/roles",
-    icon: "shield",
-    module: "Users"
-  },
-  {
-    key: "leads.contacts",
-    name: "Contacts List",
-    route: "/leads/contacts",
-    icon: "contact",
-    module: "Leads"
-  },
-  {
-    key: "leads.tasks",
-    name: "Tasks List",
-    route: "/leads/tasks",
-    icon: "tasks",
-    module: "Leads"
-  },
-  {
-    key: "leads.callLogs",
-    name: "Call Logs List",
-    route: "/leads/call-logs",
-    icon: "call",
-    module: "Leads"
-  },
-  /* Hidden: Bookings functionality
-  {
-    key: "leads.bookings",
-    name: "Bookings List",
-    route: "/leads/bookings",
-    icon: "booking",
-    module: "Leads"
-  },
-  */
-  {
-    key: "leads.sorted",
-    name: "Sorted list",
-    route: "/leads/sorted",
-    icon: "sort",
-    module: "Leads"
-  },
-  {
-    key: "configuration.industries",
-    name: "Industries",
-    route: "/configuration/industries",
-    icon: "organization",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.menus",
-    name: "Sidebar Menus",
-    route: "/configuration/menus",
-    icon: "sidebar",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.permissions",
-    name: "Permissions Matrix",
-    route: "/configuration/permissions",
-    icon: "settings",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.screens",
-    name: "Screens",
-    route: "/configuration/screens",
-    icon: "headers",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.screenFields",
-    name: "Screen Fields",
-    route: "/configuration/screenFields",
-    icon: "headers",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.screenPermissions",
-    name: "Permission Fields",
-    route: "/configuration/screenPermissions",
-    icon: "headers",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.projects",
-    name: "Projects List",
-    route: "/configuration/projects",
-    icon: "projects",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.api",
-    name: "API List",
-    route: "/configuration/api",
-    icon: "api",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.resources",
-    name: "Resources",
-    route: "/configuration/resources",
-    icon: "resources",
-    module: "Configuration"
-  },
-  {
-    key: "configuration.whatsapp",
-    name: "Whatsapp API",
-    route: "/configuration/whatsapp",
-    icon: "whatsapp",
-    module: "Configuration"
-  },
-  {
-    key: "support.news",
-    name: "News List",
-    route: "/support/news",
-    icon: "news",
-    module: "Support"
-  },
-  {
-    key: "support.faq",
-    name: "FAQ List",
-    route: "/support/faq",
-    icon: "faq",
-    module: "Support"
-  },
-  {
-    key: "account.licenses",
-    name: "Licenses Cost",
-    route: "/account/licenses",
-    icon: "billing",
-    module: "Account"
-  },
+  { key: "analytics", name: "Analytics", route: "/analytics", icon: "analytics", module: "analytics" },
+  { key: "organization", name: "Organization", route: "/organization/list", icon: "organization", module: "organization" },
+  { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
 
-  {
-    key: "account.coupons",
-    name: "Coupon",
-    route: "/account/coupons",
-    icon: "coupon",
-    module: "Account"
-  },
-  {
-    key: "account.password",
-    name: "Update Password",
-    route: "/account/update-password",
-    icon: "password",
-    module: "Account"
-  }
+  { key: "leads.contacts", name: "Contacts", route: "/leads/contacts", icon: "contact", module: "leads" },
+  { key: "leads.tasks", name: "Tasks", route: "/leads/tasks", icon: "tasks", module: "leads" },
+  { key: "leads.callLogs", name: "Call Logs", route: "/leads/call-logs", icon: "call", module: "leads" },
+  { key: "leads.sorted", name: "Sorted", route: "/leads/sorted", icon: "sort", module: "leads" },
+
+  { key: "configuration.industries", name: "Industries", route: "/configuration/industries", icon: "organization", module: "configuration" },
+  { key: "configuration.projects", name: "Projects", route: "/configuration/projects", icon: "projects", module: "configuration" },
+  { key: "configuration.resources", name: "Resources", route: "/configuration/resources", icon: "resources", module: "configuration" },
+
+  { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
+  { key: "integrations.whatsapp", name: "WhatsApp API", route: "/configuration/whatsapp", icon: "whatsapp", module: "integrations" },
+
+  { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/configuration/menus", icon: "sidebar", module: "uiNavigation" },
+  { key: "uiNavigation.screens", name: "Screens", route: "/configuration/screens", icon: "headers", module: "uiNavigation" },
+  { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/configuration/screen-fields", icon: "headers", module: "uiNavigation" },
+  { key: "uiNavigation.analyticsConfig", name: "Layout Builder", route: "/configuration/analytics-config", icon: "settings", module: "uiNavigation" },
+
+  { key: "accessControl.permissions", name: "Permissions Matrix", route: "/configuration/permissions", icon: "shield", module: "accessControl" },
+  { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/configuration/screen-permissions", icon: "shield", module: "accessControl" },
+  { key: "accessControl.roles", name: "Roles & Permissions", route: "/users/roles", icon: "shield", module: "accessControl" },
+
+  { key: "account.licenses", name: "Licenses Cost", route: "/account/licenses", icon: "billing", module: "account" },
+  { key: "account.coupons", name: "Coupon", route: "/account/coupons", icon: "coupon", module: "account" },
+  { key: "account.password", name: "Update Password", route: "/account/update-password", icon: "password", module: "account" },
+
+  { key: "support.news", name: "News List", route: "/support/news", icon: "news", module: "support" },
+  { key: "support.faq", name: "FAQ List", route: "/support/faq", icon: "faq", module: "support" }
 ]
 
 export const adminMenuConfig: SuperAdminMenuItem[] = [

@@ -1,0 +1,260 @@
+import { useEffect, useMemo, useState } from 'react'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
+import MenuItem from '@mui/material/MenuItem'
+import Checkbox from '@mui/material/Checkbox'
+import CircularProgress from '@mui/material/CircularProgress'
+import Snackbar from '@mui/material/Snackbar'
+import Alert from '@mui/material/Alert'
+import Typography from '@mui/material/Typography'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import { Save as SaveIcon } from '@mui/icons-material'
+import { AppDataGrid } from '@/components/ui/AppDataGrid'
+import type { GridColDef } from '@mui/x-data-grid'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useAuth } from '@/hooks/useAuth'
+import {
+  getRoles,
+  type AdminRole,
+} from '@/services/sidebarAdminService'
+import {
+  getScreens,
+  getScreenFields,
+  getScreenPermissions,
+  bulkSetScreenPermissions,
+  type Screen,
+  type ScreenField,
+} from '@/services/screenAdminService'
+
+export default function AdminScreenPermissionsPage() {
+  const { user } = useAuth()
+  const [roles, setRoles] = useState<AdminRole[]>([])
+  const [screens, setScreens] = useState<Screen[]>([])
+  const [fields, setFields] = useState<ScreenField[]>([])
+  const [roleId, setRoleId] = useState('')
+  const [screenId, setScreenId] = useState('')
+  const [enabled, setEnabled] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
+    open: false,
+    msg: '',
+    sev: 'success',
+  })
+
+  // Load tenant roles + screens once.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [rolesList, scrs] = await Promise.all([
+          getRoles((user as any)?.industryId || (user as any)?.industry_id, (user as any)?.organizationId || (user as any)?.organization_id),
+          getScreens()
+        ])
+        setRoles(rolesList)
+        setScreens(scrs)
+        if (rolesList[0]) setRoleId(rolesList[0]._id)
+        if (scrs[0]) setScreenId(scrs[0]._id)
+      } catch (e: any) {
+        setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screen permissions data', sev: 'error' })
+      }
+    })()
+  }, [user])
+
+  // Reload fields + permissions whenever roleId or screenId changes.
+  useEffect(() => {
+    if (!roleId || !screenId) {
+      setFields([])
+      setEnabled(new Set())
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    void (async () => {
+      try {
+        const [fieldList, permList] = await Promise.all([
+          getScreenFields(screenId),
+          getScreenPermissions({
+            roleId,
+            screenId,
+            industryId: (user as any)?.industryId || (user as any)?.industry_id,
+            enabledOnly: true,
+          }),
+        ])
+        if (cancelled) return
+        setFields(fieldList)
+        const activeSet = new Set(permList.map((p) => String(p.fieldId || (p as any).field_id)))
+        setEnabled(activeSet)
+      } catch (e: any) {
+        if (!cancelled) setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screen permissions', sev: 'error' })
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [roleId, screenId, user])
+
+  const toggle = (fieldId: string) => {
+    setEnabled((prev) => {
+      const next = new Set(prev)
+      if (next.has(fieldId)) next.delete(fieldId)
+      else next.add(fieldId)
+      return next
+    })
+  }
+
+  const selectAll = () => setEnabled(new Set(fields.map((f) => f._id)))
+  const deselectAll = () => setEnabled(new Set())
+
+  const save = async () => {
+    if (!roleId || !screenId) return
+    setSaving(true)
+    try {
+      await bulkSetScreenPermissions({
+        screenId,
+        roleId,
+        industryId: (user as any)?.industryId || (user as any)?.industry_id || 'temp0001',
+        fieldIds: Array.from(enabled),
+      })
+      setToast({ open: true, msg: 'Screen field permissions saved successfully for organization', sev: 'success' })
+    } catch (e: any) {
+      setToast({ open: true, msg: e?.response?.data?.message ?? 'Save failed', sev: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const columns = useMemo<GridColDef<ScreenField>[]>(
+    () => [
+      {
+        field: 'enabled',
+        headerName: 'Visible',
+        width: 90,
+        sortable: false,
+        renderCell: (p) => (
+          <Checkbox
+            checked={enabled.has(p.row._id)}
+            onChange={() => toggle(p.row._id)}
+            color="primary"
+          />
+        ),
+      },
+      { field: 'fieldKey', headerName: 'Field Key', flex: 1.2, renderCell: (p) => <code>{p.value}</code> },
+      { field: 'label', headerName: 'Label', flex: 1 },
+      { field: 'type', headerName: 'Type', width: 120 },
+      {
+        field: 'isTableVisible',
+        headerName: 'Table',
+        width: 80,
+        renderCell: (p) => <StatusBadge value={p.value ? 'Yes' : 'No'} />,
+      },
+      {
+        field: 'isFormVisible',
+        headerName: 'Form',
+        width: 80,
+        renderCell: (p) => <StatusBadge value={p.value ? 'Yes' : 'No'} />,
+      },
+      {
+        field: 'isRequired',
+        headerName: 'Required',
+        width: 85,
+        renderCell: (p) => <StatusBadge value={p.value ? 'Yes' : 'No'} />,
+      },
+    ],
+    [enabled],
+  )
+
+  return (
+    <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Card sx={{ mb: 2 }}>
+        <CardContent sx={{ pb: '16px !important' }}>
+          <Typography variant="h6" fontWeight={700}>
+            Organization Permission Fields
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Manage screen field visibility and access control for roles within your organization in complete tenant isolation.
+          </Typography>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+            <TextField
+              select
+              label="Select Role"
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value)}
+              sx={{ minWidth: 220 }}
+              size="small"
+            >
+              {roles.map((r) => (
+                <MenuItem key={r._id} value={r._id}>
+                  {r.name} ({r.key})
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              label="Select Screen"
+              value={screenId}
+              onChange={(e) => setScreenId(e.target.value)}
+              sx={{ minWidth: 220 }}
+              size="small"
+            >
+              {screens.map((s) => (
+                <MenuItem key={s._id} value={s._id}>
+                  {s.name} ({s.key})
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <Box sx={{ flexGrow: 1 }} />
+
+            <Stack direction="row" spacing={1}>
+              <Button size="small" onClick={selectAll}>
+                Select All
+              </Button>
+              <Button size="small" color="inherit" onClick={deselectAll}>
+                Deselect All
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
+                onClick={save}
+                disabled={saving || !roleId || !screenId}
+              >
+                Save Permissions
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ flexGrow: 1, height: 0 }}>
+          <AppDataGrid
+            height="100%"
+            rows={fields}
+            columns={columns}
+            loading={loading}
+            getRowId={(r) => r._id}
+          />
+        </Box>
+      </Card>
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={3000}
+        onClose={() => setToast({ ...toast, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={toast.sev} variant="filled" onClose={() => setToast({ ...toast, open: false })}>
+          {toast.msg}
+        </Alert>
+      </Snackbar>
+    </Box>
+  )
+}

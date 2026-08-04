@@ -28,13 +28,17 @@ const SidebarMenu = mongoose.model('SidebarMenu', sidebarMenuSchema, 'sidebar_me
 
 exports.SidebarMenu = SidebarMenu;
 
-exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId, organization_id } = {}) => {
+exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId, organization_id, industryId, industry_id } = {}) => {
   const pId = parentId !== undefined ? parentId : parent_id;
   const q = {};
   if (activeOnly) q.is_active = true;
   if (pId !== undefined) q.parent_id = pId;
   const orgId = organizationId !== undefined ? organizationId : organization_id;
-  if (orgId !== undefined) q.organization_id = orgId;
+  if (orgId !== undefined) {
+    q.$or = [{ organization_id: orgId }, { organization_id: null }];
+  }
+  const indId = industryId !== undefined ? industryId : industry_id;
+  if (indId) q.industry_id = indId;
   return SidebarMenu.find(q).sort({ order: 1, name: 1 }).exec();
 };
 
@@ -45,21 +49,27 @@ exports.findById = async (id) => SidebarMenu.findById(id).exec();
 
 exports.findByKey = async (key, organizationId) => {
   const q = { key: String(key).trim() };
-  if (organizationId !== undefined) q.organization_id = organizationId;
+  if (organizationId !== undefined) {
+    q.$or = [{ organization_id: organizationId }, { organization_id: null }];
+  }
   return SidebarMenu.findOne(q).exec();
 };
 
 exports.findByIds = async (ids) =>
   SidebarMenu.find({ _id: { $in: ids } }).exec();
 
-exports.create = async ({ key, name, icon, route, parentId, parent_id, order, module: mod, isActive }) => {
+exports.create = async ({ key, name, icon, route, parentId, parent_id, order, module: mod, isActive, organizationId, organization_id, industryId, industry_id }) => {
   const pId = parentId !== undefined ? parentId : parent_id;
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
+  const indId = industryId !== undefined ? industryId : industry_id;
   const doc = await SidebarMenu.create({
     key: String(key).trim(),
     name: String(name).trim(),
     icon: icon || '',
     route: route || '',
     parent_id: pId || null,
+    organization_id: orgId || null,
+    industry_id: indId || null,
     order: typeof order === 'number' ? order : 0,
     module: mod || '',
     is_active: isActive !== false,
@@ -75,6 +85,10 @@ exports.update = async (id, patch) => {
   if (patch.route !== undefined) update.route = String(patch.route);
   const pId = patch.parentId !== undefined ? patch.parentId : patch.parent_id;
   if (pId !== undefined) update.parent_id = pId || null;
+  const orgId = patch.organizationId !== undefined ? patch.organizationId : patch.organization_id;
+  if (orgId !== undefined) update.organization_id = orgId || null;
+  const indId = patch.industryId !== undefined ? patch.industryId : patch.industry_id;
+  if (indId !== undefined) update.industry_id = indId || null;
   if (patch.order !== undefined) update.order = Number(patch.order);
   if (patch.module !== undefined) update.module = String(patch.module);
   if (patch.isActive !== undefined) update.is_active = !!patch.isActive;
@@ -86,15 +100,19 @@ exports.remove = async (id) => SidebarMenu.findByIdAndDelete(id).exec();
 exports.upsertByKey = async (key, attrs) => {
   const safe = String(key).trim();
   const pId = attrs.parentId !== undefined ? attrs.parentId : attrs.parent_id;
+  const orgId = attrs.organizationId !== undefined ? attrs.organizationId : attrs.organization_id;
+  const indId = attrs.industryId !== undefined ? attrs.industryId : attrs.industry_id;
   const $set = {
     name: attrs.name,
     icon: attrs.icon || '',
     route: attrs.route || '',
     parent_id: pId || null,
+    organization_id: orgId || null,
+    industry_id: indId || null,
     order: typeof attrs.order === 'number' ? attrs.order : 0,
     module: attrs.module || '',
     is_active: attrs.isActive !== false,
   };
-  await SidebarMenu.updateOne({ key: safe }, { $set, $setOnInsert: { key: safe } }, { upsert: true });
-  return SidebarMenu.findOne({ key: safe }).exec();
+  await SidebarMenu.updateOne({ key: safe, organization_id: orgId || null }, { $set, $setOnInsert: { key: safe } }, { upsert: true });
+  return SidebarMenu.findOne({ key: safe, organization_id: orgId || null }).exec();
 };

@@ -23,6 +23,12 @@ import HolidayConfigPage from '@/features/admin/config/pages/HolidayConfig'
 import HolidayConfigFormPage from '@/features/admin/config/pages/HolidayConfigForm'
 import DaysConfigPage from '@/features/admin/config/pages/DaysConfig'
 import AnalyticsConfigPage from '@/features/admin/config/pages/AnalyticsConfig'
+import DomainSettingsPage from '@/features/admin/config/pages/DomainSettings'
+import MenusPage from '@/features/admin/config/pages/Menus'
+import PermissionsMatrixPage from '@/features/admin/config/pages/PermissionsMatrix'
+import ScreensPage from '@/features/admin/config/pages/Screens'
+import ScreenFieldsPage from '@/features/admin/config/pages/ScreenFields'
+import ScreenPermissionsPage from '@/features/admin/config/pages/ScreenPermissions'
 
 import IntegrationsPage from '@/features/admin/integrations/pages/Integrations'
 import IntegrationsApiPage from '@/features/admin/integrations/pages/IntegrationsApi'
@@ -92,6 +98,15 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/days-config": DaysConfigPage,
   "/configuration/analytics-config": AnalyticsConfigPage,
   "/configuration/analyticsConfig": AnalyticsConfigPage,
+  "/configuration/domain-settings": DomainSettingsPage,
+  "/configuration/domainSettings": DomainSettingsPage,
+  "/configuration/menus": MenusPage,
+  "/configuration/permissions": PermissionsMatrixPage,
+  "/configuration/screens": ScreensPage,
+  "/configuration/screen-fields": ScreenFieldsPage,
+  "/configuration/screenFields": ScreenFieldsPage,
+  "/configuration/screen-permissions": ScreenPermissionsPage,
+  "/configuration/screenPermissions": ScreenPermissionsPage,
 
   "/integrations": IntegrationsPage,
   "/integrations/api": ApiListPage,

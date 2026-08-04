@@ -45,6 +45,9 @@ const { authenticate } = require('../middlewares/auth');
 
 const router = express.Router();
 
+const workspaceController = require('../controllers/workspaceController');
+router.get('/workspace/resolve-domain', workspaceController.resolveDomain);
+
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/pricing-plans', pricingPlanRoutes);

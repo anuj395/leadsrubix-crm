@@ -38,6 +38,11 @@ const organizationSchema = new mongoose.Schema(
     payment_status: { type: Boolean, default: true, alias: 'paymentStatus' },
     valid_from: { type: Date, alias: 'validFrom' },
     valid_till: { type: Date, alias: 'validTill' },
+    subdomain: { type: String, trim: true, lowercase: true },
+    custom_domain: { type: String, trim: true, lowercase: true, alias: 'customDomain' },
+    logo_url: { type: String, default: '', alias: 'logoUrl' },
+    primary_color: { type: String, default: '#1976d2', alias: 'primaryColor' },
+    app_name: { type: String, default: 'Leads Rubix CRM', alias: 'appName' },
   },
   { 
     timestamps: true, 
@@ -46,6 +51,15 @@ const organizationSchema = new mongoose.Schema(
     toObject: { virtuals: true, getters: true },
     toJSON: { virtuals: true, getters: true }
   },
+);
+
+organizationSchema.index(
+  { subdomain: 1 },
+  { unique: true, partialFilterExpression: { subdomain: { $type: 'string', $gt: '' } }, name: 'idx_org_subdomain' }
+);
+organizationSchema.index(
+  { custom_domain: 1 },
+  { unique: true, partialFilterExpression: { custom_domain: { $type: 'string', $gt: '' } }, name: 'idx_org_custom_domain' }
 );
 
 const Organization = mongoose.model('Organization', organizationSchema, 'organizations');
@@ -88,9 +102,13 @@ function shapePublic(org) {
     orgTrialPeriodUsersLicenses: typeof o.orgTrialPeriodUsersLicenses === 'number' ? o.orgTrialPeriodUsersLicenses : (typeof o.org_trial_period_users_licenses === 'number' ? o.org_trial_period_users_licenses : 10),
     gracePeriodDays: typeof o.gracePeriodDays === 'number' ? o.gracePeriodDays : (typeof o.grace_period_days === 'number' ? o.grace_period_days : 7),
     trialPeriodDays: typeof o.trialPeriodDays === 'number' ? o.trialPeriodDays : (typeof o.trial_period_days === 'number' ? o.trial_period_days : 7),
-    paymentStatus: o.paymentStatus !== false && o.payment_status !== false,
     validFrom: o.validFrom || o.valid_from || null,
     validTill: o.validTill || o.valid_till || null,
+    subdomain: o.subdomain || '',
+    customDomain: o.customDomain || o.custom_domain || '',
+    logoUrl: o.logoUrl || o.logo_url || '',
+    primaryColor: o.primaryColor || o.primary_color || '#1976d2',
+    appName: o.appName || o.app_name || 'Leads Rubix CRM',
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   };
@@ -167,6 +185,12 @@ function normalizePayload(payload) {
   for (const [k, v] of Object.entries(payload)) {
     const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
     out[dbKey] = v;
+  }
+  if (!out.subdomain || String(out.subdomain).trim() === '') {
+    delete out.subdomain;
+  }
+  if (!out.custom_domain || String(out.custom_domain).trim() === '') {
+    delete out.custom_domain;
   }
   return out;
 }

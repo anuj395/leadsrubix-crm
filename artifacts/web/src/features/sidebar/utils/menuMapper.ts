@@ -14,33 +14,120 @@ const ICON_MAP: Record<string, MenuIconKey> = {
   support: 'support', tasks: 'tasks', users: 'users', whatsapp: 'whatsapp',
   leaddistribution: 'leadDistribution',
   reassignlist: 'reassignList',
+  uinavigation: 'sidebar',
+  accesscontrol: 'shield',
+}
+
+const MODULE_DISPLAY_NAMES: Record<string, string> = {
+  uinavigation: 'UI & Navigation',
+  accesscontrol: 'Access Control',
+  leaddistribution: 'Lead Distribution',
+  account: 'Account & Settings',
+  configuration: 'Configuration',
+  integrations: 'Integrations',
+  analytics: 'Analytics',
+  organization: 'Organization',
+  users: 'Users',
+  leads: 'Leads',
+  support: 'Support',
+}
+
+const ADMIN_MODULE_ORDER: Record<string, number> = {
+  analytics: 10,
+  users: 20,
+  leads: 30,
+  leaddistribution: 40,
+  configuration: 50,
+  integrations: 60,
+  uinavigation: 70,
+  accesscontrol: 80,
+  account: 90,
+  support: 100,
+}
+
+const SUPER_ADMIN_MODULE_ORDER: Record<string, number> = {
+  analytics: 10,
+  organization: 20,
+  users: 30,
+  leads: 40,
+  configuration: 50,
+  integrations: 60,
+  uinavigation: 70,
+  accesscontrol: 80,
+  account: 90,
+  support: 100,
 }
 
 export function toIconKey(icon?: string): MenuIconKey {
   return (icon && ICON_MAP[icon.toLowerCase()]) ? ICON_MAP[icon.toLowerCase()] : 'data'
 }
 
-/**
- * Converts the flat `menus` array from the API into a nested SidebarNavItem[].
- *
- * Items are grouped by their `module` field.
- * Items whose `key` contains a dot (e.g. "leads.contacts") are treated as
- * children of the matching parent group; others are top-level leaves.
- *
- * Example:
- *   { key: "leads",          name: "Leads",         icon: "leads",   module: "leads" }
- *   { key: "leads.contacts", name: "Contacts List",  icon: "contact", module: "leads" }
- *   → SidebarNavItem { id:"leads", name:"Leads", icon:"leads",
- *       children: [{ id:"leads.contacts", name:"Contacts List", route:"...", icon:"contact" }] }
- */
-export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[]): SidebarNavItem[] {
+export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: string): SidebarNavItem[] {
   if (!raw?.length) return []
   const filtered = raw.filter((item) => {
     const k = (item.key || '').toLowerCase()
     const n = (item.name || '').toLowerCase()
     const r = (item.route || '').toLowerCase()
-    return !k.includes('booking') && !n.includes('booking') && !r.includes('booking')
+    if (k.includes('booking') || n.includes('booking') || r.includes('booking')) {
+      return false
+    }
+    if (roleKey === 'admin') {
+      if (k === 'analytics.dashboard' || k === 'users.list' || k === 'analytics.config') {
+        return false
+      }
+    }
+    if (roleKey === 'superAdmin') {
+      if (k === 'analytics.dashboard' || k === 'users.list' || k === 'configuration.apidata' || k === 'integrations.apidata') {
+        return false
+      }
+    }
+    return true
   })
+
+  // Remap modules & child names for Super Admin to match requested structure
+  if (roleKey === 'superAdmin') {
+    filtered.forEach((item) => {
+      const k = item.key
+      if (k === 'configuration.api' || k === 'integrations.api') {
+        item.module = 'integrations'
+        item.name = 'API Tokens'
+      } else if (k === 'configuration.whatsapp' || k === 'integrations.whatsapp') {
+        item.module = 'integrations'
+        item.name = 'WhatsApp API'
+      } else if (k === 'configuration.menus' || k === 'uiNavigation.menus') {
+        item.module = 'uinavigation'
+        item.name = 'Sidebar Menus'
+      } else if (k === 'configuration.screens' || k === 'uiNavigation.screens') {
+        item.module = 'uinavigation'
+        item.name = 'Screens'
+      } else if (k === 'configuration.screenFields' || k === 'uiNavigation.screenFields') {
+        item.module = 'uinavigation'
+        item.name = 'Screen Fields'
+      } else if (k === 'analytics.config' || k === 'configuration.analyticsConfig' || k === 'uiNavigation.analyticsConfig') {
+        item.key = 'uiNavigation.analyticsConfig'
+        item.module = 'uinavigation'
+        item.name = 'Layout Builder'
+        item.route = '/configuration/analytics-config'
+      } else if (k === 'configuration.permissions' || k === 'accessControl.permissions') {
+        item.module = 'accesscontrol'
+        item.name = 'Permissions Matrix'
+      } else if (k === 'configuration.screenPermissions' || k === 'accessControl.screenPermissions') {
+        item.module = 'accesscontrol'
+        item.name = 'Permission Fields'
+      } else if (k === 'users.roles' || k === 'accessControl.roles') {
+        item.module = 'accesscontrol'
+        item.name = 'Roles & Permissions'
+      } else if (k === 'leads.contact' || k === 'leads.contacts') {
+        item.name = 'Contacts'
+      } else if (k === 'leads.tasks') {
+        item.name = 'Tasks'
+      } else if (k === 'leads.call' || k === 'leads.callLogs') {
+        item.name = 'Call Logs'
+      } else if (k === 'leads.sorted') {
+        item.name = 'Sorted'
+      }
+    })
+  }
 
   // Group by module, preserving insertion order
   const groups = new Map<string, { parent: RawSidebarMenuItem | null; children: RawSidebarMenuItem[] }>()
@@ -64,15 +151,22 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[]): SidebarNavItem
 
     if (children.length === 0) {
       // Pure leaf
-      if (parent) {
-        result.push({
-          id: parent.key,
-          name: parent.name,
-          route: parent.route,
-          icon: toIconKey(parent.icon),
-          module: mod,
-        })
+      const defaultRoutes: Record<string, string> = {
+        analytics: '/analytics',
+        organization: '/organization/list',
+        users: '/users',
       }
+      const itemKey = parent?.key ?? mod
+      const itemRoute = parent?.route || defaultRoutes[mod.toLowerCase()] || `/${mod}`
+      const itemName = parent?.name || MODULE_DISPLAY_NAMES[mod.toLowerCase()] || (mod.charAt(0).toUpperCase() + mod.slice(1))
+
+      result.push({
+        id: itemKey,
+        name: itemName,
+        route: itemRoute,
+        icon: toIconKey(parent?.icon ?? mod),
+        module: mod,
+      })
     } else {
       // Parent + children: deduplicate child items by key and route
       const uniqueChildrenMap = new Map<string, SidebarChildItem>()
@@ -91,7 +185,7 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[]): SidebarNavItem
 
       result.push({
         id: parent?.key ?? mod,
-        name: parent?.name ?? (mod.charAt(0).toUpperCase() + mod.slice(1)),
+        name: parent?.name || MODULE_DISPLAY_NAMES[mod.toLowerCase()] || (mod.charAt(0).toUpperCase() + mod.slice(1)),
         icon: toIconKey(parent?.icon ?? mod),
         route: parent?.route,
         module: mod,
@@ -99,6 +193,24 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[]): SidebarNavItem
       })
     }
   })
+
+  if (roleKey === 'admin') {
+    result.sort((a, b) => {
+      const modA = (a.module || a.id || '').toLowerCase()
+      const modB = (b.module || b.id || '').toLowerCase()
+      const orderA = ADMIN_MODULE_ORDER[modA] ?? 999
+      const orderB = ADMIN_MODULE_ORDER[modB] ?? 999
+      return orderA - orderB
+    })
+  } else if (roleKey === 'superAdmin') {
+    result.sort((a, b) => {
+      const modA = (a.module || a.id || '').toLowerCase()
+      const modB = (b.module || b.id || '').toLowerCase()
+      const orderA = SUPER_ADMIN_MODULE_ORDER[modA] ?? 999
+      const orderB = SUPER_ADMIN_MODULE_ORDER[modB] ?? 999
+      return orderA - orderB
+    })
+  }
 
   return result
 }
