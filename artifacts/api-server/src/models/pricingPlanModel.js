@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const pricingPlanSchema = new mongoose.Schema(
   {
+    name: { type: String, default: 'Plan' },
+    description: { type: String, default: '' },
+    organization_id: { type: String, default: null, alias: 'organizationId' },
+    industry_id: { type: String, default: null, alias: 'industryId' },
     licenses_cost: { type: Number, default: 1000, alias: 'licensesCost' },
     trial_period_licenses: { type: Number, default: 20, alias: 'trialPeriodLicenses' },
     grace_period_days: { type: Number, default: 7, alias: 'gracePeriodDays' },
@@ -13,6 +17,8 @@ const pricingPlanSchema = new mongoose.Schema(
     toJSON: { virtuals: true, getters: true }
   },
 );
+
+pricingPlanSchema.index({ organization_id: 1, industry_id: 1 }, { name: 'idx_pricing_plan_org_ind' });
 
 const PricingPlan = mongoose.model('PricingPlan', pricingPlanSchema, 'pricing_plans');
 

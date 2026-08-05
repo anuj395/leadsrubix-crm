@@ -11,6 +11,30 @@ const DEFAULT_INDUSTRIES = [
   {
     id: 'temp0001',
     name: 'Real Estate'
+  },
+  {
+    id: 'temp0002',
+    name: 'E-commerce'
+  },
+  {
+    id: 'temp0003',
+    name: 'Healthcare'
+  },
+  {
+    id: 'temp0004',
+    name: 'Education'
+  },
+  {
+    id: 'temp0005',
+    name: 'Financial Services'
+  },
+  {
+    id: 'temp0006',
+    name: 'IT & Tech Services'
+  },
+  {
+    id: 'temp0007',
+    name: 'Manufacturing'
   }
 ];
 
@@ -273,9 +297,15 @@ async function migrateAndSeedSidebar() {
         if (!m || !m.key || !m.name) continue;
 
         const isChild = String(m.key).includes('.');
-        const moduleKey = String(
+        const MODULE_KEY_MAP = {
+          uinavigation: 'uiNavigation',
+          accesscontrol: 'accessControl',
+          leaddistribution: 'leadDistribution',
+        };
+        const rawModuleKey = String(
           m.module || (isChild ? m.key.split('.')[0] : m.key),
-        ).toLowerCase();
+        );
+        const moduleKey = MODULE_KEY_MAP[rawModuleKey.toLowerCase()] || rawModuleKey;
 
         // Skip Tool module permissions for Admin role
         if (roleKey === 'admin' && (moduleKey === 'tool' || String(m.key).startsWith('tool'))) {
@@ -407,6 +437,45 @@ const SCREEN_DEFAULTS = [
       { field_key: 'adset',             label: 'Ad Set',              type: 'text',     is_required: false, order: 15 },
       { field_key: 'campaign',          label: 'Campaign',            type: 'text',     is_required: false, order: 16 },
       { field_key: 'notes',             label: 'Notes',               type: 'textarea', is_required: false, order: 17 },
+
+      // E-Commerce (temp0002) fields
+      { field_key: 'orderID',           label: 'Order ID',            type: 'text',     is_required: false, order: 30 },
+      { field_key: 'orderValue',        label: 'Order Value',         type: 'number',   is_required: false, order: 31 },
+      { field_key: 'cartItemsCount',    label: 'Cart Items Count',    type: 'number',   is_required: false, order: 32 },
+      { field_key: 'couponCode',        label: 'Coupon Code',         type: 'text',     is_required: false, order: 33 },
+      { field_key: 'shippingMethod',    label: 'Shipping Method',     type: 'text',     is_required: false, order: 34 },
+      { field_key: 'orderStatus',        label: 'Order Status',        type: 'select',   is_required: false, order: 35, dropdown_source: 'api', dropdown_api: '/api/options/order_statuses' },
+
+      // Healthcare (temp0003) fields
+      { field_key: 'patientID',        label: 'Patient ID',          type: 'text',     is_required: false, order: 40 },
+      { field_key: 'specialty',         label: 'Medical Specialty',   type: 'select',   is_required: false, order: 41, dropdown_source: 'api', dropdown_api: '/api/options/specialties' },
+      { field_key: 'attendingDoctor',   label: 'Attending Doctor',    type: 'text',     is_required: false, order: 42 },
+      { field_key: 'appointmentDate',   label: 'Appointment Date',    type: 'date',     is_required: false, order: 43 },
+      { field_key: 'insuranceProvider', label: 'Insurance Provider',  type: 'text',     is_required: false, order: 44 },
+
+      // Education (temp0004) fields
+      { field_key: 'programCourse',     label: 'Program / Course',    type: 'select',   is_required: false, order: 50, dropdown_source: 'api', dropdown_api: '/api/options/programs' },
+      { field_key: 'academicYear',      label: 'Academic Year',       type: 'text',     is_required: false, order: 51 },
+      { field_key: 'entranceScore',     label: 'Entrance Test Score', type: 'number',   is_required: false, order: 52 },
+      { field_key: 'counselorAssigned', label: 'Counselor Assigned',  type: 'text',     is_required: false, order: 53 },
+
+      // Financial Services (temp0005) fields
+      { field_key: 'productType',       label: 'Financial Product',   type: 'select',   is_required: false, order: 60, dropdown_source: 'api', dropdown_api: '/api/options/financial_products' },
+      { field_key: 'requestedAmount',   label: 'Requested Loan Amount', type: 'number', is_required: false, order: 61 },
+      { field_key: 'annualIncome',      label: 'Annual Income',       type: 'number',   is_required: false, order: 62 },
+      { field_key: 'creditScore',       label: 'Credit Score',        type: 'number',   is_required: false, order: 63 },
+
+      // IT Services (temp0006) fields
+      { field_key: 'serviceLine',       label: 'IT Service Line',     type: 'select',   is_required: false, order: 70, dropdown_source: 'api', dropdown_api: '/api/options/service_lines' },
+      { field_key: 'rfpDeadline',       label: 'RFP Submission Deadline', type: 'date',  is_required: false, order: 71 },
+      { field_key: 'estimatedBudget',   label: 'Estimated Budget',    type: 'number',   is_required: false, order: 72 },
+      { field_key: 'techStack',         label: 'Tech Stack',          type: 'text',     is_required: false, order: 73 },
+
+      // Manufacturing (temp0007) fields
+      { field_key: 'productCategory',   label: 'Product Category',    type: 'select',   is_required: false, order: 80, dropdown_source: 'api', dropdown_api: '/api/options/product_categories' },
+      { field_key: 'orderQuantity',     label: 'Order Quantity (MOQ)', type: 'number',  is_required: false, order: 81 },
+      { field_key: 'deliveryLocation',  label: 'Delivery Location',   type: 'text',     is_required: false, order: 82 },
+      { field_key: 'dealerCode',        label: 'Dealer Code',         type: 'text',     is_required: false, order: 83 },
     ],
   },
   {
@@ -752,12 +821,40 @@ async function seedScreens() {
   const industries = await Industry.find({ is_active: true }).lean().exec();
   const roles = await Role.find({ is_active: true }).lean().exec();
 
+  const RE_FIELDS = new Set(['project_name', 'property_type', 'property_stage', 'budget', 'property_sub_type']);
+  const ECOM_FIELDS = new Set(['order_id', 'order_value', 'cart_items_count', 'coupon_code', 'shipping_method', 'order_status']);
+  const HEALTH_FIELDS = new Set(['patient_id', 'specialty', 'attending_doctor', 'appointment_date', 'insurance_provider']);
+  const EDU_FIELDS = new Set(['program_course', 'academic_year', 'entrance_score', 'counselor_assigned']);
+  const FIN_FIELDS = new Set(['product_type', 'requested_amount', 'annual_income', 'credit_score']);
+  const IT_FIELDS = new Set(['service_line', 'rfp_deadline', 'estimated_budget', 'tech_stack']);
+  const MFG_FIELDS = new Set(['product_category', 'order_quantity', 'delivery_location', 'dealer_code']);
+
+  const ALL_CUSTOM_FIELDS = new Set([
+    ...RE_FIELDS, ...ECOM_FIELDS, ...HEALTH_FIELDS, ...EDU_FIELDS, ...FIN_FIELDS, ...IT_FIELDS, ...MFG_FIELDS
+  ]);
+
   let permCount = 0;
   for (const [, { screen, fields }] of fieldsByScreen) {
     for (const industry of industries) {
+      const indCode = String(industry.code || '').toLowerCase().trim();
       const industryRoles = roles.filter((r) => String(r.industry_id || r.industryId) === String(industry._id));
+
       for (const role of industryRoles) {
         for (const field of fields) {
+          const fKey = field.field_key;
+          let isEnabled = true;
+
+          // If the field belongs to the custom industry set, strictly enforce industry matching
+          if (ALL_CUSTOM_FIELDS.has(fKey)) {
+            if (indCode === 'temp0001' && !RE_FIELDS.has(fKey)) isEnabled = false;
+            else if (indCode === 'temp0002' && !ECOM_FIELDS.has(fKey)) isEnabled = false;
+            else if (indCode === 'temp0003' && !HEALTH_FIELDS.has(fKey)) isEnabled = false;
+            else if (indCode === 'temp0004' && !EDU_FIELDS.has(fKey)) isEnabled = false;
+            else if (indCode === 'temp0005' && !FIN_FIELDS.has(fKey)) isEnabled = false;
+            else if (indCode === 'temp0006' && !IT_FIELDS.has(fKey)) isEnabled = false;
+            else if (indCode === 'temp0007' && !MFG_FIELDS.has(fKey)) isEnabled = false;
+          }
+
           await ScreenPermission.updateOne(
             {
               screen_id: screen._id,
@@ -766,7 +863,7 @@ async function seedScreens() {
               field_id: field._id,
             },
             {
-              $set: { is_enabled: true },
+              $set: { is_enabled: isEnabled },
               $setOnInsert: {
                 screen_id: screen._id,
                 role_id: role._id,
@@ -1057,6 +1154,50 @@ const DROPDOWN_OPTION_DEFAULTS = {
     { value: 'horizon',  label: 'Horizon Heights' },
     { value: 'meadow',   label: 'Meadow Greens' },
   ],
+  'order_statuses': [
+    { value: 'pending_payment', label: 'Pending Payment' },
+    { value: 'processing',      label: 'Processing' },
+    { value: 'shipped',         label: 'Shipped' },
+    { value: 'delivered',       label: 'Delivered' },
+    { value: 'returned',        label: 'Returned' },
+    { value: 'canceled',        label: 'Canceled' },
+  ],
+  'specialties': [
+    { value: 'cardiology',      label: 'Cardiology' },
+    { value: 'orthopedics',     label: 'Orthopedics' },
+    { value: 'neurology',       label: 'Neurology' },
+    { value: 'pediatrics',      label: 'Pediatrics' },
+    { value: 'dermatology',     label: 'Dermatology' },
+    { value: 'general_medicine',label: 'General Medicine' },
+  ],
+  'programs': [
+    { value: 'btech_cs',        label: 'B.Tech Computer Science' },
+    { value: 'mba_marketing',   label: 'MBA Marketing' },
+    { value: 'bba_finance',     label: 'BBA Finance' },
+    { value: 'msc_data_science',label: 'Data Science MSc' },
+    { value: 'aiml_cert',       label: 'AI/ML Certification' },
+  ],
+  'financial_products': [
+    { value: 'home_loan',       label: 'Home Loan' },
+    { value: 'business_loan',   label: 'Business Loan' },
+    { value: 'health_insurance',label: 'Health Insurance' },
+    { value: 'mutual_fund',     label: 'Mutual Fund SIP' },
+    { value: 'personal_credit', label: 'Personal Credit' },
+  ],
+  'service_lines': [
+    { value: 'cloud_migration', label: 'Cloud Migration' },
+    { value: 'enterprise_dev',   label: 'Enterprise Software Dev' },
+    { value: 'aiml_integration',label: 'AI/ML Integration' },
+    { value: 'cybersecurity',   label: 'Cybersecurity Audit' },
+    { value: 'devops',          label: 'DevOps' },
+  ],
+  'product_categories': [
+    { value: 'machining',       label: 'Industrial Machining' },
+    { value: 'auto_components', label: 'Auto Components' },
+    { value: 'raw_plastics',    label: 'Raw Plastics' },
+    { value: 'electrical',      label: 'Electrical Fittings' },
+    { value: 'metal_fabrication',label: 'Heavy Metal Fabrication' },
+  ],
   'departments': [
     { value: 'sales',       label: 'Sales' },
     { value: 'marketing',   label: 'Marketing' },
@@ -1220,286 +1361,637 @@ async function seedDropdownOptions() {
 async function seedAnalyticsConfig() {
   const AnalyticsConfig = mongoose.model('AnalyticsConfig');
   const Industry = mongoose.model('Industry');
-  
-  const industry = await Industry.findOne({ code: 'temp0001' });
-  if (!industry) return;
-  
-  const existing = await AnalyticsConfig.findOne({ industry_id: String(industry._id) });
-  if (existing && existing.tabs && existing.tabs[0] && existing.tabs[0].sections && existing.tabs[0].sections.length > 0) {
-    console.log('[seed] AnalyticsConfig for Real Estate already populated with sections — skipping seed');
-    return;
-  }
-  
-  if (existing) {
-    await AnalyticsConfig.deleteOne({ _id: existing._id });
-  }
-  
-  console.log('[seed] Seeding dynamic Analytics configurations with sections...');
-  await AnalyticsConfig.create({
-    industry_id: String(industry._id),
-    dashboard_key: 'default',
-    tabs: [
-      {
-        id: 0,
-        label: 'Contacts Overview',
-        widgets: [],
-        sections: [
+
+  // Real Estate (temp0001) - Preserve completely intact
+  const reIndustry = await Industry.findOne({ code: 'temp0001' });
+  if (reIndustry) {
+    const existing = await AnalyticsConfig.findOne({ industry_id: String(reIndustry._id) });
+    if (!existing) {
+      await AnalyticsConfig.create({
+        industry_id: String(reIndustry._id),
+        dashboard_key: 'default',
+        tabs: [
           {
-            id: 'contacts_kpis',
-            title: 'Key Metrics Overview',
-            order: 0,
-            is_active: true,
-            widgets: [
-              { id: 'totalLeads', type: 'KPI', title: 'Total Leads', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'PeopleIcon', data_key: 'cards.totalLeads' },
-              { id: 'fresh', type: 'KPI', title: 'Fresh', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'AssignmentIcon', data_key: 'cards.fresh' },
-              { id: 'callBack', type: 'KPI', title: 'Call Back', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'PhoneCallbackIcon', data_key: 'cards.callBack' },
-              { id: 'interested', type: 'KPI', title: 'Interested', color: '#EAB308', bg: 'rgba(234,179,8,0.06)', icon: 'ThumbUpIcon', data_key: 'cards.interested' },
-              { id: 'closedWon', type: 'KPI', title: 'Closed Won', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' },
-              { id: 'notInterested', type: 'KPI', title: 'Not Interested', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'CancelIcon', data_key: 'cards.notInterested' },
-              { id: 'closedLost', type: 'KPI', title: 'Closed Lost', color: '#F97316', bg: 'rgba(249,115,22,0.06)', icon: 'TrendingDownIcon', data_key: 'cards.closedLost' },
-              { id: 'completedVisits', type: 'KPI', title: 'Completed Visits', color: '#14B8A6', bg: 'rgba(20,184,166,0.06)', icon: 'EventAvailableIcon', data_key: 'cards.completedVisits' },
-              { id: 'scheduledVisits', type: 'KPI', title: 'Scheduled Visits', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'EventIcon', data_key: 'cards.scheduledVisits' }
-            ]
-          },
-          {
-            id: 'contacts_details',
-            title: 'Leads Conversion & Breakdown',
-            order: 1,
-            is_active: true,
-            widgets: [
+            id: 0,
+            label: 'Contacts Overview',
+            widgets: [],
+            sections: [
               {
-                id: 'contacts_feedback',
-                type: 'TABLE',
-                title: 'Leads Feedback Breakdown',
-                data_key: 'contacts.feedbackSummary',
-                columns: [
-                  { key: 'associate', label: 'Associate/Group' },
-                  { key: 'total', label: 'Total' },
-                  { key: 'fresh', label: 'Fresh' },
-                  { key: 'callBack', label: 'Call Back' },
-                  { key: 'interested', label: 'Interested' },
-                  { key: 'won', label: 'Won' },
-                  { key: 'notInterested', label: 'Not Interested' },
-                  { key: 'lost', label: 'Lost' },
-                  { key: 'completedVisits', label: 'Completed Visits' }
+                id: 'contacts_kpis',
+                title: 'Key Metrics Overview',
+                order: 0,
+                is_active: true,
+                widgets: [
+                  { id: 'totalLeads', type: 'KPI', title: 'Total Leads', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'PeopleIcon', data_key: 'cards.totalLeads' },
+                  { id: 'fresh', type: 'KPI', title: 'Fresh', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'AssignmentIcon', data_key: 'cards.fresh' },
+                  { id: 'callBack', type: 'KPI', title: 'Call Back', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'PhoneCallbackIcon', data_key: 'cards.callBack' },
+                  { id: 'interested', type: 'KPI', title: 'Interested', color: '#EAB308', bg: 'rgba(234,179,8,0.06)', icon: 'ThumbUpIcon', data_key: 'cards.interested' },
+                  { id: 'closedWon', type: 'KPI', title: 'Closed Won', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' },
+                  { id: 'notInterested', type: 'KPI', title: 'Not Interested', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'CancelIcon', data_key: 'cards.notInterested' },
+                  { id: 'closedLost', type: 'KPI', title: 'Closed Lost', color: '#F97316', bg: 'rgba(249,115,22,0.06)', icon: 'TrendingDownIcon', data_key: 'cards.closedLost' },
+                  { id: 'completedVisits', type: 'KPI', title: 'Completed Visits', color: '#14B8A6', bg: 'rgba(20,184,166,0.06)', icon: 'EventAvailableIcon', data_key: 'cards.completedVisits' },
+                  { id: 'scheduledVisits', type: 'KPI', title: 'Scheduled Visits', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'EventIcon', data_key: 'cards.scheduledVisits' }
                 ]
               },
               {
-                id: 'contacts_callback',
-                type: 'TABLE',
-                title: 'Callback Reasons Summary',
-                data_key: 'contacts.callBackReasons',
-                columns: [
-                  { key: 'associate', label: 'Associate/Group' },
-                  { key: 'total', label: 'Total Call Backs' }
+                id: 'contacts_details',
+                title: 'Leads Conversion & Breakdown',
+                order: 1,
+                is_active: true,
+                widgets: [
+                  {
+                    id: 'contacts_feedback',
+                    type: 'TABLE',
+                    title: 'Leads Feedback Breakdown',
+                    data_key: 'contacts.feedbackSummary',
+                    columns: [
+                      { key: 'associate', label: 'Associate/Group' },
+                      { key: 'total', label: 'Total' },
+                      { key: 'fresh', label: 'Fresh' },
+                      { key: 'callBack', label: 'Call Back' },
+                      { key: 'interested', label: 'Interested' },
+                      { key: 'won', label: 'Won' },
+                      { key: 'notInterested', label: 'Not Interested' },
+                      { key: 'lost', label: 'Lost' },
+                      { key: 'completedVisits', label: 'Completed Visits' }
+                    ]
+                  },
+                  {
+                    id: 'contacts_callback',
+                    type: 'TABLE',
+                    title: 'Callback Reasons Summary',
+                    data_key: 'contacts.callBackReasons',
+                    columns: [
+                      { key: 'associate', label: 'Associate/Group' },
+                      { key: 'total', label: 'Total Call Backs' }
+                    ]
+                  },
+                  {
+                    id: 'contacts_conversion_donut',
+                    type: 'CHART',
+                    title: 'Leads Conversion Distribution',
+                    chart_type: 'donut',
+                    data_key: 'contacts.chartData'
+                  }
                 ]
-              },
-              {
-                id: 'contacts_conversion_donut',
-                type: 'CHART',
-                title: 'Leads Conversion Distribution',
-                chart_type: 'donut',
-                data_key: 'contacts.chartData'
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: 1,
-        label: 'Tasks & Meetings',
-        widgets: [],
-        sections: [
-          {
-            id: 'tasks_overview',
-            title: 'Completed Task Metrics',
-            order: 0,
-            is_active: true,
-            widgets: [
-              {
-                id: 'tasks_completed',
-                type: 'TABLE',
-                title: 'Completed Tasks by Associate',
-                data_key: 'tasks.completedTasks',
-                columns: [
-                  { key: 'associate', label: 'Associate/Group' },
-                  { key: 'total', label: 'Total Completed' },
-                  { key: 'meeting', label: 'Meeting' },
-                  { key: 'callBack', label: 'Call Back' },
-                  { key: 'siteVisit', label: 'Site Visit' }
-                ]
-              },
-              {
-                id: 'tasks_completed_donut',
-                type: 'CHART',
-                title: 'Completed Tasks Distribution',
-                chart_type: 'donut',
-                data_key: 'tasks.completedChartData'
               }
             ]
           },
           {
-            id: 'tasks_pending_section',
-            title: 'Pending Task Metrics',
-            order: 1,
-            is_active: true,
-            widgets: [
+            id: 1,
+            label: 'Tasks & Meetings',
+            widgets: [],
+            sections: [
               {
-                id: 'tasks_pending',
-                type: 'TABLE',
-                title: 'Pending Tasks by Associate',
-                data_key: 'tasks.pendingTasks',
-                columns: [
-                  { key: 'associate', label: 'Associate/Group' },
-                  { key: 'total', label: 'Total Pending' },
-                  { key: 'meeting', label: 'Meeting' },
-                  { key: 'callBack', label: 'Call Back' },
-                  { key: 'siteVisit', label: 'Site Visit' }
+                id: 'tasks_overview',
+                title: 'Completed Task Metrics',
+                order: 0,
+                is_active: true,
+                widgets: [
+                  {
+                    id: 'tasks_completed',
+                    type: 'TABLE',
+                    title: 'Completed Tasks by Associate',
+                    data_key: 'tasks.completedTasks',
+                    columns: [
+                      { key: 'associate', label: 'Associate/Group' },
+                      { key: 'total', label: 'Total Completed' },
+                      { key: 'meeting', label: 'Meeting' },
+                      { key: 'callBack', label: 'Call Back' },
+                      { key: 'siteVisit', label: 'Site Visit' }
+                    ]
+                  },
+                  {
+                    id: 'tasks_completed_donut',
+                    type: 'CHART',
+                    title: 'Completed Tasks Distribution',
+                    chart_type: 'donut',
+                    data_key: 'tasks.completedChartData'
+                  }
                 ]
               },
               {
-                id: 'tasks_pending_donut',
-                type: 'CHART',
-                title: 'Pending Tasks Distribution',
-                chart_type: 'donut',
-                data_key: 'tasks.pendingChartData'
+                id: 'tasks_pending_section',
+                title: 'Pending Task Metrics',
+                order: 1,
+                is_active: true,
+                widgets: [
+                  {
+                    id: 'tasks_pending',
+                    type: 'TABLE',
+                    title: 'Pending Tasks by Associate',
+                    data_key: 'tasks.pendingTasks',
+                    columns: [
+                      { key: 'associate', label: 'Associate/Group' },
+                      { key: 'total', label: 'Total Pending' },
+                      { key: 'meeting', label: 'Meeting' },
+                      { key: 'callBack', label: 'Call Back' },
+                      { key: 'siteVisit', label: 'Site Visit' }
+                    ]
+                  },
+                  {
+                    id: 'tasks_pending_donut',
+                    type: 'CHART',
+                    title: 'Pending Tasks Distribution',
+                    chart_type: 'donut',
+                    data_key: 'tasks.pendingChartData'
+                  }
+                ]
               }
             ]
-          }
-        ]
-      },
-      {
-        id: 2,
-        label: 'Calling Analytics',
-        widgets: [],
-        sections: [
+          },
           {
-            id: 'calling_insights',
-            title: 'Call Tracking & Durations',
-            order: 0,
-            is_active: true,
-            widgets: [
+            id: 2,
+            label: 'Calling Analytics',
+            widgets: [],
+            sections: [
               {
-                id: 'call_trends_trend',
-                type: 'CHART',
-                title: 'Calling Trend',
-                chart_type: 'trend',
-                data_key: 'callLogs.callingTrends'
-              },
-              {
-                id: 'call_logs_table',
-                type: 'TABLE',
-                title: 'Call Duration Summary',
-                data_key: 'callLogs.callLogSummary',
-                columns: [
-                  { key: 'associate', label: 'Associate/Group' },
-                  { key: 'total', label: 'Total Calls' },
-                  { key: 'duration0', label: '0 Sec' },
-                  { key: 'duration0_30', label: '0-30 Sec' },
-                  { key: 'duration31_60', label: '31-60 Sec' },
-                  { key: 'duration61_120', label: '61-120 Sec' },
-                  { key: 'durationAbove120', label: '>120 Sec' }
+                id: 'calling_insights',
+                title: 'Call Tracking & Durations',
+                order: 0,
+                is_active: true,
+                widgets: [
+                  {
+                    id: 'call_trends_trend',
+                    type: 'CHART',
+                    title: 'Calling Trend',
+                    chart_type: 'trend',
+                    data_key: 'callLogs.callingTrends'
+                  },
+                  {
+                    id: 'call_logs_table',
+                    type: 'TABLE',
+                    title: 'Call Duration Summary',
+                    data_key: 'callLogs.callLogSummary',
+                    columns: [
+                      { key: 'associate', label: 'Associate/Group' },
+                      { key: 'total', label: 'Total Calls' },
+                      { key: 'duration0', label: '0 Sec' },
+                      { key: 'duration0_30', label: '0-30 Sec' },
+                      { key: 'duration31_60', label: '31-60 Sec' },
+                      { key: 'duration61_120', label: '61-120 Sec' },
+                      { key: 'durationAbove120', label: '>120 Sec' }
+                    ]
+                  }
                 ]
               }
             ]
           }
         ]
+      });
+    }
+  }
+
+  // Seed temp0002 through temp0007 Industry-Specific Analytics Configurations
+  const OTHER_INDUSTRIES = [
+    {
+      code: 'temp0002',
+      name: 'E-commerce',
+      tabs: [
+        {
+          id: 0,
+          label: 'Store & Sales Overview',
+          sections: [
+            {
+              id: 'ecom_kpis',
+              title: 'Key E-Commerce Metrics',
+              order: 0,
+              is_active: true,
+              widgets: [
+                { id: 'totalOrders', type: 'KPI', title: 'Total Orders', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'ShoppingBagIcon', data_key: 'cards.totalLeads' },
+                { id: 'cartRecovered', type: 'KPI', title: 'Cart Recovered', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'ShoppingCartIcon', data_key: 'cards.fresh' },
+                { id: 'repeatCustomers', type: 'KPI', title: 'Repeat Buyers', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'RepeatIcon', data_key: 'cards.interested' },
+                { id: 'grossSales', type: 'KPI', title: 'Gross Sales', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'AttachMoneyIcon', data_key: 'cards.closedWon' },
+                { id: 'refundClaims', type: 'KPI', title: 'Refund Claims', color: '#F97316', bg: 'rgba(249,115,22,0.06)', icon: 'AssignmentReturnIcon', data_key: 'cards.notInterested' }
+              ]
+            },
+            {
+              id: 'ecom_breakdown',
+              title: 'Order Status & Conversion',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'ecom_table',
+                  type: 'TABLE',
+                  title: 'Order Fulfillment Breakdown',
+                  data_key: 'contacts.feedbackSummary',
+                  columns: [
+                    { key: 'associate', label: 'Store Rep' },
+                    { key: 'total', label: 'Total Orders' },
+                    { key: 'fresh', label: 'Pending Payment' },
+                    { key: 'interested', label: 'Processing' },
+                    { key: 'won', label: 'Shipped' },
+                    { key: 'lost', label: 'Canceled' }
+                  ]
+                },
+                {
+                  id: 'ecom_donut',
+                  type: 'CHART',
+                  title: 'Fulfillment Status Distribution',
+                  chart_type: 'donut',
+                  data_key: 'contacts.chartData'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      code: 'temp0003',
+      name: 'Healthcare',
+      tabs: [
+        {
+          id: 0,
+          label: 'Clinical & Patient Overview',
+          sections: [
+            {
+              id: 'health_kpis',
+              title: 'Patient Care Metrics',
+              order: 0,
+              is_active: true,
+              widgets: [
+                { id: 'totalPatients', type: 'KPI', title: 'Patient Inquiries', color: '#14B8A6', bg: 'rgba(20,184,166,0.06)', icon: 'PeopleIcon', data_key: 'cards.totalLeads' },
+                { id: 'newAppointments', type: 'KPI', title: 'New Appointments', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'EventIcon', data_key: 'cards.fresh' },
+                { id: 'consultations', type: 'KPI', title: 'Consultations', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'LocalHospitalIcon', data_key: 'cards.interested' },
+                { id: 'treatmentPlans', type: 'KPI', title: 'Treatment Plans', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' }
+              ]
+            },
+            {
+              id: 'health_breakdown',
+              title: 'Specialty & Department Breakdown',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'health_table',
+                  type: 'TABLE',
+                  title: 'Specialty Consultation Summary',
+                  data_key: 'contacts.feedbackSummary',
+                  columns: [
+                    { key: 'associate', label: 'Medical Rep / Doctor' },
+                    { key: 'total', label: 'Total Inquiries' },
+                    { key: 'fresh', label: 'Scheduled' },
+                    { key: 'interested', label: 'Consulted' },
+                    { key: 'won', label: 'In-Treatment' }
+                  ]
+                },
+                {
+                  id: 'health_donut',
+                  type: 'CHART',
+                  title: 'Specialty Inquiry Distribution',
+                  chart_type: 'donut',
+                  data_key: 'contacts.chartData'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      code: 'temp0004',
+      name: 'Education',
+      tabs: [
+        {
+          id: 0,
+          label: 'Admissions & Enrollment',
+          sections: [
+            {
+              id: 'edu_kpis',
+              title: 'Enrollment Metrics',
+              order: 0,
+              is_active: true,
+              widgets: [
+                { id: 'totalApplicants', type: 'KPI', title: 'Total Applicants', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'SchoolIcon', data_key: 'cards.totalLeads' },
+                { id: 'counseling', type: 'KPI', title: 'Counseling Scheduled', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'AssignmentIcon', data_key: 'cards.fresh' },
+                { id: 'entrancePassed', type: 'KPI', title: 'Entrance Passed', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.interested' },
+                { id: 'enrolled', type: 'KPI', title: 'Total Enrolled', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'GradeIcon', data_key: 'cards.closedWon' }
+              ]
+            },
+            {
+              id: 'edu_breakdown',
+              title: 'Program Application Summary',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'edu_table',
+                  type: 'TABLE',
+                  title: 'Degree / Program Conversion',
+                  data_key: 'contacts.feedbackSummary',
+                  columns: [
+                    { key: 'associate', label: 'Admissions Counselor' },
+                    { key: 'total', label: 'Total Inquiries' },
+                    { key: 'fresh', label: 'Counseling' },
+                    { key: 'interested', label: 'Test Passed' },
+                    { key: 'won', label: 'Enrolled' }
+                  ]
+                },
+                {
+                  id: 'edu_donut',
+                  type: 'CHART',
+                  title: 'Course Admissions Distribution',
+                  chart_type: 'donut',
+                  data_key: 'contacts.chartData'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      code: 'temp0005',
+      name: 'Financial Services',
+      tabs: [
+        {
+          id: 0,
+          label: 'Loan & Policy Portfolio',
+          sections: [
+            {
+              id: 'fin_kpis',
+              title: 'Portfolio & Application KPIs',
+              order: 0,
+              is_active: true,
+              widgets: [
+                { id: 'loanApps', type: 'KPI', title: 'Applications', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'AccountBalanceIcon', data_key: 'cards.totalLeads' },
+                { id: 'kycDone', type: 'KPI', title: 'KYC Verified', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'VerifiedUserIcon', data_key: 'cards.fresh' },
+                { id: 'sanctioned', type: 'KPI', title: 'Underwriting Passed', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'ThumbUpIcon', data_key: 'cards.interested' },
+                { id: 'disbursed', type: 'KPI', title: 'Disbursed', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' }
+              ]
+            },
+            {
+              id: 'fin_breakdown',
+              title: 'Financial Product Conversion',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'fin_table',
+                  type: 'TABLE',
+                  title: 'Product Line Performance',
+                  data_key: 'contacts.feedbackSummary',
+                  columns: [
+                    { key: 'associate', label: 'Financial Advisor' },
+                    { key: 'total', label: 'Applications' },
+                    { key: 'fresh', label: 'KYC Done' },
+                    { key: 'interested', label: 'Sanctioned' },
+                    { key: 'won', label: 'Disbursed' }
+                  ]
+                },
+                {
+                  id: 'fin_donut',
+                  type: 'CHART',
+                  title: 'Product Line Distribution',
+                  chart_type: 'donut',
+                  data_key: 'contacts.chartData'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      code: 'temp0006',
+      name: 'IT & Tech Services',
+      tabs: [
+        {
+          id: 0,
+          label: 'RFP & Proposal Pipeline',
+          sections: [
+            {
+              id: 'it_kpis',
+              title: 'Tech Pipeline Metrics',
+              order: 0,
+              is_active: true,
+              widgets: [
+                { id: 'activeRfps', type: 'KPI', title: 'RFPs Received', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'ComputerIcon', data_key: 'cards.totalLeads' },
+                { id: 'techDiscovery', type: 'KPI', title: 'Tech Discovery', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'SearchIcon', data_key: 'cards.fresh' },
+                { id: 'proposalsSent', type: 'KPI', title: 'Proposals Sent', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'DescriptionIcon', data_key: 'cards.interested' },
+                { id: 'sowSigned', type: 'KPI', title: 'SOW Signed', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' }
+              ]
+            },
+            {
+              id: 'it_breakdown',
+              title: 'Service Line RFP Conversion',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'it_table',
+                  type: 'TABLE',
+                  title: 'Service Line Conversion',
+                  data_key: 'contacts.feedbackSummary',
+                  columns: [
+                    { key: 'associate', label: 'Tech Lead / BD' },
+                    { key: 'total', label: 'Total RFPs' },
+                    { key: 'fresh', label: 'Discovery' },
+                    { key: 'interested', label: 'Proposal Sent' },
+                    { key: 'won', label: 'SOW Signed' }
+                  ]
+                },
+                {
+                  id: 'it_donut',
+                  type: 'CHART',
+                  title: 'Service Line Distribution',
+                  chart_type: 'donut',
+                  data_key: 'contacts.chartData'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      code: 'temp0007',
+      name: 'Manufacturing',
+      tabs: [
+        {
+          id: 0,
+          label: 'Dealer & Supply Network',
+          sections: [
+            {
+              id: 'mfg_kpis',
+              title: 'Supply Chain Metrics',
+              order: 0,
+              is_active: true,
+              widgets: [
+                { id: 'dealerRfqs', type: 'KPI', title: 'Dealer RFQs', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'BuildIcon', data_key: 'cards.totalLeads' },
+                { id: 'moqApproved', type: 'KPI', title: 'MOQ Approved', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.fresh' },
+                { id: 'productionBatches', type: 'KPI', title: 'In Production', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'PrecisionManufacturingIcon', data_key: 'cards.interested' },
+                { id: 'shippedOrders', type: 'KPI', title: 'Shipped Orders', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'LocalShippingIcon', data_key: 'cards.closedWon' }
+              ]
+            },
+            {
+              id: 'mfg_breakdown',
+              title: 'Product Line Order Breakdown',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'mfg_table',
+                  type: 'TABLE',
+                  title: 'Dealer Category Order Summary',
+                  data_key: 'contacts.feedbackSummary',
+                  columns: [
+                    { key: 'associate', label: 'Dealer Rep' },
+                    { key: 'total', label: 'Total RFQs' },
+                    { key: 'fresh', label: 'MOQ Approved' },
+                    { key: 'interested', label: 'Production' },
+                    { key: 'won', label: 'Shipped' }
+                  ]
+                },
+                {
+                  id: 'mfg_donut',
+                  type: 'CHART',
+                  title: 'Product Category Distribution',
+                  chart_type: 'donut',
+                  data_key: 'contacts.chartData'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ];
+
+  for (const item of OTHER_INDUSTRIES) {
+    const indDoc = await Industry.findOne({ code: item.code });
+    if (!indDoc) continue;
+    const indIdStr = String(indDoc._id);
+
+    const existing = await AnalyticsConfig.findOne({ industry_id: indIdStr });
+    if (!existing || !existing.tabs || existing.tabs.length === 0) {
+      if (existing) {
+        await AnalyticsConfig.deleteOne({ _id: existing._id });
       }
-    ]
-  });
-  console.log('[seed] Successfully seeded dynamic Analytics configurations with sections.');
+      await AnalyticsConfig.create({
+        industry_id: indIdStr,
+        dashboard_key: 'default',
+        tabs: item.tabs
+      });
+      console.log(`[seed] Seeded AnalyticsConfig for ${item.name} (${item.code})`);
+    }
+  }
+
+  console.log('[seed] Successfully seeded dynamic Analytics configurations across all industry verticals.');
 }
 
 async function seedAdminAnalyticsSidebarPermissions() {
   const SidebarMenu = mongoose.model('SidebarMenu');
   const SidebarPermission = mongoose.model('SidebarPermission');
   const Role = mongoose.model('Role');
+  const Industry = mongoose.model('Industry');
 
-  const parentAnalytics = await SidebarMenu.findOne({ key: 'analytics', parent_id: null, organization_id: null }).lean().exec();
-  const dashChild = await SidebarMenu.findOne({ key: 'analytics.dashboard', organization_id: null }).lean().exec();
-  const configChild = await SidebarMenu.findOne({ key: 'analytics.config', organization_id: null }).lean().exec();
-  const parentUsers = await SidebarMenu.findOne({ key: 'users', parent_id: null, organization_id: null }).lean().exec();
-  const usersListChild = await SidebarMenu.findOne({ key: 'users.list', organization_id: null }).lean().exec();
-  const uiNavConfigMenu = await SidebarMenu.findOne({ key: 'uiNavigation.analyticsConfig', organization_id: null }).lean().exec();
+  // 1. Master Catalog Case-Insensitive Sanitization & Reference Re-linking
+  const allRawMenus = await SidebarMenu.find({}).sort({ created_at: 1, _id: 1 }).lean().exec();
+  const canonicalMap = new Map();
 
-  if (!parentAnalytics) return;
+  for (const m of allRawMenus) {
+    const keyLower = String(m.key || '').toLowerCase().trim();
+    if (!keyLower) continue;
 
-  const adminRoles = await Role.find({ key: 'admin' }).lean().exec();
+    if (!canonicalMap.has(keyLower)) {
+      canonicalMap.set(keyLower, m);
+      if (m.industry_id !== null) {
+        await SidebarMenu.updateOne({ _id: m._id }, { $set: { industry_id: null } });
+      }
+    } else {
+      const canonicalDoc = canonicalMap.get(keyLower);
+      const duplicateId = m._id;
+      const canonicalId = canonicalDoc._id;
 
-  for (const r of adminRoles) {
-    const orgId = r.organization_id || null;
-    const indId = r.industry_id;
+      // Re-point SidebarPermission records from duplicateId to canonicalId
+      await SidebarPermission.updateMany({ menu_id: duplicateId }, { $set: { menu_id: canonicalId } });
 
-    // Analytics: Top level leaf route /analytics
-    await SidebarMenu.updateOne({ _id: parentAnalytics._id }, { $set: { route: '/analytics' } });
-    await SidebarPermission.updateOne(
-      { role_id: r._id, menu_id: parentAnalytics._id, organization_id: orgId },
-      { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'analytics' } },
-      { upsert: true }
-    );
+      // Re-point child menus from duplicateId to canonicalId
+      await SidebarMenu.updateMany({ parent_id: duplicateId }, { $set: { parent_id: canonicalId } });
 
-    // Remove submenus under Analytics for admin role
-    if (dashChild) {
-      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: dashChild._id, organization_id: orgId });
-    }
-    if (configChild) {
-      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: configChild._id, organization_id: orgId });
-    }
-
-    // Users: Top level leaf route /users
-    if (parentUsers) {
-      await SidebarMenu.updateOne({ _id: parentUsers._id }, { $set: { route: '/users' } });
-      await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: parentUsers._id, organization_id: orgId },
-        { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'users' } },
-        { upsert: true }
-      );
-    }
-    if (usersListChild) {
-      await SidebarPermission.deleteOne({ role_id: r._id, menu_id: usersListChild._id, organization_id: orgId });
-    }
-
-    // Ensure Layout Builder (uiNavigation.analyticsConfig) under UI & Navigation is visible for admin and superAdmin
-    if (uiNavConfigMenu) {
-      await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: uiNavConfigMenu._id, organization_id: orgId },
-        { $set: { is_visible: true, industry_id: indId, role_key: 'admin', menu_key: 'uiNavigation.analyticsConfig' } },
-        { upsert: true }
-      );
+      // Permanently delete redundant duplicate menu document
+      await SidebarMenu.deleteOne({ _id: duplicateId });
     }
   }
 
-  const invoicesLogsMenu = await SidebarMenu.findOne({ key: 'invoices.paymentLogs' }).lean().exec();
-  const receiptsMenu = await SidebarMenu.findOne({ key: 'invoices.receiptsHistory' }).lean().exec();
+  // Deduplicate any resulting duplicate permissions
+  const allPerms = await SidebarPermission.find({}).lean().exec();
+  const permSeen = new Set();
+  for (const p of allPerms) {
+    const pKey = `${p.role_id}_${p.industry_id}_${p.menu_id}_${p.organization_id || 'global'}`;
+    if (permSeen.has(pKey)) {
+      await SidebarPermission.deleteOne({ _id: p._id });
+    } else {
+      permSeen.add(pKey);
+    }
+  }
 
+  // Ensure default temp0001 industry exists
+  let temp0001Ind = await Industry.findOne({ code: 'temp0001' }).exec();
+  if (!temp0001Ind) {
+    temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', isActive: true });
+  }
+
+  const allMenus = await SidebarMenu.find({}).lean().exec();
+  if (!allMenus.length) return;
+
+  // 2. Grant FULL sidebar permissions to all superAdmin roles
   const superAdminRoles = await Role.find({ key: 'superAdmin' }).lean().exec();
   for (const r of superAdminRoles) {
     const orgId = r.organization_id || null;
-    const indId = r.industry_id;
-    if (uiNavConfigMenu) {
+    const indId = r.industry_id || temp0001Ind._id;
+    for (const menu of allMenus) {
       await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: uiNavConfigMenu._id, organization_id: orgId },
-        { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'uiNavigation.analyticsConfig' } },
-        { upsert: true }
-      );
-    }
-    if (invoicesLogsMenu) {
-      await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: invoicesLogsMenu._id, organization_id: orgId },
-        { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'invoices.paymentLogs' } },
-        { upsert: true }
-      );
-    }
-    if (receiptsMenu) {
-      await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: receiptsMenu._id, organization_id: orgId },
-        { $set: { is_visible: true, industry_id: indId, role_key: 'superAdmin', menu_key: 'invoices.receiptsHistory' } },
+        { role_id: r._id, menu_id: menu._id, organization_id: orgId },
+        {
+          $set: {
+            is_visible: true,
+            industry_id: indId,
+            role_key: 'superAdmin',
+            menu_key: menu.key,
+          },
+          $setOnInsert: {
+            role_id: r._id,
+            menu_id: menu._id,
+            organization_id: orgId,
+          },
+        },
         { upsert: true }
       );
     }
   }
 
-  console.log('[seed] Successfully updated Admin and SuperAdmin sidebar permissions (Layout Builder included).');
+  // 3. Grant FULL standard sidebar permissions to all admin roles
+  const adminRoles = await Role.find({ key: 'admin' }).lean().exec();
+  for (const r of adminRoles) {
+    const orgId = r.organization_id || null;
+    const indId = r.industry_id || temp0001Ind._id;
+    for (const menu of allMenus) {
+      await SidebarPermission.updateOne(
+        { role_id: r._id, menu_id: menu._id, organization_id: orgId },
+        {
+          $set: {
+            is_visible: true,
+            industry_id: indId,
+            role_key: 'admin',
+            menu_key: menu.key,
+          },
+          $setOnInsert: {
+            role_id: r._id,
+            menu_id: menu._id,
+            organization_id: orgId,
+          },
+        },
+        { upsert: true }
+      );
+    }
+  }
+
+  const finalMenuCount = await SidebarMenu.countDocuments();
+  console.log(`[seed] Master SidebarMenu catalog sanitized: ${finalMenuCount} canonical global menus in DB.`);
 }
 
 module.exports = {

@@ -34,20 +34,25 @@ const SidebarPermission = mongoose.model(
 
 exports.SidebarPermission = SidebarPermission;
 
-exports.list = async ({ roleId, industryId, menuId, menu_id, visibleOnly = false } = {}) => {
+exports.list = async ({ roleId, industryId, menuId, menu_id, visibleOnly = false, organizationId, organization_id } = {}) => {
   const mId = menuId || menu_id;
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
   const q = {};
   if (roleId) q.role_id = roleId;
   if (industryId) q.industry_id = industryId;
   if (mId) q.menu_id = mId;
   if (visibleOnly) q.is_visible = true;
+  if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
+    q.$or = [{ organization_id: orgId }, { organization_id: null }];
+  }
   return SidebarPermission.find(q).exec();
 };
 
 exports.findById = async (id) => SidebarPermission.findById(id).exec();
 
-exports.upsert = async ({ roleId, industryId, menuId, menu_id, isVisible, is_visible, orderOverride, order_override }) => {
+exports.upsert = async ({ roleId, industryId, menuId, menu_id, isVisible, is_visible, orderOverride, order_override, organizationId, organization_id }) => {
   const mId = menuId || menu_id;
+  const orgId = organizationId !== undefined ? organizationId : (organization_id !== undefined ? organization_id : null);
   const vis = isVisible !== undefined ? isVisible : is_visible;
   const ord = orderOverride !== undefined ? orderOverride : order_override;
   const $set = {};
@@ -55,19 +60,21 @@ exports.upsert = async ({ roleId, industryId, menuId, menu_id, isVisible, is_vis
   if (ord !== undefined) {
     $set.order_override = ord === null ? null : Number(ord);
   }
+  const q = { role_id: roleId, industry_id: industryId, menu_id: mId, organization_id: orgId };
   await SidebarPermission.updateOne(
-    { role_id: roleId, industry_id: industryId, menu_id: mId },
-    { $set, $setOnInsert: { role_id: roleId, industry_id: industryId, menu_id: mId } },
+    q,
+    { $set, $setOnInsert: q },
     { upsert: true },
   );
-  return SidebarPermission.findOne({ role_id: roleId, industry_id: industryId, menu_id: mId }).exec();
+  return SidebarPermission.findOne(q).exec();
 };
 
 exports.remove = async (id) => SidebarPermission.findByIdAndDelete(id).exec();
 
-exports.removeByCombo = async ({ roleId, industryId, menuId, menu_id }) => {
+exports.removeByCombo = async ({ roleId, industryId, menuId, menu_id, organizationId, organization_id }) => {
   const mId = menuId || menu_id;
-  return SidebarPermission.deleteOne({ role_id: roleId, industry_id: industryId, menu_id: mId }).exec();
+  const orgId = organizationId !== undefined ? organizationId : (organization_id !== undefined ? organization_id : null);
+  return SidebarPermission.deleteOne({ role_id: roleId, industry_id: industryId, menu_id: mId, organization_id: orgId }).exec();
 };
 
 exports.removeByRoleIndustry = async ({ roleId, industryId }) =>
@@ -82,25 +89,27 @@ exports.removeByRole = async (roleId) =>
 exports.removeByMenu = async (menuId) =>
   SidebarPermission.deleteMany({ menu_id: menuId }).exec();
 
-exports.bulkSetForRoleIndustry = async ({ roleId, industryId, menuIds, menu_ids }) => {
+exports.bulkSetForRoleIndustry = async ({ roleId, industryId, menuIds, menu_ids, organizationId, organization_id }) => {
   const ids = Array.isArray(menuIds || menu_ids) ? (menuIds || menu_ids) : [];
+  const orgId = organizationId !== undefined ? organizationId : (organization_id !== undefined ? organization_id : null);
   await SidebarPermission.deleteMany({
     role_id: roleId,
     industry_id: industryId,
+    organization_id: orgId,
     menu_id: { $nin: ids },
   });
   if (ids.length) {
     const ops = ids.map((menuId) => ({
       updateOne: {
-        filter: { role_id: roleId, industry_id: industryId, menu_id: menuId },
+        filter: { role_id: roleId, industry_id: industryId, menu_id: menuId, organization_id: orgId },
         update: {
           $set: { is_visible: true },
-          $setOnInsert: { role_id: roleId, industry_id: industryId, menu_id: menuId },
+          $setOnInsert: { role_id: roleId, industry_id: industryId, menu_id: menuId, organization_id: orgId },
         },
         upsert: true,
       },
     }));
     await SidebarPermission.bulkWrite(ops, { ordered: false });
   }
-  return SidebarPermission.find({ role_id: roleId, industry_id: industryId }).exec();
+  return SidebarPermission.find({ role_id: roleId, industry_id: industryId, organization_id: orgId }).exec();
 };

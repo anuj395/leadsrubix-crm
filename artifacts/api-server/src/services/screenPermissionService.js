@@ -105,7 +105,11 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const orgId = organizationId || authedUser?.organizationId || null;
 
   const ScreenModel = mongoose.model('Screen');
-  const screen = await ScreenModel.findOne({ key: finalScreenKey, organization_id: orgId });
+  let screen = await ScreenModel.findOne({
+    key: finalScreenKey,
+    $or: [{ organization_id: orgId }, { organization_id: null }]
+  }).sort({ organization_id: -1 }).exec();
+
   if (!screen || !screen.is_active) {
     const err = new Error('Screen not found');
     err.status = 404;
@@ -159,10 +163,10 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   if (!bypassPermissions) {
     const RoleModel = mongoose.model('Role');
     role = await RoleModel.findOne({
-      organization_id: orgId,
+      $or: [{ organization_id: orgId }, { organization_id: null }],
       industry_id: industry._id,
       key: resolvedRoleKey
-    }).exec();
+    }).sort({ organization_id: -1 }).exec();
 
     if (!role && resolvedRoleKey === 'superAdmin') {
       try {
@@ -188,7 +192,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const ScreenFieldModel = mongoose.model('ScreenField');
   const fields = await ScreenFieldModel.find({
     screen_id: screen._id,
-    organization_id: orgId,
+    $or: [{ organization_id: orgId }, { organization_id: null }],
     is_active: true
   }).lean().exec();
 
@@ -207,13 +211,23 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     allowed = fields;
   } else {
     const ScreenPermissionModel = mongoose.model('ScreenPermission');
-    const perms = await ScreenPermissionModel.find({
+    let perms = await ScreenPermissionModel.find({
       organization_id: orgId,
       screen_id: screen._id,
       role_id: role._id,
       industry_id: industry._id,
       is_enabled: true
     }).lean().exec();
+
+    if (!perms.length && orgId) {
+      perms = await ScreenPermissionModel.find({
+        organization_id: null,
+        screen_id: screen._id,
+        role_id: role._id,
+        industry_id: industry._id,
+        is_enabled: true
+      }).lean().exec();
+    }
 
     const allowedFieldIds = new Set(perms.map((p) => String(p.field_id)));
     allowed = fields.filter((f) => allowedFieldIds.has(String(f._id)));

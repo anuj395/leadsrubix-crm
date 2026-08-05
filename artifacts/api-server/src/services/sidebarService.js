@@ -147,18 +147,19 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     })
     .sort((a, b) => a.order - b.order);
 
-  // Deduplicate by menu key to guarantee zero duplicate sidebar items
+  // Deduplicate by menu key (case-insensitive) to guarantee zero duplicate sidebar items
   const itemsMap = new Map();
   for (const item of rawItems) {
     if (item.key === 'account.subscriptionDetails' && rawItems.some((i) => i.key === 'account.subscription')) {
       continue;
     }
 
-    const existing = itemsMap.get(item.key);
+    const keyLower = String(item.key || '').toLowerCase().trim();
+    const existing = itemsMap.get(keyLower);
     if (!existing) {
-      itemsMap.set(item.key, item);
+      itemsMap.set(keyLower, item);
     } else if (item.organization_id && !existing.organization_id) {
-      itemsMap.set(item.key, item);
+      itemsMap.set(keyLower, item);
     }
   }
 

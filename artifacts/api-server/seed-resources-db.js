@@ -1,7 +1,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/leadsrubix-migrate-crm';
+const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/leadsrubix-migrate-crm-dev';
 const ScreenSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
   name: { type: String, required: true },

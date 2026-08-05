@@ -34,12 +34,25 @@ exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId,
   if (activeOnly) q.is_active = true;
   if (pId !== undefined) q.parent_id = pId;
   const orgId = organizationId !== undefined ? organizationId : organization_id;
-  if (orgId !== undefined) {
+  if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
     q.$or = [{ organization_id: orgId }, { organization_id: null }];
   }
   const indId = industryId !== undefined ? industryId : industry_id;
   if (indId) q.industry_id = indId;
-  return SidebarMenu.find(q).sort({ order: 1, name: 1 }).exec();
+
+  const rawList = await SidebarMenu.find(q).sort({ order: 1, name: 1 }).exec();
+
+  const menuMap = new Map();
+  for (const m of rawList) {
+    const key = m.key;
+    if (!menuMap.has(key)) {
+      menuMap.set(key, m);
+    } else if (orgId && (m.organization_id === orgId || m.organizationId === orgId)) {
+      menuMap.set(key, m);
+    }
+  }
+
+  return Array.from(menuMap.values());
 };
 
 exports.findChildren = async (parentId) =>
