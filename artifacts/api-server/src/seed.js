@@ -54,10 +54,10 @@ const DEFAULT_SIDEBAR_CONFIGS = [
 
         { key: 'configuration.projects', name: 'Projects', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
         { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
-        { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holidayConfig', icon: 'holiday', module: 'configuration' },
-        { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/daysConfig', icon: 'days', module: 'configuration' },
+        { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holiday-config', icon: 'holiday', module: 'configuration' },
+        { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/days-config', icon: 'days', module: 'configuration' },
 
-        { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list', module: 'leadDistribution' },
+        { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/lead-distribution/list', icon: 'list', module: 'leadDistribution' },
         { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' },
 
         { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', module: 'integrations' },
@@ -88,7 +88,7 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', module: 'leads' },
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
-        { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/areaConverter', icon: 'areaConverter', module: 'tool' },
+        { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/area-converter', icon: 'areaConverter', module: 'tool' },
         { key: 'tool.calculator', name: 'Calculator', route: '/tool/calculator', icon: 'calculator', module: 'tool' },
         { key: 'tool.emiCalculator', name: 'EMI Calculator', route: '/tool/emi-calculator', icon: 'emiCalculator', module: 'tool' }
       ],
@@ -98,7 +98,7 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', module: 'leads' },
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
-        { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/areaConverter', icon: 'areaConverter', module: 'tool' },
+        { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/area-converter', icon: 'areaConverter', module: 'tool' },
         { key: 'tool.calculator', name: 'Calculator', route: '/tool/calculator', icon: 'calculator', module: 'tool' },
         { key: 'tool.emiCalculator', name: 'EMI Calculator', route: '/tool/emi-calculator', icon: 'emiCalculator', module: 'tool' }
       ],
@@ -109,7 +109,7 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', module: 'leads' },
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
-        { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/areaConverter', icon: 'areaConverter', module: 'tool' },
+        { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/area-converter', icon: 'areaConverter', module: 'tool' },
         { key: 'tool.calculator', name: 'Calculator', route: '/tool/calculator', icon: 'calculator', module: 'tool' },
         { key: 'tool.emiCalculator', name: 'EMI Calculator', route: '/tool/emi-calculator', icon: 'emiCalculator', module: 'tool' }
       ]
@@ -1082,7 +1082,7 @@ async function seedLeadDistributionSidebar() {
 
   // 4. Define child menus
   const children = [
-    { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/leadDistribution/list', icon: 'list' },
+    { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/lead-distribution/list', icon: 'list' },
     { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList' },
   ];
 
@@ -1888,45 +1888,95 @@ async function seedAdminAnalyticsSidebarPermissions() {
   const Role = mongoose.model('Role');
   const Industry = mongoose.model('Industry');
 
-  // 1. Master Catalog Case-Insensitive Sanitization & Reference Re-linking
-  const allRawMenus = await SidebarMenu.find({}).sort({ created_at: 1, _id: 1 }).lean().exec();
-  const canonicalMap = new Map();
+  // 1. Enforce Master Catalog, Legacy Key Remapping & Order Consolidation
+  const CANONICAL_MENUS = [
+    { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', parentKey: null, order: 10 },
+    { key: 'organization', name: 'Organization', route: '/organization/list', icon: 'organization', parentKey: null, order: 20 },
+    { key: 'users', name: 'Users', route: '/users', icon: 'users', parentKey: null, order: 30 },
+    { key: 'leads', name: 'Lead Section', route: '', icon: 'leads', parentKey: null, order: 40 },
+    { key: 'configuration', name: 'Configuration', route: '', icon: 'configuration', parentKey: null, order: 50 },
+    { key: 'integrations', name: 'Integrations', route: '', icon: 'integrations', parentKey: null, order: 60 },
+    { key: 'uiNavigation', name: 'UI & Navigation', route: '', icon: 'sidebar', parentKey: null, order: 70 },
+    { key: 'accessControl', name: 'Access Control', route: '', icon: 'shield', parentKey: null, order: 80 },
+    { key: 'invoices', name: 'Invoices', route: '', icon: 'billing', parentKey: null, order: 90 },
+    { key: 'support', name: 'Support', route: '', icon: 'support', parentKey: null, order: 100 },
+    { key: 'account', name: 'Account & Settings', route: '', icon: 'account', parentKey: null, order: 110 },
 
-  for (const m of allRawMenus) {
-    const keyLower = String(m.key || '').toLowerCase().trim();
-    if (!keyLower) continue;
+    { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', parentKey: 'leads', order: 41 },
+    { key: 'leads.tasks', name: 'Tasks List', route: '/leads/tasks', icon: 'tasks', parentKey: 'leads', order: 42 },
+    { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', parentKey: 'leads', order: 43 },
+    { key: 'leads.sorted', name: 'Sorted List', route: '/leads/sorted', icon: 'sort', parentKey: 'leads', order: 44 },
 
-    if (!canonicalMap.has(keyLower)) {
-      canonicalMap.set(keyLower, m);
-      if (m.industry_id !== null) {
-        await SidebarMenu.updateOne({ _id: m._id }, { $set: { industry_id: null } });
-      }
-    } else {
-      const canonicalDoc = canonicalMap.get(keyLower);
-      const duplicateId = m._id;
-      const canonicalId = canonicalDoc._id;
+    { key: 'configuration.industries', name: 'Industry', route: '/configuration/industries', icon: 'organization', parentKey: 'configuration', order: 51 },
+    { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', parentKey: 'configuration', order: 52 },
+    { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', parentKey: 'configuration', order: 53 },
 
-      // Re-point SidebarPermission records from duplicateId to canonicalId
-      await SidebarPermission.updateMany({ menu_id: duplicateId }, { $set: { menu_id: canonicalId } });
+    { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 61 },
+    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/configuration/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 62 },
 
-      // Re-point child menus from duplicateId to canonicalId
-      await SidebarMenu.updateMany({ parent_id: duplicateId }, { $set: { parent_id: canonicalId } });
+    { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/configuration/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 71 },
+    { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/configuration/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 72 },
+    { key: 'uiNavigation.screens', name: 'Screens', route: '/configuration/screens', icon: 'headers', parentKey: 'uiNavigation', order: 73 },
+    { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/configuration/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 74 },
 
-      // Permanently delete redundant duplicate menu document
-      await SidebarMenu.deleteOne({ _id: duplicateId });
+    { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'shield', parentKey: 'accessControl', order: 81 },
+    { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/configuration/permissions', icon: 'shield', parentKey: 'accessControl', order: 82 },
+    { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/configuration/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 83 },
+
+    { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/account/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 91 },
+    { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/account/receipts-history', icon: 'subscription', parentKey: 'invoices', order: 92 },
+
+    { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', parentKey: 'support', order: 101 },
+    { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', parentKey: 'support', order: 102 },
+
+    { key: 'account.licenses', name: 'License Cost', route: '/account/licenses', icon: 'billing', parentKey: 'account', order: 111 },
+    { key: 'account.coupons', name: 'Coupons', route: '/account/coupons', icon: 'coupon', parentKey: 'account', order: 112 },
+    { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', parentKey: 'account', order: 113 },
+  ];
+
+  // Build canonical menu documents map by key
+  const menuDocMap = new Map();
+  for (const item of CANONICAL_MENUS) {
+    let parentId = null;
+    if (item.parentKey) {
+      const parentDoc = menuDocMap.get(item.parentKey);
+      if (parentDoc) parentId = parentDoc._id;
     }
-  }
 
-  // Deduplicate any resulting duplicate permissions
-  const allPerms = await SidebarPermission.find({}).lean().exec();
-  const permSeen = new Set();
-  for (const p of allPerms) {
-    const pKey = `${p.role_id}_${p.industry_id}_${p.menu_id}_${p.organization_id || 'global'}`;
-    if (permSeen.has(pKey)) {
-      await SidebarPermission.deleteOne({ _id: p._id });
+    let existingDoc = await SidebarMenu.findOne({ key: item.key, organization_id: null });
+    if (!existingDoc) {
+      existingDoc = await SidebarMenu.create({
+        key: item.key,
+        name: item.name,
+        route: item.route,
+        icon: item.icon,
+        module: item.parentKey || item.key,
+        parent_id: parentId,
+        order: item.order,
+        organization_id: null,
+        industry_id: null,
+        isActive: true,
+      });
     } else {
-      permSeen.add(pKey);
+      await SidebarMenu.updateOne(
+        { _id: existingDoc._id },
+        {
+          $set: {
+            name: item.name,
+            route: item.route,
+            icon: item.icon,
+            module: item.parentKey || item.key,
+            parent_id: parentId,
+            order: item.order,
+            organization_id: null,
+            industry_id: null,
+            isActive: true,
+          },
+        }
+      );
+      existingDoc = await SidebarMenu.findOne({ _id: existingDoc._id });
     }
+    menuDocMap.set(item.key, existingDoc);
   }
 
   // Ensure default temp0001 industry exists
@@ -1935,7 +1985,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
     temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', isActive: true });
   }
 
-  const allMenus = await SidebarMenu.find({}).lean().exec();
+  const allMenus = Array.from(menuDocMap.values());
   if (!allMenus.length) return;
 
   // 2. Grant FULL sidebar permissions to all superAdmin roles
@@ -1944,23 +1994,21 @@ async function seedAdminAnalyticsSidebarPermissions() {
     const orgId = r.organization_id || null;
     const indId = r.industry_id || temp0001Ind._id;
     for (const menu of allMenus) {
-      await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: menu._id, organization_id: orgId },
-        {
-          $set: {
-            is_visible: true,
-            industry_id: indId,
-            role_key: 'superAdmin',
-            menu_key: menu.key,
+      try {
+        await SidebarPermission.updateOne(
+          { role_id: r._id, industry_id: indId, menu_id: menu._id, organization_id: orgId },
+          {
+            $set: {
+              is_visible: true,
+              role_key: 'superAdmin',
+              menu_key: menu.key,
+            },
           },
-          $setOnInsert: {
-            role_id: r._id,
-            menu_id: menu._id,
-            organization_id: orgId,
-          },
-        },
-        { upsert: true }
-      );
+          { upsert: true }
+        );
+      } catch (e) {
+        // ignore duplicate index conflicts
+      }
     }
   }
 
@@ -1970,23 +2018,21 @@ async function seedAdminAnalyticsSidebarPermissions() {
     const orgId = r.organization_id || null;
     const indId = r.industry_id || temp0001Ind._id;
     for (const menu of allMenus) {
-      await SidebarPermission.updateOne(
-        { role_id: r._id, menu_id: menu._id, organization_id: orgId },
-        {
-          $set: {
-            is_visible: true,
-            industry_id: indId,
-            role_key: 'admin',
-            menu_key: menu.key,
+      try {
+        await SidebarPermission.updateOne(
+          { role_id: r._id, industry_id: indId, menu_id: menu._id, organization_id: orgId },
+          {
+            $set: {
+              is_visible: true,
+              role_key: 'admin',
+              menu_key: menu.key,
+            },
           },
-          $setOnInsert: {
-            role_id: r._id,
-            menu_id: menu._id,
-            organization_id: orgId,
-          },
-        },
-        { upsert: true }
-      );
+          { upsert: true }
+        );
+      } catch (e) {
+        // ignore duplicate index conflicts
+      }
     }
   }
 

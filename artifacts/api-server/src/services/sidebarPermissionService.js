@@ -45,7 +45,7 @@ exports.upsert = async (payload) => {
   return permModel.upsert(payload);
 };
 
-exports.bulkSet = async ({ roleId, industryId, menu_ids }) => {
+exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }) => {
   if (!roleId || !industryId) {
     const err = new Error('roleId and industryId are required');
     err.status = 400;
@@ -69,7 +69,7 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids }) => {
     err.status = 400;
     throw err;
   }
-  return permModel.bulkSetForRoleIndustry({ roleId, industryId: industry._id, menu_ids });
+  return permModel.bulkSetForRoleIndustry({ roleId, industryId: industry._id, menu_ids: menu_ids || menuIds });
 };
 
 exports.remove = async (id) => permModel.remove(id);

@@ -49,9 +49,9 @@ const breadcrumbMap: Record<string, string[]> = {
     '/configuration/booking-form': ['Home', 'Configuration', 'Booking Form'],
     '/configuration/resources': ['Home', 'Configuration', 'Resources'],
     '/configuration/whatsapp': ['Home', 'Configuration', 'WhatsApp API'],
-    '/configuration/holidayConfig': ['Home', 'Configuration', 'Holiday Config'],
-    '/configuration/holidayConfig/new': ['Home', 'Configuration', 'Holiday Config', 'Create Holiday'],
-    '/configuration/daysConfig': ['Home', 'Configuration', 'Days Config'],
+    '/configuration/holiday-config': ['Home', 'Configuration', 'Holiday Config'],
+    '/configuration/holiday-config/new': ['Home', 'Configuration', 'Holiday Config', 'Create Holiday'],
+    '/configuration/days-config': ['Home', 'Configuration', 'Days Config'],
     '/configuration/domain-settings': ['Home', 'Integrations', 'Domain Settings'],
 
     '/support/news': ['Home', 'Support', 'News'],
@@ -73,8 +73,8 @@ const breadcrumbMap: Record<string, string[]> = {
     '/integrations/sulekha': ['Home', 'Integrations', 'Sulekha'],
     '/integrations/website': ['Home', 'Integrations', 'Website'],
     '/integrations/housing': ['Home', 'Integrations', 'Housing.com'],
-    '/leadDistribution/list': ['Home', 'Lead Distribution', 'Lead Distribution List'],
-    '/leadDistribution/logic': ['Home', 'Lead Distribution', 'Lead Distribution Logic'],
+    '/lead-distribution/list': ['Home', 'Lead Distribution', 'Lead Distribution List'],
+    '/lead-distribution/logic': ['Home', 'Lead Distribution', 'Lead Distribution Logic'],
     '/reassign/list': ['Home', 'Lead Distribution', 'Reassign List'],
     '/reassign/logic': ['Home', 'Lead Distribution', 'Reassign Logic'],
 }
@@ -102,7 +102,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
     if (!resolvedBreadcrumbs) {
         if (location.pathname.startsWith('/leads/contacts/') && location.pathname.endsWith('/edit')) {
             resolvedBreadcrumbs = ['Home', 'Leads', 'Contact List', 'Edit Contact']
-        } else if (location.pathname.startsWith('/configuration/holidayConfig/') && location.pathname.endsWith('/edit')) {
+        } else if (location.pathname.startsWith('/configuration/holiday-config/') && location.pathname.endsWith('/edit')) {
             resolvedBreadcrumbs = ['Home', 'Configuration', 'Holiday Config', 'Edit Holiday']
         } else if (location.pathname.startsWith('/users/') && location.pathname.endsWith('/edit')) {
             resolvedBreadcrumbs = ['Home', 'Users', 'Edit User']

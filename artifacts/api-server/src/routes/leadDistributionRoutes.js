@@ -12,7 +12,7 @@ router.get('/rules', authenticate, async (req, res) => {
     if (!orgId) {
       return res.json([]);
     }
-    const rules = await LeadDistributionRule.find({ organizationId: orgId }).exec();
+    const rules = await LeadDistributionRule.find({ organization_id: orgId }).exec();
     res.json(rules);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -56,7 +56,7 @@ router.put('/rules/:id', authenticate, async (req, res) => {
     const LeadDistributionRule = mongoose.model('LeadDistributionRule');
     const orgId = req.user.organizationId || req.user.organization_id;
 
-    const rule = await LeadDistributionRule.findOne({ _id: req.params.id, organizationId: orgId }).exec();
+    const rule = await LeadDistributionRule.findOne({ _id: req.params.id, organization_id: orgId }).exec();
     if (!rule) {
       return res.status(404).json({ message: 'Rule not found' });
     }
@@ -85,7 +85,7 @@ router.delete('/rules/:id', authenticate, async (req, res) => {
     const LeadDistributionRule = mongoose.model('LeadDistributionRule');
     const orgId = req.user.organizationId || req.user.organization_id;
 
-    const result = await LeadDistributionRule.deleteOne({ _id: req.params.id, organizationId: orgId }).exec();
+    const result = await LeadDistributionRule.deleteOne({ _id: req.params.id, organization_id: orgId }).exec();
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Rule not found' });
     }
@@ -103,7 +103,7 @@ router.get('/rotation-rules', authenticate, async (req, res) => {
     if (!orgId) {
       return res.json([]);
     }
-    const rules = await LeadRotationRule.find({ organizationId: orgId }).exec();
+    const rules = await LeadRotationRule.find({ organization_id: orgId }).exec();
     res.json(rules);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -144,7 +144,7 @@ router.delete('/rotation-rules/:id', authenticate, async (req, res) => {
     const LeadRotationRule = mongoose.model('LeadRotationRule');
     const orgId = req.user.organizationId || req.user.organization_id;
 
-    const result = await LeadRotationRule.deleteOne({ _id: req.params.id, organizationId: orgId }).exec();
+    const result = await LeadRotationRule.deleteOne({ _id: req.params.id, organization_id: orgId }).exec();
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Rotation rule not found' });
     }

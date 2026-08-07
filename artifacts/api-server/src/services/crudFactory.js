@@ -242,8 +242,15 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
     try {
       const doc = await Model.findById(req.params.id).lean().exec();
       if (!doc) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && doc.industryId !== req.user?.industryId) {
-        return res.status(403).json({ message: 'Forbidden' });
+      if (!isSuperAdmin(req.user)) {
+        const docOrgId = doc.organization_id || doc.organizationId;
+        const docIndustryId = doc.industry_id || doc.industryId;
+        if (docOrgId && String(docOrgId) !== String(req.user?.organizationId)) {
+          return res.status(403).json({ message: 'Forbidden' });
+        }
+        if (!docOrgId && docIndustryId !== req.user?.industryId) {
+          return res.status(403).json({ message: 'Forbidden' });
+        }
       }
       await enrichTasks(Model, [doc]);
       await enrichOrganizationNames(Model, [doc]);
@@ -277,8 +284,15 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
     try {
       const existing = await Model.findById(req.params.id).lean().exec();
       if (!existing) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && existing.industry_id !== req.user?.industryId && existing.industryId !== req.user?.industryId) {
-        return res.status(403).json({ message: 'Forbidden' });
+      if (!isSuperAdmin(req.user)) {
+        const existingOrgId = existing.organization_id || existing.organizationId;
+        const existingIndustryId = existing.industry_id || existing.industryId;
+        if (existingOrgId && String(existingOrgId) !== String(req.user?.organizationId)) {
+          return res.status(403).json({ message: 'Forbidden' });
+        }
+        if (!existingOrgId && existingIndustryId !== req.user?.industryId) {
+          return res.status(403).json({ message: 'Forbidden' });
+        }
       }
       const patch = normalizePayload({ ...(req.body || {}) });
       if (!isSuperAdmin(req.user)) {
@@ -301,8 +315,15 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
     try {
       const existing = await Model.findById(req.params.id).lean().exec();
       if (!existing) return res.status(404).json({ message: `${resourceName} not found` });
-      if (!isSuperAdmin(req.user) && existing.industryId !== req.user?.industryId) {
-        return res.status(403).json({ message: 'Forbidden' });
+      if (!isSuperAdmin(req.user)) {
+        const existingOrgId = existing.organization_id || existing.organizationId;
+        const existingIndustryId = existing.industry_id || existing.industryId;
+        if (existingOrgId && String(existingOrgId) !== String(req.user?.organizationId)) {
+          return res.status(403).json({ message: 'Forbidden' });
+        }
+        if (!existingOrgId && existingIndustryId !== req.user?.industryId) {
+          return res.status(403).json({ message: 'Forbidden' });
+        }
       }
       await Model.findByIdAndDelete(req.params.id).exec();
       res.status(204).end();

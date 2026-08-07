@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
         source: isSource,
         role: roleFlag
       }
-      navigate('/taskDrilldownData', { state: { taskDrilldownData, ts: Date.now() } })
+      navigate('/task-drilldown-data', { state: { taskDrilldownData, ts: Date.now() } })
     } else if (label === 'Scheduled Visits') {
       taskFilter.status = ['PENDING', 'Pending']
       taskFilter.taskType = ['Site Visit']
@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
         source: isSource,
         role: roleFlag
       }
-      navigate('/taskDrilldownData', { state: { taskDrilldownData, ts: Date.now() } })
+      navigate('/task-drilldown-data', { state: { taskDrilldownData, ts: Date.now() } })
     } else {
       if (label === 'Fresh') leadFilter.stage = ['FRESH']
       else if (label === 'Call Back') leadFilter.stage = ['CALLBACK', 'CALL BACK']
@@ -187,7 +187,7 @@ export default function AnalyticsPage() {
         source: isSource,
         role: roleFlag
       }
-      navigate('/drilldownData', { state: { drilldownData, ts: Date.now() } })
+      navigate('/drilldown-data', { state: { drilldownData, ts: Date.now() } })
     }
   }
 

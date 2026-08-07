@@ -138,7 +138,7 @@ export default function LeadDistributionListPage() {
         subtitle="Manage lead distribution rules and assignees."
         sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leadDistribution/logic')}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/lead-distribution/logic')}>
             Add Logic
           </Button>
         }

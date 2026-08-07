@@ -11,8 +11,7 @@ router.get('/', authenticate, async (req, res, next) => {
 
     let query = {};
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      const orgId = org ? (org.organizationId || org.organizationId) : null;
+      const orgId = req.user.organizationId || req.user.organization_id;
       query = {
         $or: [
           { organizationId: null },
@@ -75,8 +74,7 @@ router.post('/', authenticate, async (req, res, next) => {
 
     let orgId = null;
     if (req.user.role === 'admin') {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      orgId = org ? (org.organizationId || org.organizationId) : null;
+      orgId = req.user.organizationId || req.user.organization_id || null;
     } else if (req.user.role === 'superAdmin') {
       orgId = req.body.organizationId || null;
     }
@@ -130,7 +128,11 @@ router.put('/:id', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Only admins and superAdmins can edit news articles' });
     }
 
-    const doc = await News.findOne({ "news._id": req.params.id }).exec();
+    const query = { "news._id": req.params.id };
+    if (req.user.role !== 'superAdmin') {
+      query.organizationId = req.user.organizationId || req.user.organization_id;
+    }
+    const doc = await News.findOne(query).exec();
     if (!doc) {
       return res.status(404).json({ message: 'News article not found' });
     }
@@ -170,7 +172,11 @@ router.delete('/:id', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Only admins and superAdmins can delete news articles' });
     }
 
-    const doc = await News.findOne({ "news._id": req.params.id }).exec();
+    const query = { "news._id": req.params.id };
+    if (req.user.role !== 'superAdmin') {
+      query.organizationId = req.user.organizationId || req.user.organization_id;
+    }
+    const doc = await News.findOne(query).exec();
     if (!doc) {
       return res.status(404).json({ message: 'News article not found' });
     }

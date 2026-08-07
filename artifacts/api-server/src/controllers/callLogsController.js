@@ -189,6 +189,10 @@ callLogController.Create = async (req, res) => {
     if (user) {
       createdBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
     }
+    const orgId = req.user?.role === 'superAdmin'
+      ? (req.body.organizationId || req.body.organization_id || '')
+      : req.user?.organizationId;
+
     const data = new CallLog({
       lead_id: req.body.leadId || '',
       customer_name: req.body.customerName || req.body.customer_name || '',
@@ -206,7 +210,7 @@ callLogController.Create = async (req, res) => {
       inventory_type: req.body.inventoryType || req.body.inventory_type || '',
       duration: mapSeconds(req.body.callTime || req.body.duration),
       uid: req.body.uid || '',
-      organization_id: req.body.organizationId || req.body.organization_id || '',
+      organization_id: orgId || '',
       latitude: req.body.latitude || null,
       longitude: req.body.longitude || null
     });
@@ -221,7 +225,11 @@ callLogController.Create = async (req, res) => {
 callLogController.Update = async (req, res) => {
   try {
     const leadId = req.body.leadId;
-    await CallLog.updateMany({ lead_id: leadId }, { $set: translateFilterKeys(req.body) }).exec();
+    const query = { lead_id: leadId };
+    if (req.user?.role !== 'superAdmin') {
+      query.organization_id = req.user?.organizationId;
+    }
+    await CallLog.updateMany(query, { $set: translateFilterKeys(req.body) }).exec();
     res.status(200).send('Updation DONE!');
   } catch (error) {
     console.error(error);
@@ -232,7 +240,11 @@ callLogController.Update = async (req, res) => {
 callLogController.DeleteCallLogs = async (req, res) => {
   try {
     const leadId = req.body.leadId;
-    await CallLog.findOneAndDelete({ lead_id: leadId }).exec();
+    const query = { lead_id: leadId };
+    if (req.user?.role !== 'superAdmin') {
+      query.organization_id = req.user?.organizationId;
+    }
+    await CallLog.findOneAndDelete(query).exec();
     res.status(200).send("Deletion DONE!");
   } catch (error) {
     console.error(error);

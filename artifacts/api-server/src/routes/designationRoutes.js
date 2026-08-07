@@ -63,7 +63,11 @@ router.put('/:id', authenticate, async (req, res) => {
     if (!name) return res.status(400).json({ message: 'Name is required' });
 
     const Designation = mongoose.model('Designation');
-    const doc = await Designation.findOne({ 'designations._id': req.params.id });
+    const query = { 'designations._id': req.params.id };
+    if (!isSuperAdmin(req.user)) {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Designation.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Designation not found' });
 
     const subDoc = doc.designations.id(req.params.id);
@@ -81,7 +85,11 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const Designation = mongoose.model('Designation');
-    const doc = await Designation.findOne({ 'designations._id': req.params.id });
+    const query = { 'designations._id': req.params.id };
+    if (!isSuperAdmin(req.user)) {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Designation.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Designation not found' });
 
     doc.designations.pull(req.params.id);

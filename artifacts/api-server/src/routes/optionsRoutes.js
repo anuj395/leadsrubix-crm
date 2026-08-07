@@ -188,15 +188,9 @@ router.get('/:key', (req, res, next) => {
   if (key === 'organizationUsers') {
     try {
       const User = mongoose.model('User');
-      let orgId = req.query.organizationId;
-      if (!orgId) {
-        orgId = req.user?.organizationId;
-      }
-      if (!orgId) {
-        const Organization = mongoose.model('Organization');
-        const org = await Organization.findOne({ industry_id: req.user?.industryId }).exec();
-        orgId = org ? (org.organization_id || org.organizationId) : null;
-      }
+      const orgId = req.user?.role === 'superAdmin'
+        ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
+        : (req.user?.organizationId || req.user?.organization_id);
       const query = {};
       if (orgId) {
         query.organization_id = orgId;
@@ -241,17 +235,7 @@ router.get('/:key', (req, res, next) => {
           }
         }
       } else {
-        orgId = req.user.organizationId;
-        if (!orgId) {
-          const Organization = mongoose.model('Organization');
-          const org = await Organization.findOne({
-            $or: [
-              { industry_id: req.user.industryId },
-              { industryId: req.user.industryId }
-            ]
-          }).exec();
-          orgId = org ? (org.organization_id || org.organizationId) : null;
-        }
+        orgId = req.user.organizationId || req.user.organization_id;
         if (req.user.industryId) {
           const Industry = mongoose.model('Industry');
           const ind = await Industry.findOne({ code: req.user.industryId }).lean().exec();
@@ -320,8 +304,15 @@ router.get('/:key', (req, res, next) => {
   if (key === 'teams') {
     try {
       const Team = mongoose.model('Team');
-      let targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
-      if (!targetIndustry && req.query.organizationId) {
+      const targetIndustry = req.user?.role === 'superAdmin'
+        ? (req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId)
+        : req.user?.industryId;
+      
+      const targetOrganization = req.user?.role === 'superAdmin'
+        ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
+        : (req.user?.organizationId || req.user?.organization_id);
+
+      if (!targetIndustry && req.user?.role === 'superAdmin' && req.query.organizationId) {
         const Organization = mongoose.model('Organization');
         const org = await Organization.findOne({
           $or: [
@@ -334,7 +325,7 @@ router.get('/:key', (req, res, next) => {
           targetIndustry = org.industryId;
         }
       }
-      const targetOrganization = req.query.organizationId || req.user?.organizationId;
+
       const list = await resolveTenantList(Team, 'teams', targetIndustry, targetOrganization);
       const options = list.map(t => ({ value: t.name, label: t.name }));
       return res.json({ items: options });
@@ -347,8 +338,15 @@ router.get('/:key', (req, res, next) => {
   if (key === 'branches') {
     try {
       const Branch = mongoose.model('Branch');
-      let targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
-      if (!targetIndustry && req.query.organizationId) {
+      const targetIndustry = req.user?.role === 'superAdmin'
+        ? (req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId)
+        : req.user?.industryId;
+
+      const targetOrganization = req.user?.role === 'superAdmin'
+        ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
+        : (req.user?.organizationId || req.user?.organization_id);
+
+      if (!targetIndustry && req.user?.role === 'superAdmin' && req.query.organizationId) {
         const Organization = mongoose.model('Organization');
         const org = await Organization.findOne({
           $or: [
@@ -361,7 +359,7 @@ router.get('/:key', (req, res, next) => {
           targetIndustry = org.industryId;
         }
       }
-      const targetOrganization = req.query.organizationId || req.user?.organizationId;
+
       const list = await resolveTenantList(Branch, 'branches', targetIndustry, targetOrganization);
       const options = list.map(b => ({ value: b.name, label: b.name }));
       return res.json({ items: options });
@@ -374,8 +372,15 @@ router.get('/:key', (req, res, next) => {
   if (key === 'designations') {
     try {
       const Designation = mongoose.model('Designation');
-      let targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
-      if (!targetIndustry && req.query.organizationId) {
+      const targetIndustry = req.user?.role === 'superAdmin'
+        ? (req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId)
+        : req.user?.industryId;
+
+      const targetOrganization = req.user?.role === 'superAdmin'
+        ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
+        : (req.user?.organizationId || req.user?.organization_id);
+
+      if (!targetIndustry && req.user?.role === 'superAdmin' && req.query.organizationId) {
         const Organization = mongoose.model('Organization');
         const org = await Organization.findOne({
           $or: [
@@ -387,7 +392,7 @@ router.get('/:key', (req, res, next) => {
           targetIndustry = org.industryId;
         }
       }
-      const targetOrganization = req.query.organizationId || req.user?.organizationId;
+
       const list = await resolveTenantList(Designation, 'designations', targetIndustry, targetOrganization);
       if (list && list.length > 0) {
         return res.json({ items: list.map(item => ({ value: item.value, label: item.label })) });

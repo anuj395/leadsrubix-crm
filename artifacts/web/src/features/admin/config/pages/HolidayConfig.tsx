@@ -101,7 +101,7 @@ export default function HolidayConfigPage() {
         renderCell: (p) => (
           <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
             <Tooltip title="Edit Holiday">
-              <IconButton size="small" onClick={() => navigate(`/configuration/holidayConfig/${p.row.id}/edit`)}>
+              <IconButton size="small" onClick={() => navigate(`/configuration/holiday-config/${p.row.id}/edit`)}>
                 <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -123,7 +123,7 @@ export default function HolidayConfigPage() {
         title="Holiday Configuration"
         subtitle="Manage regular list of holidays and company off shifts."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/holidayConfig/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/holiday-config/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Add Holiday
           </Button>
         }

@@ -9,9 +9,6 @@ const { authenticate } = require('../middlewares/auth');
 
 const router = express.Router();
 
-// Helper to check if object is empty
-const isObjectEmpty = (obj) => !obj || Object.keys(obj).length === 0;
-
 // Resolve children reporting team users
 const getTeamUsers = async (uid, organizationId) => {
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
@@ -58,66 +55,108 @@ const getTeamUsers = async (uid, organizationId) => {
   return usersList;
 };
 
+// Helper builder to build the tenant-scoped query
+const buildDrilldownQuery = async (req, bodyUid, bodyOrgId, filters, isLead, isTask) => {
+  const query = {};
+
+  // 1. Resolve and lock Organization ID
+  let orgId = bodyOrgId || req.body.organizationId;
+  if (req.user?.role !== 'superAdmin') {
+    orgId = req.user?.organizationId;
+  } else if (orgId) {
+    const org = await Organization.findOne({
+      $or: [
+        { industryId: orgId },
+        { organizationId: orgId }
+      ]
+    }).lean().exec();
+    orgId = org ? org.organizationId : orgId;
+  }
+
+  if (orgId) {
+    query.organization_id = orgId;
+  }
+
+  // 2. Resolve target user and validate tenant isolation
+  const targetUid = bodyUid || req.user?.uid || req.user?.id;
+  const dbUser = await userModel.findOne({
+    $or: [
+      { _id: mongoose.isValidObjectId(targetUid) ? targetUid : null },
+      { uid: targetUid }
+    ]
+  }).lean().exec();
+
+  if (req.user?.role !== 'superAdmin') {
+    if (dbUser && String(dbUser.organization_id || dbUser.organizationId) !== String(req.user?.organizationId)) {
+      const err = new Error('Forbidden: User does not belong to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  // 3. Apply role-based uid filtering
+  const callerRole = req.user?.role || '';
+  if (callerRole === 'sales' || callerRole === 'associate') {
+    query.uid = req.user?.uid || req.user?.id;
+  } else if (callerRole === 'teamLead') {
+    const usersList = await getTeamUsers(req.user?.uid || req.user?.id, orgId);
+    query.uid = { $in: usersList };
+  } else {
+    // For admin / superAdmin callers:
+    const targetUserRole = dbUser?.role || '';
+    if (targetUserRole === 'sales' || targetUserRole === 'associate') {
+      query.uid = dbUser?.uid || targetUid;
+    } else if (targetUserRole === 'teamLead') {
+      const usersList = await getTeamUsers(targetUid, orgId);
+      query.uid = { $in: usersList };
+    }
+  }
+
+  // 4. Map filters
+  if (filters) {
+    for (const [key, value] of Object.entries(filters)) {
+      let dbKey = key;
+      if (key === 'created_at' || key === 'createdAt') {
+        query.createdAt = {};
+        const start = value.startDate || value.start_date;
+        const end = value.endDate || value.end_date;
+        if (start) query.createdAt.$gte = new Date(start);
+        if (end) query.createdAt.$lte = new Date(end);
+        continue;
+      }
+
+      if (isLead) {
+        if (key === 'lead_source') dbKey = 'source';
+        else if (key === 'contact_owner_email') dbKey = 'contactOwnerEmail';
+        else if (key === 'source_status') dbKey = 'sourceStatus';
+        else if (key === 'associate_status') dbKey = 'associateStatus';
+        else if (key === 'transfer_status') dbKey = 'transferStatus';
+      } else if (isTask) {
+        if (key === 'task_type') dbKey = 'taskType';
+        else if (key === 'assigned_to') dbKey = 'assignedTo';
+        else if (key === 'due_date') dbKey = 'dueDate';
+        else if (key === 'project_name') dbKey = 'projectName';
+        else if (key === 'contact_owner_email') dbKey = 'contactOwnerEmail';
+      }
+
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          query[dbKey] = { $in: value };
+        }
+      } else if (value !== undefined && value !== null && value !== '') {
+        query[dbKey] = value;
+      }
+    }
+  }
+
+  return query;
+};
+
 // 1. Leads / Contacts Drilldown endpoints
 router.post('/leads/drillDownSearch', authenticate, async (req, res, next) => {
   try {
-    const { uid, organizationid, page, pageSize, leadFilter, role } = req.body;
-    const query = {};
-
-    const targetOrgId = req.body.organizationId || req.body.organizationid;
-    if (targetOrgId) {
-      // Map industryId to organizationId if needed
-      const org = await Organization.findOne({
-        $or: [
-          { industryId: targetOrgId },
-          { organizationId: targetOrgId }
-        ]
-      }).lean().exec();
-      query.organizationId = org ? org.organizationId : targetOrgId;
-    }
-
-    if (leadFilter) {
-      for (const [key, value] of Object.entries(leadFilter)) {
-        let dbKey = key;
-        if (key === 'created_at' || key === 'createdAt') {
-          query.createdAt = {};
-          const start = value.startDate || value.start_date;
-          const end = value.endDate || value.end_date;
-          if (start) query.createdAt.$gte = new Date(start);
-          if (end) query.createdAt.$lte = new Date(end);
-          continue;
-        } else if (key === 'lead_source') {
-          dbKey = 'source';
-        } else if (key === 'contact_owner_email') {
-          dbKey = 'contactOwnerEmail';
-        } else if (key === 'source_status') {
-          dbKey = 'sourceStatus';
-        } else if (key === 'associate_status') {
-          dbKey = 'associateStatus';
-        } else if (key === 'transfer_status') {
-          dbKey = 'transferStatus';
-        }
-
-        if (Array.isArray(value) && value.length > 0) {
-          query[dbKey] = { $in: value };
-        }
-      }
-    }
-
-    // Scoping permissions by role
-    const dbUser = await userModel.findOne({ $or: [{ _id: mongoose.isValidObjectId(uid) ? uid : null }, { uid }] }).lean().exec();
-    const userRole = dbUser?.role || '';
-
-    if (userRole === 'sales' || userRole === 'associate') {
-      query.uid = dbUser?.uid || uid;
-    } else if (userRole === 'teamLead') {
-      const usersList = await getTeamUsers(uid, query.organizationId);
-      query.uid = { $in: usersList };
-    }
-    // For admin / superAdmin, we don't append query.uid so they see all records in organizationId
-
-    console.log('drillDownSearch body:', JSON.stringify(req.body, null, 2));
-    console.log('drillDownSearch built query:', JSON.stringify(query, null, 2));
+    const { uid, organizationid, page, pageSize, leadFilter } = req.body;
+    const query = await buildDrilldownQuery(req, uid, organizationid, leadFilter, true, false);
 
     const limit = Math.min(Math.max(Number(pageSize) || 25, 1), 200);
     const skip = Math.max((Number(page) - 1) || 0, 0) * limit;
@@ -131,50 +170,24 @@ router.post('/leads/drillDownSearch', authenticate, async (req, res, next) => {
 
     res.json(items);
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });
 
 router.post('/leads/contacttotalcount', authenticate, async (req, res, next) => {
   try {
-    const { uid, organizationid, leadFilter, role } = req.body;
-    const query = {};
-
-    if (organizationid) {
-      const org = await Organization.findOne({
-        $or: [
-          { industryId: organizationid },
-          { organizationId: organizationid }
-        ]
-      }).lean().exec();
-      query.organizationId = org ? org.organizationId : organizationid;
-    }
-
-    if (leadFilter) {
-      for (const [key, value] of Object.entries(leadFilter)) {
-        if (key === 'created_at') {
-          query.createdAt = {};
-          if (value.start_date) query.createdAt.$gte = new Date(value.start_date);
-          if (value.end_date) query.createdAt.$lte = new Date(value.end_date);
-        } else if (Array.isArray(value) && value.length > 0) {
-          query[key] = { $in: value };
-        }
-      }
-    }
-
-    const dbUser = await userModel.findOne({ $or: [{ _id: mongoose.isValidObjectId(uid) ? uid : null }, { uid }] }).lean().exec();
-    const userRole = dbUser?.role || '';
-
-    if (userRole === 'sales' || userRole === 'associate') {
-      query.uid = dbUser?.uid || uid;
-    } else if (userRole === 'teamLead') {
-      const usersList = await getTeamUsers(uid, query.organizationId);
-      query.uid = { $in: usersList };
-    }
+    const { uid, organizationid, leadFilter } = req.body;
+    const query = await buildDrilldownQuery(req, uid, organizationid, leadFilter, true, false);
 
     const total = await leadModel.countDocuments(query).exec();
     res.json({ total });
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });
@@ -182,56 +195,8 @@ router.post('/leads/contacttotalcount', authenticate, async (req, res, next) => 
 // 2. Tasks Drilldown endpoints
 router.post('/tasks/drillDownSearch', authenticate, async (req, res, next) => {
   try {
-    const { uid, organizationid, page, pageSize, taskFilter, role } = req.body;
-    const query = {};
-
-    if (organizationid) {
-      const org = await Organization.findOne({
-        $or: [
-          { industryId: organizationid },
-          { organizationId: organizationid }
-        ]
-      }).lean().exec();
-      query.organizationId = org ? org.organizationId : organizationid;
-    }
-
-    if (taskFilter) {
-      for (const [key, value] of Object.entries(taskFilter)) {
-        let dbKey = key;
-        if (key === 'created_at' || key === 'createdAt') {
-          query.createdAt = {};
-          const start = value.startDate || value.start_date;
-          const end = value.endDate || value.end_date;
-          if (start) query.createdAt.$gte = new Date(start);
-          if (end) query.createdAt.$lte = new Date(end);
-          continue;
-        } else if (key === 'task_type') {
-          dbKey = 'taskType';
-        } else if (key === 'assigned_to') {
-          dbKey = 'assignedTo';
-        } else if (key === 'due_date') {
-          dbKey = 'dueDate';
-        } else if (key === 'project_name') {
-          dbKey = 'projectName';
-        } else if (key === 'contact_owner_email') {
-          dbKey = 'contactOwnerEmail';
-        }
-
-        if (Array.isArray(value) && value.length > 0) {
-          query[dbKey] = { $in: value };
-        }
-      }
-    }
-
-    const dbUser = await userModel.findOne({ $or: [{ _id: mongoose.isValidObjectId(uid) ? uid : null }, { uid }] }).lean().exec();
-    const userRole = dbUser?.role || '';
-
-    if (userRole === 'sales' || userRole === 'associate') {
-      query.uid = dbUser?.uid || uid;
-    } else if (userRole === 'teamLead') {
-      const usersList = await getTeamUsers(uid, query.organizationId);
-      query.uid = { $in: usersList };
-    }
+    const { uid, organizationid, page, pageSize, taskFilter } = req.body;
+    const query = await buildDrilldownQuery(req, uid, organizationid, taskFilter, false, true);
 
     const limit = Math.min(Math.max(Number(pageSize) || 25, 1), 200);
     const skip = Math.max((Number(page) - 1) || 0, 0) * limit;
@@ -254,50 +219,24 @@ router.post('/tasks/drillDownSearch', authenticate, async (req, res, next) => {
 
     res.json(enriched);
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });
 
 router.post('/tasks/drillDownCount', authenticate, async (req, res, next) => {
   try {
-    const { uid, organizationid, taskFilter, role } = req.body;
-    const query = {};
-
-    if (organizationid) {
-      const org = await Organization.findOne({
-        $or: [
-          { industryId: organizationid },
-          { organizationId: organizationid }
-        ]
-      }).lean().exec();
-      query.organizationId = org ? org.organizationId : organizationid;
-    }
-
-    if (taskFilter) {
-      for (const [key, value] of Object.entries(taskFilter)) {
-        if (key === 'created_at') {
-          query.createdAt = {};
-          if (value.start_date) query.createdAt.$gte = new Date(value.start_date);
-          if (value.end_date) query.createdAt.$lte = new Date(value.end_date);
-        } else if (Array.isArray(value) && value.length > 0) {
-          query[key] = { $in: value };
-        }
-      }
-    }
-
-    const dbUser = await userModel.findOne({ $or: [{ _id: mongoose.isValidObjectId(uid) ? uid : null }, { uid }] }).lean().exec();
-    const userRole = dbUser?.role || '';
-
-    if (userRole === 'sales' || userRole === 'associate') {
-      query.uid = dbUser?.uid || uid;
-    } else if (userRole === 'teamLead') {
-      const usersList = await getTeamUsers(uid, query.organizationId);
-      query.uid = { $in: usersList };
-    }
+    const { uid, organizationid, taskFilter } = req.body;
+    const query = await buildDrilldownQuery(req, uid, organizationid, taskFilter, false, true);
 
     const total = await taskModel.countDocuments(query).exec();
     res.json([{ total }]);
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });
@@ -305,40 +244,8 @@ router.post('/tasks/drillDownCount', authenticate, async (req, res, next) => {
 // 3. Call Logs Drilldown endpoints
 router.post('/callLogs/drillDownSearch', authenticate, async (req, res, next) => {
   try {
-    const { uid, organizationid, page, pageSize, callFilter, role } = req.body;
-    const query = {};
-
-    if (organizationid) {
-      const org = await Organization.findOne({
-        $or: [
-          { industryId: organizationid },
-          { organizationId: organizationid }
-        ]
-      }).lean().exec();
-      query.organizationId = org ? org.organizationId : organizationid;
-    }
-
-    if (callFilter) {
-      for (const [key, value] of Object.entries(callFilter)) {
-        if (key === 'created_at') {
-          query.createdAt = {};
-          if (value.start_date) query.createdAt.$gte = new Date(value.start_date);
-          if (value.end_date) query.createdAt.$lte = new Date(value.end_date);
-        } else if (Array.isArray(value) && value.length > 0) {
-          query[key] = { $in: value };
-        }
-      }
-    }
-
-    const dbUser = await userModel.findOne({ $or: [{ _id: mongoose.isValidObjectId(uid) ? uid : null }, { uid }] }).lean().exec();
-    const userRole = dbUser?.role || '';
-
-    if (userRole === 'sales' || userRole === 'associate') {
-      query.uid = dbUser?.uid || uid;
-    } else if (userRole === 'teamLead') {
-      const usersList = await getTeamUsers(uid, query.organizationId);
-      query.uid = { $in: usersList };
-    }
+    const { uid, organizationid, page, pageSize, callFilter } = req.body;
+    const query = await buildDrilldownQuery(req, uid, organizationid, callFilter, false, false);
 
     const limit = Math.min(Math.max(Number(pageSize) || 25, 1), 200);
     const skip = Math.max((Number(page) - 1) || 0, 0) * limit;
@@ -352,50 +259,24 @@ router.post('/callLogs/drillDownSearch', authenticate, async (req, res, next) =>
 
     res.json(items);
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });
 
 router.post('/callLogs/callLogsDrillDownCount', authenticate, async (req, res, next) => {
   try {
-    const { uid, organizationid, callFilter, role } = req.body;
-    const query = {};
-
-    if (organizationid) {
-      const org = await Organization.findOne({
-        $or: [
-          { industryId: organizationid },
-          { organizationId: organizationid }
-        ]
-      }).lean().exec();
-      query.organizationId = org ? org.organizationId : organizationid;
-    }
-
-    if (callFilter) {
-      for (const [key, value] of Object.entries(callFilter)) {
-        if (key === 'created_at') {
-          query.createdAt = {};
-          if (value.start_date) query.createdAt.$gte = new Date(value.start_date);
-          if (value.end_date) query.createdAt.$lte = new Date(value.end_date);
-        } else if (Array.isArray(value) && value.length > 0) {
-          query[key] = { $in: value };
-        }
-      }
-    }
-
-    const dbUser = await userModel.findOne({ $or: [{ _id: mongoose.isValidObjectId(uid) ? uid : null }, { uid }] }).lean().exec();
-    const userRole = dbUser?.role || '';
-
-    if (userRole === 'sales' || userRole === 'associate') {
-      query.uid = dbUser?.uid || uid;
-    } else if (userRole === 'teamLead') {
-      const usersList = await getTeamUsers(uid, query.organizationId);
-      query.uid = { $in: usersList };
-    }
+    const { uid, organizationid, callFilter } = req.body;
+    const query = await buildDrilldownQuery(req, uid, organizationid, callFilter, false, false);
 
     const total = await callLogModel.countDocuments(query).exec();
     res.json([{ total }]);
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });

@@ -28,9 +28,11 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const Team = mongoose.model('Team');
-    const doc = await Team.findOne({
-      'teams._id': req.params.id
-    });
+    const query = { 'teams._id': req.params.id };
+    if (!isSuperAdmin(req.user)) {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Team.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Team not found' });
     const subDoc = doc.teams.id(req.params.id);
     res.json({ ...subDoc.toObject(), id: subDoc._id });
@@ -75,7 +77,11 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const { name, code, isActive } = req.body;
     const Team = mongoose.model('Team');
-    const doc = await Team.findOne({ 'teams._id': req.params.id });
+    const query = { 'teams._id': req.params.id };
+    if (!isSuperAdmin(req.user)) {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Team.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Team not found' });
 
     const subDoc = doc.teams.id(req.params.id);
@@ -93,7 +99,11 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const Team = mongoose.model('Team');
-    const doc = await Team.findOne({ 'teams._id': req.params.id });
+    const query = { 'teams._id': req.params.id };
+    if (!isSuperAdmin(req.user)) {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Team.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Team not found' });
 
     doc.teams.pull(req.params.id);

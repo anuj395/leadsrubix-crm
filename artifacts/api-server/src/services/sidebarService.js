@@ -86,6 +86,33 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
 
   const SidebarMenuModel = mongoose.model('SidebarMenu');
+
+  // Load globally visible menu keys for this industry + role to enforce Super Admin visibility overrides
+  const globallyVisibleMenuKeys = new Set();
+  const globalRole = await RoleModel.findOne({
+    organization_id: null,
+    industry_id: industry._id,
+    key: key
+  }).exec();
+
+  if (globalRole) {
+    const globalPerms = await SidebarPermissionModel.find({
+      organization_id: null,
+      role_id: globalRole._id,
+      industry_id: industry._id,
+      is_visible: true
+    }).lean().exec();
+    
+    if (globalPerms.length > 0) {
+      const globalMenus = await SidebarMenuModel.find({
+        organization_id: null,
+        _id: { $in: globalPerms.map(p => p.menu_id) }
+      }).lean().exec();
+      
+      globalMenus.forEach(m => globallyVisibleMenuKeys.add(m.key));
+    }
+  }
+
   let menus = await SidebarMenuModel.find({
     $or: [
       { organization_id: targetOrgId },
@@ -93,6 +120,11 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     ],
     _id: { $in: perms.map((p) => p.menu_id) }
   }).lean().exec();
+
+  // If we are scoping for a tenant organization, restrict visible menus to the global template baseline
+  if (targetOrgId && globalRole) {
+    menus = menus.filter(m => globallyVisibleMenuKeys.has(m.key));
+  }
 
   const menuById = new Map(
     menus.filter((m) => m.is_active !== false).map((m) => [String(m._id), m]),

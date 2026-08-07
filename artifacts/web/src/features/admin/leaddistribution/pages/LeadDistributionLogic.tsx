@@ -63,7 +63,7 @@ export default function LeadDistributionLogicPage() {
 
       await createDistributionRule(payload)
       setToast({ open: true, msg: 'Lead Distribution Created!!', sev: 'success' })
-      setTimeout(() => navigate('/leadDistribution/list'), 1500)
+      setTimeout(() => navigate('/lead-distribution/list'), 1500)
     } catch (err: any) {
       setToast({ open: true, msg: err?.response?.data?.message || 'Failed to create lead distribution rule', sev: 'error' })
     } finally {
@@ -80,7 +80,7 @@ export default function LeadDistributionLogicPage() {
           <Button
             variant="text"
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/leadDistribution/list')}
+            onClick={() => navigate('/lead-distribution/list')}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             Back
@@ -108,7 +108,7 @@ export default function LeadDistributionLogicPage() {
             screen="leadDistribution"
             initialValues={{ distributionType: activeTab }}
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/leadDistribution/list')}
+            onCancel={() => navigate('/lead-distribution/list')}
             submitLabel={activeTab === 'Normal' ? 'Apply Normal Assignment' : 'Apply Roundrobin Assignment'}
           />
         </Box>

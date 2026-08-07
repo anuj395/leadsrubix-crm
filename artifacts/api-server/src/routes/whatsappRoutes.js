@@ -15,8 +15,7 @@ router.get('/', authenticate, async (req, res, next) => {
         orgId = req.query.organizationId;
       }
     } else {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      orgId = org ? (org.organizationId || String(org._id)) : req.user.organizationId;
+      orgId = req.user.organizationId || req.user.organization_id;
     }
 
     // Try finding the organization specific config
@@ -80,8 +79,7 @@ router.post('/', authenticate, async (req, res, next) => {
         orgId = requestedOrg;
       }
     } else {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      orgId = org ? (org.organizationId || String(org._id)) : req.user.organizationId;
+      orgId = req.user.organizationId || req.user.organization_id;
     }
 
     // Upsert the WhatsApp config

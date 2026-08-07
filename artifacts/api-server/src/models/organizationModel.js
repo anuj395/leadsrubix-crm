@@ -122,6 +122,7 @@ const ALLOWED_SORT = new Set(['createdAt', 'updatedAt', 'isActive']);
 
 exports.listPaged = async ({
   industryId,
+  organizationId,
   q,
   page = 0,
   pageSize = 25,
@@ -131,6 +132,21 @@ exports.listPaged = async ({
 } = {}) => {
   const filter = {};
   if (industryId) filter.industry_id = industryId;
+  if (organizationId) {
+    const isObjectId = mongoose.Types.ObjectId.isValid(organizationId);
+    if (isObjectId) {
+      filter.$or = [
+        { _id: organizationId },
+        { organization_id: organizationId },
+        { organizationId: organizationId }
+      ];
+    } else {
+      filter.$or = [
+        { organization_id: organizationId },
+        { organizationId: organizationId }
+      ];
+    }
+  }
   if (q && String(q).trim()) {
     const re = new RegExp(escapeRegex(String(q).trim()), 'i');
     // Match against any of the screen-config field keys the caller exposes,

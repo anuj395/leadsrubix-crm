@@ -26,8 +26,8 @@ exports.upsert = async (req, res, next) => {
 
 exports.bulkSet = async (req, res, next) => {
   try {
-    const { roleId, industryId, menu_ids } = req.body || {};
-    const docs = await service.bulkSet({ roleId, industryId, menu_ids });
+    const { roleId, industryId, menu_ids, menuIds } = req.body || {};
+    const docs = await service.bulkSet({ roleId, industryId, menu_ids: menu_ids || menuIds });
     res.json({ items: docs });
   } catch (err) {
     next(err);

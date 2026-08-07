@@ -83,17 +83,12 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/sorted": SortedListPage,
 
   "/drilldown-data": ContactDrilldownPage,
-  "/drilldownData": ContactDrilldownPage,
   "/task-drilldown-data": TaskDrilldownPage,
-  "/taskDrilldownData": TaskDrilldownPage,
   "/call-drilldown-data": CallLogDrilldownPage,
-  "/callDrilldownData": CallLogDrilldownPage,
  
   "/configuration/screens": ScreensPage,
   "/configuration/screen-fields": ScreenFieldsPage,
-  "/configuration/screenFields": ScreenFieldsPage,
   "/configuration/screen-permissions": ScreenPermissionsPage,
-  "/configuration/screenPermissions": ScreenPermissionsPage,
   "/configuration/projects": ProjectsListPage,
   "/configuration/projects/new": ProjectFormPage,
   "/configuration/projects/:id/edit": ProjectFormPage,
@@ -108,9 +103,7 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/permissions": PermissionsMatrixPage,
   "/configuration/analytics-config": AnalyticsConfigPage,
   "/configuration/holiday-config": HolidayConfigPage,
-  "/configuration/holidayConfig": HolidayConfigPage,
   "/configuration/days-config": DaysConfigPage,
-  "/configuration/daysConfig": DaysConfigPage,
 
   "/integrations": IntegrationsPage,
   "/integrations/api": ApiListPage,
@@ -139,7 +132,7 @@ export const routeComponentMap: Record<string, any> = {
   "/account/update-password": UpdatePasswordPage,
   "/settings": SettingsPage,
 
-  "/tool/areaConverter": AreaConverterPage,
+  "/tool/area-converter": AreaConverterPage,
   "/tool/calculator": CalculatorPage,
   "/tool/emi-calculator": EmiCalculatorPage,
 }

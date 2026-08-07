@@ -1,6 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/organizationController');
 const { authenticate } = require('../middlewares/auth');
+const { permit } = require('../middlewares/rbac');
 
 const router = express.Router();
 
@@ -13,6 +14,6 @@ router.post('/my-subscription/upgrade', authenticate, ctrl.upgradeSubscription);
 router.get('/:id', authenticate, ctrl.getOne);
 router.post('/', authenticate, ctrl.create);
 router.put('/:id', authenticate, ctrl.update);
-router.delete('/:id', authenticate, ctrl.remove);
+router.delete('/:id', authenticate, permit('superAdmin'), ctrl.remove);
 
 module.exports = router;

@@ -83,7 +83,7 @@ export default function HolidayConfigFormPage() {
         await api.post('/holidays', form)
         setToast({ open: true, msg: 'Holiday added successfully', sev: 'success' })
       }
-      setTimeout(() => navigate('/configuration/holidayConfig'), 1500)
+      setTimeout(() => navigate('/configuration/holiday-config'), 1500)
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save holiday', sev: 'error' })
     } finally {
@@ -119,7 +119,7 @@ export default function HolidayConfigFormPage() {
           <Button
             variant="text"
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/configuration/holidayConfig')}
+            onClick={() => navigate('/configuration/holiday-config')}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             Back
@@ -194,7 +194,7 @@ export default function HolidayConfigFormPage() {
 
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                    <Button onClick={() => navigate('/configuration/holidayConfig')} variant="outlined" color="secondary" sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}>
+                    <Button onClick={() => navigate('/configuration/holiday-config')} variant="outlined" color="secondary" sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}>
                       Cancel
                     </Button>
                     <Button type="submit" variant="contained" color="primary" disabled={loading} sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}>

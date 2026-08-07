@@ -176,9 +176,8 @@ router.put('/:id', authenticate, async (req, res, next) => {
     }
 
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      const orgId = org ? (org.organizationId || org.organizationId) : null;
-      if (String(doc.organizationId || doc.organizationId) !== String(orgId)) {
+      const orgId = req.user.organizationId || req.user.organization_id;
+      if (String(doc.organizationId || doc.organization_id) !== String(orgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot edit configuration of another organization' });
       }
     }
@@ -243,9 +242,8 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     }
 
     if (req.user.role !== 'superAdmin') {
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      const orgId = org ? (org.organizationId || org.organizationId) : null;
-      if (String(doc.organizationId || doc.organizationId) !== String(orgId)) {
+      const orgId = req.user.organizationId || req.user.organization_id;
+      if (String(doc.organizationId || doc.organization_id) !== String(orgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot delete configuration of another organization' });
       }
     }
@@ -284,8 +282,9 @@ router.get('/facebook', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    const orgId = req.user.role === 'superAdmin'
+      ? (req.query.organizationId || req.user.organizationId || req.user.organization_id)
+      : (req.user.organizationId || req.user.organization_id);
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     let doc = await ApiToken.findOne({ organizationId: orgId, source: { $regex: /^facebook$/i } }).exec();
@@ -307,8 +306,9 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    const orgId = req.user.role === 'superAdmin'
+      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
+      : (req.user.organizationId || req.user.organization_id);
     
     const { accessToken, appId, appSecret } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
@@ -326,8 +326,9 @@ router.put('/facebook/pages', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    const orgId = req.user.role === 'superAdmin'
+      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
+      : (req.user.organizationId || req.user.organization_id);
     
     const { facebookPages } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
@@ -345,8 +346,9 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    const orgId = req.user.role === 'superAdmin'
+      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
+      : (req.user.organizationId || req.user.organization_id);
     
     const { pageId } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
@@ -364,8 +366,9 @@ router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    const orgId = req.user.role === 'superAdmin'
+      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
+      : (req.user.organizationId || req.user.organization_id);
     
     const { pageId } = req.body;
     const doc = await ApiToken.findOneAndUpdate(
@@ -383,8 +386,9 @@ router.delete('/facebook/token', authenticate, async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-    const orgId = org ? (org.organizationId || org.organizationId) : null;
+    const orgId = req.user.role === 'superAdmin'
+      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
+      : (req.user.organizationId || req.user.organization_id);
     
     const doc = await ApiToken.findOneAndUpdate(
       { organizationId: orgId, source: { $regex: /^facebook$/i } },

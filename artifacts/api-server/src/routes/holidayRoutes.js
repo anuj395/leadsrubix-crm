@@ -53,7 +53,11 @@ router.put('/:id', authenticate, async (req, res) => {
     if (!name || !date) return res.status(400).json({ message: 'Name and Date are required' });
 
     const Holiday = mongoose.model('Holiday');
-    const doc = await Holiday.findOne({ 'holidays._id': req.params.id });
+    const query = { 'holidays._id': req.params.id };
+    if (req.user?.role !== 'superAdmin') {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Holiday.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Holiday config not found' });
 
     const subDoc = doc.holidays.id(req.params.id);
@@ -75,7 +79,11 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const Holiday = mongoose.model('Holiday');
-    const doc = await Holiday.findOne({ 'holidays._id': req.params.id });
+    const query = { 'holidays._id': req.params.id };
+    if (req.user?.role !== 'superAdmin') {
+      query.organization_id = req.user?.organizationId;
+    }
+    const doc = await Holiday.findOne(query);
     if (!doc) return res.status(404).json({ message: 'Holiday config not found' });
 
     doc.holidays.pull(req.params.id);

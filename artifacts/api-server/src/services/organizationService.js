@@ -180,6 +180,7 @@ exports.listPaged = async ({
 
   const { items, total } = await organizationModel.listPaged({
     industryId: queryIndustry,
+    organizationId: isSuperAdmin ? undefined : (user.organizationId || user.organization_id),
     q,
     page,
     pageSize,
@@ -806,11 +807,13 @@ exports.update = async ({ id, payload, authedUser }) => {
 exports.remove = async ({ id, authedUser }) => {
   const user = await resolveActor(authedUser);
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
+  if (!isSuperAdmin) {
+    const err = new Error('Forbidden: Only Super Admin can delete organizations');
+    err.status = 403;
+    throw err;
+  }
   const existing = await organizationModel.findById(id);
   if (!existing) {
-    const err = new Error('Organization not found'); err.status = 404; throw err;
-  }
-  if (!isSuperAdmin && existing.industryId && existing.industryId !== user.industryId) {
     const err = new Error('Organization not found'); err.status = 404; throw err;
   }
   

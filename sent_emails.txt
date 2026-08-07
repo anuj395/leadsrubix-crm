@@ -295,3 +295,12 @@ Organization: dasdkadnsjk
 Username / Email: sssss@gmail.com
 Temp Password: dFBbhOv7
 ========================================
+
+========================================
+Timestamp: 2026-08-06T10:27:42.580Z
+To: care@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Heath
+Username / Email: care@digitalrubix.com
+Temp Password: ptHAgRqo
+========================================

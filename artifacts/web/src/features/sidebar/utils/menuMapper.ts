@@ -21,7 +21,6 @@ const ICON_MAP: Record<string, MenuIconKey> = {
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
   uinavigation: 'UI & Navigation',
   accesscontrol: 'Access Control',
-  leaddistribution: 'Lead Distribution',
   account: 'Account & Settings',
   invoices: 'Invoices',
   configuration: 'Configuration',
@@ -29,7 +28,7 @@ const MODULE_DISPLAY_NAMES: Record<string, string> = {
   analytics: 'Analytics',
   organization: 'Organization',
   users: 'Users',
-  leads: 'Leads',
+  leads: 'Lead Section',
   support: 'Support',
 }
 
@@ -56,9 +55,9 @@ const SUPER_ADMIN_MODULE_ORDER: Record<string, number> = {
   integrations: 60,
   uinavigation: 70,
   accesscontrol: 80,
-  account: 90,
-  invoices: 92,
+  invoices: 90,
   support: 100,
+  account: 110,
 }
 
 export function toIconKey(icon?: string): MenuIconKey {
@@ -80,7 +79,19 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
       }
     }
     if (roleKey === 'superAdmin') {
-      if (k === 'analytics.dashboard' || k === 'users.list' || k === 'configuration.apidata' || k === 'integrations.apidata') {
+      if (
+        k === 'analytics.dashboard' ||
+        k === 'users.list' ||
+        k === 'configuration.apidata' ||
+        k === 'integrations.apidata' ||
+        k === 'leaddistribution' ||
+        k.startsWith('leaddistribution.') ||
+        k === 'tool' ||
+        k.startsWith('tool.') ||
+        k === 'configuration.holiday' ||
+        k === 'configuration.days' ||
+        k === 'account.subscription'
+      ) {
         return false
       }
     }
@@ -91,7 +102,15 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
   if (roleKey === 'superAdmin') {
     filtered.forEach((item) => {
       const k = item.key
-      if (k === 'configuration.api' || k === 'integrations.api') {
+      if (k === 'leads') {
+        item.name = 'Lead Section'
+      } else if (k === 'configuration.industries') {
+        item.name = 'Industry'
+      } else if (k === 'configuration.projects') {
+        item.name = 'Project'
+      } else if (k === 'configuration.resources') {
+        item.name = 'Resources'
+      } else if (k === 'configuration.api' || k === 'integrations.api') {
         item.module = 'integrations'
         item.name = 'API Tokens'
       } else if (k === 'configuration.whatsapp' || k === 'integrations.whatsapp') {
@@ -109,17 +128,21 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
       } else if (k === 'analytics.config' || k === 'configuration.analyticsConfig' || k === 'uiNavigation.analyticsConfig') {
         item.key = 'uiNavigation.analyticsConfig'
         item.module = 'uinavigation'
-        item.name = 'Layout Builder'
+        item.name = 'Analytics Layout Builder'
         item.route = '/configuration/analytics-config'
       } else if (k === 'configuration.permissions' || k === 'accessControl.permissions') {
         item.module = 'accesscontrol'
-        item.name = 'Permissions Matrix'
+        item.name = 'Permission Matrix (Sidebar)'
       } else if (k === 'configuration.screenPermissions' || k === 'accessControl.screenPermissions') {
         item.module = 'accesscontrol'
         item.name = 'Permission Fields'
       } else if (k === 'users.roles' || k === 'accessControl.roles') {
         item.module = 'accesscontrol'
         item.name = 'Roles & Permissions'
+      } else if (k === 'account.licenses') {
+        item.name = 'License Cost'
+      } else if (k === 'account.coupons') {
+        item.name = 'Coupons'
       } else if (k === 'leads.contact' || k === 'leads.contacts') {
         item.name = 'Contacts List'
       } else if (k === 'leads.tasks') {
@@ -171,10 +194,10 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
         module: mod,
       })
     } else {
-      // Parent + children: deduplicate child items by key and route
+      // Parent + children: deduplicate child items strictly by route or name
       const uniqueChildrenMap = new Map<string, SidebarChildItem>()
       children.forEach((c) => {
-        const dedupeKey = c.key || c.route || c.name
+        const dedupeKey = (c.route && c.route !== '#') ? c.route.toLowerCase().trim() : c.name.toLowerCase().trim()
         if (!uniqueChildrenMap.has(dedupeKey)) {
           uniqueChildrenMap.set(dedupeKey, {
             id: c.key,

@@ -91,30 +91,31 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "leads.callLogs", name: "Call Logs List", route: "/leads/call-logs", icon: "call", module: "leads" },
   { key: "leads.sorted", name: "Sorted List", route: "/leads/sorted", icon: "sort", module: "leads" },
 
-  { key: "configuration.industries", name: "Industries", route: "/configuration/industries", icon: "organization", module: "configuration" },
-  { key: "configuration.projects", name: "Projects", route: "/configuration/projects", icon: "projects", module: "configuration" },
+  { key: "configuration.industries", name: "Industry", route: "/configuration/industries", icon: "organization", module: "configuration" },
+  { key: "configuration.projects", name: "Project", route: "/configuration/projects", icon: "projects", module: "configuration" },
   { key: "configuration.resources", name: "Resources", route: "/configuration/resources", icon: "resources", module: "configuration" },
 
   { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
   { key: "integrations.whatsapp", name: "WhatsApp API", route: "/configuration/whatsapp", icon: "whatsapp", module: "integrations" },
 
+  { key: "uiNavigation.analyticsConfig", name: "Analytics Layout Builder", route: "/configuration/analytics-config", icon: "settings", module: "uiNavigation" },
   { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/configuration/menus", icon: "sidebar", module: "uiNavigation" },
   { key: "uiNavigation.screens", name: "Screens", route: "/configuration/screens", icon: "headers", module: "uiNavigation" },
   { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/configuration/screen-fields", icon: "headers", module: "uiNavigation" },
-  { key: "uiNavigation.analyticsConfig", name: "Layout Builder", route: "/configuration/analytics-config", icon: "settings", module: "uiNavigation" },
 
-  { key: "accessControl.permissions", name: "Permissions Matrix", route: "/configuration/permissions", icon: "shield", module: "accessControl" },
-  { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/configuration/screen-permissions", icon: "shield", module: "accessControl" },
   { key: "accessControl.roles", name: "Roles & Permissions", route: "/users/roles", icon: "shield", module: "accessControl" },
+  { key: "accessControl.permissions", name: "Permission Matrix (Sidebar)", route: "/configuration/permissions", icon: "shield", module: "accessControl" },
+  { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/configuration/screen-permissions", icon: "shield", module: "accessControl" },
 
-  { key: "account.licenses", name: "Licenses Cost", route: "/account/licenses", icon: "billing", module: "account" },
-  { key: "account.coupons", name: "Coupon", route: "/account/coupons", icon: "coupon", module: "account" },
   { key: "invoices.paymentLogs", name: "Payment Invoice Logs", route: "/account/payment-invoices", icon: "billing", module: "invoices" },
   { key: "invoices.receiptsHistory", name: "Receipts & Historical Charges", route: "/account/receipts-history", icon: "subscription", module: "invoices" },
-  { key: "account.password", name: "Update Password", route: "/account/update-password", icon: "password", module: "account" },
 
   { key: "support.news", name: "News List", route: "/support/news", icon: "news", module: "support" },
-  { key: "support.faq", name: "FAQ List", route: "/support/faq", icon: "faq", module: "support" }
+  { key: "support.faq", name: "FAQ List", route: "/support/faq", icon: "faq", module: "support" },
+
+  { key: "account.licenses", name: "License Cost", route: "/account/licenses", icon: "billing", module: "account" },
+  { key: "account.coupons", name: "Coupons", route: "/account/coupons", icon: "coupon", module: "account" },
+  { key: "account.password", name: "Update Password", route: "/account/update-password", icon: "password", module: "account" }
 ]
 
 export const adminMenuConfig: SuperAdminMenuItem[] = [
@@ -193,21 +194,21 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "configuration.holidayConfig",
     name: "Holiday Config",
-    route: "/configuration/holidayConfig",
+    route: "/configuration/holiday-config",
     icon: "holiday",
     module: "Configuration"
   },
   {
     key: "configuration.daysConfig",
     name: "Days Config",
-    route: "/configuration/daysConfig",
+    route: "/configuration/days-config",
     icon: "days",
     module: "Configuration"
   },
   {
     key: "leadDistribution.list",
     name: "Lead Distribution List",
-    route: "/leadDistribution/list",
+    route: "/lead-distribution/list",
     icon: "list",
     module: "leadDistribution"
   },
@@ -329,7 +330,7 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "tool.areaConverter",
     name: "Area Converter",
-    route: "/tool/areaConverter",
+    route: "/tool/area-converter",
     icon: "areaConverter",
     module: "Tool"
   },
@@ -395,7 +396,7 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "tool.areaConverter",
     name: "Area Converter",
-    route: "/tool/areaConverter",
+    route: "/tool/area-converter",
     icon: "areaConverter",
     module: "Tool"
   },
@@ -461,7 +462,7 @@ export const salesMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "tool.areaConverter",
     name: "Area Converter",
-    route: "/tool/areaConverter",
+    route: "/tool/area-converter",
     icon: "areaConverter",
     module: "Tool"
   },

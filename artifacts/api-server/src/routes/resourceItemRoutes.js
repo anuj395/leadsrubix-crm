@@ -141,10 +141,8 @@ router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
     }
 
     if (req.user.role !== 'superAdmin') {
-      const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      const userOrgId = org ? (org.organizationId || org.organizationId) : null;
-      if (!userOrgId || String(doc.organizationId || doc.organizationId) !== String(userOrgId)) {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      if (!userOrgId || String(doc.organizationId || doc.organization_id) !== String(userOrgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot edit resource from another organization' });
       }
     }
@@ -203,10 +201,8 @@ router.delete('/:resource_key/:id', authenticate, async (req, res, next) => {
     }
 
     if (req.user.role !== 'superAdmin') {
-      const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: req.user.industryId }).exec();
-      const userOrgId = org ? (org.organizationId || org.organizationId) : null;
-      if (!userOrgId || String(doc.organizationId || doc.organizationId) !== String(userOrgId)) {
+      const userOrgId = req.user.organizationId || req.user.organization_id;
+      if (!userOrgId || String(doc.organizationId || doc.organization_id) !== String(userOrgId)) {
         return res.status(403).json({ message: 'Forbidden: Cannot delete resource from another organization' });
       }
     }

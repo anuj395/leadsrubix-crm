@@ -240,11 +240,19 @@ exports.fetchById = async ({ id, authedUser }) => {
   if (!target) return null;
   const isSuperAdmin = authedUser?.role === 'superAdmin';
 
-  const sameIndustry = String(target.industryId) === String(authedUser?.industryId);
+  const targetOrgId = target.organizationId || target.organization_id;
+  const authedOrgId = authedUser?.organizationId || authedUser?.organization_id;
+  let sameOrg = false;
+  if (targetOrgId && authedOrgId) {
+    sameOrg = String(targetOrgId) === String(authedOrgId);
+  } else if (!targetOrgId && !authedOrgId) {
+    sameOrg = String(target.industryId) === String(authedUser?.industryId);
+  }
+
   const isSelf = String(target._id) === String(authedUser?.id);
 
   if (!isSuperAdmin) {
-    if (!sameIndustry && !isSelf) {
+    if (!sameOrg && !isSelf) {
       const e = new Error('Forbidden'); e.status = 403; throw e;
     }
     // Inside the tenant, only admins (and self) may read another user record.
@@ -425,8 +433,18 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (!target) { const e = new Error('User not found'); e.status = 404; throw e; }
 
   const isSuperAdmin = authedUser?.role === 'superAdmin';
-  if (!isSuperAdmin && String(target.industryId) !== String(authedUser?.industryId)) {
-    const e = new Error('Forbidden'); e.status = 403; throw e;
+  if (!isSuperAdmin) {
+    const targetOrgId = target.organizationId || target.organization_id;
+    const authedOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    let sameOrg = false;
+    if (targetOrgId && authedOrgId) {
+      sameOrg = String(targetOrgId) === String(authedOrgId);
+    } else if (!targetOrgId && !authedOrgId) {
+      sameOrg = String(target.industryId) === String(authedUser?.industryId);
+    }
+    if (!sameOrg) {
+      const e = new Error('Forbidden'); e.status = 403; throw e;
+    }
   }
 
   // Active status limit check
@@ -607,8 +625,18 @@ exports.remove = async ({ id, authedUser }) => {
   const target = await userModel.findById(id);
   if (!target) { const e = new Error('User not found'); e.status = 404; throw e; }
   const isSuperAdmin = authedUser?.role === 'superAdmin';
-  if (!isSuperAdmin && String(target.industryId) !== String(authedUser?.industryId)) {
-    const e = new Error('Forbidden'); e.status = 403; throw e;
+  if (!isSuperAdmin) {
+    const targetOrgId = target.organizationId || target.organization_id;
+    const authedOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    let sameOrg = false;
+    if (targetOrgId && authedOrgId) {
+      sameOrg = String(targetOrgId) === String(authedOrgId);
+    } else if (!targetOrgId && !authedOrgId) {
+      sameOrg = String(target.industryId) === String(authedUser?.industryId);
+    }
+    if (!sameOrg) {
+      const e = new Error('Forbidden'); e.status = 403; throw e;
+    }
   }
   if (!isSuperAdmin && target.role === 'superAdmin') {
     const e = new Error('Forbidden'); e.status = 403; throw e;

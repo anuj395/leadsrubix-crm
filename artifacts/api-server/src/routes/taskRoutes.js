@@ -21,7 +21,14 @@ router.post('/uniqueTaskTypeUpdate', authenticate, async (req, res, next) => {
     if (unique_meeting !== undefined) update.uniqueMeeting = !!unique_meeting;
     if (unique_site_visit !== undefined) update.uniqueSiteVisit = !!unique_site_visit;
 
-    const updated = await Task.findByIdAndUpdate(id, { $set: update }, { new: true });
+    const query = { _id: id };
+    if (req.user?.role !== 'superAdmin') {
+      query.organization_id = req.user?.organizationId;
+    }
+    const updated = await Task.findOneAndUpdate(query, { $set: update }, { new: true });
+    if (!updated) {
+      return res.status(404).json({ message: 'Task not found or access denied' });
+    }
     return res.json(updated);
   } catch (err) {
     next(err);
