@@ -275,6 +275,33 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
       }
       const doc = await Model.create(payload);
       const docObj = doc.toObject();
+
+      if (resourceName === 'Task') {
+        try {
+          const assignedUserEmail = doc.assignedTo || doc.contactOwnerEmail;
+          const mongoose = require('mongoose');
+          let targetUserId = doc.uid;
+          if (!targetUserId && assignedUserEmail) {
+            const userObj = await mongoose.model('User').findOne({ email: assignedUserEmail }).exec();
+            if (userObj) targetUserId = userObj._id || userObj.uid;
+          }
+          if (targetUserId) {
+            const { createNotification } = require('./notificationService');
+            await createNotification({
+              userId: targetUserId,
+              organizationId: doc.organization_id || req.user?.organizationId,
+              workspaceId: doc.workspaceId || doc.workspace_id || null,
+              title: 'New Task Assigned',
+              message: `A new task "${doc.title || doc.name || 'Task Details'}" has been assigned to you. Due date: ${doc.dueDate ? new Date(doc.dueDate).toLocaleDateString() : 'N/A'}.`,
+              type: 'TASK_ASSIGNED',
+              relatedId: doc._id
+            });
+          }
+        } catch (nErr) {
+          console.error('[Notification] Failed to create task assignment notification:', nErr);
+        }
+      }
+
       await enrichTasks(Model, [docObj]);
       res.status(201).json(withDualCase(docObj));
     } catch (err) { next(err); }

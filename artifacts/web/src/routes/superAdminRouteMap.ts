@@ -59,6 +59,7 @@ import AreaConverterPage from '@/features/admin/tool/pages/AreaConverter'
 import CalculatorPage from '@/features/admin/tool/pages/Calculator'
 import EmiCalculatorPage from '@/features/admin/tool/pages/EmiCalculator'
 import ContactDetailsPage from '@/features/admin/leads/pages/ContactDetails'
+import AddContactPage from '@/features/admin/leads/pages/AddContact'
 import InterestedDetailsPage from '@/features/admin/leads/components/InterestedDetails'
 import ContactDrilldownPage from '@/features/admin/pages/drilldown/ContactDrilldown'
 import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
@@ -76,7 +77,9 @@ export const routeComponentMap: Record<string, any> = {
   "/access-control/roles": RolesAndPermissionsPage,
 
   "/leads/contacts": ContactsListPage,
+  "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,
+  "/leads/contacts/:id/edit": AddContactPage,
   "/leads/contacts/:id/interested": InterestedDetailsPage,
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,

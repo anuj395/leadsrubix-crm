@@ -298,6 +298,20 @@ exports.createForUser = async ({ payload, authedUser }) => {
     data.organizationId = user.organizationId;
   }
 
+  // Align incoming snake_case properties to camelCase for compatibility before defaults are set
+  if (data.customerName === undefined && data.customer_name !== undefined) data.customerName = data.customer_name;
+  if (data.contactNumber === undefined && data.contact_number !== undefined) data.contactNumber = data.contact_number;
+  if (data.alternateNo === undefined && data.alternate_no !== undefined) data.alternateNo = data.alternate_no;
+  if (data.alternateNo === undefined && data.alternate_number !== undefined) data.alternateNo = data.alternate_number;
+  if (data.emailId === undefined && data.email_id !== undefined) data.emailId = data.email_id;
+  if (data.contactOwnerEmail === undefined && data.contact_owner_email !== undefined) data.contactOwnerEmail = data.contact_owner_email;
+  if (data.leadType === undefined && data.lead_type !== undefined) data.leadType = data.lead_type;
+  if (data.propertyType === undefined && data.property_type !== undefined) data.propertyType = data.property_type;
+  if (data.propertyStage === undefined && data.property_stage !== undefined) data.propertyStage = data.property_stage;
+  if (data.propertySubType === undefined && data.property_sub_type !== undefined) data.propertySubType = data.property_sub_type;
+  if (data.projectName === undefined && data.project_name !== undefined) data.projectName = data.project_name;
+  if (data.countryCode === undefined && data.country_code !== undefined) data.countryCode = data.country_code;
+
   // Standard camelCase property defaults
   data.customerName = data.customerName || '';
   data.contactNumber = data.contactNumber || '';
@@ -435,6 +449,19 @@ exports.createForUser = async ({ payload, authedUser }) => {
     }).catch(err => console.error('[WhatsApp] Incoming notification dispatch error:', err));
   } catch (e) {
     console.error('[WhatsApp] Failed to initiate incoming notification:', e);
+  }
+
+  try {
+    const { notifyLeadAssignmentOrCreation } = require('./notificationService');
+    await notifyLeadAssignmentOrCreation({
+      contact: created,
+      organizationId: targetOrgId,
+      title: 'New Lead Assigned',
+      message: `A new lead "${created.customerName || created.name || 'Unnamed'}" has been assigned to you.`,
+      type: 'LEAD_ASSIGNED'
+    });
+  } catch (err) {
+    console.error('[Notification] Failed to dispatch in-app assignment notification:', err);
   }
 
   return created;
@@ -686,6 +713,21 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       console.error('[WhatsApp] Failed to initiate transfer notification:', e);
     }
 
+    try {
+      const { createNotification } = require('./notificationService');
+      await createNotification({
+        userId: targetOwnerUid,
+        organizationId: lead.organization_id || lead.organizationId,
+        workspaceId: lead.workspace_id || lead.workspaceId || null,
+        title: 'Lead Transferred to You',
+        message: `Lead "${lead.name || 'Unnamed'}" has been transferred to you by ${authedUser?.name || authedUser?.email || 'System'}.`,
+        type: 'LEAD_TRANSFERRED',
+        relatedId: lead._id
+      });
+    } catch (err) {
+      console.error('[Notification] Failed to create in-app transfer notification:', err);
+    }
+
     // Update existing pending tasks for this lead to new owner if options.task is true
     if (options.task === true) {
       await Task.updateMany(
@@ -730,6 +772,25 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     }
   } catch (e) {
     console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
+  }
+
+  try {
+    const { createNotification } = require('./notificationService');
+    for (const lead of leads) {
+      if (uid) {
+        await createNotification({
+          userId: uid,
+          organizationId: lead.organization_id || lead.organizationId,
+          workspaceId: lead.workspace_id || lead.workspaceId || null,
+          title: 'Lead Transferred to You',
+          message: `Lead "${lead.name || 'Unnamed'}" has been reassigned to you by ${authedUser?.name || authedUser?.email || 'System'}.`,
+          type: 'LEAD_TRANSFERRED',
+          relatedId: lead._id
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
   }
 
   return { modifiedCount: result.modifiedCount };

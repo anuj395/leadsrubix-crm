@@ -282,6 +282,19 @@ router.post('/createContacts', async (req, res, next) => {
       console.error('[WhatsApp] Failed to initiate incoming API lead notification:', e);
     }
 
+    try {
+      const { notifyLeadAssignmentOrCreation } = require('../services/notificationService');
+      await notifyLeadAssignmentOrCreation({
+        contact: doc,
+        organizationId: tokenData.organizationId,
+        title: 'New Lead Assigned (Webhook)',
+        message: `A new lead "${doc.customerName || doc.name || 'Unnamed'}" has been assigned to you via API webhook.`,
+        type: 'LEAD_ASSIGNED'
+      });
+    } catch (err) {
+      console.error('[Notification] Failed to dispatch webhook in-app assignment notification:', err);
+    }
+
     await logApiTransaction(reqData, tokenData, "SUCCESS", "", String(doc._id));
 
     return res.status(200).json({ message: "Thank You! We will get back to you soon" });
@@ -480,6 +493,19 @@ router.post('/facebook', async (req, res, next) => {
           }).catch(err => console.error('[WhatsApp] Incoming Facebook lead notification dispatch error:', err));
         } catch (e) {
           console.error('[WhatsApp] Failed to initiate incoming Facebook lead notification:', e);
+        }
+
+        try {
+          const { notifyLeadAssignmentOrCreation } = require('../services/notificationService');
+          await notifyLeadAssignmentOrCreation({
+            contact: createdContact,
+            organizationId: tokenDoc.organizationId,
+            title: 'New Facebook Lead Assigned',
+            message: `A new Facebook lead "${createdContact.customerName || createdContact.name || 'Unnamed'}" has been assigned to you.`,
+            type: 'LEAD_ASSIGNED'
+          });
+        } catch (err) {
+          console.error('[Notification] Failed to dispatch Facebook webhook in-app assignment notification:', err);
         }
 
         // Log transaction success

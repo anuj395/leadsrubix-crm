@@ -5,7 +5,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircularProgress from '@mui/material/CircularProgress'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { createContact, updateContact, listContacts, type Contact } from '@/services/contactsService'
@@ -24,6 +24,10 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
 const AddContactPage = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
+  const [searchParams] = useSearchParams()
+  const industryCode = searchParams.get('industry') || undefined
+  const organizationId = searchParams.get('organization') || undefined
+
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [initializing, setInitializing] = useState(!!id)
   const [loading, setLoading] = useState(false)
@@ -61,7 +65,12 @@ const AddContactPage = () => {
         await updateContact(id, values)
         setToast({ open: true, msg: 'Contact updated successfully', sev: 'success' })
       } else {
-        await createContact(values)
+        const payloadValues = {
+          ...values,
+          organizationId: organizationId || values.organizationId,
+          organization_id: organizationId || values.organization_id,
+        }
+        await createContact(payloadValues)
         setToast({ open: true, msg: 'Contact created successfully', sev: 'success' })
       }
       setTimeout(() => navigate('/leads/contacts'), 1500)
@@ -99,7 +108,12 @@ const AddContactPage = () => {
         <Box sx={{ mt: 2 }}>
           <DynamicForm
             screen="contacts"
-            initialValues={editingContact ? toFormValues(editingContact) : {}}
+            industryCode={industryCode}
+            organizationId={organizationId}
+            initialValues={editingContact ? toFormValues(editingContact) : {
+              organizationId: organizationId || '',
+              organization_id: organizationId || '',
+            }}
             onSubmit={handleSubmit}
             onCancel={() => navigate('/leads/contacts')}
             submitLabel={id ? "Save Changes" : "Create Contact"}

@@ -31,6 +31,11 @@ import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { useAuth } from '@/hooks/useAuth'
+import { 
+  fetchNotificationSettings, 
+  updateNotificationSetting,
+  type NotificationSettingsResponse 
+} from '@/features/notifications/api/notificationApi'
 
 interface SettingItem {
   _id: string
@@ -50,7 +55,14 @@ interface Industry {
   name: string
 }
 
-type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys'
+type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities'
+
+const NOTIFICATION_TYPES = [
+  { value: 'LEAD_CREATED', label: 'New Lead Created', description: 'Triggered when a new lead is added to the organization.' },
+  { value: 'LEAD_ASSIGNED', label: 'New Lead Assigned', description: 'Triggered when a lead is assigned or transferred to a user.' },
+  { value: 'TASK_ASSIGNED', label: 'Task Assigned', description: 'Triggered when a task is created or assigned to a user.' },
+  { value: 'SYSTEM', label: 'System Notifications', description: 'General system-wide messages and alerts.' }
+]
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -61,6 +73,7 @@ export default function SettingsPage() {
   const [roleKeys, setRoleKeys] = useState<{ _id: string; value: string; label: string }[]>([])
   const [selectedIndustryId, setSelectedIndustryId] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationSettingsResponse | null>(null)
   const { confirmDelete } = useConfirm()
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -87,7 +100,37 @@ export default function SettingsPage() {
     setToast({ open: true, msg, sev })
   }
 
+  const loadNotificationSettings = async (industryIdFilter?: string) => {
+    setLoading(true)
+    try {
+      const res = await fetchNotificationSettings(industryIdFilter)
+      setNotificationPrefs(res)
+    } catch {
+      showToast('Failed to load notification settings', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTogglePreference = async (level: 'industry' | 'org' | 'user', notificationType: string, currentVal: boolean) => {
+    try {
+      await updateNotificationSetting({
+        level,
+        notificationType,
+        isEnabled: !currentVal,
+        industryId: level === 'industry' ? selectedIndustryId : undefined
+      })
+      showToast('Preference updated successfully')
+      void loadNotificationSettings(selectedIndustryId)
+    } catch {
+      showToast('Failed to update preference', 'error')
+    }
+  }
+
   const loadItems = async (currentTab: TabType, industryIdFilter?: string) => {
+    if (currentTab === 'notification-settings' || currentTab === 'notification-capabilities') {
+      return loadNotificationSettings(industryIdFilter)
+    }
     setLoading(true)
     try {
       const params = currentTab === 'roles' && industryIdFilter ? { industryId: industryIdFilter } : {}
@@ -235,14 +278,12 @@ export default function SettingsPage() {
         width: '100%',
         minWidth: 0,
         height: '100%',
-        maxHeight: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: 3,
-        overflowY: 'auto',
+        overflow: 'hidden',
       }}
     >
-      <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
+      <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, mb: 3 }}>
         <Box>
           <Typography variant="h4" className="gradient-text" sx={{ fontWeight: 800, mb: 0.5 }}>
             Workspace Settings
@@ -271,8 +312,13 @@ export default function SettingsPage() {
         )}
       </Box>
 
-      <AppCard title="Workspace Parameters" subtitle={isSuperAdmin ? 'Configure global tenant roles' : 'Configure system parameters for teams, branches, and designations'}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
+      <AppCard
+        fullHeight
+        title="Workspace Parameters"
+        subtitle={isSuperAdmin ? 'Configure global tenant roles' : 'Configure system parameters for teams, branches, and designations'}
+        sx={{ flex: 1, minHeight: 0 }}
+      >
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3, flexShrink: 0 }}>
           {isSuperAdmin ? (
             <Tabs
               value={tab}
@@ -289,6 +335,7 @@ export default function SettingsPage() {
             >
               <Tab label="Roles" value="roles" />
               <Tab label="Role Keys" value="role-keys" />
+              <Tab label="Notification Capabilities" value="notification-capabilities" />
             </Tabs>
           ) : (
             <Tabs
@@ -307,31 +354,167 @@ export default function SettingsPage() {
               <Tab label="Teams" value="teams" />
               <Tab label="Branches" value="branches" />
               <Tab label="Designations" value="designations" />
+              <Tab label="Notification Settings" value="notification-settings" />
             </Tabs>
           )}
 
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openAdd}
-            sx={{
-              borderRadius: '10px',
-              textTransform: 'none',
-              fontWeight: 600,
-              boxShadow: 'none',
-              '&:hover': { boxShadow: 'none' },
-            }}
-          >
-            Add {tab === 'roles' ? 'Role' : tab === 'role-keys' ? 'Role Key' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
-          </Button>
+          {!(tab === 'notification-settings' || tab === 'notification-capabilities') && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openAdd}
+              sx={{
+                borderRadius: '10px',
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: 'none',
+                '&:hover': { boxShadow: 'none' },
+              }}
+            >
+              Add {tab === 'roles' ? 'Role' : tab === 'role-keys' ? 'Role Key' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
+            </Button>
+          )}
         </Stack>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress size={40} />
           </Box>
+        ) : (tab === 'notification-settings' || tab === 'notification-capabilities') ? (
+          <Stack spacing={4} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 0.5 }}>
+            {tab === 'notification-capabilities' && (
+              <Box>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Industry Notifications Capabilities</Typography>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px' }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                        <TableCell sx={{ fontWeight: 700, width: '30%' }}>Notification Type</TableCell>
+                        <TableCell sx={{ fontWeight: 700, width: '50%' }}>Description</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, pr: 4 }}>Capability Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {NOTIFICATION_TYPES.map((type) => {
+                        const industrySetting = notificationPrefs?.industrySettings.find(s => s.notification_type === type.value);
+                        const isEnabled = industrySetting ? industrySetting.is_enabled !== false : true;
+                        return (
+                          <TableRow key={type.value} hover>
+                            <TableCell sx={{ fontWeight: 600 }}>{type.label}</TableCell>
+                            <TableCell sx={{ color: 'text.secondary' }}>{type.description}</TableCell>
+                            <TableCell align="right" sx={{ pr: 3 }}>
+                              <Switch
+                                checked={isEnabled}
+                                onChange={() => handleTogglePreference('industry', type.value, isEnabled)}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+
+            {tab === 'notification-settings' && (
+              <>
+                {user?.role === 'admin' && (
+                  <Box>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Organization-wide Defaults</Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', mb: 3 }}>
+                      <Table>
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                            <TableCell sx={{ fontWeight: 700, width: '30%' }}>Notification Type</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: '50%' }}>Description</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, pr: 4 }}>Default Active Status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {NOTIFICATION_TYPES.map((type) => {
+                            const industrySetting = notificationPrefs?.industrySettings.find(s => s.notification_type === type.value);
+                            const isAllowedByIndustry = industrySetting ? industrySetting.is_enabled !== false : true;
+
+                            const orgSetting = notificationPrefs?.orgSettings.find(s => s.notification_type === type.value);
+                            const isEnabled = orgSetting ? orgSetting.is_enabled !== false : true;
+
+                            return (
+                              <TableRow key={type.value} hover>
+                                <TableCell sx={{ fontWeight: 600, color: isAllowedByIndustry ? 'text.primary' : 'text.disabled' }}>{type.label}</TableCell>
+                                <TableCell sx={{ color: isAllowedByIndustry ? 'text.secondary' : 'text.disabled' }}>
+                                  {type.description}
+                                  {!isAllowedByIndustry && (
+                                    <Typography variant="caption" display="block" sx={{ color: 'error.main', mt: 0.5, fontWeight: 500 }}>
+                                      Disabled by enterprise industry configuration
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell align="right" sx={{ pr: 3 }}>
+                                  <Switch
+                                    checked={isAllowedByIndustry && isEnabled}
+                                    disabled={!isAllowedByIndustry}
+                                    onChange={() => handleTogglePreference('org', type.value, isEnabled)}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                )}
+
+                <Box>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>My Individual Preferences</Typography>
+                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px' }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                          <TableCell sx={{ fontWeight: 700, width: '30%' }}>Notification Type</TableCell>
+                          <TableCell sx={{ fontWeight: 700, width: '50%' }}>Description</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700, pr: 4 }}>Receive Notifications</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {NOTIFICATION_TYPES.map((type) => {
+                          const industrySetting = notificationPrefs?.industrySettings.find(s => s.notification_type === type.value);
+                          const isAllowedByIndustry = industrySetting ? industrySetting.is_enabled !== false : true;
+
+                          const userSetting = notificationPrefs?.userSettings.find(s => s.notification_type === type.value);
+                          const isEnabled = userSetting ? userSetting.is_enabled !== false : true;
+
+                          return (
+                            <TableRow key={type.value} hover>
+                              <TableCell sx={{ fontWeight: 600, color: isAllowedByIndustry ? 'text.primary' : 'text.disabled' }}>{type.label}</TableCell>
+                              <TableCell sx={{ color: isAllowedByIndustry ? 'text.secondary' : 'text.disabled' }}>
+                                {type.description}
+                                {!isAllowedByIndustry && (
+                                  <Typography variant="caption" display="block" sx={{ color: 'error.main', mt: 0.5, fontWeight: 500 }}>
+                                    Disabled by enterprise industry configuration
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell align="right" sx={{ pr: 3 }}>
+                                <Switch
+                                  checked={isAllowedByIndustry && isEnabled}
+                                  disabled={!isAllowedByIndustry}
+                                  onChange={() => handleTogglePreference('user', type.value, isEnabled)}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              </>
+            )}
+          </Stack>
         ) : (
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider', flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow sx={{ backgroundColor: 'action.hover' }}>

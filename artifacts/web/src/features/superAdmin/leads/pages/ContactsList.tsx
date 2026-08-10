@@ -26,7 +26,6 @@ export default function ContactsListPage() {
   const [items, setItems] = useState<Contact[]>([])
   const [columns, setColumns] = useState<ResolvedTableHeader[]>([])
   const [loading, setLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
   })
@@ -124,7 +123,7 @@ export default function ContactsListPage() {
         title="Contacts"
         subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/leads/contacts/new?industry=${selectedIndustry || ''}&organization=${selectedOrg || ''}`)}>
             Add Contact
           </Button>
         }
@@ -147,23 +146,6 @@ export default function ContactsListPage() {
           getRowId={(r) => r._id}
         />
       </AppCard>
-
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>New Contact</DialogTitle>
-        <DialogContent dividers>
-          <DynamicForm
-            screen="contacts"
-            onCancel={() => setDialogOpen(false)}
-            submitLabel="Create"
-            onSubmit={async (values) => {
-              await createContact(values)
-              setDialogOpen(false)
-              setToast({ open: true, msg: 'Contact created', sev: 'success' })
-              await refresh()
-            }}
-          />
-        </DialogContent>
-      </Dialog>
 
       <Snackbar
         open={toast.open}

@@ -46,6 +46,8 @@ require('./models/importLogModel');
 require('./models/callLogModel');
 require('./models/sidebarModel');
 require('./models/taskModel');
+require('./models/notificationModel');
+require('./models/notificationSettingModel');
 
 const {
   seedUsers,

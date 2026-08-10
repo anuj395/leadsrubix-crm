@@ -1,4 +1,18 @@
-import { useState, type MouseEvent } from 'react'
+import { useState, useEffect, type MouseEvent } from 'react'
+import CircularProgress from '@mui/material/CircularProgress'
+import NotificationsOffOutlinedIcon from '@mui/icons-material/NotificationsOffOutlined'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import {
+    loadNotifications,
+    loadUnreadCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+    selectNotifications,
+    selectUnreadCount,
+    selectNotificationsStatus,
+    selectNotificationsError
+} from '@/features/notifications/store/notificationSlice'
+import type { NotificationItem } from '@/features/notifications/types/notification.types'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
@@ -6,9 +20,7 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import InputOutlinedIcon from '@mui/icons-material/InputOutlined'
-import GTranslateRoundedIcon from '@mui/icons-material/GTranslateRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
-import FormatTextdirectionRToLRoundedIcon from '@mui/icons-material/FormatTextdirectionRToLRounded'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import Avatar from '@mui/material/Avatar'
 import Badge from '@mui/material/Badge'
@@ -92,6 +104,24 @@ const breadcrumbMap: Record<string, string[]> = {
     '/reassign/logic': ['Home', 'Lead Distribution', 'Reassign Logic'],
 }
 
+function formatRelativeTime(dateString: string): string {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffSec = Math.floor(diffMs / 1000)
+    const diffMin = Math.floor(diffSec / 60)
+    const diffHr = Math.floor(diffMin / 60)
+    const diffDays = Math.floor(diffHr / 24)
+
+    if (diffSec < 60) return 'just now'
+    if (diffMin < 60) return `${diffMin}m ago`
+    if (diffHr < 24) return `${diffHr}h ago`
+    if (diffDays === 1) return 'yesterday'
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 interface NavbarProps {
     onMobileMenuOpen?: () => void
 }
@@ -104,6 +134,64 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
     const navigate = useNavigate()
     const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null)
     const [isRotating, setIsRotating] = useState(false)
+
+    const dispatch = useAppDispatch()
+    const notifications = useAppSelector(selectNotifications)
+    const unreadCount = useAppSelector(selectUnreadCount)
+    const status = useAppSelector(selectNotificationsStatus)
+    const error = useAppSelector(selectNotificationsError)
+
+    const [notificationsAnchor, setNotificationsAnchor] = useState<HTMLElement | null>(null)
+
+    useEffect(() => {
+        let interval: any
+        if (user) {
+            dispatch(loadUnreadCount())
+            dispatch(loadNotifications())
+            interval = setInterval(() => {
+                dispatch(loadUnreadCount())
+            }, 30000)
+        }
+        return () => {
+            if (interval) clearInterval(interval)
+        }
+    }, [dispatch, user])
+
+    const handleNotificationsToggle = (event: MouseEvent<HTMLElement>) => {
+        setNotificationsAnchor((current) => {
+            if (current) {
+                return null;
+            } else {
+                dispatch(loadNotifications());
+                dispatch(loadUnreadCount());
+                return event.currentTarget;
+            }
+        })
+    }
+
+    const handleCloseNotifications = () => {
+        setNotificationsAnchor(null)
+    }
+
+    const handleMarkAllRead = () => {
+        dispatch(markAllNotificationsRead())
+    }
+
+    const handleRetryFetch = () => {
+        dispatch(loadNotifications())
+    }
+
+    const handleNotificationClick = (item: NotificationItem) => {
+        dispatch(markNotificationRead(item._id || item.id))
+        setNotificationsAnchor(null)
+        if (item.related_id) {
+            if (item.type === 'LEAD_ASSIGNED' || item.type === 'LEAD_TRANSFERRED') {
+                navigate(`/leads/contacts/${item.related_id}/edit`)
+            } else if (item.type === 'TASK_ASSIGNED') {
+                navigate('/leads/tasks')
+            }
+        }
+    }
 
     const handleThemeToggle = () => {
         setIsRotating(true)
@@ -355,11 +443,158 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     </IconButton>
 
                     {/* Notifications */}
-                    <IconButton sx={iconBtnSx} aria-label="Notifications">
-                        <Badge color="error" variant="dot" overlap="circular">
+                    <IconButton
+                        onClick={handleNotificationsToggle}
+                        sx={{
+                            ...iconBtnSx,
+                            backgroundColor: Boolean(notificationsAnchor) ? alpha(theme.palette.secondary.main, 0.08) : theme.palette.background.default,
+                            borderColor: Boolean(notificationsAnchor) ? theme.palette.secondary.main : theme.palette.divider,
+                        }}
+                        aria-label="Notifications"
+                    >
+                        <Badge badgeContent={unreadCount} color="error" max={99}>
                             <NotificationsNoneRoundedIcon fontSize="small" />
                         </Badge>
                     </IconButton>
+
+                    <Popover
+                        id="navbar-notifications-popover"
+                        open={Boolean(notificationsAnchor)}
+                        anchorEl={notificationsAnchor}
+                        onClose={handleCloseNotifications}
+                        anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'right',
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        slotProps={{
+                            paper: {
+                                sx: {
+                                    width: 360,
+                                    maxHeight: 480,
+                                    mt: 1.5,
+                                    borderRadius: '12px',
+                                    boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    display: 'flex',
+                                    flexDirection: 'column'
+                                }
+                            }
+                        }}
+                    >
+                        {/* Popover Header */}
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2, pb: 1.5 }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                Notifications
+                            </Typography>
+                            {unreadCount > 0 && (
+                                <ButtonBase
+                                    onClick={handleMarkAllRead}
+                                    sx={{
+                                        color: theme.palette.primary.main,
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        borderRadius: '4px',
+                                        px: 1,
+                                        py: 0.5,
+                                        '&:hover': {
+                                            backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                                        }
+                                    }}
+                                >
+                                    Mark all as read
+                                </ButtonBase>
+                            )}
+                        </Stack>
+
+                        <Divider />
+
+                        {/* Popover Content */}
+                        <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: 380 }}>
+                            {status === 'loading' && notifications.length === 0 ? (
+                                <Stack alignItems="center" justifyContent="center" sx={{ py: 6, gap: 1 }}>
+                                    <CircularProgress size={24} color="secondary" />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Loading notifications...
+                                    </Typography>
+                                </Stack>
+                            ) : status === 'failed' ? (
+                                <Stack alignItems="center" justifyContent="center" sx={{ py: 4, px: 2, gap: 1 }}>
+                                    <Typography variant="body2" color="error" textAlign="center">
+                                        {error || 'Failed to load notifications'}
+                                    </Typography>
+                                    <ButtonBase
+                                        onClick={handleRetryFetch}
+                                        sx={{
+                                            color: theme.palette.secondary.main,
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            textDecoration: 'underline'
+                                        }}
+                                    >
+                                        Retry
+                                    </ButtonBase>
+                                </Stack>
+                            ) : notifications.length === 0 ? (
+                                <Stack alignItems="center" justifyContent="center" sx={{ py: 6, px: 3, gap: 1.5 }}>
+                                    <NotificationsOffOutlinedIcon sx={{ fontSize: 36, color: theme.palette.text.secondary, opacity: 0.5 }} />
+                                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                                        You're all caught up! No notifications.
+                                    </Typography>
+                                </Stack>
+                            ) : (
+                                notifications.map((item) => (
+                                    <Box
+                                        key={item._id || item.id}
+                                        onClick={() => handleNotificationClick(item)}
+                                        sx={{
+                                            p: 2,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: 1.5,
+                                            borderBottom: `1px solid ${theme.palette.divider}`,
+                                            backgroundColor: !item.is_read
+                                                ? alpha(theme.palette.secondary.main, 0.03)
+                                                : 'transparent',
+                                            transition: 'background-color 150ms ease',
+                                            '&:hover': {
+                                                backgroundColor: alpha(theme.palette.action.hover, 0.05)
+                                            }
+                                        }}
+                                    >
+                                        {/* Unread dot indicator */}
+                                        {!item.is_read && (
+                                            <Box
+                                                sx={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: theme.palette.secondary.main,
+                                                    mt: 0.75,
+                                                    flexShrink: 0
+                                                }}
+                                            />
+                                        )}
+                                        <Box sx={{ flex: 1, ml: item.is_read ? 2 : 0 }}>
+                                            <Typography variant="body2" sx={{ fontWeight: !item.is_read ? 600 : 400, color: 'text.primary', mb: 0.25 }}>
+                                                {item.title}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, lineHeight: 1.3 }}>
+                                                {item.message}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6875rem' }}>
+                                                {formatRelativeTime(item.created_at || item.createdAt)}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                ))
+                            )}
+                        </Box>
+                    </Popover>
 
                     {/* Profile button */}
                     <ButtonBase
@@ -521,49 +756,6 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     <Divider sx={{ mx: 1.25 }} />
 
                     <Stack spacing={0.1} sx={{ px: 1, pt: 0.75, pb: 1 }}>
-                        <Stack
-                            direction="row"
-                            alignItems="center"
-                            justifyContent="space-between"
-                            sx={{
-                                px: 0.75,
-                                py: { xs: 0.75, sm: 0.5 },
-                                borderRadius: '8px',
-                                minHeight: 42,
-                            }}
-                        >
-                            <Stack direction="row" alignItems="center" spacing={1.25}>
-                                <FormatTextdirectionRToLRoundedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.2rem' }} />
-                                <Typography sx={profileMenuLabelSx}>RTL</Typography>
-                            </Stack>
-                            <Switch size="small" checked={false} sx={{ mr: -0.5 }} />
-                        </Stack>
-
-                        <ButtonBase
-                            onClick={handleCloseProfileMenu}
-                            sx={{
-                                justifyContent: 'space-between',
-                                width: '100%',
-                                px: 0.75,
-                                py: { xs: 0.75, sm: 0.6 },
-                                borderRadius: '8px',
-                                color: theme.palette.text.primary,
-                                minHeight: 42,
-                                '&:hover': {
-                                    backgroundColor: theme.palette.action.hover,
-                                },
-                            }}
-                        >
-                            <Stack direction="row" alignItems="center" spacing={1.25}>
-                                <GTranslateRoundedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.2rem' }} />
-                                <Typography sx={profileMenuLabelSx}>Language</Typography>
-                            </Stack>
-                            <Stack direction="row" alignItems="center" spacing={0.5}>
-                                <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.8125rem' }}>Eng</Typography>
-                                <ChevronRightRoundedIcon sx={{ color: theme.palette.text.secondary, fontSize: 16 }} />
-                            </Stack>
-                        </ButtonBase>
-
                         <ButtonBase
                             onClick={() => { handleCloseProfileMenu(); navigate('/settings') }}
                             sx={{

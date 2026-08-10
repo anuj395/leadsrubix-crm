@@ -40,6 +40,7 @@ const holidayRoutes = require('./holidayRoutes');
 const webhookRoutes = require('./webhookRoutes');
 const workingDayRoutes = require('./workingDayRoutes');
 const drilldownRoutes = require('./drilldownRoutes');
+const notificationRoutes = require('./notificationRoutes');
 const screenController = require('../controllers/screenController');
 const { authenticate } = require('../middlewares/auth');
 
@@ -49,6 +50,7 @@ const workspaceController = require('../controllers/workspaceController');
 router.get('/workspace/resolve-domain', workspaceController.resolveDomain);
 
 router.use('/auth', authRoutes);
+router.use('/notifications', notificationRoutes);
 router.use('/users', userRoutes);
 router.use('/pricing-plans', pricingPlanRoutes);
 router.use('/coupons', couponRoutes);

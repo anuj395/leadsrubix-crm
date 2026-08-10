@@ -133,6 +133,8 @@ interface Props {
   roleKey?: string
   industry_code?: string
   role_key?: string
+  organizationId?: string
+  organization_id?: string
   initialValues?: Record<string, Value>
   onSubmit: (values: Record<string, Value>) => Promise<void> | void
   onCancel?: () => void
@@ -153,6 +155,8 @@ export function DynamicForm({
   roleKey,
   industry_code,
   role_key,
+  organizationId,
+  organization_id,
   initialValues = {},
   onSubmit,
   onCancel,
@@ -215,10 +219,12 @@ export function DynamicForm({
       try {
         const finalIndustryCode = industryCode || industry_code
         const finalRoleKey = roleKey || role_key
+        const finalOrgId = organizationId || organization_id
         const data = await resolveScreen({
           screenKey: screen,
           industryCode: finalIndustryCode,
           roleKey: finalRoleKey,
+          organizationId: finalOrgId,
         })
         if (cancelled) return
         let loadedFields = data.formFields || data.form_fields || []
@@ -268,7 +274,7 @@ export function DynamicForm({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, industryCode, roleKey, industry_code, role_key])
+  }, [screen, industryCode, roleKey, industry_code, role_key, organizationId, organization_id])
 
   const getDropdownUrl = (f: ResolvedFormField) => {
     let url = f.dropdownApi || f.dropdown_api || ''

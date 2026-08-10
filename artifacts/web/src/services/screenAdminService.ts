@@ -211,11 +211,14 @@ export async function resolveScreen(input: {
   screen_key?: string
   industry_code?: string
   role_key?: string
+  organizationId?: string
+  organization_id?: string
 }): Promise<ResolvedScreen> {
   const payload = {
     screenKey: input.screenKey || input.screen_key,
     industryCode: input.industryCode || input.industry_code,
     roleKey: input.roleKey || input.role_key,
+    organizationId: input.organizationId || input.organization_id,
   }
   const res = await api.post('screens/resolve', payload)
   return res.data as ResolvedScreen
