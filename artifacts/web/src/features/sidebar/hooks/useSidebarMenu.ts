@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
 
-import { superAdminMenuConfig } from '@/config/menuConfig'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 
@@ -13,7 +12,6 @@ import {
   setSidebarItems,
 } from '../store/sidebarSlice'
 import type { SidebarNavItem, UseSidebarMenuResult } from '../types/sidebar.types'
-import { mapApiMenusToNavItems } from '../utils/menuMapper'
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 const LS_KEY = 'rubix-crm.sidebar-menu'
@@ -28,12 +26,6 @@ function loadPersistedMenu(): SidebarNavItem[] | null {
 
 function clearPersistedMenu() {
   try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
-}
-
-// ── Map static superAdmin config to SidebarNavItem[] ─────────────────────────
-const mappedSuperAdminMenu: SidebarNavItem[] = mapApiMenusToNavItems(superAdminMenuConfig as any, 'superAdmin')
-function mapSuperAdminConfig(): SidebarNavItem[] {
-  return mappedSuperAdminMenu
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -94,19 +86,7 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, isAuthenticated])
 
-  const menu = useMemo(() => {
-    let list = reduxItems
-
-    // Filter out all booking items
-    list = list
-      .filter((item) => !item.id.toLowerCase().includes('booking') && !item.name.toLowerCase().includes('booking'))
-      .map((item) => ({
-        ...item,
-        children: item.children?.filter((c) => !c.id.toLowerCase().includes('booking') && !c.name.toLowerCase().includes('booking'))
-      }))
-
-    return list
-  }, [reduxItems])
+  const menu = useMemo(() => reduxItems, [reduxItems])
 
   return {
     menu,

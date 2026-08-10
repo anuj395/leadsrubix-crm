@@ -30,6 +30,8 @@ exports.list = async ({ activeOnly = false, organizationId, organization_id } = 
   const orgId = organizationId !== undefined ? organizationId : organization_id;
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
     q.$or = [{ organization_id: orgId }, { organization_id: null }, { organization_id: { $exists: false } }];
+  } else {
+    q.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
   }
   const rawList = await Screen.find(q).sort({ order: 1, name: 1 }).exec();
 

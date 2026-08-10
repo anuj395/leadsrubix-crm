@@ -40,6 +40,8 @@ exports.list = async ({ industryId, organizationId, activeOnly = false, excludeR
   }
   if (organizationId !== undefined && organizationId !== null && organizationId !== 'all' && organizationId !== '') {
     q.$or = [{ organization_id: organizationId }, { organization_id: null }, { organization_id: { $exists: false } }];
+  } else {
+    q.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
   }
   if (activeOnly) q.is_active = true;
 

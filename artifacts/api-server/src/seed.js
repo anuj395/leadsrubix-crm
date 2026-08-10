@@ -335,14 +335,15 @@ async function migrateAndSeedSidebar() {
           const pName = PARENT_NAMES[moduleKey.toLowerCase()] || capitalize(moduleKey);
           const pOrder = PARENT_ORDERS[moduleKey.toLowerCase()] ?? 999;
           const parent = await SidebarMenu.findOneAndUpdate(
-            { key: moduleKey },
+            { key: moduleKey, organization_id: null },
             {
               $set: { name: pName, order: pOrder },
               $setOnInsert: {
                 key: moduleKey,
                 icon: moduleKey,
                 module: moduleKey,
-                parentId: null,
+                parent_id: null,
+                organization_id: null,
                 isActive: true,
               },
             },
@@ -353,7 +354,7 @@ async function migrateAndSeedSidebar() {
         }
 
         const menu = await SidebarMenu.findOneAndUpdate(
-          { key: m.key },
+          { key: m.key, organization_id: null },
           {
             $set: { parent_id: parentId, order: i },
             $setOnInsert: {
@@ -362,6 +363,7 @@ async function migrateAndSeedSidebar() {
               icon: m.icon || '',
               route: m.route || '',
               module: moduleKey,
+              organization_id: null,
               isActive: true,
             },
           },
@@ -1046,29 +1048,30 @@ async function seedLeadDistributionSidebar() {
   if (!adminRole) return;
 
   // Fix other parent menus orders in database for stable sorting
-  await SidebarMenu.updateOne({ key: 'analytics' }, { $set: { order: 0 } });
-  await SidebarMenu.updateOne({ key: 'organization' }, { $set: { order: 1 } });
-  await SidebarMenu.updateOne({ key: 'users' }, { $set: { order: 2 } });
-  await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 3 } });
-  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 4 } });
-  await SidebarMenu.updateMany({ key: { $in: ['leadDistribution', 'leaddistribution'] } }, { $set: { order: 4.5 } });
-  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 5 } });
-  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 6 } });
-  await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 10 } });
-  await SidebarMenu.updateOne({ key: 'tool' }, { $set: { order: 14 } });
+  await SidebarMenu.updateOne({ key: 'analytics' }, { $set: { order: 1 } });
+  await SidebarMenu.updateOne({ key: 'organization' }, { $set: { order: 2 } });
+  await SidebarMenu.updateOne({ key: 'users' }, { $set: { order: 3 } });
+  await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 4 } });
+  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 6 } });
+  await SidebarMenu.updateMany({ key: { $in: ['leadDistribution', 'leaddistribution'] } }, { $set: { order: 5 } });
+  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 11 } });
+  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 12 } });
+  await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 7 } });
+  await SidebarMenu.updateOne({ key: 'tool' }, { $set: { order: 13 } });
 
   // 3. Upsert parent menu: leadDistribution
   const parentMenu = await SidebarMenu.findOneAndUpdate(
-    { key: 'leadDistribution' },
+    { key: 'leadDistribution', organization_id: null },
     {
       $set: {
         name: 'Lead Distribution',
         icon: 'leadDistribution',
         module: 'leadDistribution',
-        parentId: null,
+        parent_id: null,
         route: '',
         isActive: true,
-        order: 4.5,
+        order: 5,
+        organization_id: null,
       }
     },
     { upsert: true, new: true }
@@ -1083,16 +1086,17 @@ async function seedLeadDistributionSidebar() {
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
     const childMenu = await SidebarMenu.findOneAndUpdate(
-      { key: child.key },
+      { key: child.key, organization_id: null },
       {
         $set: {
           name: child.name,
           route: child.route,
           icon: child.icon,
-          parentId: parentMenu._id,
+          parent_id: parentMenu._id,
           module: 'leadDistribution',
           isActive: true,
-          order: 9.2 + (i * 0.1),
+          order: 5.1 + (i * 0.1),
+          organization_id: null,
         }
       },
       { upsert: true, new: true }
@@ -1884,49 +1888,62 @@ async function seedAdminAnalyticsSidebarPermissions() {
 
   // 1. Enforce Master Catalog, Legacy Key Remapping & Order Consolidation
   const CANONICAL_MENUS = [
-    { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', parentKey: null, order: 10 },
-    { key: 'organization', name: 'Organization', route: '/organization/list', icon: 'organization', parentKey: null, order: 20 },
-    { key: 'users', name: 'Users', route: '/users', icon: 'users', parentKey: null, order: 30 },
-    { key: 'leads', name: 'Lead Section', route: '', icon: 'leads', parentKey: null, order: 40 },
-    { key: 'configuration', name: 'Configuration', route: '', icon: 'configuration', parentKey: null, order: 50 },
-    { key: 'integrations', name: 'Integrations', route: '', icon: 'integrations', parentKey: null, order: 60 },
-    { key: 'uiNavigation', name: 'UI & Navigation', route: '', icon: 'sidebar', parentKey: null, order: 70 },
-    { key: 'accessControl', name: 'Access Control', route: '', icon: 'shield', parentKey: null, order: 80 },
-    { key: 'invoices', name: 'Invoices', route: '', icon: 'billing', parentKey: null, order: 90 },
-    { key: 'support', name: 'Support', route: '', icon: 'support', parentKey: null, order: 100 },
-    { key: 'account', name: 'Account & Settings', route: '', icon: 'account', parentKey: null, order: 110 },
+    { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', parentKey: null, order: 1 },
+    { key: 'organization', name: 'Organization', route: '/organization/list', icon: 'organization', parentKey: null, order: 2 },
+    { key: 'users', name: 'Users', route: '/users', icon: 'users', parentKey: null, order: 3 },
+    { key: 'leads', name: 'Leads', route: '', icon: 'leads', parentKey: null, order: 4 },
+    { key: 'leadDistribution', name: 'Lead Distribution', route: '', icon: 'leadDistribution', parentKey: null, order: 5 },
+    { key: 'configuration', name: 'Configuration', route: '', icon: 'configuration', parentKey: null, order: 6 },
+    { key: 'integrations', name: 'Integrations', route: '', icon: 'integrations', parentKey: null, order: 7 },
+    { key: 'uiNavigation', name: 'UI & Navigation', route: '', icon: 'sidebar', parentKey: null, order: 8 },
+    { key: 'accessControl', name: 'Access Control', route: '', icon: 'shield', parentKey: null, order: 9 },
+    { key: 'invoices', name: 'Invoices', route: '', icon: 'billing', parentKey: null, order: 10 },
+    { key: 'support', name: 'Support', route: '', icon: 'support', parentKey: null, order: 11 },
+    { key: 'account', name: 'Account & Settings', route: '', icon: 'account', parentKey: null, order: 12 },
 
-    { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', parentKey: 'leads', order: 41 },
-    { key: 'leads.tasks', name: 'Tasks List', route: '/leads/tasks', icon: 'tasks', parentKey: 'leads', order: 42 },
-    { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', parentKey: 'leads', order: 43 },
-    { key: 'leads.sorted', name: 'Sorted List', route: '/leads/sorted', icon: 'sort', parentKey: 'leads', order: 44 },
+    { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', parentKey: 'leads', order: 4.1 },
+    { key: 'leads.tasks', name: 'Tasks List', route: '/leads/tasks', icon: 'tasks', parentKey: 'leads', order: 4.2 },
+    { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', parentKey: 'leads', order: 4.3 },
+    { key: 'leads.sorted', name: 'Sorted List', route: '/leads/sorted', icon: 'sort', parentKey: 'leads', order: 4.4 },
+    { key: 'leads.booking', name: 'Bookings List', route: '/leads/bookings', icon: 'booking', parentKey: 'leads', order: 4.5 },
+    { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/lead-distribution/list', icon: 'list', parentKey: 'leadDistribution', order: 5.1 },
+    { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', parentKey: 'leadDistribution', order: 5.2 },
 
-    { key: 'configuration.industries', name: 'Industry', route: '/configuration/industries', icon: 'organization', parentKey: 'configuration', order: 51 },
-    { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', parentKey: 'configuration', order: 52 },
-    { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', parentKey: 'configuration', order: 53 },
-    { key: 'configuration.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', parentKey: 'configuration', order: 54 },
+    { key: 'configuration.industries', name: 'Industry', route: '/configuration/industries', icon: 'organization', parentKey: 'configuration', order: 6.1 },
+    { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', parentKey: 'configuration', order: 6.2 },
+    { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', parentKey: 'configuration', order: 6.3 },
+    { key: 'configuration.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', parentKey: 'configuration', order: 6.4 },
+    { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holiday-config', icon: 'holiday', parentKey: 'configuration', order: 6.5 },
+    { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/days-config', icon: 'days', parentKey: 'configuration', order: 6.6 },
 
-    { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 61 },
-    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 62 },
+    { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 7.1 },
+    { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', parentKey: 'integrations', order: 7.2 },
+    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 7.3 },
+    { key: 'integrations.domainSettings', name: 'Domain Settings', route: '/integrations/domain-settings', icon: 'domain', parentKey: 'integrations', order: 7.4 },
 
-    { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 71 },
-    { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 72 },
-    { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'headers', parentKey: 'uiNavigation', order: 73 },
-    { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 74 },
+    { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 8.1 },
+    { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 8.2 },
+    { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'headers', parentKey: 'uiNavigation', order: 8.3 },
+    { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 8.4 },
 
-    { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/access-control/roles', icon: 'shield', parentKey: 'accessControl', order: 81 },
-    { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', parentKey: 'accessControl', order: 82 },
-    { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 83 },
+    { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/access-control/roles', icon: 'shield', parentKey: 'accessControl', order: 9.1 },
+    { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', parentKey: 'accessControl', order: 9.2 },
+    { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 9.3 },
 
-    { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/invoices/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 91 },
-    { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', parentKey: 'invoices', order: 92 },
+    { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/invoices/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 10.1 },
+    { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', parentKey: 'invoices', order: 10.2 },
 
-    { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', parentKey: 'support', order: 101 },
-    { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', parentKey: 'support', order: 102 },
+    { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', parentKey: 'support', order: 11.1 },
+    { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', parentKey: 'support', order: 11.2 },
 
-    { key: 'account.licenses', name: 'License Cost', route: '/account/licenses', icon: 'billing', parentKey: 'account', order: 111 },
-    { key: 'account.coupons', name: 'Coupons', route: '/account/coupons', icon: 'coupon', parentKey: 'account', order: 112 },
-    { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', parentKey: 'account', order: 113 },
+    { key: 'account.licenses', name: 'License Cost', route: '/account/licenses', icon: 'billing', parentKey: 'account', order: 12.1 },
+    { key: 'account.coupons', name: 'Coupons', route: '/account/coupons', icon: 'coupon', parentKey: 'account', order: 12.2 },
+    { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', parentKey: 'account', order: 12.3 },
+    { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', parentKey: 'account', order: 12.4 },
+    { key: 'tool', name: 'Tools', route: '', icon: 'settings', parentKey: null, order: 13 },
+    { key: 'tool.areaConverter', name: 'Area Converter', route: '/tool/area-converter', icon: 'areaConverter', parentKey: 'tool', order: 13.1 },
+    { key: 'tool.calculator', name: 'Calculator', route: '/tool/calculator', icon: 'calculator', parentKey: 'tool', order: 13.2 },
+    { key: 'tool.emiCalculator', name: 'EMI Calculator', route: '/tool/emi-calculator', icon: 'emiCalculator', parentKey: 'tool', order: 13.3 },
   ];
 
   // Build canonical menu documents map by key

@@ -36,6 +36,8 @@ exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId,
   const orgId = organizationId !== undefined ? organizationId : organization_id;
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
     q.$or = [{ organization_id: orgId }, { organization_id: null }];
+  } else {
+    q.organization_id = null;
   }
   const indId = industryId !== undefined ? industryId : industry_id;
   if (indId) q.industry_id = indId;

@@ -44,6 +44,8 @@ exports.list = async ({ screenId, roleId, industryId, fieldId, enabledOnly = fal
   const orgId = organizationId !== undefined ? organizationId : organization_id;
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
     q.$or = [{ organization_id: orgId }, { organization_id: null }];
+  } else {
+    q.organization_id = null;
   }
   return ScreenPermission.find(q).exec();
 };

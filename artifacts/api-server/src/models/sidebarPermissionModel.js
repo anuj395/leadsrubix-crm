@@ -44,6 +44,8 @@ exports.list = async ({ roleId, industryId, menuId, menu_id, visibleOnly = false
   if (visibleOnly) q.is_visible = true;
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
     q.$or = [{ organization_id: orgId }, { organization_id: null }];
+  } else {
+    q.organization_id = null;
   }
   return SidebarPermission.find(q).exec();
 };

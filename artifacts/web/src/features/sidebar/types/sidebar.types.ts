@@ -4,11 +4,15 @@ import type { MenuIconKey } from '@/config/menuConfig'
 
 // ── Raw shape returned by POST /sidebar/user ─────────────────────────────────
 export interface RawSidebarMenuItem {
+  _id: string
   key: string
   name: string
   route?: string
   icon?: string
   module?: string
+  order?: number
+  parent_id?: string | null
+  parentId?: string | null
 }
 
 export interface SidebarApiResponse {
@@ -31,6 +35,7 @@ export interface SidebarNavItem {
   icon?: MenuIconKey
   route?: string
   module?: string
+  order?: number
   children?: SidebarChildItem[]
 }
 

@@ -674,6 +674,10 @@ function createModel(modelName, schema) {
       });
     }
 
+    static estimatedDocumentCount() {
+      return this.countDocuments({});
+    }
+
     static deleteOne(query = {}) {
       return toQueryLike(async () => {
         const { where, params } = compileQuery(query);
