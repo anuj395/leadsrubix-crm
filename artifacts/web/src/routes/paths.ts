@@ -11,7 +11,7 @@ export const paths = {
   apiList: '/configuration/api',
   bookingForm: '/configuration/booking',
   resources: '/configuration/resources',
-  whatsapp: '/configuration/whatsapp',
+  whatsapp: '/integrations/whatsapp',
   users: '/users',
   contactsList: '/leads/contacts',
   tasksList: '/leads/tasks',

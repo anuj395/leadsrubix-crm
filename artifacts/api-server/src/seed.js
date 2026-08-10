@@ -56,29 +56,29 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
         { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holiday-config', icon: 'holiday', module: 'configuration' },
         { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/days-config', icon: 'days', module: 'configuration' },
+        { key: 'configuration.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', module: 'configuration' },
 
         { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/lead-distribution/list', icon: 'list', module: 'leadDistribution' },
         { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' },
 
         { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', module: 'integrations' },
         { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', module: 'integrations' },
-        { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/configuration/whatsapp', icon: 'whatsapp', module: 'integrations' },
-        { key: 'integrations.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', module: 'integrations' },
+        { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', module: 'integrations' },
 
-        { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/configuration/menus', icon: 'sidebar', module: 'uiNavigation' },
-        { key: 'uiNavigation.screens', name: 'Screens', route: '/configuration/screens', icon: 'screen', module: 'uiNavigation' },
-        { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/configuration/screen-fields', icon: 'field', module: 'uiNavigation' },
-        { key: 'uiNavigation.analyticsConfig', name: 'Layout Builder', route: '/configuration/analytics-config', icon: 'settings', module: 'uiNavigation' },
+        { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', module: 'uiNavigation' },
+        { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'screen', module: 'uiNavigation' },
+        { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'screen', module: 'uiNavigation' },
+        { key: 'uiNavigation.analyticsConfig', name: 'Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', module: 'uiNavigation' },
 
-        { key: 'accessControl.permissions', name: 'Permissions Matrix', route: '/configuration/permissions', icon: 'shield', module: 'accessControl' },
-        { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/configuration/screen-permissions', icon: 'lock', module: 'accessControl' },
-        { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'roles', module: 'accessControl' },
+        { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', module: 'accessControl' },
+        { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'lock', module: 'accessControl' },
+        { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/access-control/roles', icon: 'roles', module: 'accessControl' },
 
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
         { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
         { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
-        { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/account/payment-invoices', icon: 'billing', module: 'invoices' },
-        { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/account/receipts-history', icon: 'subscription', module: 'invoices' },
+        { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/invoices/payment-invoices', icon: 'billing', module: 'invoices' },
+        { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', module: 'invoices' },
         { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' }
       ],
       leadManager: [
@@ -150,15 +150,9 @@ async function seedUsers() {
   const bcrypt = require('bcryptjs');
   const hashedDevPassword = bcrypt.hashSync('lead@1221', 10);
 
-  // Ensure all existing users in the database are updated to password 'lead@1221'
+  // Sync status for existing users
   const list = await User.find({});
   for (const u of list) {
-    const match = await bcrypt.compare('lead@1221', u.password);
-    if (!match) {
-      await User.updateOne({ _id: u._id }, { $set: { password: hashedDevPassword } });
-      console.log(`[seed] reset password for user ${u.email} to 'lead@1221'`);
-    }
-
     const expectedStatus = u.isActive !== false ? 'ACTIVE' : 'INACTIVE';
     if (u.status !== expectedStatus) {
       await User.updateOne({ _id: u._id }, { $set: { status: expectedStatus } });
@@ -1910,21 +1904,22 @@ async function seedAdminAnalyticsSidebarPermissions() {
     { key: 'configuration.industries', name: 'Industry', route: '/configuration/industries', icon: 'organization', parentKey: 'configuration', order: 51 },
     { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', parentKey: 'configuration', order: 52 },
     { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', parentKey: 'configuration', order: 53 },
+    { key: 'configuration.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', parentKey: 'configuration', order: 54 },
 
     { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 61 },
-    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/configuration/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 62 },
+    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 62 },
 
-    { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/configuration/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 71 },
-    { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/configuration/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 72 },
-    { key: 'uiNavigation.screens', name: 'Screens', route: '/configuration/screens', icon: 'headers', parentKey: 'uiNavigation', order: 73 },
-    { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/configuration/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 74 },
+    { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 71 },
+    { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 72 },
+    { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'headers', parentKey: 'uiNavigation', order: 73 },
+    { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 74 },
 
-    { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'shield', parentKey: 'accessControl', order: 81 },
-    { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/configuration/permissions', icon: 'shield', parentKey: 'accessControl', order: 82 },
-    { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/configuration/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 83 },
+    { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/access-control/roles', icon: 'shield', parentKey: 'accessControl', order: 81 },
+    { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', parentKey: 'accessControl', order: 82 },
+    { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 83 },
 
-    { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/account/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 91 },
-    { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/account/receipts-history', icon: 'subscription', parentKey: 'invoices', order: 92 },
+    { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/invoices/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 91 },
+    { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', parentKey: 'invoices', order: 92 },
 
     { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', parentKey: 'support', order: 101 },
     { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', parentKey: 'support', order: 102 },
@@ -1988,18 +1983,19 @@ async function seedAdminAnalyticsSidebarPermissions() {
   const allMenus = Array.from(menuDocMap.values());
   if (!allMenus.length) return;
 
-  // 2. Grant FULL sidebar permissions to all superAdmin roles
-  const superAdminRoles = await Role.find({ key: 'superAdmin' }).lean().exec();
+  // 2. Grant FULL sidebar permissions to all superAdmin template roles (excluding Domain Settings)
+  const superAdminRoles = await Role.find({ key: 'superAdmin', organization_id: null }).lean().exec();
   for (const r of superAdminRoles) {
-    const orgId = r.organization_id || null;
+    const orgId = null;
     const indId = r.industry_id || temp0001Ind._id;
     for (const menu of allMenus) {
+      const isVisible = !(menu.key === 'configuration.domainSettings' || menu.key === 'integrations.domainSettings');
       try {
         await SidebarPermission.updateOne(
           { role_id: r._id, industry_id: indId, menu_id: menu._id, organization_id: orgId },
           {
             $set: {
-              is_visible: true,
+              is_visible: isVisible,
               role_key: 'superAdmin',
               menu_key: menu.key,
             },
@@ -2012,18 +2008,28 @@ async function seedAdminAnalyticsSidebarPermissions() {
     }
   }
 
-  // 3. Grant FULL standard sidebar permissions to all admin roles
-  const adminRoles = await Role.find({ key: 'admin' }).lean().exec();
+  // 3. Grant standard sidebar permissions to all admin template roles
+  const adminRoles = await Role.find({ key: 'admin', organization_id: null }).lean().exec();
+  const adminAllowedKeys = new Set();
+  const defaultAdminList = DEFAULT_SIDEBAR_CONFIGS.find(cfg => cfg.industryId === 'temp0001')?.roles?.admin || [];
+  for (const m of defaultAdminList) {
+    adminAllowedKeys.add(m.key);
+    if (m.key.includes('.')) {
+      adminAllowedKeys.add(m.key.split('.')[0]);
+    }
+  }
+
   for (const r of adminRoles) {
-    const orgId = r.organization_id || null;
+    const orgId = null;
     const indId = r.industry_id || temp0001Ind._id;
     for (const menu of allMenus) {
+      const isVisible = adminAllowedKeys.has(menu.key);
       try {
         await SidebarPermission.updateOne(
           { role_id: r._id, industry_id: indId, menu_id: menu._id, organization_id: orgId },
           {
             $set: {
-              is_visible: true,
+              is_visible: isVisible,
               role_key: 'admin',
               menu_key: menu.key,
             },

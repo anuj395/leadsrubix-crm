@@ -64,12 +64,13 @@ export function useSidebarMenu(): UseSidebarMenuResult {
       industryId = 'temp0001'
     }
     const role = user.role || (user as any).roleKey || (user as any).role_key
+    const organizationId = (user as any).organizationId || (user as any).organization_id
     if (!industryId) {
       console.warn('[useSidebarMenu] user.industryId is missing — skipping API fetch.')
       return
     }
 
-    const result = await dispatch(loadSidebarMenu({ industryId, role }))
+    const result = await dispatch(loadSidebarMenu({ industryId, role, organizationId }))
 
     if (loadSidebarMenu.fulfilled.match(result)) {
       persistMenu(result.payload)

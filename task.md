@@ -1,7 +1,4 @@
-- [x] Support custom passwords in backend organization creation
-- [x] Route public signup controller through organization creation service
-- [x] Integrate industry selector and DynamicForm into public Signup view
-- [x] Verify compilation and execution
-- [x] Port Legacy Add Contacts & Webhooks (MongoDB)
-- [x] Rename database fields (stage_change_at -> stageChangeAt, modified_at -> modifiedAt)
-- [x] Standardize name fields into customerName for manual/integrations leads
+- [x] Modify pgMongoose.js mappings and collection mock helper
+- [x] Create and run resolve-schema-gaps.js
+- [x] Run typecheck and clean up temporary files
+- [x] Verify everything works live

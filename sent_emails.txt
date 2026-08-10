@@ -304,3 +304,39 @@ Organization: Heath
 Username / Email: care@digitalrubix.com
 Temp Password: ptHAgRqo
 ========================================
+
+========================================
+Timestamp: 2026-08-07T18:01:43.836Z
+To: jjjjj@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: nhbn
+Username / Email: jjjjj@gmail.com
+Temp Password: qFInF1gG
+========================================
+
+========================================
+Timestamp: 2026-08-08T06:14:33.389Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: 8sWPaFM6
+========================================
+
+========================================
+Timestamp: 2026-08-08T06:26:25.115Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: BJgbg4vd
+========================================
+
+========================================
+Timestamp: 2026-08-08T06:36:37.609Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: eMyNsSz4
+========================================

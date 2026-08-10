@@ -96,19 +96,19 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "configuration.resources", name: "Resources", route: "/configuration/resources", icon: "resources", module: "configuration" },
 
   { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
-  { key: "integrations.whatsapp", name: "WhatsApp API", route: "/configuration/whatsapp", icon: "whatsapp", module: "integrations" },
+  { key: "integrations.whatsapp", name: "WhatsApp API", route: "/integrations/whatsapp", icon: "whatsapp", module: "integrations" },
 
-  { key: "uiNavigation.analyticsConfig", name: "Analytics Layout Builder", route: "/configuration/analytics-config", icon: "settings", module: "uiNavigation" },
-  { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/configuration/menus", icon: "sidebar", module: "uiNavigation" },
-  { key: "uiNavigation.screens", name: "Screens", route: "/configuration/screens", icon: "headers", module: "uiNavigation" },
-  { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/configuration/screen-fields", icon: "headers", module: "uiNavigation" },
+  { key: "uiNavigation.analyticsConfig", name: "Analytics Layout Builder", route: "/ui-navigation/analytics-config", icon: "settings", module: "uiNavigation" },
+  { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/ui-navigation/menus", icon: "sidebar", module: "uiNavigation" },
+  { key: "uiNavigation.screens", name: "Screens", route: "/ui-navigation/screens", icon: "headers", module: "uiNavigation" },
+  { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/ui-navigation/screen-fields", icon: "headers", module: "uiNavigation" },
 
-  { key: "accessControl.roles", name: "Roles & Permissions", route: "/users/roles", icon: "shield", module: "accessControl" },
-  { key: "accessControl.permissions", name: "Permission Matrix (Sidebar)", route: "/configuration/permissions", icon: "shield", module: "accessControl" },
-  { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/configuration/screen-permissions", icon: "shield", module: "accessControl" },
+  { key: "accessControl.roles", name: "Roles & Permissions", route: "/access-control/roles", icon: "shield", module: "accessControl" },
+  { key: "accessControl.permissions", name: "Permission Matrix (Sidebar)", route: "/access-control/permissions", icon: "shield", module: "accessControl" },
+  { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/access-control/screen-permissions", icon: "shield", module: "accessControl" },
 
-  { key: "invoices.paymentLogs", name: "Payment Invoice Logs", route: "/account/payment-invoices", icon: "billing", module: "invoices" },
-  { key: "invoices.receiptsHistory", name: "Receipts & Historical Charges", route: "/account/receipts-history", icon: "subscription", module: "invoices" },
+  { key: "invoices.paymentLogs", name: "Payment Invoice Logs", route: "/invoices/payment-invoices", icon: "billing", module: "invoices" },
+  { key: "invoices.receiptsHistory", name: "Receipts & Historical Charges", route: "/invoices/receipts-history", icon: "subscription", module: "invoices" },
 
   { key: "support.news", name: "News List", route: "/support/news", icon: "news", module: "support" },
   { key: "support.faq", name: "FAQ List", route: "/support/faq", icon: "faq", module: "support" },

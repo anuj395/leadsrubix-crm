@@ -1,5 +1,13 @@
 // src/index.js
 // Entry point for the application. Loads config, creates server. Enforce secure tenant, industry, teams and branches option matching.
+const pgMongoose = require('./db/pgMongoose');
+require.cache[require.resolve('mongoose')] = {
+  id: require.resolve('mongoose'),
+  filename: require.resolve('mongoose'),
+  loaded: true,
+  exports: pgMongoose,
+};
+
 const app = require('./app');
 const config = require('./config');
 const db = require('./db');
@@ -34,6 +42,10 @@ require('./models/holidayModel');
 require('./models/workingDayModel');
 require('./models/workspaceModel');
 require('./models/analyticsConfigModel');
+require('./models/importLogModel');
+require('./models/callLogModel');
+require('./models/sidebarModel');
+require('./models/taskModel');
 
 const {
   seedUsers,
@@ -74,14 +86,206 @@ const migrateExistingWorkspaces = async () => {
     }
   }
 
-  // Ensure new indexes are built
+  // Ensure new indexes are built (excluding SidebarPermission for now)
   await Promise.all([
     mongoose.model('Role').syncIndexes(),
     mongoose.model('SidebarMenu').syncIndexes(),
-    mongoose.model('SidebarPermission').syncIndexes(),
     mongoose.model('Screen').syncIndexes(),
-    mongoose.model('ScreenPermission').syncIndexes()
   ]);
+
+  // 1. Deduplicate SidebarPermission collection
+  const SidebarPermission = mongoose.model('SidebarPermission');
+  const SidebarMenu = mongoose.model('SidebarMenu');
+  const allPerms = await SidebarPermission.find({}).exec();
+  const seenPerms = new Set();
+  let deletedPermsCount = 0;
+  for (const perm of allPerms) {
+    const key = `${perm.organization_id || 'null'}:${perm.role_id}:${perm.industry_id}:${perm.menu_id}`;
+    if (seenPerms.has(key)) {
+      await SidebarPermission.deleteOne({ _id: perm._id }).exec();
+      deletedPermsCount++;
+    } else {
+      seenPerms.add(key);
+    }
+  }
+  if (deletedPermsCount > 0) {
+    console.log(`[migration] Cleaned up ${deletedPermsCount} duplicate sidebar permissions from DB.`);
+  }
+
+  // Self-heal any quoted _id primary keys in all tables (e.g. from previous ObjectId.toString() JSON.stringify bug)
+  if (pgMongoose.pool) {
+    try {
+      const tablesRes = await pgMongoose.pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
+      for (const row of tablesRes.rows) {
+        const tableName = row.table_name;
+        try {
+          const updateRes = await pgMongoose.pool.query(`
+            UPDATE ${tableName} 
+            SET _id = TRIM(BOTH '"' FROM _id) 
+            WHERE _id LIKE '"%"'
+          `);
+          if (updateRes.rowCount > 0) {
+            console.log(`[migration] Cleaned up ${updateRes.rowCount} quoted _id values in table ${tableName}`);
+          }
+        } catch (e) {
+          // Table may not have _id column, ignore
+        }
+      }
+    } catch (err) {
+      console.error('[migration] Failed to self-heal quoted _ids:', err);
+    }
+  }
+
+  // Now sync indexes for SidebarPermission safely
+  await mongoose.model('SidebarPermission').syncIndexes();
+
+  // 2. Self-heal corrupted organization permissions (where menu_id points to global template menu)
+  const orgPerms = await SidebarPermission.find({ organization_id: { $ne: null } }).exec();
+  let healedPermsCount = 0;
+  for (const perm of orgPerms) {
+    const menu = await SidebarMenu.findOne({ _id: perm.menu_id }).exec();
+    if (menu && !menu.organization_id) {
+      // Points to template menu! Find the corresponding cloned menu for this organization
+      const clonedMenu = await SidebarMenu.findOne({ key: menu.key, organization_id: perm.organization_id }).exec();
+      if (clonedMenu) {
+        const existing = await SidebarPermission.findOne({
+          organization_id: perm.organization_id,
+          role_id: perm.role_id,
+          industry_id: perm.industry_id,
+          menu_id: clonedMenu._id
+        }).exec();
+        if (existing) {
+          await SidebarPermission.deleteOne({ _id: perm._id }).exec();
+        } else {
+          await SidebarPermission.updateOne(
+            { _id: perm._id },
+            { $set: { menu_id: clonedMenu._id } }
+          ).exec();
+          healedPermsCount++;
+        }
+      }
+    }
+  }
+  if (healedPermsCount > 0) {
+    console.log(`[migration] Successfully self-healed ${healedPermsCount} organization sidebar permissions.`);
+  }
+
+  // 3. Remove Domain Settings visibility from all superAdmin roles (both template and cloned roles)
+  const Role = mongoose.model('Role');
+  const superAdminRoles = await Role.find({ key: 'superAdmin' }).exec();
+  const superAdminRoleIds = superAdminRoles.map(r => r._id);
+  if (superAdminRoleIds.length > 0) {
+    const domainMenus = await SidebarMenu.find({
+      key: { $in: ['configuration.domainSettings', 'integrations.domainSettings'] }
+    }).exec();
+    const domainMenuIds = domainMenus.map(m => m._id);
+    if (domainMenuIds.length > 0) {
+      const updateRes = await SidebarPermission.updateMany(
+        {
+          role_id: { $in: superAdminRoleIds },
+          menu_id: { $in: domainMenuIds }
+        },
+        { $set: { is_visible: false } }
+      ).exec();
+      if (updateRes.modifiedCount > 0) {
+        console.log(`[migration] Successfully disabled Domain Settings menu visibility for ${updateRes.modifiedCount} superAdmin permissions.`);
+      }
+    }
+  }
+
+  // 4. Swap Domain Settings from Integrations to Configuration for all Admin roles
+  const adminRoles = await Role.find({ key: 'admin' }).exec();
+  const adminRoleIds = adminRoles.map(r => r._id);
+  if (adminRoleIds.length > 0) {
+    const configDomainMenu = await SidebarMenu.findOne({ key: 'configuration.domainSettings', organization_id: null }).exec();
+    const integrationDomainMenu = await SidebarMenu.findOne({ key: 'integrations.domainSettings', organization_id: null }).exec();
+
+    if (configDomainMenu && integrationDomainMenu) {
+      let swappedCount = 0;
+      const Industry = mongoose.model('Industry');
+      const defaultInd = await Industry.findOne({ code: 'temp0001' }).exec();
+      const defaultIndId = defaultInd ? defaultInd._id : null;
+
+      for (const roleDoc of adminRoles) {
+        const roleId = roleDoc._id;
+        const orgId = roleDoc.organization_id || null;
+        
+        let orgConfigMenu = null;
+        let orgIntegrationMenu = null;
+        if (orgId) {
+          orgConfigMenu = await SidebarMenu.findOne({ key: 'configuration.domainSettings', organization_id: orgId }).exec();
+          orgIntegrationMenu = await SidebarMenu.findOne({ key: 'integrations.domainSettings', organization_id: orgId }).exec();
+        }
+        const activeConfigMenu = orgConfigMenu || configDomainMenu;
+        const activeIntegrationMenu = orgIntegrationMenu || integrationDomainMenu;
+
+        const intPerm = await SidebarPermission.findOne({ role_id: roleId, menu_id: activeIntegrationMenu._id }).exec();
+        if (intPerm && intPerm.is_visible) {
+          await SidebarPermission.updateOne({ _id: intPerm._id }, { $set: { is_visible: false } });
+          swappedCount++;
+        }
+
+        const configPerm = await SidebarPermission.findOne({ role_id: roleId, menu_id: activeConfigMenu._id }).exec();
+        if (configPerm) {
+          if (!configPerm.is_visible) {
+            await SidebarPermission.updateOne({ _id: configPerm._id }, { $set: { is_visible: true } });
+            swappedCount++;
+          }
+        } else {
+          await SidebarPermission.create({
+            role_id: roleId,
+            industry_id: roleDoc.industry_id || roleDoc.industryId || defaultIndId,
+            menu_id: activeConfigMenu._id,
+            organization_id: orgId,
+            workspace_id: roleDoc.workspace_id || null,
+            is_visible: true
+          });
+          swappedCount++;
+        }
+      }
+      if (swappedCount > 0) {
+        console.log(`[migration] Successfully swapped Domain Settings visibility from Integrations to Configuration for ${adminRoleIds.length} Admin roles.`);
+      }
+    }
+  }
+
+  // 5. Self-heal any existing integrations.whatsapp SidebarMenu routes in the database
+  const whatsappUpdateRes = await SidebarMenu.updateMany(
+    { key: 'integrations.whatsapp' },
+    { $set: { route: '/integrations/whatsapp' } }
+  ).exec();
+  if (whatsappUpdateRes.modifiedCount > 0) {
+    console.log(`[migration] Successfully self-healed ${whatsappUpdateRes.modifiedCount} integrations.whatsapp menu routes to /integrations/whatsapp.`);
+  }
+
+  // 6. Self-heal any existing SidebarMenu routes in the database to align with correct section-based modules
+  const routeUpdates = [
+    { key: 'uiNavigation.analyticsConfig', route: '/ui-navigation/analytics-config' },
+    { key: 'uiNavigation.menus', route: '/ui-navigation/menus' },
+    { key: 'uiNavigation.screens', route: '/ui-navigation/screens' },
+    { key: 'uiNavigation.screenFields', route: '/ui-navigation/screen-fields' },
+    { key: 'accessControl.roles', route: '/access-control/roles' },
+    { key: 'accessControl.permissions', route: '/access-control/permissions' },
+    { key: 'accessControl.screenPermissions', route: '/access-control/screen-permissions' },
+    { key: 'invoices.paymentLogs', route: '/invoices/payment-invoices' },
+    { key: 'invoices.receiptsHistory', route: '/invoices/receipts-history' }
+  ];
+
+  let routeHealedCount = 0;
+  for (const item of routeUpdates) {
+    const res = await SidebarMenu.updateMany(
+      { key: item.key },
+      { $set: { route: item.route } }
+    ).exec();
+    routeHealedCount += res.modifiedCount;
+  }
+  if (routeHealedCount > 0) {
+    console.log(`[migration] Successfully self-healed ${routeHealedCount} sidebar menu routes to match correct module sections.`);
+  }
 
   const organizations = await Organization.find({}).exec();
   for (const org of organizations) {
@@ -199,6 +403,6 @@ const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.POR
   try {
     await migrateExistingWorkspaces();
   } catch (err) {
-    console.error('[migration] failed to migrate existing workspaces:', err.message || err);
+    console.error('[migration] failed to migrate existing workspaces:', err.stack || err);
   }
 })();

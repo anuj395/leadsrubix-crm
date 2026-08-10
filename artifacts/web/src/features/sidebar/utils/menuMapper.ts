@@ -98,8 +98,8 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
     return true
   })
 
-  // Remap modules & child names for Super Admin to match requested structure
-  if (roleKey === 'superAdmin') {
+  // Remap modules & child names for Super Admin / Admin to match requested structure
+  if (roleKey === 'superAdmin' || roleKey === 'admin') {
     filtered.forEach((item) => {
       const k = item.key
       if (k === 'leads') {
@@ -109,10 +109,30 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
       } else if (k === 'configuration.projects') {
         item.name = 'Project'
       } else if (k === 'configuration.resources') {
-        item.name = 'Resources'
+        item.name = 'Resource'
+      } else if (k === 'configuration.holiday') {
+        item.name = 'Holidays Configuration'
+      } else if (k === 'configuration.days') {
+        item.name = 'Working Days Configuration'
+      } else if (k === 'configuration.domainSettings' || k === 'integrations.domainSettings') {
+        item.name = 'Domain Setting'
+      } else if (k === 'invoices.paymentLogs') {
+        item.name = 'Payment Invoices Logs'
+      } else if (k === 'invoices.receiptsHistory') {
+        item.name = 'Receipts & Historical Charges'
+      } else if (k === 'support.news') {
+        item.name = 'News List'
+      } else if (k === 'support.faq') {
+        item.name = 'FAQ List'
+      } else if (k === 'account.subscription') {
+        item.name = 'Subscription Details'
+      } else if (k === 'account.password') {
+        item.name = 'Update Password'
       } else if (k === 'configuration.api' || k === 'integrations.api') {
         item.module = 'integrations'
-        item.name = 'API Tokens'
+        item.name = 'API Token'
+      } else if (k === 'integrations.apiData' || k === 'configuration.apiData') {
+        item.name = 'API Data'
       } else if (k === 'configuration.whatsapp' || k === 'integrations.whatsapp') {
         item.module = 'integrations'
         item.name = 'WhatsApp API'
@@ -129,7 +149,7 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
         item.key = 'uiNavigation.analyticsConfig'
         item.module = 'uinavigation'
         item.name = 'Analytics Layout Builder'
-        item.route = '/configuration/analytics-config'
+        item.route = '/ui-navigation/analytics-config'
       } else if (k === 'configuration.permissions' || k === 'accessControl.permissions') {
         item.module = 'accesscontrol'
         item.name = 'Permission Matrix (Sidebar)'
@@ -138,7 +158,7 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], roleKey?: strin
         item.name = 'Permission Fields'
       } else if (k === 'users.roles' || k === 'accessControl.roles') {
         item.module = 'accesscontrol'
-        item.name = 'Roles & Permissions'
+        item.name = 'Role & Permission'
       } else if (k === 'account.licenses') {
         item.name = 'License Cost'
       } else if (k === 'account.coupons') {

@@ -169,18 +169,9 @@ exports.listPaged = async ({
 
 function buildQueryFilter(id) {
   if (!id) return { _id: null };
-  const isObjectId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === String(id);
-  if (isObjectId) {
-    return {
-      $or: [
-        { _id: id },
-        { organization_id: id },
-        { organizationId: id }
-      ]
-    };
-  }
   return {
     $or: [
+      { _id: id },
       { organization_id: id },
       { organizationId: id }
     ]
@@ -248,4 +239,4 @@ exports.update = async (id, patch) => {
   return shapePublic(updated);
 };
 
-exports.remove = async (id) => Organization.findOneAndDelete(buildQueryFilter(id)).exec();
+exports.remove = async (id) => Organization.deleteOne(buildQueryFilter(id)).exec();

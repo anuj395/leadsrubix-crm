@@ -13,8 +13,9 @@ const cache = new Map<string, CacheEntry>()
 export async function fetchSidebarMenu(
   industryId: string,
   role: string,
+  organizationId?: string,
 ): Promise<RawSidebarMenuItem[]> {
-  const key = `${industryId}:${role}`
+  const key = `${organizationId || 'global'}:${industryId}:${role}`
   const now = Date.now()
   const hit = cache.get(key)
   if (hit && now - hit.ts < CACHE_TTL_MS) return hit.data

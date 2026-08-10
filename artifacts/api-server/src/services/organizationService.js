@@ -844,10 +844,16 @@ exports.remove = async ({ id, authedUser }) => {
   const deleteUsersRes = await User.deleteMany(orgFilter);
   console.log(`[organizationService] 1/27 Cascade deleted ${deleteUsersRes.deletedCount} users`);
 
-  // 3. Cascade delete Roles (organization-specific custom roles)
+  // 3. Cascade delete Roles (organization-specific custom roles) and their permissions
   const Role = mongoose.model('Role');
+  const orgRoles = await Role.find(orgFilter).lean().exec();
+  const roleIds = orgRoles.map(r => r._id);
   const deleteRolesRes = await Role.deleteMany(orgFilter);
   console.log(`[organizationService] 2/27 Cascade deleted ${deleteRolesRes.deletedCount} roles`);
+
+  const RoleActionPermission = mongoose.model('RoleActionPermission');
+  const deleteActionPermsRes = await RoleActionPermission.deleteMany({ role_id: { $in: roleIds } });
+  console.log(`[organizationService] Cascade deleted ${deleteActionPermsRes.deletedCount} role action permissions`);
 
   // 4. Cascade delete Contacts
   const Contact = mongoose.model('Contact');
