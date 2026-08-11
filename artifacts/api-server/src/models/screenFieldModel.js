@@ -89,6 +89,9 @@ exports.create = async (payload) => {
     order: typeof payload.order === 'number' ? payload.order : 0,
     is_active: payload.isActive !== false,
     default_value: payload.defaultValue !== undefined ? payload.defaultValue : (payload.default_value !== undefined ? payload.default_value : null),
+    organization_id: payload.organizationId || payload.organization_id || null,
+    workspace_id: payload.workspaceId || payload.workspace_id || null,
+    industry_id: payload.industryId || payload.industry_id || null,
   });
   return doc;
 };

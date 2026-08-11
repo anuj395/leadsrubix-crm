@@ -696,7 +696,7 @@ export default function RolesAndPermissionsPage() {
             <IconButton size="small" onClick={() => openFieldEdit(p.row)}>
               <EditIcon fontSize="small" />
             </IconButton>
-            {isSuperAdmin && (
+            {(isSuperAdmin || user?.role === 'admin') && (
               <IconButton size="small" color="error" onClick={() => removeField(p.row)}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
@@ -705,7 +705,7 @@ export default function RolesAndPermissionsPage() {
         ),
       },
     ],
-    [openFieldEdit, removeField, isSuperAdmin],
+    [openFieldEdit, removeField, isSuperAdmin, user],
   )
 
   const actionsColumns = useMemo<GridColDef<Screen>[]>(
@@ -864,7 +864,7 @@ export default function RolesAndPermissionsPage() {
         renderCell: (p) => {
           const f = p.row
           return (
-            <Switch
+            <Checkbox
               size="small"
               checked={enabledFieldIds.has(f._id)}
               onChange={() => togglePerm(f._id)}
@@ -959,7 +959,7 @@ export default function RolesAndPermissionsPage() {
             title="User Form Fields"
             subtitle="Master catalog of dynamic fields shown on Add/Edit User."
             action={
-              isSuperAdmin && (
+              (isSuperAdmin || user?.role === 'admin') && (
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
