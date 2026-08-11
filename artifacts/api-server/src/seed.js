@@ -1044,13 +1044,14 @@ async function seedIndustries() {
   for (const ind of allIndustries) {
     for (const key of DEFAULT_ROLES) {
       const r = await Role.findOneAndUpdate(
-        { industry_id: ind._id, key },
+        { industry_id: ind._id, key, organization_id: null },
         {
           $setOnInsert: {
             industry_id: ind._id,
             key,
             name: ROLE_DISPLAY_NAMES[key] || capitalize(key),
             is_active: true,
+            organization_id: null,
           },
         },
         { upsert: true, new: false, includeResultMetadata: true },

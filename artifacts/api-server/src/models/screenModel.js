@@ -78,13 +78,19 @@ exports.findByKey = async (key, organizationId) => {
   return Screen.findOne({ key: q.key, organization_id: null }).exec();
 };
 
-exports.create = async ({ key, name, description, order, isActive }) => {
+exports.create = async ({ key, name, description, order, isActive, organizationId, organization_id, workspaceId, workspace_id, industryId, industry_id }) => {
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
+  const wsId = workspaceId !== undefined ? workspaceId : workspace_id;
+  const indId = industryId !== undefined ? industryId : industry_id;
   const doc = await Screen.create({
     key: String(key).trim(),
     name: String(name).trim(),
     description: description || '',
     order: typeof order === 'number' ? order : 0,
     is_active: isActive !== false,
+    organization_id: orgId || null,
+    workspace_id: wsId || null,
+    industry_id: indId || null,
   });
   return doc;
 };

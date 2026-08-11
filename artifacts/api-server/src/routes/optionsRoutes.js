@@ -126,6 +126,9 @@ router.get('/:key', (req, res, next) => {
   }
 
   if (key === 'organizations') {
+    if (req.user?.role !== 'superAdmin') {
+      return res.status(403).json({ message: 'Forbidden: Super Admin only' });
+    }
     try {
       const Organization = mongoose.model('Organization');
       const targetIndustry = req.query.industryId || req.query.industry_code;
@@ -181,7 +184,9 @@ router.get('/:key', (req, res, next) => {
         ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
         : (req.user?.organizationId || req.user?.organization_id);
       const query = {};
-      if (orgId) {
+      if (req.user?.role !== 'superAdmin') {
+        query.organization_id = orgId || 'non-existent-org-id';
+      } else if (orgId) {
         query.organization_id = orgId;
       }
       const usersList = await User.find(query).select('email').lean().exec();

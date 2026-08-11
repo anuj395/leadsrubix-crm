@@ -13,33 +13,78 @@ exports.get = async (id) => {
   return doc;
 };
 
-exports.create = async (payload) => {
+exports.create = async (payload, authedUser) => {
   if (!payload?.key || !payload?.name) {
     const err = new Error('key and name are required');
     err.status = 400;
     throw err;
   }
-  const dup = await menuModel.findByKey(payload.key);
-  if (dup) {
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  let orgId = payload.organizationId || payload.organization_id;
+  let wsId = payload.workspaceId || payload.workspace_id;
+
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    if (!userOrgId) {
+      const err = new Error('Forbidden: You must belong to an organization to create custom menus');
+      err.status = 403;
+      throw err;
+    }
+    orgId = userOrgId;
+    wsId = authedUser?.workspaceId || authedUser?.workspace_id;
+  }
+
+  // Scope key uniqueness check to organization
+  const dup = await menuModel.findByKey(payload.key, orgId || undefined);
+  if (dup && String(dup.organization_id || dup.organizationId || '') === String(orgId || '')) {
     const err = new Error('Menu with this key already exists');
     err.status = 409;
     throw err;
   }
-  if (payload.parent_id) {
-    const parent = await menuModel.findById(payload.parent_id);
+
+  if (payload.parent_id || payload.parentId) {
+    const pId = payload.parent_id || payload.parentId;
+    const parent = await menuModel.findById(pId);
     if (!parent) {
       const err = new Error('Parent menu not found');
       err.status = 404;
       throw err;
     }
   }
-  return menuModel.create(payload);
+
+  return menuModel.create({
+    ...payload,
+    organization_id: orgId || null,
+    workspace_id: wsId || null
+  });
 };
 
-exports.update = async (id, patch) => {
+exports.update = async (id, patch, authedUser) => {
+  const current = await menuModel.findById(id);
+  if (!current) {
+    const err = new Error('Menu not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    const menuOrgId = current.organization_id || current.organizationId;
+    if (!userOrgId || String(menuOrgId) !== String(userOrgId)) {
+      const err = new Error('Forbidden: You can only update menus belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+    if (patch.organizationId) delete patch.organizationId;
+    if (patch.organization_id) delete patch.organization_id;
+  }
+
   if (patch?.key) {
-    const dup = await menuModel.findByKey(patch.key);
-    if (dup && String(dup._id) !== String(id)) {
+    const orgId = current.organization_id || current.organizationId || null;
+    const dup = await menuModel.findByKey(patch.key, orgId || undefined);
+    if (dup && String(dup._id) !== String(id) && String(dup.organization_id || dup.organizationId || '') === String(orgId || '')) {
       const err = new Error('Menu with this key already exists');
       err.status = 409;
       throw err;
@@ -50,6 +95,12 @@ exports.update = async (id, patch) => {
     err.status = 400;
     throw err;
   }
+  if (patch?.parentId && String(patch.parentId) === String(id)) {
+    const err = new Error('Menu cannot be its own parent');
+    err.status = 400;
+    throw err;
+  }
+
   const doc = await menuModel.update(id, patch || {});
   if (!doc) {
     const err = new Error('Menu not found');
@@ -62,7 +113,7 @@ exports.update = async (id, patch) => {
 // Cascade: deleting a menu also removes any permission rows referencing it,
 // and detaches its direct children (parent_id → null) so they aren't orphaned
 // and pointing at a missing record.
-exports.remove = async (id) => {
+exports.remove = async (id, authedUser) => {
   const doc = await menuModel.findById(id);
   if (!doc) {
     const err = new Error('Menu not found');
@@ -70,11 +121,21 @@ exports.remove = async (id) => {
     throw err;
   }
 
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    const menuOrgId = doc.organization_id || doc.organizationId;
+    if (!userOrgId || String(menuOrgId) !== String(userOrgId)) {
+      const err = new Error('Forbidden: You can only delete menus belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+
   // Detach children (best-effort; if model exposes deleteMany, we still leave
   // children in place but with parent_id=null so they remain visible).
   const children = await menuModel.list({ parent_id: id });
   for (const child of children) {
-    // eslint-disable-next-line no-await-in-loop
     await menuModel.update(child._id, { parent_id: null });
   }
 

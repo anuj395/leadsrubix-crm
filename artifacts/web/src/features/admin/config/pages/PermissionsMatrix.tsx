@@ -145,43 +145,60 @@ export default function AdminPermissionsMatrixPage() {
   const columns = useMemo<GridColDef<SidebarMenuRecord>[]>(
     () => [
       {
-        field: 'enabled',
-        headerName: 'Visible',
-        width: 90,
-        sortable: false,
-        renderCell: (p) => (
-          <Checkbox
-            checked={enabled.has(p.row._id)}
-            onChange={() => toggle(p.row._id)}
-            color="primary"
-          />
-        ),
+        field: 'parent_id',
+        headerName: 'Parent Menu',
+        flex: 1,
+        valueGetter: (_, row) => {
+          if (!row.parent_id) return '— (Root)'
+          const parent = menuById.get(row.parent_id)
+          return parent ? `${parent.name}` : '—'
+        },
+      },
+      {
+        field: 'name',
+        headerName: 'Menu Name',
+        flex: 1.2,
+        renderCell: (p) => {
+          const m = p.row
+          const isRoot = !m.parent_id
+          return (
+            <span style={{ fontWeight: isRoot ? 600 : 400, paddingLeft: isRoot ? 0 : 16 }}>
+              {!isRoot ? '↳ ' : ''}{m.name}
+            </span>
+          )
+        },
       },
       {
         field: 'key',
         headerName: 'Menu Key',
+        flex: 1,
+        renderCell: (p) => <code>{p.value}</code>,
+      },
+      {
+        field: 'route',
+        headerName: 'Route',
         flex: 1.2,
+        renderCell: (p) => (p.value ? <code>{p.value}</code> : <span style={{ color: '#aaa' }}>—</span>),
+      },
+      {
+        field: 'enabled',
+        headerName: 'Sidebar Visibility',
+        width: 160,
+        align: 'center',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
         renderCell: (p) => {
-          const row = p.row
-          const parent = row.parent_id ? menuById.get(row.parent_id) : null
+          const m = p.row
           return (
-            <Box sx={{ pl: parent ? 3 : 0 }}>
-              <code>{row.key}</code>
-            </Box>
+            <Checkbox
+              size="small"
+              checked={enabled.has(m._id)}
+              onChange={() => toggle(m._id)}
+            />
           )
         },
       },
-      { field: 'name', headerName: 'Name', flex: 1 },
-      {
-        field: 'parent_id',
-        headerName: 'Parent',
-        flex: 1,
-        valueGetter: (_, row) => {
-          const parent = row.parent_id ? menuById.get(row.parent_id) : null
-          return parent ? parent.name : '—'
-        },
-      },
-      { field: 'module', headerName: 'Module', flex: 0.9, renderCell: (p) => p.value || '—' },
     ],
     [enabled, menuById],
   )

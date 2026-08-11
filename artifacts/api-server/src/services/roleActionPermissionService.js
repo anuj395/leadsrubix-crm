@@ -22,12 +22,23 @@ async function resolveIndustryId(industryId) {
   return doc ? doc._id : null;
 }
 
-exports.list = async ({ roleId, industryId, screenId }) => {
+exports.list = async ({ roleId, industryId, screenId }, authedUser) => {
   const targetIndustryId = (await resolveIndustryId(industryId)) || industryId;
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin && authedUser) {
+    if (roleId) {
+      const role = await roleModel.findById(roleId);
+      const orgId = authedUser.organizationId || authedUser.organization_id;
+      const roleOrgId = role?.organization_id || role?.organizationId;
+      if (orgId && roleOrgId && String(roleOrgId) !== String(orgId)) {
+        const e = new Error('Forbidden: Access denied to role'); e.status = 403; throw e;
+      }
+    }
+  }
   return model.list({ roleId, industryId: targetIndustryId, screenId });
 };
 
-exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete }) => {
+exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete }, authedUser) => {
   if (!roleId || !industryId || !screenId) {
     const e = new Error('roleId, industryId and screenId are required'); e.status = 400; throw e;
   }
@@ -45,6 +56,22 @@ exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_e
   ]);
   if (!role)   { const e = new Error('Role not found');   e.status = 404; throw e; }
   if (!screen) { const e = new Error('Screen not found'); e.status = 404; throw e; }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  const orgId = authedUser?.organizationId || authedUser?.organization_id || null;
+  if (!isSuperAdmin && authedUser) {
+    const roleOrgId = role.organization_id || role.organizationId;
+    if (!orgId || String(roleOrgId) !== String(orgId)) {
+      const e = new Error('Forbidden: You can only edit permissions for roles belonging to your organization');
+      e.status = 403;
+      throw e;
+    }
+    if (screen.organization_id && String(screen.organization_id) !== String(orgId)) {
+      const e = new Error('Forbidden: Access denied to screen');
+      e.status = 403;
+      throw e;
+    }
+  }
 
   return model.upsert({ roleId, industryId: targetIndustryId, screenId, can_view, can_add, can_edit, can_delete });
 };

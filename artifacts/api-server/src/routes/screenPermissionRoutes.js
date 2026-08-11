@@ -6,6 +6,6 @@ const { permit } = require('../middlewares/rbac');
 const router = express.Router();
 
 router.get('/', authenticate, ctrl.list);
-router.post('/bulk', authenticate, permit('superAdmin'), ctrl.bulkSet);
+router.post('/bulk', authenticate, permit('superAdmin', 'admin'), ctrl.bulkSet);
 
 module.exports = router;

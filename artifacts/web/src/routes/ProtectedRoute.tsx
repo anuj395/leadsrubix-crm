@@ -33,6 +33,10 @@ export function ProtectedRoute() {
     )
   }
 
+  if (location.pathname === '/settings' && !(user?.role === 'superAdmin' || user?.role === 'admin')) {
+    return <Navigate replace to="/analytics" />
+  }
+
   const isSubscriptionRoute =
     location.pathname === '/account/subscription-details' ||
     location.pathname === '/account/payment-invoices' ||

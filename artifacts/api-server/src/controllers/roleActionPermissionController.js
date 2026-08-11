@@ -6,14 +6,14 @@ exports.list = async (req, res, next) => {
       roleId: req.query.roleId,
       industryId: req.query.industryId,
       screenId: req.query.screenId,
-    });
+    }, req.user);
     res.json({ items });
   } catch (err) { next(err); }
 };
 
 exports.upsert = async (req, res, next) => {
   try {
-    const row = await svc.upsert(req.body || {});
+    const row = await svc.upsert(req.body || {}, req.user);
     res.json(row);
   } catch (err) { next(err); }
 };

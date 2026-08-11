@@ -56,6 +56,11 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationI
   if (!screen) {
     const err = new Error('Screen not found'); err.status = 404; throw err;
   }
+  if (screen.organization_id && orgId && String(screen.organization_id) !== String(orgId)) {
+    const err = new Error('Screen not found or access forbidden');
+    err.status = 403;
+    throw err;
+  }
   if (!role) {
     const err = new Error('Role not found'); err.status = 404; throw err;
   }

@@ -68,6 +68,6 @@ exports.upsert = async ({
   return RoleActionPermission.findOne({ role_id: roleId, industry_id: industryId, screen_id: screenId }).lean().exec();
 };
 
-exports.removeByRole     = (roleId)     => RoleActionPermission.deleteMany({ roleId }).exec();
-exports.removeByIndustry = (industryId) => RoleActionPermission.deleteMany({ industryId }).exec();
-exports.removeByScreen   = (screenId)   => RoleActionPermission.deleteMany({ screenId }).exec();
+exports.removeByRole     = (roleId)     => RoleActionPermission.deleteMany({ role_id: roleId }).exec();
+exports.removeByIndustry = (industryId) => RoleActionPermission.deleteMany({ industry_id: industryId }).exec();
+exports.removeByScreen   = (screenId)   => RoleActionPermission.deleteMany({ screen_id: screenId }).exec();

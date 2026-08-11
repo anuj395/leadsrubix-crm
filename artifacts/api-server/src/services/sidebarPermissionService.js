@@ -13,7 +13,7 @@ exports.list = async (opts) => {
   return permModel.list(opts);
 };
 
-exports.upsert = async (payload) => {
+exports.upsert = async (payload, authedUser) => {
   const { roleId, industryId, menu_id } = payload || {};
   if (!roleId || !industryId || !menu_id) {
     const err = new Error('roleId, industryId and menu_id are required');
@@ -40,6 +40,18 @@ exports.upsert = async (payload) => {
     err.status = 403;
     throw err;
   }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  const orgId = authedUser?.organizationId || authedUser?.organization_id || null;
+  if (!isSuperAdmin) {
+    const roleOrgId = role.organization_id || role.organizationId;
+    if (!orgId || String(roleOrgId) !== String(orgId)) {
+      const err = new Error('Forbidden: You can only edit permissions for roles belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+
   const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
   if (roleIndustryId !== String(industry._id)) {
     const err = new Error('role does not belong to the given industry');
@@ -47,10 +59,11 @@ exports.upsert = async (payload) => {
     throw err;
   }
   payload.industryId = industry._id;
+  payload.organizationId = isSuperAdmin ? (payload.organizationId || payload.organization_id || null) : orgId;
   return permModel.upsert(payload);
 };
 
-exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }) => {
+exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }, authedUser) => {
   if (!roleId || !industryId) {
     const err = new Error('roleId and industryId are required');
     err.status = 400;
@@ -73,13 +86,49 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }) => {
     err.status = 403;
     throw err;
   }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  const orgId = authedUser?.organizationId || authedUser?.organization_id || null;
+  if (!isSuperAdmin) {
+    const roleOrgId = role.organization_id || role.organizationId;
+    if (!orgId || String(roleOrgId) !== String(orgId)) {
+      const err = new Error('Forbidden: You can only edit permissions for roles belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+
   const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
   if (roleIndustryId !== String(industry._id)) {
     const err = new Error('role does not belong to the given industry');
     err.status = 400;
     throw err;
   }
-  return permModel.bulkSetForRoleIndustry({ roleId, industryId: industry._id, menu_ids: menu_ids || menuIds });
+  return permModel.bulkSetForRoleIndustry({
+    roleId,
+    industryId: industry._id,
+    menu_ids: menu_ids || menuIds,
+    organizationId: isSuperAdmin ? null : orgId
+  });
 };
 
-exports.remove = async (id) => permModel.remove(id);
+exports.remove = async (id, authedUser) => {
+  const doc = await permModel.findById(id);
+  if (!doc) {
+    const err = new Error('Permission not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    const permOrgId = doc.organization_id || doc.organizationId;
+    if (!userOrgId || String(permOrgId) !== String(userOrgId)) {
+      const err = new Error('Forbidden: You can only delete permissions belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+  return permModel.remove(id);
+};

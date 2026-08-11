@@ -16,28 +16,48 @@ exports.get = async (id) => {
   return doc;
 };
 
-exports.create = async (payload) => {
+exports.create = async (payload, authedUser) => {
   if (!payload?.industryId || !payload?.key || !payload?.name) {
     const err = new Error('industryId, key and name are required');
     err.status = 400;
     throw err;
   }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  let orgId = payload.organizationId || payload.organization_id;
+  let wsId = payload.workspaceId || payload.workspace_id;
+
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    if (!userOrgId) {
+      const err = new Error('Forbidden: You must belong to an organization to create custom roles');
+      err.status = 403;
+      throw err;
+    }
+    orgId = userOrgId;
+    wsId = authedUser?.workspaceId || authedUser?.workspace_id;
+  }
+
   const industry = await industryModel.findById(payload.industryId);
   if (!industry) {
     const err = new Error('Industry not found');
     err.status = 404;
     throw err;
   }
-  const dup = await roleModel.findByIndustryAndKey(payload.industryId, payload.key);
-  if (dup) {
+  const dup = await roleModel.findByIndustryAndKey(payload.industryId, payload.key, orgId || undefined);
+  if (dup && String(dup.organization_id || dup.organizationId || '') === String(orgId || '')) {
     const err = new Error('Role with this key already exists for this industry');
     err.status = 409;
     throw err;
   }
-  return roleModel.create(payload);
+  return roleModel.create({
+    ...payload,
+    organization_id: orgId || null,
+    workspace_id: wsId || null
+  });
 };
 
-exports.update = async (id, patch) => {
+exports.update = async (id, patch, authedUser) => {
   const existing = await roleModel.findById(id);
   if (!existing) {
     const err = new Error('Role not found');
@@ -50,9 +70,23 @@ exports.update = async (id, patch) => {
     throw err;
   }
 
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    const roleOrgId = existing.organization_id || existing.organizationId;
+    if (!userOrgId || String(roleOrgId) !== String(userOrgId)) {
+      const err = new Error('Forbidden: You can only update roles belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+    if (patch.organizationId) delete patch.organizationId;
+    if (patch.organization_id) delete patch.organization_id;
+  }
+
   if (patch?.industryId && patch?.key) {
-    const dup = await roleModel.findByIndustryAndKey(patch.industryId, patch.key);
-    if (dup && String(dup._id) !== String(id)) {
+    const orgId = existing.organization_id || existing.organizationId || null;
+    const dup = await roleModel.findByIndustryAndKey(patch.industryId, patch.key, orgId || undefined);
+    if (dup && String(dup._id) !== String(id) && String(dup.organization_id || dup.organizationId || '') === String(orgId || '')) {
       const err = new Error('Role with this key already exists for this industry');
       err.status = 409;
       throw err;
@@ -68,7 +102,7 @@ exports.update = async (id, patch) => {
 };
 
 // Cascade: removing a role wipes its permission rows so we don't leave orphans.
-exports.remove = async (id) => {
+exports.remove = async (id, authedUser) => {
   const doc = await roleModel.findById(id);
   if (!doc) {
     const err = new Error('Role not found');
@@ -81,10 +115,21 @@ exports.remove = async (id) => {
     throw err;
   }
 
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
+    const roleOrgId = doc.organization_id || doc.organizationId;
+    if (!userOrgId || String(roleOrgId) !== String(userOrgId)) {
+      const err = new Error('Forbidden: You can only delete roles belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+
   if (typeof permissionModel.removeByRole === 'function') {
     await permissionModel.removeByRole(id);
   } else if (typeof permissionModel.deleteMany === 'function') {
-    await permissionModel.deleteMany({ roleId: id });
+    await permissionModel.deleteMany({ role_id: id });
   }
 
   // Cascade: also wipe screen-permission rows for this role so the normalized
@@ -92,7 +137,7 @@ exports.remove = async (id) => {
   if (typeof screenPermissionModel.removeByRole === 'function') {
     await screenPermissionModel.removeByRole(id);
   } else if (typeof screenPermissionModel.deleteMany === 'function') {
-    await screenPermissionModel.deleteMany({ roleId: id });
+    await screenPermissionModel.deleteMany({ role_id: id });
   }
 
   // Cascade: also wipe role-action permission rows for this role.

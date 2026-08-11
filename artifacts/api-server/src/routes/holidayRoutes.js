@@ -6,7 +6,7 @@ const { authenticate } = require('../middlewares/auth');
 router.get('/', authenticate, async (req, res) => {
   try {
     const Holiday = mongoose.model('Holiday');
-    const doc = await Holiday.findOne({ organizationId: req.user.organizationId }).lean().exec();
+    const doc = await Holiday.findOne({ organization_id: req.user.organizationId }).lean().exec();
     const items = doc ? doc.holidays.map(h => ({ ...h, id: h._id })) : [];
     items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
     res.json({ items });
@@ -23,10 +23,12 @@ router.post('/', authenticate, async (req, res) => {
     const Holiday = mongoose.model('Holiday');
     const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
 
-    let doc = await Holiday.findOne({ organizationId: req.user.organizationId });
+    let doc = await Holiday.findOne({ organization_id: req.user.organizationId });
     if (!doc) {
       doc = await Holiday.create({
-        organizationId: req.user.organizationId,
+        organization_id: req.user.organizationId,
+        workspace_id: req.user.workspaceId,
+        industry_id: req.user.industryId,
         holidays: []
       });
     }

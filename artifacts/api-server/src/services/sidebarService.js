@@ -142,7 +142,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   if (parentIdsToFetch.length) {
     const parents = await SidebarMenuModel.find({
       $or: [
-        { organization_id: organizationId },
+        { organization_id: targetOrgId },
         { organization_id: null }
       ],
       _id: { $in: parentIdsToFetch }

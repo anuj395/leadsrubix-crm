@@ -169,38 +169,54 @@ export default function AdminScreenPermissionsPage() {
   const columns = useMemo<GridColDef<ScreenField>[]>(
     () => [
       {
-        field: 'enabled',
-        headerName: 'Visible',
-        width: 90,
-        sortable: false,
-        renderCell: (p) => (
-          <Checkbox
-            checked={enabled.has(p.row._id)}
-            onChange={() => toggle(p.row._id)}
-            color="primary"
-          />
-        ),
+        field: 'fieldKey',
+        headerName: 'Field Key',
+        flex: 1,
+        valueGetter: (_, row) => row.fieldKey || row.field_key,
+        renderCell: (p) => <code>{p.value}</code>,
       },
-      { field: 'fieldKey', headerName: 'Field Key', flex: 1.2, renderCell: (p) => <code>{p.value}</code> },
-      { field: 'label', headerName: 'Label', flex: 1 },
-      { field: 'type', headerName: 'Type', width: 120 },
       {
-        field: 'isTableVisible',
-        headerName: 'Table',
+        field: 'label',
+        headerName: 'Display Label',
+        flex: 1.2,
+      },
+      {
+        field: 'order',
+        headerName: 'Order',
         width: 80,
-        renderCell: (p) => <StatusBadge value={p.value ? 'Yes' : 'No'} />,
+        type: 'number',
       },
       {
-        field: 'isFormVisible',
-        headerName: 'Form',
-        width: 80,
-        renderCell: (p) => <StatusBadge value={p.value ? 'Yes' : 'No'} />,
+        field: 'type',
+        headerName: 'Field Type',
+        width: 120,
+        renderCell: (p) => <StatusBadge value={p.value} hideDot />,
       },
       {
-        field: 'isRequired',
+        field: 'is_required',
         headerName: 'Required',
-        width: 85,
-        renderCell: (p) => <StatusBadge value={p.value ? 'Yes' : 'No'} />,
+        width: 100,
+        valueGetter: (_, row) => row.isRequired || row.is_required,
+        renderCell: (p) => (p.value ? 'Yes' : '—'),
+      },
+      {
+        field: 'enabled',
+        headerName: 'Form Access / Visibility',
+        flex: 1,
+        align: 'center',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => {
+          const f = p.row
+          return (
+            <Checkbox
+              size="small"
+              checked={enabled.has(f._id)}
+              onChange={() => toggle(f._id)}
+            />
+          )
+        },
       },
     ],
     [enabled],

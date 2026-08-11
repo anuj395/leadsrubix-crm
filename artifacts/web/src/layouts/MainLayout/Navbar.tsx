@@ -756,25 +756,27 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     <Divider sx={{ mx: 1.25 }} />
 
                     <Stack spacing={0.1} sx={{ px: 1, pt: 0.75, pb: 1 }}>
-                        <ButtonBase
-                            onClick={() => { handleCloseProfileMenu(); navigate('/settings') }}
-                            sx={{
-                                justifyContent: 'flex-start',
-                                gap: 1.25,
-                                width: '100%',
-                                px: 0.75,
-                                py: { xs: 0.75, sm: 0.6 },
-                                borderRadius: '8px',
-                                color: theme.palette.text.primary,
-                                minHeight: 42,
-                                '&:hover': {
-                                    backgroundColor: theme.palette.action.hover,
-                                },
-                            }}
-                        >
-                            <SettingsOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.2rem' }} />
-                            <Typography sx={profileMenuLabelSx}>Settings</Typography>
-                        </ButtonBase>
+                        {(user?.role === 'superAdmin' || user?.role === 'admin') && (
+                            <ButtonBase
+                                onClick={() => { handleCloseProfileMenu(); navigate('/settings') }}
+                                sx={{
+                                    justifyContent: 'flex-start',
+                                    gap: 1.25,
+                                    width: '100%',
+                                    px: 0.75,
+                                    py: { xs: 0.75, sm: 0.6 },
+                                    borderRadius: '8px',
+                                    color: theme.palette.text.primary,
+                                    minHeight: 42,
+                                    '&:hover': {
+                                        backgroundColor: theme.palette.action.hover,
+                                    },
+                                }}
+                            >
+                                <SettingsOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.2rem' }} />
+                                <Typography sx={profileMenuLabelSx}>Settings</Typography>
+                            </ButtonBase>
+                        )}
 
                         {/* Logout button — red accent, full width, prominent */}
                         <ButtonBase

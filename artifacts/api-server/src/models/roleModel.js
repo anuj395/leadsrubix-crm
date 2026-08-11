@@ -80,13 +80,17 @@ exports.findByIndustryAndKey = async (industryId, key, organizationId) => {
   return Role.findOne({ ...q, organization_id: null }).exec();
 };
 
-exports.create = async ({ industryId, key, name, description, isActive }) => {
+exports.create = async ({ industryId, key, name, description, isActive, organizationId, organization_id, workspaceId, workspace_id }) => {
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
+  const wsId = workspaceId !== undefined ? workspaceId : workspace_id;
   const doc = await Role.create({
     industry_id: industryId,
     key: String(key).trim(),
     name: String(name).trim(),
     description: description || '',
     is_active: isActive !== false,
+    organization_id: orgId || null,
+    workspace_id: wsId || null,
   });
   return doc;
 };

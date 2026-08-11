@@ -21,7 +21,9 @@ router.get('/', authenticate, async (req, res) => {
     // If not seeded yet, seed default days
     if (!doc) {
       doc = await WorkingDay.create({
-        organizationId: req.user.organizationId,
+        organization_id: req.user.organizationId,
+        workspace_id: req.user.workspaceId,
+        industry_id: req.user.industryId,
         days: DEFAULT_DAYS,
       });
     }

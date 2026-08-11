@@ -107,9 +107,10 @@ exports.createConfig = async (req, res, next) => {
     if (req.user.role !== 'superAdmin') {
       const userOrgId = req.user.organizationId || req.user.organization_id;
       const userIndId = req.user.industryId || req.user.industry_id;
+      const userWsId = req.user.workspaceId || req.user.workspace_id;
       payload.organization_id = userOrgId;
-      payload.organizationId = userOrgId;
       payload.industry_id = userIndId;
+      payload.workspace_id = userWsId;
     }
 
     const doc = await AnalyticsConfig.create(payload);
@@ -127,13 +128,16 @@ exports.updateConfig = async (req, res, next) => {
 
     if (req.user.role !== 'superAdmin') {
       const userOrgId = req.user.organizationId || req.user.organization_id;
+      const userWsId = req.user.workspaceId || req.user.workspace_id;
       const docOrgId = existing.organization_id || existing.organizationId;
       if (docOrgId && userOrgId && docOrgId !== userOrgId) {
         return res.status(403).json({ message: 'Forbidden: Cannot update other organization configuration' });
       }
       if (req.body) {
         req.body.organization_id = userOrgId;
-        req.body.organizationId = userOrgId;
+        req.body.workspace_id = userWsId;
+        delete req.body.organizationId;
+        delete req.body.workspaceId;
       }
     }
 
