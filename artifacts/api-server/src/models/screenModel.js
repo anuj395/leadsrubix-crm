@@ -71,8 +71,11 @@ exports.findById = async (id) => Screen.findById(id).exec();
 
 exports.findByKey = async (key, organizationId) => {
   const q = { key: String(key).trim() };
-  if (organizationId !== undefined) q.organization_id = organizationId;
-  return Screen.findOne(q).exec();
+  if (organizationId) {
+    const doc = await Screen.findOne({ key: q.key, organization_id: organizationId }).exec();
+    if (doc) return doc;
+  }
+  return Screen.findOne({ key: q.key, organization_id: null }).exec();
 };
 
 exports.create = async ({ key, name, description, order, isActive }) => {

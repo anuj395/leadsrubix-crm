@@ -31,16 +31,16 @@ async function resolveActor(authedUser) {
  * Returns the form-visible fields the (role × industry) caller is allowed to
  * write on an Organization. SuperAdmin can use every active form field.
  */
-async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, role_key, isSuperAdmin }) {
+async function resolveAllowedFormFields({ industryCode, roleKey, industry_code, role_key, isSuperAdmin, isGuestSignup }) {
   const code = industryCode || industry_code;
   const rKey = roleKey || role_key;
-  const screen = await screenModel.findByKey(ORG_SCREEN_KEY);
+  const screen = await screenModel.findByKey(ORG_SCREEN_KEY, isGuestSignup ? null : undefined);
   if (!screen || !screen.isActive) {
     return { screen: null, fields: [] };
   }
   const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin || isGuestSignup) {
     return { screen, fields: fields };
   }
 
@@ -268,6 +268,7 @@ exports.create = async ({ payload, authedUser }) => {
     industry_code: industryId,
     role_key: user ? user.role || authedUser?.role : 'admin',
     isSuperAdmin,
+    isGuestSignup: !user,
   });
   const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields, true);
 

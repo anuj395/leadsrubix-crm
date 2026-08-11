@@ -104,13 +104,22 @@ async function listManagerCandidates({ role, industryId, organizationId }) {
   }
 
   const list = await User.find(filter).select('_id name firstName lastName email role').lean().exec();
-  return list.map((u) => ({
-    _id: String(u._id),
-    id: String(u._id),
-    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || u.email,
-    email: u.email,
-    role: u.role,
-  }));
+  const seenEmails = new Set();
+  const results = [];
+  for (const u of list) {
+    if (!u.email) continue;
+    const normEmail = u.email.toLowerCase().trim();
+    if (seenEmails.has(normEmail)) continue;
+    seenEmails.add(normEmail);
+    results.push({
+      _id: String(u._id).replace(/^"+|"+$/g, ''),
+      id: String(u._id).replace(/^"+|"+$/g, ''),
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || u.email,
+      email: u.email,
+      role: u.role,
+    });
+  }
+  return results;
 }
 
 module.exports = { getVisibleUserIds, listManagerCandidates, MANAGER_OF };

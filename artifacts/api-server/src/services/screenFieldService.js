@@ -37,13 +37,25 @@ exports.create = async (payload) => {
   return fieldModel.create({ ...payload, screenId: sId, fieldKey: fKey });
 };
 
-exports.update = async (id, patch) => {
+exports.update = async (id, patch, authedUser) => {
   const current = await fieldModel.findById(id);
   if (!current) {
     const err = new Error('Field not found');
     err.status = 404;
     throw err;
   }
+
+  const isSuperAdmin = authedUser?.role === 'superAdmin';
+  if (!isSuperAdmin) {
+    const orgId = authedUser?.organizationId;
+    const fieldOrgId = current.organizationId || current.organization_id;
+    if (!orgId || String(fieldOrgId) !== String(orgId)) {
+      const err = new Error('Forbidden: You can only edit fields belonging to your organization');
+      err.status = 403;
+      throw err;
+    }
+  }
+
   const fKey = patch?.fieldKey || patch?.field_key;
   if (fKey) {
     const dup = await fieldModel.findByScreenAndKey(current.screenId, fKey);

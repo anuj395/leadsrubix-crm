@@ -50,36 +50,38 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', module: 'leads' },
         { key: 'leads.tasks', name: 'Tasks List', route: '/leads/tasks', icon: 'tasks', module: 'leads' },
         { key: 'leads.call', name: 'Call Logs List', route: '/leads/call-logs', icon: 'call', module: 'leads' },
-        { key: 'leads.booking', name: 'Bookings List', route: '/leads/bookings', icon: 'booking', module: 'leads' },
-
-        { key: 'configuration.projects', name: 'Projects', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
-        { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
-        { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holiday-config', icon: 'holiday', module: 'configuration' },
-        { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/days-config', icon: 'days', module: 'configuration' },
-        { key: 'configuration.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', module: 'configuration' },
 
         { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/lead-distribution/list', icon: 'list', module: 'leadDistribution' },
         { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' },
 
-        { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', module: 'integrations' },
+        { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
+        { key: 'configuration.resources', name: 'Resource', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
+        { key: 'configuration.holiday', name: 'Holidays Configuration', route: '/configuration/holiday-config', icon: 'holiday', module: 'configuration' },
+        { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/days-config', icon: 'days', module: 'configuration' },
+        { key: 'configuration.domainSettings', name: 'Domain Setting', route: '/configuration/domain-settings', icon: 'domain', module: 'configuration' },
+
         { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', module: 'integrations' },
+        { key: 'integrations.webhook', name: 'Webhook Integrations', route: '/integrations', icon: 'api', module: 'integrations' },
+        { key: 'integrations.api', name: 'API Token', route: '/integrations/api', icon: 'api', module: 'integrations' },
         { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', module: 'integrations' },
 
+        { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', module: 'uiNavigation' },
         { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', module: 'uiNavigation' },
         { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'screen', module: 'uiNavigation' },
         { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'screen', module: 'uiNavigation' },
-        { key: 'uiNavigation.analyticsConfig', name: 'Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', module: 'uiNavigation' },
 
+        { key: 'accessControl.roles', name: 'Role & Permission', route: '/access-control/roles', icon: 'roles', module: 'accessControl' },
         { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', module: 'accessControl' },
         { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'lock', module: 'accessControl' },
-        { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/access-control/roles', icon: 'roles', module: 'accessControl' },
+
+        { key: 'invoices.paymentLogs', name: 'Payment Invoices Logs', route: '/invoices/payment-invoices', icon: 'billing', module: 'invoices' },
+        { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', module: 'invoices' },
+
+        { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
+        { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' },
 
         { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', module: 'support' },
-        { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' },
-        { key: 'account.subscription', name: 'Subscription Details', route: '/account/subscription-details', icon: 'subscription', module: 'account' },
-        { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/invoices/payment-invoices', icon: 'billing', module: 'invoices' },
-        { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', module: 'invoices' },
-        { key: 'account.password', name: 'Update Password', route: '/account/update-password', icon: 'password', module: 'account' }
+        { key: 'support.faq', name: 'FAQ List', route: '/support/faq', icon: 'faq', module: 'support' }
       ],
       leadManager: [
         { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', module: 'analytics' },
@@ -171,13 +173,13 @@ async function seedUsers() {
 
 async function ensureDevAdmin() {
   const User = mongoose.model('User');
-  
+
   // Delete legacy dev superAdmin if exists
   await User.deleteOne({ email: 'dev@rubixcrm.dev' });
-  
+
   const email = 'info@leadsrubix.com';
   const existing = await User.findOne({ email }).exec();
-  
+
   // Hash password using bcrypt if updating directly, or save new user
   if (existing) {
     existing.name = 'Gourav Chopra';
@@ -404,6 +406,37 @@ async function migrateAndSeedSidebar() {
   console.log(
     `[seed] sidebar migration complete: ${menuCount} menu refs, ${permCount} permissions`,
   );
+  await seedDefaultDesignations();
+}
+
+async function seedDefaultDesignations() {
+  const Designation = mongoose.model('Designation');
+  const Industry = mongoose.model('Industry');
+  
+  const indDoc = await Industry.findOne({ code: 'temp0001' }).exec();
+  const industryId = indDoc ? String(indDoc._id) : 'temp0001';
+
+  const defaultList = [
+    { name: 'Executive', value: 'executive', label: 'Executive', is_active: true },
+    { name: 'Sr. Executive', value: 'sr_executive', label: 'Sr. Executive', is_active: true },
+    { name: 'Manager', value: 'manager', label: 'Manager', is_active: true },
+    { name: 'Sr. Manager', value: 'sr_manager', label: 'Sr. Manager', is_active: true },
+    { name: 'Team Lead', value: 'lead', label: 'Team Lead', is_active: true },
+    { name: 'Director', value: 'director', label: 'Director', is_active: true }
+  ];
+
+  await Designation.updateOne(
+    { industry_id: industryId, organization_id: null },
+    {
+      $set: {
+        industry_id: industryId,
+        organization_id: null,
+        designations: defaultList
+      }
+    },
+    { upsert: true }
+  );
+  console.log('[seed] Successfully seeded default designations.');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -416,62 +449,62 @@ const SCREEN_DEFAULTS = [
     name: 'Contacts',
     description: 'Customer / Lead Contact List',
     fields: [
-      { field_key: 'organizationId',    label: 'Organization Name',   type: 'select',   is_required: true,  order: 1, dropdown_source: 'api', dropdown_api: 'options/organizations', is_table_visible: true },
-      { field_key: 'customerName',      label: 'Customer Name',       type: 'text',     is_required: true,  order: 2 },
-      { field_key: 'contactNumber',     label: 'Contact Number',      type: 'phone',    is_required: true,  order: 3 },
-      { field_key: 'emailId',           label: 'Email ID',            type: 'email',    is_required: true,  order: 4 },
-      { field_key: 'alternateNo',       label: 'Alternate Number',    type: 'phone',    is_required: false, order: 5 },
-      { field_key: 'leadType',          label: 'Lead Type',           type: 'select',   is_required: true,  order: 6, dropdown_source: 'api', dropdown_api: '/api/options/leadType' },
-      { field_key: 'location',          label: 'Location',            type: 'select',   is_required: false, order: 7, dropdown_source: 'api', dropdown_api: '/api/options/location' },
-      { field_key: 'projectName',       label: 'Project Name',        type: 'select',   is_required: false, order: 8, dropdown_source: 'api', dropdown_api: '/api/options/projectName' },
-      { field_key: 'propertyType',      label: 'Property Type',       type: 'select',   is_required: false, order: 9, dropdown_source: 'api', dropdown_api: '/api/options/propertyType' },
-      { field_key: 'propertyStage',     label: 'Property Stage',      type: 'select',   is_required: false, order: 10, dropdown_source: 'api', dropdown_api: '/api/options/propertyStage' },
-      { field_key: 'budget',            label: 'Budget',              type: 'select',   is_required: false, order: 11, dropdown_source: 'api', dropdown_api: '/api/options/budget' },
-      { field_key: 'propertySubType',   label: 'Property Sub Type',   type: 'select',   is_required: false, order: 12, dropdown_source: 'api', dropdown_api: '/api/options/propertySubType' },
-      { field_key: 'source',            label: 'Lead Source',         type: 'select',   is_required: false, order: 13, dropdown_source: 'api', dropdown_api: '/api/options/source' },
-      { field_key: 'contactOwnerEmail', label: 'Contact Owner Email', type: 'select',   is_required: false, order: 14, dropdown_source: 'api', dropdown_api: '/api/options/organizationUsers' },
-      { field_key: 'adset',             label: 'Ad Set',              type: 'text',     is_required: false, order: 15 },
-      { field_key: 'campaign',          label: 'Campaign',            type: 'text',     is_required: false, order: 16 },
-      { field_key: 'notes',             label: 'Notes',               type: 'textarea', is_required: false, order: 17 },
+      { field_key: 'organizationId', label: 'Organization Name', type: 'select', is_required: true, order: 1, dropdown_source: 'api', dropdown_api: 'options/organizations', is_table_visible: true },
+      { field_key: 'customerName', label: 'Customer Name', type: 'text', is_required: true, order: 2 },
+      { field_key: 'contactNumber', label: 'Contact Number', type: 'phone', is_required: true, order: 3 },
+      { field_key: 'emailId', label: 'Email ID', type: 'email', is_required: true, order: 4 },
+      { field_key: 'alternateNo', label: 'Alternate Number', type: 'phone', is_required: false, order: 5 },
+      { field_key: 'leadType', label: 'Lead Type', type: 'select', is_required: true, order: 6, dropdown_source: 'api', dropdown_api: '/api/options/leadType' },
+      { field_key: 'location', label: 'Location', type: 'select', is_required: false, order: 7, dropdown_source: 'api', dropdown_api: '/api/options/location' },
+      { field_key: 'projectName', label: 'Project Name', type: 'select', is_required: false, order: 8, dropdown_source: 'api', dropdown_api: '/api/options/projectName' },
+      { field_key: 'propertyType', label: 'Property Type', type: 'select', is_required: false, order: 9, dropdown_source: 'api', dropdown_api: '/api/options/propertyType' },
+      { field_key: 'propertyStage', label: 'Property Stage', type: 'select', is_required: false, order: 10, dropdown_source: 'api', dropdown_api: '/api/options/propertyStage' },
+      { field_key: 'budget', label: 'Budget', type: 'select', is_required: false, order: 11, dropdown_source: 'api', dropdown_api: '/api/options/budget' },
+      { field_key: 'propertySubType', label: 'Property Sub Type', type: 'select', is_required: false, order: 12, dropdown_source: 'api', dropdown_api: '/api/options/propertySubType' },
+      { field_key: 'source', label: 'Lead Source', type: 'select', is_required: false, order: 13, dropdown_source: 'api', dropdown_api: '/api/options/source' },
+      { field_key: 'contactOwnerEmail', label: 'Contact Owner Email', type: 'select', is_required: false, order: 14, dropdown_source: 'api', dropdown_api: '/api/options/organizationUsers' },
+      { field_key: 'adset', label: 'Ad Set', type: 'text', is_required: false, order: 15 },
+      { field_key: 'campaign', label: 'Campaign', type: 'text', is_required: false, order: 16 },
+      { field_key: 'notes', label: 'Notes', type: 'textarea', is_required: false, order: 17 },
 
       // E-Commerce (temp0002) fields
-      { field_key: 'orderID',           label: 'Order ID',            type: 'text',     is_required: false, order: 30 },
-      { field_key: 'orderValue',        label: 'Order Value',         type: 'number',   is_required: false, order: 31 },
-      { field_key: 'cartItemsCount',    label: 'Cart Items Count',    type: 'number',   is_required: false, order: 32 },
-      { field_key: 'couponCode',        label: 'Coupon Code',         type: 'text',     is_required: false, order: 33 },
-      { field_key: 'shippingMethod',    label: 'Shipping Method',     type: 'text',     is_required: false, order: 34 },
-      { field_key: 'orderStatus',        label: 'Order Status',        type: 'select',   is_required: false, order: 35, dropdown_source: 'api', dropdown_api: '/api/options/order_statuses' },
+      { field_key: 'orderID', label: 'Order ID', type: 'text', is_required: false, order: 30 },
+      { field_key: 'orderValue', label: 'Order Value', type: 'number', is_required: false, order: 31 },
+      { field_key: 'cartItemsCount', label: 'Cart Items Count', type: 'number', is_required: false, order: 32 },
+      { field_key: 'couponCode', label: 'Coupon Code', type: 'text', is_required: false, order: 33 },
+      { field_key: 'shippingMethod', label: 'Shipping Method', type: 'text', is_required: false, order: 34 },
+      { field_key: 'orderStatus', label: 'Order Status', type: 'select', is_required: false, order: 35, dropdown_source: 'api', dropdown_api: '/api/options/order_statuses' },
 
       // Healthcare (temp0003) fields
-      { field_key: 'patientID',        label: 'Patient ID',          type: 'text',     is_required: false, order: 40 },
-      { field_key: 'specialty',         label: 'Medical Specialty',   type: 'select',   is_required: false, order: 41, dropdown_source: 'api', dropdown_api: '/api/options/specialties' },
-      { field_key: 'attendingDoctor',   label: 'Attending Doctor',    type: 'text',     is_required: false, order: 42 },
-      { field_key: 'appointmentDate',   label: 'Appointment Date',    type: 'date',     is_required: false, order: 43 },
-      { field_key: 'insuranceProvider', label: 'Insurance Provider',  type: 'text',     is_required: false, order: 44 },
+      { field_key: 'patientID', label: 'Patient ID', type: 'text', is_required: false, order: 40 },
+      { field_key: 'specialty', label: 'Medical Specialty', type: 'select', is_required: false, order: 41, dropdown_source: 'api', dropdown_api: '/api/options/specialties' },
+      { field_key: 'attendingDoctor', label: 'Attending Doctor', type: 'text', is_required: false, order: 42 },
+      { field_key: 'appointmentDate', label: 'Appointment Date', type: 'date', is_required: false, order: 43 },
+      { field_key: 'insuranceProvider', label: 'Insurance Provider', type: 'text', is_required: false, order: 44 },
 
       // Education (temp0004) fields
-      { field_key: 'programCourse',     label: 'Program / Course',    type: 'select',   is_required: false, order: 50, dropdown_source: 'api', dropdown_api: '/api/options/programs' },
-      { field_key: 'academicYear',      label: 'Academic Year',       type: 'text',     is_required: false, order: 51 },
-      { field_key: 'entranceScore',     label: 'Entrance Test Score', type: 'number',   is_required: false, order: 52 },
-      { field_key: 'counselorAssigned', label: 'Counselor Assigned',  type: 'text',     is_required: false, order: 53 },
+      { field_key: 'programCourse', label: 'Program / Course', type: 'select', is_required: false, order: 50, dropdown_source: 'api', dropdown_api: '/api/options/programs' },
+      { field_key: 'academicYear', label: 'Academic Year', type: 'text', is_required: false, order: 51 },
+      { field_key: 'entranceScore', label: 'Entrance Test Score', type: 'number', is_required: false, order: 52 },
+      { field_key: 'counselorAssigned', label: 'Counselor Assigned', type: 'text', is_required: false, order: 53 },
 
       // Financial Services (temp0005) fields
-      { field_key: 'productType',       label: 'Financial Product',   type: 'select',   is_required: false, order: 60, dropdown_source: 'api', dropdown_api: '/api/options/financial_products' },
-      { field_key: 'requestedAmount',   label: 'Requested Loan Amount', type: 'number', is_required: false, order: 61 },
-      { field_key: 'annualIncome',      label: 'Annual Income',       type: 'number',   is_required: false, order: 62 },
-      { field_key: 'creditScore',       label: 'Credit Score',        type: 'number',   is_required: false, order: 63 },
+      { field_key: 'productType', label: 'Financial Product', type: 'select', is_required: false, order: 60, dropdown_source: 'api', dropdown_api: '/api/options/financial_products' },
+      { field_key: 'requestedAmount', label: 'Requested Loan Amount', type: 'number', is_required: false, order: 61 },
+      { field_key: 'annualIncome', label: 'Annual Income', type: 'number', is_required: false, order: 62 },
+      { field_key: 'creditScore', label: 'Credit Score', type: 'number', is_required: false, order: 63 },
 
       // IT Services (temp0006) fields
-      { field_key: 'serviceLine',       label: 'IT Service Line',     type: 'select',   is_required: false, order: 70, dropdown_source: 'api', dropdown_api: '/api/options/service_lines' },
-      { field_key: 'rfpDeadline',       label: 'RFP Submission Deadline', type: 'date',  is_required: false, order: 71 },
-      { field_key: 'estimatedBudget',   label: 'Estimated Budget',    type: 'number',   is_required: false, order: 72 },
-      { field_key: 'techStack',         label: 'Tech Stack',          type: 'text',     is_required: false, order: 73 },
+      { field_key: 'serviceLine', label: 'IT Service Line', type: 'select', is_required: false, order: 70, dropdown_source: 'api', dropdown_api: '/api/options/service_lines' },
+      { field_key: 'rfpDeadline', label: 'RFP Submission Deadline', type: 'date', is_required: false, order: 71 },
+      { field_key: 'estimatedBudget', label: 'Estimated Budget', type: 'number', is_required: false, order: 72 },
+      { field_key: 'techStack', label: 'Tech Stack', type: 'text', is_required: false, order: 73 },
 
       // Manufacturing (temp0007) fields
-      { field_key: 'productCategory',   label: 'Product Category',    type: 'select',   is_required: false, order: 80, dropdown_source: 'api', dropdown_api: '/api/options/product_categories' },
-      { field_key: 'orderQuantity',     label: 'Order Quantity (MOQ)', type: 'number',  is_required: false, order: 81 },
-      { field_key: 'deliveryLocation',  label: 'Delivery Location',   type: 'text',     is_required: false, order: 82 },
-      { field_key: 'dealerCode',        label: 'Dealer Code',         type: 'text',     is_required: false, order: 83 },
+      { field_key: 'productCategory', label: 'Product Category', type: 'select', is_required: false, order: 80, dropdown_source: 'api', dropdown_api: '/api/options/product_categories' },
+      { field_key: 'orderQuantity', label: 'Order Quantity (MOQ)', type: 'number', is_required: false, order: 81 },
+      { field_key: 'deliveryLocation', label: 'Delivery Location', type: 'text', is_required: false, order: 82 },
+      { field_key: 'dealerCode', label: 'Dealer Code', type: 'text', is_required: false, order: 83 },
     ],
   },
   {
@@ -479,28 +512,28 @@ const SCREEN_DEFAULTS = [
     name: 'Tasks',
     description: 'Lead / follow-up tasks',
     fields: [
-      { field_key: 'customerName',      label: 'Customer Name',       type: 'text',     is_required: false, order: 1 },
-      { field_key: 'taskType',          label: 'Type',                type: 'text',     is_required: true,  order: 2 },
-      { field_key: 'contactOwnerEmail', label: 'Owner Email',         type: 'text',     is_required: false, order: 3 },
-      { field_key: 'contactNumber',     label: 'Contact Number',      type: 'text',     is_required: false, order: 4 },
-      { field_key: 'stage',             label: 'Stage',               type: 'text',     is_required: false, order: 5 },
-      { field_key: 'source',            label: 'Source',              type: 'text',     is_required: false, order: 6 },
-      { field_key: 'projectName',       label: 'Project Name',        type: 'text',     is_required: false, order: 7 },
-      { field_key: 'location',          label: 'Location',            type: 'text',     is_required: false, order: 8 },
-      { field_key: 'budget',            label: 'Budget',              type: 'text',     is_required: false, order: 9 },
-      { field_key: 'latitude',          label: 'Latitude',            type: 'number',   is_required: false, order: 10 },
-      { field_key: 'longitude',         label: 'Longitude',           type: 'number',   is_required: false, order: 11 },
-      { field_key: 'transferStatus',    label: 'Transfer Status',     type: 'text',     is_required: false, order: 12 },
-      { field_key: 'dueDate',           label: 'Due Date',            type: 'date',     is_required: false, order: 13 },
-      { field_key: 'completedAt',       label: 'Completed At',        type: 'date',     is_required: false, order: 14 },
-      { field_key: 'uniqueMeeting',      label: 'Unique Meeting',      type: 'text',     is_required: false, order: 15 },
-      { field_key: 'uniqueSiteVisit',    label: 'Unique Site Visit',    type: 'text',     is_required: false, order: 16 },
-      { field_key: 'assignedTo',        label: 'Assigned To',         type: 'text',     is_required: false, order: 17 },
-      { field_key: 'callbackReason',    label: 'Callback Reason',     type: 'text',     is_required: false, order: 18 },
-      { field_key: 'nextFollowUp',      label: 'Next Follow-up',      type: 'date',     is_required: false, order: 19 },
-      { field_key: 'notes',             label: 'Notes',               type: 'textarea', is_required: false, order: 20 },
-      { field_key: 'createdAt',         label: 'Created At',          type: 'date',     is_required: false, order: 21 },
-      { field_key: 'status',            label: 'Status',              type: 'badge',    is_required: false, order: 22 },
+      { field_key: 'customerName', label: 'Customer Name', type: 'text', is_required: false, order: 1 },
+      { field_key: 'taskType', label: 'Type', type: 'text', is_required: true, order: 2 },
+      { field_key: 'contactOwnerEmail', label: 'Owner Email', type: 'text', is_required: false, order: 3 },
+      { field_key: 'contactNumber', label: 'Contact Number', type: 'text', is_required: false, order: 4 },
+      { field_key: 'stage', label: 'Stage', type: 'text', is_required: false, order: 5 },
+      { field_key: 'source', label: 'Source', type: 'text', is_required: false, order: 6 },
+      { field_key: 'projectName', label: 'Project Name', type: 'text', is_required: false, order: 7 },
+      { field_key: 'location', label: 'Location', type: 'text', is_required: false, order: 8 },
+      { field_key: 'budget', label: 'Budget', type: 'text', is_required: false, order: 9 },
+      { field_key: 'latitude', label: 'Latitude', type: 'number', is_required: false, order: 10 },
+      { field_key: 'longitude', label: 'Longitude', type: 'number', is_required: false, order: 11 },
+      { field_key: 'transferStatus', label: 'Transfer Status', type: 'text', is_required: false, order: 12 },
+      { field_key: 'dueDate', label: 'Due Date', type: 'date', is_required: false, order: 13 },
+      { field_key: 'completedAt', label: 'Completed At', type: 'date', is_required: false, order: 14 },
+      { field_key: 'uniqueMeeting', label: 'Unique Meeting', type: 'text', is_required: false, order: 15 },
+      { field_key: 'uniqueSiteVisit', label: 'Unique Site Visit', type: 'text', is_required: false, order: 16 },
+      { field_key: 'assignedTo', label: 'Assigned To', type: 'text', is_required: false, order: 17 },
+      { field_key: 'callbackReason', label: 'Callback Reason', type: 'text', is_required: false, order: 18 },
+      { field_key: 'nextFollowUp', label: 'Next Follow-up', type: 'date', is_required: false, order: 19 },
+      { field_key: 'notes', label: 'Notes', type: 'textarea', is_required: false, order: 20 },
+      { field_key: 'createdAt', label: 'Created At', type: 'date', is_required: false, order: 21 },
+      { field_key: 'status', label: 'Status', type: 'badge', is_required: false, order: 22 },
     ],
   },
   {
@@ -508,13 +541,30 @@ const SCREEN_DEFAULTS = [
     name: 'Users',
     description: 'Per-role custom fields shown on the Add/Edit User form',
     fields: [
-      { field_key: 'contactNumber', label: 'Contact Number', type: 'phone',  is_required: true,  order: 1 },
-      { field_key: 'designation',   label: 'Designation',   type: 'select', is_required: true,  order: 2,
-        dropdown_source: 'api', dropdown_api: '/api/options/designations' },
-      { field_key: 'team',          label: 'Team',          type: 'select', is_required: true,  order: 3,
-        dropdown_source: 'api', dropdown_api: '/api/options/teams' },
-      { field_key: 'branch',        label: 'Branch',        type: 'select', is_required: true,  order: 4,
-        dropdown_source: 'api', dropdown_api: '/api/options/branches' },
+      { field_key: 'firstName', label: 'First Name', type: 'text', is_required: true, order: 1 },
+      { field_key: 'lastName', label: 'Last Name', type: 'text', is_required: false, order: 2 },
+      { field_key: 'email', label: 'Email', type: 'email', is_required: true, order: 3 },
+      {
+        field_key: 'role', label: 'Role', type: 'select', is_required: true, order: 4,
+        dropdown_source: 'api', dropdown_api: '/api/roles'
+      },
+      {
+        field_key: 'reportingTo', label: 'Reports To', type: 'select', is_required: true, order: 5,
+        dropdown_source: 'api', dropdown_api: '/api/users/managers'
+      },
+      { field_key: 'contactNumber', label: 'Contact Number', type: 'phone', is_required: true, order: 6 },
+      {
+        field_key: 'designation', label: 'Designation', type: 'select', is_required: true, order: 7,
+        dropdown_source: 'api', dropdown_api: '/api/options/designations'
+      },
+      {
+        field_key: 'team', label: 'Team', type: 'select', is_required: true, order: 8,
+        dropdown_source: 'api', dropdown_api: '/api/options/teams'
+      },
+      {
+        field_key: 'branch', label: 'Branch', type: 'select', is_required: true, order: 9,
+        dropdown_source: 'api', dropdown_api: '/api/options/branches'
+      },
     ],
   },
   {
@@ -523,20 +573,26 @@ const SCREEN_DEFAULTS = [
     description: 'Organization records — fully dynamic table & form',
     fields: [
       { field_key: 'organizationName', label: 'Organization Name', type: 'text', is_required: true, order: 1 },
-      { field_key: 'firstName',    label: 'First Name',    type: 'text',     is_required: true,  order: 2 },
-      { field_key: 'lastName',     label: 'Last Name',     type: 'text',     is_required: true,  order: 3 },
-      { field_key: 'contactNumber',    label: 'Contact Number', type: 'phone',    is_required: true,  order: 4 },
-      { field_key: 'emailId',      label: 'Email ID',      type: 'email',    is_required: true,  order: 5 },
-      { field_key: 'country',       label: 'Country',       type: 'select',   is_required: true,  order: 6,
-        dropdown_source: 'api', dropdown_api: '/api/options/countries' },
-      { field_key: 'state',         label: 'State',         type: 'select',   is_required: true,  order: 7,
-        dropdown_source: 'api', dropdown_api: '/api/options/states' },
-      { field_key: 'city',          label: 'City',          type: 'text',     is_required: true,  order: 8 },
-      { field_key: 'pincode',       label: 'Pincode',       type: 'text',     is_required: true,  order: 9 },
-      { field_key: 'industryId',   label: 'Industry ID',   type: 'select',   is_required: true,  order: 10,
-        dropdown_source: 'api', dropdown_api: '/api/options/industries?launchedOnly=true' },
-      { field_key: 'numEmployees', label: 'Number of Employees', type: 'number', is_required: true,  order: 11 },
-      { field_key: 'address',       label: 'Address',       type: 'textarea', is_required: true,  order: 12 },
+      { field_key: 'firstName', label: 'First Name', type: 'text', is_required: true, order: 2 },
+      { field_key: 'lastName', label: 'Last Name', type: 'text', is_required: true, order: 3 },
+      { field_key: 'contactNumber', label: 'Contact Number', type: 'phone', is_required: true, order: 4 },
+      { field_key: 'emailId', label: 'Email ID', type: 'email', is_required: true, order: 5 },
+      {
+        field_key: 'country', label: 'Country', type: 'select', is_required: true, order: 6,
+        dropdown_source: 'api', dropdown_api: '/api/options/countries'
+      },
+      {
+        field_key: 'state', label: 'State', type: 'select', is_required: true, order: 7,
+        dropdown_source: 'api', dropdown_api: '/api/options/states'
+      },
+      { field_key: 'city', label: 'City', type: 'text', is_required: true, order: 8 },
+      { field_key: 'pincode', label: 'Pincode', type: 'text', is_required: true, order: 9 },
+      {
+        field_key: 'industryId', label: 'Industry ID', type: 'select', is_required: true, order: 10,
+        dropdown_source: 'api', dropdown_api: '/api/options/industries?launchedOnly=true'
+      },
+      { field_key: 'numEmployees', label: 'Number of Employees', type: 'number', is_required: true, order: 11 },
+      { field_key: 'address', label: 'Address', type: 'textarea', is_required: true, order: 12 },
       { field_key: 'costPerLicense', label: 'License Cost', type: 'number', is_required: true, order: 20 },
       { field_key: 'validTill', label: 'Valid Till', type: 'date', is_required: true, order: 21 },
       { field_key: 'allowDuplicateLeads', label: 'Allow Duplicate Leads', type: 'checkbox', is_form_visible: false, is_table_visible: true, default_value: true, order: 13 },
@@ -553,12 +609,12 @@ const SCREEN_DEFAULTS = [
     name: 'Bookings',
     description: 'Customer booking records — fully dynamic table & form',
     fields: [
-      { field_key: 'customerName', label: 'Customer Name', type: 'text',     is_required: true,  order: 1 },
-      { field_key: 'contactNumber',    label: 'Phone Number',  type: 'text',     is_required: false, order: 2 },
-      { field_key: 'project',       label: 'Project Name',  type: 'text',     is_required: false, order: 3 },
-      { field_key: 'location',      label: 'Location',      type: 'text',     is_required: false, order: 4 },
-      { field_key: 'branch',        label: 'Branch',        type: 'text',     is_required: false, order: 5 },
-      { field_key: 'team',          label: 'Assigned Team',  type: 'text',     is_required: false, order: 6 },
+      { field_key: 'customerName', label: 'Customer Name', type: 'text', is_required: true, order: 1 },
+      { field_key: 'contactNumber', label: 'Phone Number', type: 'text', is_required: false, order: 2 },
+      { field_key: 'project', label: 'Project Name', type: 'text', is_required: false, order: 3 },
+      { field_key: 'location', label: 'Location', type: 'text', is_required: false, order: 4 },
+      { field_key: 'branch', label: 'Branch', type: 'text', is_required: false, order: 5 },
+      { field_key: 'team', label: 'Assigned Team', type: 'text', is_required: false, order: 6 },
     ],
   },
   {
@@ -566,18 +622,18 @@ const SCREEN_DEFAULTS = [
     name: 'Interested Lead Details',
     description: 'Dynamic form fields shown when converting a lead to Interested',
     fields: [
-      { field_key: 'customerName',      label: 'Customer Name',       type: 'text',     is_required: true,  order: 1 },
-      { field_key: 'alternateNo',       label: 'Alternate Number',    type: 'phone',    is_required: false, order: 2 },
-      { field_key: 'location',          label: 'Location',            type: 'select',   is_required: true,  order: 3, dropdown_source: 'api', dropdown_api: '/api/options/location' },
-      { field_key: 'projectName',       label: 'Project Name',        type: 'select',   is_required: true,  order: 4, dropdown_source: 'api', dropdown_api: '/api/options/projectName' },
-      { field_key: 'taskType',          label: 'Next Follow Up Type', type: 'select',   is_required: true,  order: 5, dropdown_source: 'static', options: ['Call Back', 'Meeting', 'Site Visit'], default_value: 'Call Back' },
-      { field_key: 'budget',            label: 'Budget',              type: 'select',   is_required: true,  order: 6, dropdown_source: 'api', dropdown_api: '/api/options/budget' },
-      { field_key: 'propertyType',      label: 'Property Type',       type: 'select',   is_required: true,  order: 7, dropdown_source: 'api', dropdown_api: '/api/options/propertyType' },
-      { field_key: 'propertyStage',     label: 'Property Stage',      type: 'select',   is_required: true,  order: 8, dropdown_source: 'api', dropdown_api: '/api/options/propertyStage' },
-      { field_key: 'nextFollowUp',      label: 'Next Follow Up Date', type: 'date',     is_required: true,  order: 9 },
-      { field_key: 'propertySubType',   label: 'Property Sub Type',   type: 'select',   is_required: true,  order: 10, dropdown_source: 'api', dropdown_api: '/api/options/propertySubType' },
-      { field_key: 'source',            label: 'Lead Source',         type: 'select',   is_required: true,  order: 11, dropdown_source: 'api', dropdown_api: '/api/options/source' },
-      { field_key: 'notes',             label: 'Note',               type: 'textarea', is_required: false, order: 12 },
+      { field_key: 'customerName', label: 'Customer Name', type: 'text', is_required: true, order: 1 },
+      { field_key: 'alternateNo', label: 'Alternate Number', type: 'phone', is_required: false, order: 2 },
+      { field_key: 'location', label: 'Location', type: 'select', is_required: true, order: 3, dropdown_source: 'api', dropdown_api: '/api/options/location' },
+      { field_key: 'projectName', label: 'Project Name', type: 'select', is_required: true, order: 4, dropdown_source: 'api', dropdown_api: '/api/options/projectName' },
+      { field_key: 'taskType', label: 'Next Follow Up Type', type: 'select', is_required: true, order: 5, dropdown_source: 'static', options: ['Call Back', 'Meeting', 'Site Visit'], default_value: 'Call Back' },
+      { field_key: 'budget', label: 'Budget', type: 'select', is_required: true, order: 6, dropdown_source: 'api', dropdown_api: '/api/options/budget' },
+      { field_key: 'propertyType', label: 'Property Type', type: 'select', is_required: true, order: 7, dropdown_source: 'api', dropdown_api: '/api/options/propertyType' },
+      { field_key: 'propertyStage', label: 'Property Stage', type: 'select', is_required: true, order: 8, dropdown_source: 'api', dropdown_api: '/api/options/propertyStage' },
+      { field_key: 'nextFollowUp', label: 'Next Follow Up Date', type: 'date', is_required: true, order: 9 },
+      { field_key: 'propertySubType', label: 'Property Sub Type', type: 'select', is_required: true, order: 10, dropdown_source: 'api', dropdown_api: '/api/options/propertySubType' },
+      { field_key: 'source', label: 'Lead Source', type: 'select', is_required: true, order: 11, dropdown_source: 'api', dropdown_api: '/api/options/source' },
+      { field_key: 'notes', label: 'Note', type: 'textarea', is_required: false, order: 12 },
     ],
   },
   {
@@ -585,9 +641,9 @@ const SCREEN_DEFAULTS = [
     name: 'Call Back Details',
     description: 'Dynamic form fields shown when converting a lead to Call Back',
     fields: [
-      { field_key: 'callBackReason',  label: 'Call Back Reason',    type: 'select',   is_required: true,  order: 1, dropdown_source: 'static', options: ['Not Picked', 'On Request', 'Not Reachable', 'Switched Off'] },
-      { field_key: 'nextFollowUp',      label: 'Next Follow Up Date', type: 'date',     is_required: true,  order: 2 },
-      { field_key: 'notes',             label: 'Note',               type: 'textarea', is_required: false, order: 3 },
+      { field_key: 'callBackReason', label: 'Call Back Reason', type: 'select', is_required: true, order: 1, dropdown_source: 'static', options: ['Not Picked', 'On Request', 'Not Reachable', 'Switched Off'] },
+      { field_key: 'nextFollowUp', label: 'Next Follow Up Date', type: 'date', is_required: true, order: 2 },
+      { field_key: 'notes', label: 'Note', type: 'textarea', is_required: false, order: 3 },
     ],
   },
   {
@@ -595,9 +651,9 @@ const SCREEN_DEFAULTS = [
     name: 'Not Interested Details',
     description: 'Dynamic form fields shown when converting a lead to Not Interested',
     fields: [
-      { field_key: 'notIntReason',         label: 'Not Interested Reason', type: 'select',   is_required: true,  order: 1, dropdown_source: 'static', options: ['Not Budget Fit', 'Requirement Changed', 'Purchased Elsewhere', 'No Response', 'Other'] },
-      { field_key: 'otherNotIntReason',    label: 'Enter Other Reason',   type: 'text',     is_required: false, order: 2 },
-      { field_key: 'notes',                label: 'Enter Note',           type: 'textarea', is_required: false, order: 3 },
+      { field_key: 'notIntReason', label: 'Not Interested Reason', type: 'select', is_required: true, order: 1, dropdown_source: 'static', options: ['Not Budget Fit', 'Requirement Changed', 'Purchased Elsewhere', 'No Response', 'Other'] },
+      { field_key: 'otherNotIntReason', label: 'Enter Other Reason', type: 'text', is_required: false, order: 2 },
+      { field_key: 'notes', label: 'Enter Note', type: 'textarea', is_required: false, order: 3 },
     ],
   },
   {
@@ -605,9 +661,9 @@ const SCREEN_DEFAULTS = [
     name: 'Lost Details',
     description: 'Dynamic form fields shown when converting a lead to Lost',
     fields: [
-      { field_key: 'lostReason',           label: 'Lost Reason',          type: 'select',   is_required: true,  order: 1, dropdown_source: 'static', options: ['Not Budget Fit', 'Bought Competitor Property', 'Requirement Changed', 'Delayed Purchase', 'Other'] },
-      { field_key: 'otherLostReason',      label: 'Enter Other Reason',   type: 'text',     is_required: false, order: 2 },
-      { field_key: 'notes',                label: 'Note',                 type: 'textarea', is_required: false, order: 3 },
+      { field_key: 'lostReason', label: 'Lost Reason', type: 'select', is_required: true, order: 1, dropdown_source: 'static', options: ['Not Budget Fit', 'Bought Competitor Property', 'Requirement Changed', 'Delayed Purchase', 'Other'] },
+      { field_key: 'otherLostReason', label: 'Enter Other Reason', type: 'text', is_required: false, order: 2 },
+      { field_key: 'notes', label: 'Note', type: 'textarea', is_required: false, order: 3 },
     ],
   },
   {
@@ -615,8 +671,8 @@ const SCREEN_DEFAULTS = [
     name: 'Reschedule Task',
     description: 'Dynamic form fields shown when rescheduling a follow-up task',
     fields: [
-      { field_key: 'nextFollowUp',         label: 'Next Follow Up Date & Time', type: 'date',     is_required: true,  order: 1 },
-      { field_key: 'notes',                label: 'Enter Note',                 type: 'textarea', is_required: false, order: 2 },
+      { field_key: 'nextFollowUp', label: 'Next Follow Up Date & Time', type: 'date', is_required: true, order: 1 },
+      { field_key: 'notes', label: 'Enter Note', type: 'textarea', is_required: false, order: 2 },
     ],
   },
   {
@@ -624,7 +680,7 @@ const SCREEN_DEFAULTS = [
     name: 'Create New Note',
     description: 'Dynamic form fields shown when creating a new note',
     fields: [
-      { field_key: 'notes',                label: 'Notes',                 type: 'textarea', is_required: true,  order: 1 },
+      { field_key: 'notes', label: 'Notes', type: 'textarea', is_required: true, order: 1 },
     ],
   },
   {
@@ -765,9 +821,9 @@ async function seedScreens() {
 
   // Clean up deprecated resource_carousel and other snake_case screens
   const deprecatedKeys = [
-    'resource_carousel', 'config_projects', 'config_api', 
-    'resource_locations', 'resource_lead_sources', 'resource_budgets', 
-    'resource_transfer_reasons', 'resource_property_stages', 
+    'resource_carousel', 'config_projects', 'config_api',
+    'resource_locations', 'resource_lead_sources', 'resource_budgets',
+    'resource_transfer_reasons', 'resource_property_stages',
     'resource_property_types', 'resource_property_sub_types'
   ];
   await Screen.deleteMany({ key: { $in: deprecatedKeys } });
@@ -875,6 +931,65 @@ async function seedScreens() {
     }
   }
 
+  // Sync new fields to existing organization-specific screens
+  const allOrgScreens = await Screen.find({ organization_id: { $ne: null } }).lean();
+  for (const orgScreen of allOrgScreens) {
+    const baseScreen = await Screen.findOne({ key: orgScreen.key, organization_id: null }).lean();
+    if (!baseScreen) continue;
+
+    const baseFields = await ScreenField.find({ screen_id: baseScreen._id }).lean();
+    const existingOrgFields = await ScreenField.find({ screen_id: orgScreen._id }).lean();
+    const existingKeys = new Set(existingOrgFields.map(f => f.field_key));
+
+    for (const bf of baseFields) {
+      if (!existingKeys.has(bf.field_key)) {
+        console.log(`[migration] Syncing missing field "${bf.field_key}" to organization "${orgScreen.organization_id}" for screen "${orgScreen.key}"`);
+        const newField = await ScreenField.create({
+          screen_id: orgScreen._id,
+          organization_id: orgScreen.organization_id,
+          workspace_id: orgScreen.workspace_id,
+          field_key: bf.field_key,
+          label: bf.label,
+          type: bf.type,
+          options: bf.options,
+          dropdown_source: bf.dropdown_source,
+          dropdown_api: bf.dropdown_api,
+          is_table_visible: bf.is_table_visible,
+          is_form_visible: bf.is_form_visible,
+          is_required: bf.is_required,
+          sortable: bf.sortable,
+          order: bf.order,
+          is_active: bf.is_active,
+          default_value: bf.default_value,
+        });
+
+        // Seed default ScreenPermission for the new field so roles can access it
+        const orgRoles = await Role.find({ organization_id: orgScreen.organization_id }).lean();
+        const orgDoc = await mongoose.model('Organization').findOne({ organizationId: orgScreen.organization_id }).lean();
+        const industryId = orgDoc?.industryId || orgDoc?.industry_id;
+        
+        if (industryId) {
+          const industryDoc = await mongoose.model('Industry').findOne({ code: industryId }).lean();
+          if (industryDoc) {
+            for (const r of orgRoles) {
+              await ScreenPermission.create({
+                screenId: orgScreen._id,
+                roleId: r._id,
+                fieldId: newField._id,
+                industryId: industryDoc._id,
+                organizationId: orgScreen.organization_id,
+                workspaceId: orgScreen.workspace_id,
+                isFormVisible: bf.is_form_visible,
+                isTableVisible: bf.is_table_visible,
+                isEnabled: true
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
   console.log(
     `[seed] screens seeded: ${SCREEN_DEFAULTS.length} screens, ${permCount} permission rows`,
   );
@@ -956,7 +1071,7 @@ async function seedBookings() {
 
 async function fixIntegrationsSidebar() {
   const SidebarMenu = mongoose.model('SidebarMenu');
-  
+
   // 1. Rename integrations.api_list to integrations.api
   const apiListMenu = await SidebarMenu.findOne({ key: 'integrations.api_list' });
   if (apiListMenu) {
@@ -964,13 +1079,13 @@ async function fixIntegrationsSidebar() {
     if (!existingApi) {
       await SidebarMenu.updateOne(
         { _id: apiListMenu._id },
-        { 
-          $set: { 
+        {
+          $set: {
             key: 'integrations.api',
             route: '/integrations/api',
             name: 'API List',
             icon: 'api'
-          } 
+          }
         }
       );
       console.log('[seed] migrated integrations.api_list to integrations.api');
@@ -987,13 +1102,13 @@ async function fixIntegrationsSidebar() {
     if (!existingApiData) {
       await SidebarMenu.updateOne(
         { _id: apiDataMenu._id },
-        { 
-          $set: { 
+        {
+          $set: {
             key: 'integrations.apiData',
             route: '/integrations/api-data',
             name: 'API Data',
             icon: 'apiData'
-          } 
+          }
         }
       );
       console.log('[seed] migrated integrations.api_data to integrations.apiData');
@@ -1008,12 +1123,12 @@ async function fixIntegrationsSidebar() {
   if (mainIntegrations) {
     await SidebarMenu.updateOne(
       { _id: mainIntegrations._id },
-      { 
-        $set: { 
+      {
+        $set: {
           route: '/integrations',
           name: 'Integrations',
           icon: 'integrations'
-        } 
+        }
       }
     );
     console.log('[seed] verified integrations.integrations route and configuration');
@@ -1136,81 +1251,81 @@ async function seedLeadDistributionSidebar() {
 
 const DROPDOWN_OPTION_DEFAULTS = {
   'lead-types': [
-    { value: 'hot',  label: 'Hot' },
+    { value: 'hot', label: 'Hot' },
     { value: 'warm', label: 'Warm' },
     { value: 'cold', label: 'Cold' },
   ],
   'lead-statuses': [
-    { value: 'new',         label: 'New' },
-    { value: 'contacted',   label: 'Contacted' },
-    { value: 'qualified',   label: 'Qualified' },
+    { value: 'new', label: 'New' },
+    { value: 'contacted', label: 'Contacted' },
+    { value: 'qualified', label: 'Qualified' },
     { value: 'unqualified', label: 'Unqualified' },
-    { value: 'converted',   label: 'Converted' },
+    { value: 'converted', label: 'Converted' },
   ],
   'projects': [
-    { value: 'gateway',  label: 'Gateway Towers' },
-    { value: 'horizon',  label: 'Horizon Heights' },
-    { value: 'meadow',   label: 'Meadow Greens' },
+    { value: 'gateway', label: 'Gateway Towers' },
+    { value: 'horizon', label: 'Horizon Heights' },
+    { value: 'meadow', label: 'Meadow Greens' },
   ],
   'order_statuses': [
     { value: 'pending_payment', label: 'Pending Payment' },
-    { value: 'processing',      label: 'Processing' },
-    { value: 'shipped',         label: 'Shipped' },
-    { value: 'delivered',       label: 'Delivered' },
-    { value: 'returned',        label: 'Returned' },
-    { value: 'canceled',        label: 'Canceled' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'shipped', label: 'Shipped' },
+    { value: 'delivered', label: 'Delivered' },
+    { value: 'returned', label: 'Returned' },
+    { value: 'canceled', label: 'Canceled' },
   ],
   'specialties': [
-    { value: 'cardiology',      label: 'Cardiology' },
-    { value: 'orthopedics',     label: 'Orthopedics' },
-    { value: 'neurology',       label: 'Neurology' },
-    { value: 'pediatrics',      label: 'Pediatrics' },
-    { value: 'dermatology',     label: 'Dermatology' },
-    { value: 'general_medicine',label: 'General Medicine' },
+    { value: 'cardiology', label: 'Cardiology' },
+    { value: 'orthopedics', label: 'Orthopedics' },
+    { value: 'neurology', label: 'Neurology' },
+    { value: 'pediatrics', label: 'Pediatrics' },
+    { value: 'dermatology', label: 'Dermatology' },
+    { value: 'general_medicine', label: 'General Medicine' },
   ],
   'programs': [
-    { value: 'btech_cs',        label: 'B.Tech Computer Science' },
-    { value: 'mba_marketing',   label: 'MBA Marketing' },
-    { value: 'bba_finance',     label: 'BBA Finance' },
-    { value: 'msc_data_science',label: 'Data Science MSc' },
-    { value: 'aiml_cert',       label: 'AI/ML Certification' },
+    { value: 'btech_cs', label: 'B.Tech Computer Science' },
+    { value: 'mba_marketing', label: 'MBA Marketing' },
+    { value: 'bba_finance', label: 'BBA Finance' },
+    { value: 'msc_data_science', label: 'Data Science MSc' },
+    { value: 'aiml_cert', label: 'AI/ML Certification' },
   ],
   'financial_products': [
-    { value: 'home_loan',       label: 'Home Loan' },
-    { value: 'business_loan',   label: 'Business Loan' },
-    { value: 'health_insurance',label: 'Health Insurance' },
-    { value: 'mutual_fund',     label: 'Mutual Fund SIP' },
+    { value: 'home_loan', label: 'Home Loan' },
+    { value: 'business_loan', label: 'Business Loan' },
+    { value: 'health_insurance', label: 'Health Insurance' },
+    { value: 'mutual_fund', label: 'Mutual Fund SIP' },
     { value: 'personal_credit', label: 'Personal Credit' },
   ],
   'service_lines': [
     { value: 'cloud_migration', label: 'Cloud Migration' },
-    { value: 'enterprise_dev',   label: 'Enterprise Software Dev' },
-    { value: 'aiml_integration',label: 'AI/ML Integration' },
-    { value: 'cybersecurity',   label: 'Cybersecurity Audit' },
-    { value: 'devops',          label: 'DevOps' },
+    { value: 'enterprise_dev', label: 'Enterprise Software Dev' },
+    { value: 'aiml_integration', label: 'AI/ML Integration' },
+    { value: 'cybersecurity', label: 'Cybersecurity Audit' },
+    { value: 'devops', label: 'DevOps' },
   ],
   'product_categories': [
-    { value: 'machining',       label: 'Industrial Machining' },
+    { value: 'machining', label: 'Industrial Machining' },
     { value: 'auto_components', label: 'Auto Components' },
-    { value: 'raw_plastics',    label: 'Raw Plastics' },
-    { value: 'electrical',      label: 'Electrical Fittings' },
-    { value: 'metal_fabrication',label: 'Heavy Metal Fabrication' },
+    { value: 'raw_plastics', label: 'Raw Plastics' },
+    { value: 'electrical', label: 'Electrical Fittings' },
+    { value: 'metal_fabrication', label: 'Heavy Metal Fabrication' },
   ],
   'departments': [
-    { value: 'sales',       label: 'Sales' },
-    { value: 'marketing',   label: 'Marketing' },
-    { value: 'support',     label: 'Customer Support' },
-    { value: 'operations',  label: 'Operations' },
-    { value: 'finance',     label: 'Finance' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'support', label: 'Customer Support' },
+    { value: 'operations', label: 'Operations' },
+    { value: 'finance', label: 'Finance' },
     { value: 'engineering', label: 'Engineering' },
   ],
   'designations': [
-    { value: 'executive',  label: 'Executive' },
+    { value: 'executive', label: 'Executive' },
     { value: 'sr_executive', label: 'Sr. Executive' },
-    { value: 'manager',    label: 'Manager' },
+    { value: 'manager', label: 'Manager' },
     { value: 'sr_manager', label: 'Sr. Manager' },
-    { value: 'lead',       label: 'Team Lead' },
-    { value: 'director',   label: 'Director' },
+    { value: 'lead', label: 'Team Lead' },
+    { value: 'director', label: 'Director' },
   ],
   'countries': [
     { value: 'India', label: 'India' },
@@ -1322,7 +1437,7 @@ const DROPDOWN_OPTION_DEFAULTS = {
 
 async function seedDropdownOptions() {
   const DropdownOption = mongoose.model('DropdownOption');
-  
+
   // Seed default role keys unconditionally
   const defaultRoleKeys = [
     { value: 'admin', label: 'admin' },
@@ -1891,13 +2006,13 @@ async function seedAdminAnalyticsSidebarPermissions() {
     { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', parentKey: null, order: 1 },
     { key: 'organization', name: 'Organization', route: '/organization/list', icon: 'organization', parentKey: null, order: 2 },
     { key: 'users', name: 'Users', route: '/users', icon: 'users', parentKey: null, order: 3 },
-    { key: 'leads', name: 'Leads', route: '', icon: 'leads', parentKey: null, order: 4 },
-    { key: 'leadDistribution', name: 'Lead Distribution', route: '', icon: 'leadDistribution', parentKey: null, order: 5 },
+    { key: 'leads', name: 'Lead', route: '', icon: 'leads', parentKey: null, order: 4 },
+    { key: 'leadDistribution', name: 'Distribution', route: '', icon: 'leadDistribution', parentKey: null, order: 5 },
     { key: 'configuration', name: 'Configuration', route: '', icon: 'configuration', parentKey: null, order: 6 },
     { key: 'integrations', name: 'Integrations', route: '', icon: 'integrations', parentKey: null, order: 7 },
     { key: 'uiNavigation', name: 'UI & Navigation', route: '', icon: 'sidebar', parentKey: null, order: 8 },
     { key: 'accessControl', name: 'Access Control', route: '', icon: 'shield', parentKey: null, order: 9 },
-    { key: 'invoices', name: 'Invoices', route: '', icon: 'billing', parentKey: null, order: 10 },
+    { key: 'invoices', name: 'Invoice', route: '', icon: 'billing', parentKey: null, order: 10 },
     { key: 'support', name: 'Support', route: '', icon: 'support', parentKey: null, order: 11 },
     { key: 'account', name: 'Account & Settings', route: '', icon: 'account', parentKey: null, order: 12 },
 
@@ -1911,26 +2026,26 @@ async function seedAdminAnalyticsSidebarPermissions() {
 
     { key: 'configuration.industries', name: 'Industry', route: '/configuration/industries', icon: 'organization', parentKey: 'configuration', order: 6.1 },
     { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', parentKey: 'configuration', order: 6.2 },
-    { key: 'configuration.resources', name: 'Resources', route: '/configuration/resources', icon: 'resources', parentKey: 'configuration', order: 6.3 },
-    { key: 'configuration.domainSettings', name: 'Domain Settings', route: '/configuration/domain-settings', icon: 'domain', parentKey: 'configuration', order: 6.4 },
-    { key: 'configuration.holiday', name: 'Holiday Configuration', route: '/configuration/holiday-config', icon: 'holiday', parentKey: 'configuration', order: 6.5 },
+    { key: 'configuration.resources', name: 'Resource', route: '/configuration/resources', icon: 'resources', parentKey: 'configuration', order: 6.3 },
+    { key: 'configuration.domainSettings', name: 'Domain Setting', route: '/configuration/domain-settings', icon: 'domain', parentKey: 'configuration', order: 6.4 },
+    { key: 'configuration.holiday', name: 'Holidays Configuration', route: '/configuration/holiday-config', icon: 'holiday', parentKey: 'configuration', order: 6.5 },
     { key: 'configuration.days', name: 'Working Days Configuration', route: '/configuration/days-config', icon: 'days', parentKey: 'configuration', order: 6.6 },
 
-    { key: 'integrations.api', name: 'API Tokens', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 7.1 },
-    { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', parentKey: 'integrations', order: 7.2 },
-    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 7.3 },
-    { key: 'integrations.domainSettings', name: 'Domain Settings', route: '/integrations/domain-settings', icon: 'domain', parentKey: 'integrations', order: 7.4 },
+    { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', parentKey: 'integrations', order: 7.1 },
+    { key: 'integrations.webhook', name: 'Webhook Integrations', route: '/integrations', icon: 'api', parentKey: 'integrations', order: 7.2 },
+    { key: 'integrations.api', name: 'API Token', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 7.3 },
+    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 7.4 },
 
     { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 8.1 },
     { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 8.2 },
     { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'headers', parentKey: 'uiNavigation', order: 8.3 },
     { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 8.4 },
 
-    { key: 'accessControl.roles', name: 'Roles & Permissions', route: '/access-control/roles', icon: 'shield', parentKey: 'accessControl', order: 9.1 },
+    { key: 'accessControl.roles', name: 'Role & Permission', route: '/access-control/roles', icon: 'shield', parentKey: 'accessControl', order: 9.1 },
     { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', parentKey: 'accessControl', order: 9.2 },
     { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 9.3 },
 
-    { key: 'invoices.paymentLogs', name: 'Payment Invoice Logs', route: '/invoices/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 10.1 },
+    { key: 'invoices.paymentLogs', name: 'Payment Invoices Logs', route: '/invoices/payment-invoices', icon: 'billing', parentKey: 'invoices', order: 10.1 },
     { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', parentKey: 'invoices', order: 10.2 },
 
     { key: 'support.news', name: 'News List', route: '/support/news', icon: 'news', parentKey: 'support', order: 11.1 },
@@ -2001,12 +2116,49 @@ async function seedAdminAnalyticsSidebarPermissions() {
   if (!allMenus.length) return;
 
   // 2. Grant FULL sidebar permissions to all superAdmin template roles (excluding Domain Settings)
+  const superAdminAllowedKeys = new Set([
+    'analytics',
+    'organization',
+    'users',
+    'leads',
+    'leads.contact',
+    'leads.tasks',
+    'leads.call',
+    'leads.sorted',
+    'configuration',
+    'configuration.industries',
+    'configuration.projects',
+    'configuration.resources',
+    'integrations',
+    'integrations.api',
+    'integrations.whatsapp',
+    'uiNavigation',
+    'uiNavigation.analyticsConfig',
+    'uiNavigation.menus',
+    'uiNavigation.screens',
+    'uiNavigation.screenFields',
+    'accessControl',
+    'accessControl.roles',
+    'accessControl.permissions',
+    'accessControl.screenPermissions',
+    'invoices',
+    'invoices.paymentLogs',
+    'invoices.receiptsHistory',
+    'support',
+    'support.news',
+    'support.faq',
+    'account',
+    'account.licenses',
+    'account.coupons',
+    'account.password'
+  ]);
+
   const superAdminRoles = await Role.find({ key: 'superAdmin', organization_id: null }).lean().exec();
   for (const r of superAdminRoles) {
     const orgId = null;
     const indId = r.industry_id || temp0001Ind._id;
     for (const menu of allMenus) {
-      const isVisible = !(menu.key === 'configuration.domainSettings' || menu.key === 'integrations.domainSettings');
+      const isVisible = superAdminAllowedKeys.has(menu.key);
       try {
         await SidebarPermission.updateOne(
           { role_id: r._id, industry_id: indId, menu_id: menu._id, organization_id: orgId },
@@ -2059,11 +2211,20 @@ async function seedAdminAnalyticsSidebarPermissions() {
     }
   }
 
+  // Legacy menu cleanup for integrations.domainSettings
+  const legacyMenus = await SidebarMenu.find({ key: 'integrations.domainSettings' }).lean().exec();
+  if (legacyMenus.length > 0) {
+    const ids = legacyMenus.map(m => m._id);
+    await SidebarPermission.deleteMany({ menu_id: { $in: ids } });
+    await SidebarMenu.deleteMany({ _id: { $in: ids } });
+  }
+
   const finalMenuCount = await SidebarMenu.countDocuments();
   console.log(`[seed] Master SidebarMenu catalog sanitized: ${finalMenuCount} canonical global menus in DB.`);
 }
 
 module.exports = {
+  SCREEN_DEFAULTS,
   seedUsers,
   migrateAndSeedSidebar,
   seedScreens,

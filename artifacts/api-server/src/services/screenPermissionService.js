@@ -22,7 +22,7 @@ exports.list = async (opts) => {
   return items.filter((item) => validFieldIds.has(String(item.fieldId)));
 };
 
-exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
+exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationId, organization_id }) => {
   if (!screenId || !roleId || !industryId) {
     const err = new Error('screenId, roleId and industryId are required');
     err.status = 400;
@@ -43,9 +43,15 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
 
   // Verify the (screen, role, industry) triple is internally consistent before
   // we write rows that would otherwise drift from real FKs.
+  const orgId = organizationId !== undefined ? organizationId : (organization_id !== undefined ? organization_id : null);
+  const mongoose = require('mongoose');
+  const RoleModel = mongoose.model('Role');
   const [screen, role] = await Promise.all([
     screenModel.findById(screenId),
-    roleModel.findById(roleId),
+    RoleModel.findOne({
+      _id: roleId,
+      $or: [{ organization_id: orgId }, { organization_id: null }]
+    }).exec(),
   ]);
   if (!screen) {
     const err = new Error('Screen not found'); err.status = 404; throw err;
@@ -58,6 +64,51 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
     const err = new Error('Role does not belong to the given industry');
     err.status = 400;
     throw err;
+  }
+
+  // Admin must not grant permissions that are not allowed by the Industry-level configuration.
+  if (orgId) {
+    const baselineRole = await RoleModel.findOne({
+      industry_id: resolvedIndustryId,
+      key: role.key,
+      organization_id: null
+    }).exec();
+
+    if (baselineRole) {
+      const ScreenModel = mongoose.model('Screen');
+      const baseScreen = await ScreenModel.findOne({
+        key: screen.key,
+        organization_id: null
+      }).exec();
+
+      if (baseScreen) {
+        const ScreenPermissionModel = mongoose.model('ScreenPermission');
+        const baselinePerms = await ScreenPermissionModel.find({
+          screen_id: baseScreen._id,
+          role_id: baselineRole._id,
+          industry_id: resolvedIndustryId,
+          organization_id: null,
+          is_enabled: true
+        }).lean().exec();
+
+        const ScreenFieldModel = mongoose.model('ScreenField');
+        const baselineFields = await ScreenFieldModel.find({
+          _id: { $in: baselinePerms.map(p => p.field_id) }
+        }).lean().exec();
+        const allowedFieldKeys = new Set(baselineFields.map(f => f.field_key));
+
+        const targetFields = await ScreenFieldModel.find({
+          _id: { $in: fieldIds }
+        }).lean().exec();
+
+        const invalidFields = targetFields.filter(f => !allowedFieldKeys.has(f.field_key));
+        if (invalidFields.length > 0) {
+          const err = new Error(`Cannot grant permissions for field(s) [${invalidFields.map(f => f.label).join(', ')}] because they are not allowed by the Industry-level configuration.`);
+          err.status = 400;
+          throw err;
+        }
+      }
+    }
   }
 
   // Verify every requested field belongs to this screen.
@@ -74,7 +125,13 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds }) => {
     }
   }
 
-  return permissionModel.bulkSetForCombo({ screenId, roleId, industryId: resolvedIndustryId, fieldIds });
+  return permissionModel.bulkSetForCombo({
+    screenId,
+    roleId,
+    industryId: resolvedIndustryId,
+    fieldIds,
+    organizationId: orgId
+  });
 };
 
 /**
@@ -207,7 +264,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   }
 
   let allowed;
-  if (bypassPermissions) {
+  if (bypassPermissions || finalScreenKey === 'users') {
     allowed = fields;
   } else {
     const ScreenPermissionModel = mongoose.model('ScreenPermission');

@@ -82,13 +82,13 @@ export default function AdminScreenFieldsPage() {
     sev: 'success',
   })
 
-  // Load screens under tenant scope once.
   useEffect(() => {
     void (async () => {
       try {
         const scrs = await getScreens()
-        setScreens(scrs)
-        if (scrs[0]) setScreenId(scrs[0]._id)
+        const filtered = scrs.filter((s) => s.key !== 'users')
+        setScreens(filtered)
+        if (filtered[0]) setScreenId(filtered[0]._id)
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
       }

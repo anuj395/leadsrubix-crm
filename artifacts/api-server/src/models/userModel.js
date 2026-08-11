@@ -58,9 +58,8 @@ function generateUid() {
   return result;
 }
 
-// hash password and generate uid before save
 userSchema.pre('save', async function (next) {
-  if (this.isModified('password')) {
+  if (this.password && !this.password.startsWith('$2a$') && !this.password.startsWith('$2b$') && !this.password.startsWith('$2y$')) {
     this.password = await bcrypt.hash(this.password, 10);
   }
   if (!this.uid || String(this.uid).trim() === '') {
@@ -235,6 +234,7 @@ exports.update = async (id, patch) => {
   if (patch.password) {
     $set.password = await bcrypt.hash(String(patch.password), 10);
     $set.needs_password_change = false;
+    $set.needsPasswordChange = false;
   }
 
   const updateQuery = { $set };

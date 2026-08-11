@@ -55,6 +55,9 @@ function normalizeOptions(raw: unknown): DropdownOption[] {
   return list.map((entry) => {
     if (entry && typeof entry === 'object') {
       const e = entry as Record<string, unknown>
+      if (e.key !== undefined && e.name !== undefined && e.value === undefined) {
+        return { value: String(e.key), label: String(e.name) }
+      }
       const v = e.value ?? e.id ?? e._id ?? e.key ?? e.label ?? ''
       let l = e.label ?? e.name ?? e.title ?? String(v)
       if (e.email) {
@@ -183,6 +186,12 @@ export function DynamicForm({
   }, [values, onChange])
 
   useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      setValues((prev) => ({ ...prev, ...initialValues }))
+    }
+  }, [initialValues])
+
+  useEffect(() => {
     let cancelled = false
     if (screen === 'organization') {
       void api.get('pricing-plans')
@@ -290,6 +299,9 @@ export function DynamicForm({
     if (activeOrg && !url.includes('options/organizations')) {
       url = `${url}${url.includes('?') ? '&' : '?'}organizationId=${encodeURIComponent(String(activeOrg))}`
     }
+    if ((url.includes('/users/managers') || url.includes('users/managers')) && values.role) {
+      url = `${url}${url.includes('?') ? '&' : '?'}role=${encodeURIComponent(String(values.role))}`
+    }
     return url
   }
 
@@ -321,6 +333,11 @@ export function DynamicForm({
           setRawDropdowns((prev) => ({ ...prev, [url]: rawItems }))
           const opts = normalizeOptions(res.data)
           setDropdowns((prev) => ({ ...prev, [url]: opts }))
+          setErrors((prev) => {
+            const next = { ...prev }
+            delete next[`__dropdown__${url}`]
+            return next
+          })
         })
         .catch((err) => {
           if (cancelled) return
@@ -340,7 +357,7 @@ export function DynamicForm({
     return () => {
       cancelled = true
     }
-  }, [fields, values.country, industry_code, values.organizationId, values.organizationId])
+  }, [fields, values.country, industry_code, values.organizationId, values.organizationId, values.role])
 
   const setValue = (key: string, value: Value) => {
     setValues((prev) => ({ ...prev, [key]: value }))

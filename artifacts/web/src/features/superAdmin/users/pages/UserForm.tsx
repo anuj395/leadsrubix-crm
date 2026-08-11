@@ -34,6 +34,8 @@ import {
   type Organization,
 } from '@/services/organizationsService'
 
+import { api } from '@/services/api'
+
 const ROLES_WITH_MANAGER = new Set(['sales', 'teamLead', 'leadManager', 'admin'])
 
 const inputSx = {
@@ -51,24 +53,69 @@ export default function UserFormPage() {
   const [industries, setIndustries] = useState<Industry[]>([])
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [roles, setRoles] = useState<AdminRole[]>([])
-  
+
   const [editingItem, setEditingItem] = useState<AdminUser | null>(null)
-  
+
   const [core, setCore] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    role: isSuperAdmin ? 'admin' : 'sales',
     industryId: isSuperAdmin ? '' : (authedUser?.industryId || ''),
     organizationId: isSuperAdmin ? '' : ((authedUser as any)?.organizationId || ''),
     isActive: true,
-    reportingTo: '',
   })
-  
+  const [selectedRole, setSelectedRole] = useState(isSuperAdmin ? 'admin' : 'sales')
+
   const [dynamicValues, setDynamicValues] = useState<Record<string, unknown>>({})
   const [managers, setManagers] = useState<ManagerCandidate[]>([])
   const [loadingManagers, setLoadingManagers] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [configMissing, setConfigMissing] = useState(false)
+  const [checkingConfig, setCheckingConfig] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const orgId = isSuperAdmin ? core.organizationId : (authedUser as any)?.organizationId;
+    const indId = isSuperAdmin ? core.industryId : authedUser?.industryId;
+
+    if (!orgId) {
+      setConfigMissing(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCheckingConfig(true);
+
+    void (async () => {
+      try {
+        const params: Record<string, string> = { organizationId: orgId };
+        if (indId) {
+          params.industryId = indId;
+        }
+
+        const [teamsRes, branchesRes, designationsRes] = await Promise.all([
+          api.get('teams', { params }),
+          api.get('branches', { params }),
+          api.get('designations', { params })
+        ]);
+
+        if (cancelled) return;
+
+        const hasTeams = (teamsRes.data?.items || teamsRes.data || []).length > 0;
+        const hasBranches = (branchesRes.data?.items || branchesRes.data || []).length > 0;
+        const hasDesignations = (designationsRes.data?.items || designationsRes.data || []).length > 0;
+
+        setConfigMissing(!hasTeams || !hasBranches || !hasDesignations);
+      } catch (err) {
+        console.error('Failed to check workspace configurations:', err);
+      } finally {
+        if (!cancelled) {
+          setCheckingConfig(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [core.organizationId, core.industryId, isSuperAdmin, authedUser]);
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
@@ -93,16 +140,19 @@ export default function UserFormPage() {
           if (match) {
             setEditingItem(match)
             setCore({
-              firstName: match.firstName ?? '',
-              lastName: match.lastName ?? '',
-              email: match.email,
-              role: match.role,
               industryId: match.industryId ?? '',
               organizationId: (match as any).organizationId ?? (match as any).organization_id ?? '',
               isActive: !!match.isActive,
+            })
+            setSelectedRole(match.role || 'sales')
+            setDynamicValues({
+              ...(match.fields || {}),
+              firstName: match.firstName ?? '',
+              lastName: match.lastName ?? '',
+              email: match.email ?? '',
+              role: match.role ?? '',
               reportingTo: match.reportingTo ?? (match as any).reporting_to ?? '',
             })
-            setDynamicValues(match.fields || {})
           } else {
             setToast({ open: true, msg: 'User not found', sev: 'error' })
           }
@@ -139,7 +189,7 @@ export default function UserFormPage() {
 
   // Fetch managers dynamically when role or industry changes
   useEffect(() => {
-    if (!ROLES_WITH_MANAGER.has(core.role)) {
+    if (!ROLES_WITH_MANAGER.has(selectedRole)) {
       setManagers([])
       return
     }
@@ -148,7 +198,7 @@ export default function UserFormPage() {
     void (async () => {
       try {
         const list = await listManagerCandidates(
-          core.role,
+          selectedRole,
           isSuperAdmin ? core.industryId || undefined : undefined
         )
         if (cancelled) return
@@ -156,7 +206,7 @@ export default function UserFormPage() {
         // Auto-assign matching reporting manager if matches edit state
         const targetManagerId = editingItem?.reportingTo || (editingItem as any)?.reporting_to || ''
         if (id && editingItem && list.some(m => m._id === targetManagerId)) {
-          setCore(c => ({ ...c, reportingTo: targetManagerId }))
+          setDynamicValues(prev => ({ ...prev, reportingTo: targetManagerId }))
         }
       } catch (err) {
         console.error('Failed to load managers', err)
@@ -165,23 +215,23 @@ export default function UserFormPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [core.role, core.industryId])
+  }, [selectedRole, core.industryId])
 
   const handleSubmit = async (dynVals: Record<string, unknown>) => {
-    if (!core.firstName.trim() || !core.email.trim() || !core.role) {
-      setFormError('Please fill out all required core fields.')
-      return
-    }
-
     try {
       setLoading(true)
       setFormError(null)
 
-      const reportingTo = ROLES_WITH_MANAGER.has(core.role) ? core.reportingTo || '' : ''
+      const role = String(dynVals.role || '')
+      const email = String(dynVals.email || '')
+      const firstName = String(dynVals.firstName || '')
+      const lastName = String(dynVals.lastName || '')
+      const reportingTo = String(dynVals.reportingTo || dynVals.reporting_to || '')
+
       const payload: any = {
-        firstName: core.firstName.trim(),
-        lastName: core.lastName.trim(),
-        role: core.role,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        role: role,
         industryId: core.industryId || undefined,
         organizationId: core.organizationId || undefined,
         isActive: core.isActive,
@@ -190,19 +240,18 @@ export default function UserFormPage() {
       }
 
       if (id) {
-        if (editingItem && core.email.trim().toLowerCase() !== editingItem.email.toLowerCase()) {
+        if (editingItem && email.trim().toLowerCase() !== editingItem.email.toLowerCase()) {
           const isConfirmed = window.confirm('Are you sure you want to change the Email ID?')
           if (!isConfirmed) {
-            setCore(c => ({ ...c, email: editingItem.email }))
             setLoading(false)
             return
           }
-          payload.email = core.email.trim().toLowerCase()
+          payload.email = email.trim().toLowerCase()
         }
         await updateUser(id, payload)
         setToast({ open: true, msg: 'User updated successfully', sev: 'success' })
       } else {
-        payload.email = core.email.trim().toLowerCase()
+        payload.email = email.trim().toLowerCase()
         await createUser(payload)
         setToast({ open: true, msg: 'User created successfully', sev: 'success' })
       }
@@ -214,7 +263,7 @@ export default function UserFormPage() {
     }
   }
 
-  if (initializing) {
+  if (initializing || checkingConfig) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <CircularProgress />
@@ -239,151 +288,95 @@ export default function UserFormPage() {
         }
       >
         <Box sx={{ mt: 2 }}>
-          <DynamicForm
-            screen="users"
-            industryCode={isSuperAdmin ? core.industryId : undefined}
-            roleKey={core.role}
-            initialValues={dynamicValues as Record<string, string | number | boolean | null>}
-            onSubmit={async (vals) => { await handleSubmit(vals as Record<string, unknown>) }}
-            onCancel={() => navigate('/users')}
-            submitLabel={id ? 'Save' : 'Create User'}
-            headerSlot={
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>
-                  Account
-                </Typography>
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
-                      size="small"
-                      label="First Name"
-                      value={core.firstName}
-                      onChange={(e) => setCore({ ...core, firstName: e.target.value })}
-                      required
-                      sx={inputSx}
-                    />
-                  </Grid>
+          {configMissing && !id ? (
+            <Box sx={{ py: 4, px: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <Alert severity="warning" variant="filled" sx={{ width: '100%', borderRadius: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                Please configure Branch, Team, and Designation in Settings before adding users.
+              </Alert>
+              {!isSuperAdmin && (
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/settings')}
+                  sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  Go to Settings
+                </Button>
+              )}
+            </Box>
+          ) : (
+            <DynamicForm
+              screen="users"
+              industryCode={isSuperAdmin ? core.industryId : undefined}
+              roleKey={isSuperAdmin ? selectedRole : authedUser?.role}
+              organizationId={isSuperAdmin ? core.organizationId : (authedUser as any)?.organizationId}
+              initialValues={dynamicValues as Record<string, string | number | boolean | null>}
+              onSubmit={async (vals) => { await handleSubmit(vals as Record<string, unknown>) }}
+              onChange={(vals) => {
+                if (vals.role && vals.role !== selectedRole) {
+                  setSelectedRole(String(vals.role))
+                }
+              }}
+              onCancel={() => navigate('/users')}
+              submitLabel={id ? 'Save' : 'Create User'}
+              headerSlot={
+                (isSuperAdmin || formError) && (
+                  <Box sx={{ mb: 3 }}>
+                    {isSuperAdmin && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>
+                          Tenant Selection
+                        </Typography>
+                        <Grid container spacing={3} sx={{ mb: 3 }}>
+                          <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField
+                              select
+                              size="small"
+                              label="Industry"
+                              value={core.industryId}
+                              onChange={(e) => setCore({ ...core, industryId: e.target.value, organizationId: '' })}
+                              disabled={!!id}
+                              required
+                              sx={inputSx}
+                            >
+                              {industries.map((i) => (
+                                <MenuItem key={i._id} value={i.code}>
+                                  {i.name} ({i.code})
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
 
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
-                      size="small"
-                      label="Last Name"
-                      value={core.lastName}
-                      onChange={(e) => setCore({ ...core, lastName: e.target.value })}
-                      sx={inputSx}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
-                      size="small"
-                      label="Email"
-                      type="email"
-                      value={core.email}
-                      onChange={(e) => setCore({ ...core, email: e.target.value })}
-                      disabled={!!id}
-                      required
-                      sx={inputSx}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
-                      select
-                      size="small"
-                      label="Role"
-                      value={core.role}
-                      onChange={(e) => setCore({ ...core, role: e.target.value })}
-                      required
-                      sx={inputSx}
-                    >
-                      {roles.length === 0 ? (
-                        <MenuItem value="sales">sales</MenuItem>
-                      ) : (
-                        roles.map((r) => (
-                          <MenuItem key={r._id} value={r.key}>{r.name} ({r.key})</MenuItem>
-                        ))
-                      )}
-                    </TextField>
-                  </Grid>
-
-                  {isSuperAdmin && (
-                    <>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <TextField
-                          select
-                          size="small"
-                          label="Industry"
-                          value={core.industryId}
-                          onChange={(e) => setCore({ ...core, industryId: e.target.value, organizationId: '' })}
-                          disabled={!!id}
-                          required
-                          sx={inputSx}
-                        >
-                          {industries.map((i) => (
-                            <MenuItem key={i._id} value={i.code}>
-                              {i.name} ({i.code})
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <TextField
-                          select
-                          size="small"
-                          label="Organization"
-                          value={core.organizationId}
-                          onChange={(e) => setCore({ ...core, organizationId: e.target.value })}
-                          disabled={!!id || !core.industryId}
-                          required
-                          sx={inputSx}
-                        >
-                          {filteredOrgs.map((o: any) => (
-                            <MenuItem key={o.organizationId || o.id || o._id} value={o.organizationId || o.id || o._id}>
-                              {o.name || o.organizationName || o.organization_name}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      </Grid>
-                    </>
-                  )}
-
-                  {ROLES_WITH_MANAGER.has(core.role) && (
-                    <Grid size={{ xs: 12, sm: 4 }}>
-                      <TextField
-                        select
-                        size="small"
-                        label="Reports To"
-                        value={core.reportingTo}
-                        onChange={(e) => setCore({ ...core, reportingTo: e.target.value })}
-                        disabled={loadingManagers}
-                        sx={inputSx}
-                      >
-                        <MenuItem value="">
-                          <em>— Unassigned —</em>
-                        </MenuItem>
-                        {managers.map((m) => (
-                          <MenuItem key={m._id} value={m._id}>
-                            {m.name && m.name !== m.email ? `${m.name} (${m.email})` : m.email} ({m.role})
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                  )}
-                </Grid>
-
-                <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>
-                  Role-specific Fields
-                </Typography>
-                {formError && (
-                  <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFormError(null)}>
-                    {formError}
-                  </Alert>
-                )}
-              </Box>
-            }
-          />
+                          <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField
+                              select
+                              size="small"
+                              label="Organization"
+                              value={core.organizationId}
+                              onChange={(e) => setCore({ ...core, organizationId: e.target.value })}
+                              disabled={!!id || !core.industryId}
+                              required
+                              sx={inputSx}
+                            >
+                              {filteredOrgs.map((o: any) => (
+                                <MenuItem key={o.organizationId || o.id || o._id} value={o.organizationId || o.id || o._id}>
+                                  {o.name || o.organizationName || o.organization_name}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                        </Grid>
+                      </>
+                    )}
+                    {formError && (
+                      <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFormError(null)}>
+                        {formError}
+                      </Alert>
+                    )}
+                  </Box>
+                )
+              }
+            />
+          )}
         </Box>
       </AppCard>
 

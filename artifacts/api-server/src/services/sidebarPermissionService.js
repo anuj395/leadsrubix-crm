@@ -35,6 +35,11 @@ exports.upsert = async (payload) => {
     err.status = 404;
     throw err;
   }
+  if (role.key === 'superAdmin') {
+    const err = new Error('Sidebar structure for Super Admin cannot be changed');
+    err.status = 403;
+    throw err;
+  }
   const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
   if (roleIndustryId !== String(industry._id)) {
     const err = new Error('role does not belong to the given industry');
@@ -61,6 +66,11 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }) => {
   if (!role) {
     const err = new Error('role not found');
     err.status = 404;
+    throw err;
+  }
+  if (role.key === 'superAdmin') {
+    const err = new Error('Sidebar structure for Super Admin cannot be changed');
+    err.status = 403;
     throw err;
   }
   const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);

@@ -84,6 +84,23 @@ module.exports.authenticate = async (req, res, next) => {
         }
       }
     }
+    // First-time login change password requirement check
+    if (fresh.needsPasswordChange || fresh.needs_password_change) {
+      const reqPath = req.originalUrl || req.url || '';
+      const isAllowed =
+        reqPath.includes('/api/auth/me') ||
+        reqPath.includes('/api/sidebar') ||
+        reqPath.includes('/api/screens') ||
+        (reqPath.includes(`/api/users/${fresh._id}`) && req.method === 'PUT');
+
+      if (!isAllowed) {
+        return res.status(403).json({
+          message: 'Password change required on first-time login',
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          redirectTo: '/change-password'
+        });
+      }
+    }
 
     next();
   } catch (err) {

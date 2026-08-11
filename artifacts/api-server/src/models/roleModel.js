@@ -66,13 +66,18 @@ exports.list = async ({ industryId, organizationId, activeOnly = false, excludeR
 
 exports.findById = async (id) => Role.findById(id).populate('industry_id').exec();
 
-exports.findByIndustryAndKey = async (industryId, key) => {
+exports.findByIndustryAndKey = async (industryId, key, organizationId) => {
   let targetId = industryId;
   const industryDoc = await industryModel.findByCode(industryId);
   if (industryDoc) {
     targetId = industryDoc._id;
   }
-  return Role.findOne({ industry_id: targetId, key: String(key).trim() }).exec();
+  const q = { industry_id: targetId, key: String(key).trim() };
+  if (organizationId) {
+    const doc = await Role.findOne({ ...q, organization_id: organizationId }).exec();
+    if (doc) return doc;
+  }
+  return Role.findOne({ ...q, organization_id: null }).exec();
 };
 
 exports.create = async ({ industryId, key, name, description, isActive }) => {

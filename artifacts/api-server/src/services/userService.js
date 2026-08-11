@@ -53,35 +53,17 @@ function enrichUserFields(userDoc) {
  * Resolve which dynamic fields a (role × industry) is allowed to set on a
  * User document. SuperAdmin sees every is_form_visible field.
  */
-async function resolveAllowedFields({ industryCode, roleKey, industry_code, role_key, isSuperAdmin }) {
+async function resolveAllowedFields({ industryCode, roleKey, industry_code, role_key, isSuperAdmin, organizationId, organization_id }) {
   const code = industryCode || industry_code;
   const key = roleKey || role_key;
-  const screen = await screenModel.findByKey(USERS_SCREEN_KEY);
+  const orgId = organizationId || organization_id;
+  const screen = await screenModel.findByKey(USERS_SCREEN_KEY, orgId || undefined);
   if (!screen || !screen.isActive) return { fields: [], screen: null };
   const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
 
-  if (isSuperAdmin) {
-    return { screen, fields: fields.filter((f) => f.is_form_visible) };
-  }
-
-  const industry = await industryModel.findByCode(code);
-  if (!industry) {
-    const err = new Error(`Industry "${code}" not found`); err.status = 400; throw err;
-  }
-  const role = await roleModel.findByIndustryAndKey(industry._id, key);
-  if (!role) return { screen, fields: [] };
-
-  const perms = await permissionModel.list({
-    screenId: screen._id,
-    roleId: role._id,
-    industryId: industry._id,
-    enabledOnly: true,
-  });
-  const allowedIds = new Set(perms.map((p) => String(p.fieldId)));
-  return {
-    screen,
-    fields: fields.filter((f) => f.is_form_visible && allowedIds.has(String(f._id))),
-  };
+  // For the 'users' screen, visibility is organization-level (based on is_form_visible properties),
+  // not role-level. So we bypass role permission checks and return all form-visible fields directly.
+  return { screen, fields: fields.filter((f) => f.is_form_visible) };
 }
 
 function pickAllowedFields(payloadFields, allowedFieldDefs) {
@@ -276,7 +258,50 @@ exports.create = async ({ payload, authedUser }) => {
     e.status = 403;
     throw e;
   }
-  const email = String(payload.email || '').trim().toLowerCase();
+  const industryId = isSuperAdmin
+    ? String(payload.industryId || authedUser?.industryId || '').trim()
+    : authedUser?.industryId;
+
+  const { fields: allowed } = await resolveAllowedFields({
+    industry_code: industryId,
+    role_key: authedUser?.role || payload.role || 'sales',
+    isSuperAdmin: authedUser?.role === 'superAdmin',
+    organizationId: authedUser?.organizationId || payload.organizationId
+  });
+
+  const payloadFields = {
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    email: payload.email,
+    role: payload.role,
+    reportingTo: payload.reportingTo || payload.reporting_to,
+    ...(payload.fields || {})
+  };
+  if (payloadFields.phone !== undefined && payloadFields.contactNumber === undefined) {
+    payloadFields.contactNumber = payloadFields.phone;
+  }
+  if (payloadFields.contact_no !== undefined && payloadFields.contactNumber === undefined) {
+    payloadFields.contactNumber = payloadFields.contact_no;
+  }
+  if (authedUser?.role !== 'superAdmin' && authedUser?.organizationId) {
+    payloadFields.organizationId = authedUser.organizationId;
+  }
+
+  const cleanedFields = pickAllowedFields(payloadFields, allowed);
+
+  const email = String(cleanedFields.email || payload.email || '').trim().toLowerCase();
+  const role = String(cleanedFields.role || payload.role || 'sales');
+  const firstName = String(cleanedFields.firstName || payload.firstName || '').trim();
+  const lastName = String(cleanedFields.lastName || payload.lastName || '').trim();
+  const reportingTo = cleanedFields.reportingTo || cleanedFields.reporting_to || payload.reportingTo || payload.reporting_to || '';
+
+  delete cleanedFields.firstName;
+  delete cleanedFields.lastName;
+  delete cleanedFields.email;
+  delete cleanedFields.role;
+  delete cleanedFields.reportingTo;
+  delete cleanedFields.reporting_to;
+
   let password = String(payload.password || '').trim();
   if (!password) {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -284,17 +309,30 @@ exports.create = async ({ payload, authedUser }) => {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
   }
-  const role = String(payload.role || (payload.fields && payload.fields.designation) || 'sales');
-  const firstName = payload.firstName ? String(payload.firstName).trim() : '';
-  const lastName = payload.lastName ? String(payload.lastName).trim() : '';
-  const industryId = isSuperAdmin
-    ? String(payload.industryId || authedUser?.industryId || '').trim()
-    : authedUser?.industryId;
 
   if (!email) { const e = new Error('email is required'); e.status = 400; throw e; }
+  if (!role) { const e = new Error('role is required'); e.status = 400; throw e; }
   if (!industryId) { const e = new Error('industryId is required'); e.status = 400; throw e; }
 
   const targetOrgId = authedUser?.organizationId || '';
+
+  if (targetOrgId) {
+    const Team = mongoose.model('Team');
+    const Branch = mongoose.model('Branch');
+    const Designation = mongoose.model('Designation');
+
+    const [hasTeam, hasBranch, hasDesignation] = await Promise.all([
+      Team.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.teams && doc.teams.some(t => t.isActive !== false))),
+      Branch.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.branches && doc.branches.some(b => b.isActive !== false))),
+      Designation.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
+    ]);
+
+    if (!hasTeam || !hasBranch || !hasDesignation) {
+      const err = new Error('Please configure Branch, Team, and Designation in Settings before adding users.');
+      err.status = 400;
+      throw err;
+    }
+  }
   if (payload.isActive !== false && targetOrgId) {
     const Organization = mongoose.model('Organization');
     const org = await Organization.findOne({
@@ -341,16 +379,6 @@ exports.create = async ({ payload, authedUser }) => {
     }
   }
 
-  const { fields: allowed } = await resolveAllowedFields({
-    industry_code: industryId,
-    role_key: authedUser?.role || role,
-    isSuperAdmin: authedUser?.role === 'superAdmin',
-  });
-  const payloadFields = { ...(payload.fields || {}) };
-  if (authedUser?.role !== 'superAdmin' && authedUser?.organizationId) {
-    payloadFields.organizationId = authedUser.organizationId;
-  }
-  const cleanedFields = pickAllowedFields(payloadFields, allowed);
   const designation = cleanedFields.designation || '';
   const team = cleanedFields.team || '';
   const branch = cleanedFields.branch || '';
@@ -395,7 +423,7 @@ exports.create = async ({ payload, authedUser }) => {
     team,
     branch,
     contactNumber: rawContact,
-    needs_password_change: true,
+    needsPasswordChange: true,
     createdBy: authedUser?.name || 'Super Admin',
     ...cleanedFields,
   };
@@ -433,6 +461,18 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (!target) { const e = new Error('User not found'); e.status = 404; throw e; }
 
   const isSuperAdmin = authedUser?.role === 'superAdmin';
+  const isOrgAdmin = authedUser?.role === 'admin';
+  const isUpdatingSelf = String(authedUser?.id || authedUser?._id) === String(id);
+
+  if (isUpdatingSelf && !isSuperAdmin && !isOrgAdmin) {
+    delete payload.role;
+    delete payload.isActive;
+    if (payload.fields) {
+      delete payload.fields.designation;
+      delete payload.fields.isActive;
+    }
+  }
+
   if (!isSuperAdmin) {
     const targetOrgId = target.organizationId || target.organization_id;
     const authedOrgId = authedUser?.organizationId || authedUser?.organization_id;
@@ -554,6 +594,12 @@ exports.update = async ({ id, payload, authedUser }) => {
     if (target.team) existingDynamicFields.team = target.team;
     if (target.branch) existingDynamicFields.branch = target.branch;
 
+    existingDynamicFields.firstName = target.firstName || '';
+    existingDynamicFields.lastName = target.lastName || '';
+    existingDynamicFields.email = target.email || '';
+    existingDynamicFields.role = target.role || '';
+    existingDynamicFields.reportingTo = target.reportingTo || target.reporting_to || '';
+
     for (const [k, v] of Object.entries(targetObj)) {
       if (!standardKeys.has(k)) {
         existingDynamicFields[k] = v;
@@ -562,15 +608,35 @@ exports.update = async ({ id, payload, authedUser }) => {
 
     const merged = {
       ...existingDynamicFields,
+      firstName: payload.firstName !== undefined ? payload.firstName : existingDynamicFields.firstName,
+      lastName: payload.lastName !== undefined ? payload.lastName : existingDynamicFields.lastName,
+      email: payload.email !== undefined ? payload.email : existingDynamicFields.email,
+      role: payload.role !== undefined ? payload.role : existingDynamicFields.role,
+      reportingTo: (payload.reportingTo !== undefined || payload.reporting_to !== undefined) ? (payload.reportingTo || payload.reporting_to) : existingDynamicFields.reportingTo,
       ...(payload.fields || {})
     };
+    if (merged.phone !== undefined && merged.contactNumber === undefined) {
+      merged.contactNumber = merged.phone;
+    }
+    if (merged.contact_no !== undefined && merged.contactNumber === undefined) {
+      merged.contactNumber = merged.contact_no;
+    }
 
     const { fields: allowed } = await resolveAllowedFields({
       industry_code: nextIndustry,
       role_key: authedUser?.role || nextRole,
       isSuperAdmin: authedUser?.role === 'superAdmin',
+      organizationId: nextOrgId
     });
     const cleaned = pickAllowedFields(merged, allowed);
+
+    if (cleaned.firstName !== undefined) patch.firstName = cleaned.firstName;
+    if (cleaned.lastName !== undefined) patch.lastName = cleaned.lastName;
+    if (cleaned.email !== undefined) patch.email = cleaned.email;
+    if (cleaned.role !== undefined) patch.role = cleaned.role;
+    if (cleaned.reportingTo !== undefined || cleaned.reporting_to !== undefined) {
+      patch.reporting_to = cleaned.reportingTo || cleaned.reporting_to;
+    }
 
     if (cleaned.phone !== undefined || cleaned.contactNumber !== undefined) {
       patch.contactNumber = cleaned.phone || cleaned.contactNumber;
@@ -579,6 +645,12 @@ exports.update = async ({ id, payload, authedUser }) => {
     if (cleaned.team !== undefined) patch.team = cleaned.team;
     if (cleaned.branch !== undefined) patch.branch = cleaned.branch;
 
+    delete cleaned.firstName;
+    delete cleaned.lastName;
+    delete cleaned.email;
+    delete cleaned.role;
+    delete cleaned.reportingTo;
+    delete cleaned.reporting_to;
     delete cleaned.designation;
     delete cleaned.team;
     delete cleaned.branch;
@@ -671,6 +743,8 @@ exports.changePasswordByEmail = async ({ email, password, authedUser }) => {
     throw err;
   }
   user.password = password;
+  user.needsPasswordChange = false;
+  user.needs_password_change = false;
   await user.save();
   return { success: true, message: 'Password updated successfully' };
 };

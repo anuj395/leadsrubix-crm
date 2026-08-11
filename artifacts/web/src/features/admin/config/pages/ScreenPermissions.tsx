@@ -16,6 +16,7 @@ import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import type { GridColDef } from '@mui/x-data-grid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/services/api'
 import {
   getRoles,
   type AdminRole,
@@ -45,6 +46,11 @@ export default function AdminScreenPermissionsPage() {
     sev: 'success',
   })
 
+  const selectedScreenKey = useMemo(() => {
+    return screens.find((s) => s._id === screenId)?.key || ''
+  }, [screens, screenId])
+  const isUsersScreen = selectedScreenKey === 'users'
+
   // Load tenant roles + screens once.
   useEffect(() => {
     void (async () => {
@@ -54,9 +60,10 @@ export default function AdminScreenPermissionsPage() {
           getScreens()
         ])
         setRoles(rolesList)
-        setScreens(scrs)
+        const filtered = scrs.filter((s) => s.key !== 'users')
+        setScreens(filtered)
         if (rolesList[0]) setRoleId(rolesList[0]._id)
-        if (scrs[0]) setScreenId(scrs[0]._id)
+        if (filtered[0]) setScreenId(filtered[0]._id)
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screen permissions data', sev: 'error' })
       }
@@ -65,7 +72,13 @@ export default function AdminScreenPermissionsPage() {
 
   // Reload fields + permissions whenever roleId or screenId changes.
   useEffect(() => {
-    if (!roleId || !screenId) {
+    if (!screenId) {
+      setFields([])
+      setEnabled(new Set())
+      return
+    }
+
+    if (!isUsersScreen && !roleId) {
       setFields([])
       setEnabled(new Set())
       return
@@ -74,19 +87,29 @@ export default function AdminScreenPermissionsPage() {
     setLoading(true)
     void (async () => {
       try {
-        const [fieldList, permList] = await Promise.all([
-          getScreenFields(screenId),
-          getScreenPermissions({
-            roleId,
-            screenId,
-            industryId: (user as any)?.industryId || (user as any)?.industry_id,
-            enabledOnly: true,
-          }),
-        ])
-        if (cancelled) return
-        setFields(fieldList)
-        const activeSet = new Set(permList.map((p) => String(p.fieldId || (p as any).field_id)))
-        setEnabled(activeSet)
+        if (isUsersScreen) {
+          const fieldList = await getScreenFields(screenId)
+          if (cancelled) return
+          setFields(fieldList)
+          const activeSet = new Set(
+            fieldList.filter((f) => f.isFormVisible !== false && (f as any).is_form_visible !== false).map((f) => String(f._id))
+          )
+          setEnabled(activeSet)
+        } else {
+          const [fieldList, permList] = await Promise.all([
+            getScreenFields(screenId),
+            getScreenPermissions({
+              roleId,
+              screenId,
+              industryId: (user as any)?.industryId || (user as any)?.industry_id,
+              enabledOnly: true,
+            }),
+          ])
+          if (cancelled) return
+          setFields(fieldList)
+          const activeSet = new Set(permList.map((p) => String(p.fieldId || (p as any).field_id)))
+          setEnabled(activeSet)
+        }
       } catch (e: any) {
         if (!cancelled) setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screen permissions', sev: 'error' })
       } finally {
@@ -97,7 +120,7 @@ export default function AdminScreenPermissionsPage() {
     return () => {
       cancelled = true
     }
-  }, [roleId, screenId, user])
+  }, [roleId, screenId, isUsersScreen, user])
 
   const toggle = (fieldId: string) => {
     setEnabled((prev) => {
@@ -112,16 +135,30 @@ export default function AdminScreenPermissionsPage() {
   const deselectAll = () => setEnabled(new Set())
 
   const save = async () => {
-    if (!roleId || !screenId) return
+    if (!screenId) return
+    if (!isUsersScreen && !roleId) return
     setSaving(true)
     try {
-      await bulkSetScreenPermissions({
-        screenId,
-        roleId,
-        industryId: (user as any)?.industryId || (user as any)?.industry_id || 'temp0001',
-        fieldIds: Array.from(enabled),
-      })
-      setToast({ open: true, msg: 'Screen field permissions saved successfully for organization', sev: 'success' })
+      if (isUsersScreen) {
+        // Save organization-level visibility directly to ScreenField documents
+        await Promise.all(
+          fields.map((f) =>
+            api.put(`screen-fields/${f._id}`, {
+              isFormVisible: enabled.has(f._id),
+              is_form_visible: enabled.has(f._id),
+            })
+          )
+        )
+        setToast({ open: true, msg: 'User field visibility updated successfully for organization', sev: 'success' })
+      } else {
+        await bulkSetScreenPermissions({
+          screenId,
+          roleId,
+          industryId: (user as any)?.industryId || (user as any)?.industry_id || 'temp0001',
+          fieldIds: Array.from(enabled),
+        })
+        setToast({ open: true, msg: 'Screen field permissions saved successfully for organization', sev: 'success' })
+      }
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Save failed', sev: 'error' })
     } finally {
@@ -184,16 +221,21 @@ export default function AdminScreenPermissionsPage() {
             <TextField
               select
               label="Select Role"
-              value={roleId}
+              value={isUsersScreen ? 'org-level' : roleId}
               onChange={(e) => setRoleId(e.target.value)}
               sx={{ minWidth: 220 }}
               size="small"
+              disabled={isUsersScreen || !roles.length}
             >
-              {roles.map((r) => (
-                <MenuItem key={r._id} value={r._id}>
-                  {r.name} ({r.key})
-                </MenuItem>
-              ))}
+              {isUsersScreen ? (
+                <MenuItem value="org-level">Organization-level (All Roles)</MenuItem>
+              ) : (
+                roles.map((r) => (
+                  <MenuItem key={r._id} value={r._id}>
+                    {r.name} ({r.key})
+                  </MenuItem>
+                ))
+              )}
             </TextField>
 
             <TextField
@@ -224,7 +266,7 @@ export default function AdminScreenPermissionsPage() {
                 variant="contained"
                 startIcon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
                 onClick={save}
-                disabled={saving || !roleId || !screenId}
+                disabled={saving || (!isUsersScreen && !roleId) || !screenId}
               >
                 Save Permissions
               </Button>

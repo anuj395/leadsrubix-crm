@@ -95,6 +95,7 @@ export default function SettingsPage() {
   const [isActiveVal, setIsActiveVal] = useState(true)
   
   const [saving, setSaving] = useState(false)
+  const isSavingRef = React.useRef(false)
 
   const showToast = (msg: string, sev: 'success' | 'error' = 'success') => {
     setToast({ open: true, msg, sev })
@@ -221,7 +222,9 @@ export default function SettingsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nameVal.trim()) return
+    if (isSavingRef.current) return
 
+    isSavingRef.current = true
     setSaving(true)
     try {
       if (tab === 'roles') {
@@ -267,6 +270,7 @@ export default function SettingsPage() {
     } catch (err: any) {
       showToast(err?.response?.data?.message || 'Failed to save item', 'error')
     } finally {
+      isSavingRef.current = false
       setSaving(false)
     }
   }

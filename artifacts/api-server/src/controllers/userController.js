@@ -13,9 +13,7 @@ exports.getManagerCandidates = async (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const role = req.query.profile || req.query.role;
     if (!role || !MANAGER_OF[role]) {
-      return res.status(400).json({
-        message: `Unknown or unsupported role "${role}". Expected one of: ${Object.keys(MANAGER_OF).join(', ')}`,
-      });
+      return res.json({ items: [] });
     }
     const industryId =
       req.user?.role === 'superAdmin'

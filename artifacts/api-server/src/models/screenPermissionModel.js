@@ -43,10 +43,13 @@ exports.list = async ({ screenId, roleId, industryId, fieldId, enabledOnly = fal
   if (enabledOnly) q.is_enabled = true;
   const orgId = organizationId !== undefined ? organizationId : organization_id;
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
-    q.$or = [{ organization_id: orgId }, { organization_id: null }];
-  } else {
-    q.organization_id = null;
+    const orgQuery = { ...q, organization_id: orgId };
+    const orgCount = await ScreenPermission.countDocuments(orgQuery);
+    if (orgCount > 0) {
+      return ScreenPermission.find(orgQuery).exec();
+    }
   }
+  q.organization_id = null;
   return ScreenPermission.find(q).exec();
 };
 

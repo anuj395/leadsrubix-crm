@@ -10,6 +10,8 @@ async function resolveTenantList(Model, arrayKey, targetIndustry, targetOrganiza
   let query = {};
   if (targetOrganization) {
     query.organization_id = targetOrganization;
+  } else {
+    query.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
   }
   if (targetIndustry) {
     const Industry = mongoose.model('Industry');
@@ -22,11 +24,6 @@ async function resolveTenantList(Model, arrayKey, targetIndustry, targetOrganiza
   }
   
   let doc = await Model.findOne(query).lean().exec();
-  if (!doc && query.organization_id) {
-    const fallbackQuery = { ...query };
-    delete fallbackQuery.organization_id;
-    doc = await Model.findOne({ ...fallbackQuery, $or: [{ organization_id: null }, { organization_id: { $exists: false } }] }).lean().exec();
-  }
   const raw = doc ? doc[arrayKey] || [] : [];
   return raw.filter(item => item.isActive !== false && item.is_active !== false);
 }
@@ -49,14 +46,6 @@ const SOURCES = {
     { value: 'operations',  label: 'Operations' },
     { value: 'finance',     label: 'Finance' },
     { value: 'engineering', label: 'Engineering' },
-  ],
-  'designations': [
-    { value: 'executive',  label: 'Executive' },
-    { value: 'sr_executive', label: 'Sr. Executive' },
-    { value: 'manager',    label: 'Manager' },
-    { value: 'sr_manager', label: 'Sr. Manager' },
-    { value: 'lead',       label: 'Team Lead' },
-    { value: 'director',   label: 'Director' },
   ],
 };
 
@@ -394,14 +383,11 @@ router.get('/:key', (req, res, next) => {
       }
 
       const list = await resolveTenantList(Designation, 'designations', targetIndustry, targetOrganization);
-      if (list && list.length > 0) {
-        return res.json({ items: list.map(item => ({ value: item.value, label: item.label })) });
-      }
+      return res.json({ items: (list || []).map(item => ({ value: item.value || item.name, label: item.label || item.name })) });
     } catch (err) {
       console.error('Failed to load designations option list', err);
+      return res.status(500).json({ message: 'Failed to load designations' });
     }
-    const staticData = SOURCES['designations'] || [];
-    return res.json({ items: staticData });
   }
 
   try {

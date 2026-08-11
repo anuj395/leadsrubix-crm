@@ -32,7 +32,7 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const item = await service.update(req.params.id, req.body);
+    const item = await service.update(req.params.id, req.body, req.user);
     res.json(item);
   } catch (err) {
     next(err);

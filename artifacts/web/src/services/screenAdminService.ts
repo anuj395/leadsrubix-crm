@@ -177,12 +177,14 @@ export async function getScreenPermissions(params: {
   roleId?: string
   industryId?: string
   enabledOnly?: boolean
+  organizationId?: string
 } = {}): Promise<ScreenPermission[]> {
   const search = new URLSearchParams()
   if (params.screenId) search.set('screenId', params.screenId)
   if (params.roleId) search.set('roleId', params.roleId)
   if (params.industryId) search.set('industryId', params.industryId)
   if (params.enabledOnly) search.set('enabled', 'true')
+  if (params.organizationId) search.set('organizationId', params.organizationId)
   const qs = search.toString()
   return safeList<ScreenPermission>(qs ? `screen-permissions?${qs}` : 'screen-permissions')
 }
@@ -192,12 +194,14 @@ export async function bulkSetScreenPermissions(input: {
   roleId: string
   industryId: string
   fieldIds: string[]
+  organizationId?: string
 }): Promise<ScreenPermission[]> {
   const payload = {
     screenId: input.screenId,
     roleId: input.roleId,
     industryId: input.industryId,
     fieldIds: input.fieldIds,
+    organizationId: input.organizationId,
   }
   const res = await api.post('screen-permissions/bulk', payload)
   return (res.data?.items ?? []) as ScreenPermission[]

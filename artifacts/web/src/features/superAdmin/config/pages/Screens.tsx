@@ -52,7 +52,7 @@ export default function ScreensPage() {
   const refresh = async () => {
     setLoading(true)
     try {
-      setItems(await getScreens())
+      setItems((await getScreens()).filter((s) => s.key !== 'users'))
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
     } finally {

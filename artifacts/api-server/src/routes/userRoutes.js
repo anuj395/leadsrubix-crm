@@ -22,9 +22,16 @@ router.get('/managers', authenticate, getManagerCandidates);
 // Per-role View/Add/Edit/Delete on the `users` screen.
 // SuperAdmin + admin pass implicitly; other roles need an explicit
 // role_action_permission row enabling the action.
+const canEditUser = (req, res, next) => {
+  if (req.user && String(req.user.id || req.user._id) === String(req.params.id)) {
+    return next();
+  }
+  requireScreenAction('users', 'edit')(req, res, next);
+};
+
 router.get('/',       authenticate, requireScreenAction('users', 'view'),   getAllUsers);
 router.post('/',      authenticate, requireScreenAction('users', 'add'),    createUser);
-router.put('/:id',    authenticate, requireScreenAction('users', 'edit'),   updateUser);
+router.put('/:id',    authenticate, canEditUser,                            updateUser);
 router.delete('/:id', authenticate, requireScreenAction('users', 'delete'), deleteUser);
 
 // Reading an individual user record still goes through service-level

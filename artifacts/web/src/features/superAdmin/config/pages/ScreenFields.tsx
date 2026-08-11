@@ -81,13 +81,13 @@ export default function ScreenFieldsPage() {
     sev: 'success',
   })
 
-  // Load screens once.
   useEffect(() => {
     void (async () => {
       try {
         const list = await getScreens()
-        setScreens(list)
-        if (list[0]) setScreenId(list[0]._id)
+        const filtered = list.filter((s) => s.key !== 'users')
+        setScreens(filtered)
+        if (filtered[0]) setScreenId(filtered[0]._id)
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
       }

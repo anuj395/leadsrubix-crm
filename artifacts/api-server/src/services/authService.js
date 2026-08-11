@@ -31,24 +31,57 @@ exports.signup = async (payload) => {
     };
   }
 
-  const email = finalFields.emailId || finalFields.email || payload.email;
+  const mongoose = require('mongoose');
+
+  const email = finalFields.emailId || finalFields.email_id || finalFields.email || payload.email || payload.email_id;
   const finalPassword = password || payload.password;
 
-  if (!email) {
+  let isEmailRequired = true;
+  try {
+    const Screen = mongoose.model('Screen');
+    const ScreenField = mongoose.model('ScreenField');
+    const screen = await Screen.findOne({
+      key: 'organization',
+      organization_id: null,
+      organizationId: null
+    }).lean().exec();
+    if (screen) {
+      const emailField = await ScreenField.findOne({
+        screen_id: screen._id,
+        $or: [
+          { field_key: 'emailId' },
+          { field_key: 'email_id' },
+          { fieldKey: 'emailId' },
+          { fieldKey: 'email_id' }
+        ],
+        organization_id: null,
+        organizationId: null
+      }).lean().exec();
+      if (emailField) {
+        isEmailRequired = emailField.is_required === true || emailField.isRequired === true;
+      }
+    }
+  } catch (err) {
+    console.error('[authService] Failed to resolve email requirement:', err);
+  }
+
+  if (isEmailRequired && !email) {
     const err = new Error('Email is required');
     err.status = 400;
     throw err;
   }
 
-  const existing = await userModel.findByEmail(email);
-  if (existing) {
-    const err = new Error('Email already registered');
-    err.status = 400;
-    throw err;
+  if (email) {
+    const existing = await userModel.findByEmail(email);
+    if (existing) {
+      const err = new Error('Email already registered');
+      err.status = 400;
+      throw err;
+    }
   }
 
   // Create the organization and the corresponding admin user using the standardized service method
-  await organizationService.create({
+  const org = await organizationService.create({
     payload: {
       fields: finalFields,
       password: finalPassword,
@@ -57,7 +90,13 @@ exports.signup = async (payload) => {
   });
 
   // Retrieve the created admin user document
-  const user = await userModel.User.findOne({ email: email.toLowerCase().trim() }).lean().exec();
+  let user;
+  if (email) {
+    user = await userModel.User.findOne({ email: email.toLowerCase().trim() }).lean().exec();
+  } else {
+    user = await userModel.User.findOne({ organizationId: org.organizationId, role: 'admin' }).lean().exec();
+  }
+  
   if (!user) {
     throw new Error('Failed to retrieve the created admin account');
   }
@@ -66,8 +105,8 @@ exports.signup = async (payload) => {
     id: user._id || user.id,
     firstName: user.firstName || '',
     lastName: user.lastName || '',
-    name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-    email: user.email,
+    name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Admin',
+    email: user.email || '',
     role: user.role,
     industryId: user.industryId || user.industryId,
     industryId: user.industryId || user.industryId,

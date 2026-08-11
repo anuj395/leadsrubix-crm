@@ -15,6 +15,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import type { GridColDef } from '@mui/x-data-grid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { api } from '@/services/api'
 import {
   getIndustries,
   getRoles,
@@ -47,17 +48,23 @@ export default function ScreenPermissionsPage() {
     sev: 'success',
   })
 
+  const selectedScreenKey = useMemo(() => {
+    return screens.find((s) => s._id === screenId)?.key || ''
+  }, [screens, screenId])
+  const isUsersScreen = selectedScreenKey === 'users'
+
   // Load industries + screens once.
   useEffect(() => {
     void (async () => {
       try {
         const [inds, scrs] = await Promise.all([getIndustries(), getScreens()])
         setIndustries(inds)
-        setScreens(scrs)
+        const filtered = scrs.filter((s) => s.key !== 'users')
+        setScreens(filtered)
         const realEstate = inds.find((i) => i.code === 'temp0001')
         if (realEstate) setIndustryId(realEstate._id)
         else if (inds[0]) setIndustryId(inds[0]._id)
-        if (scrs[0]) setScreenId(scrs[0]._id)
+        if (filtered[0]) setScreenId(filtered[0]._id)
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
       }
@@ -110,7 +117,11 @@ export default function ScreenPermissionsPage() {
 
   // Existing permission set for the (screen, role, industry) triple (race-safe).
   useEffect(() => {
-    if (!industryId || !roleId || !screenId) {
+    if (!industryId || !screenId) {
+      setEnabled(new Set())
+      return
+    }
+    if (!isUsersScreen && !roleId) {
       setEnabled(new Set())
       return
     }
@@ -118,13 +129,21 @@ export default function ScreenPermissionsPage() {
     setLoading(true)
     void (async () => {
       try {
-        const perms = await getScreenPermissions({
-          screenId: screenId,
-          roleId: roleId,
-          industryId: industryId,
-          enabledOnly: true,
-        })
-        if (!cancelled) setEnabled(new Set(perms.map((p) => p.fieldId)))
+        if (isUsersScreen) {
+          if (cancelled) return
+          const activeSet = new Set(
+            fields.filter((f) => f.isFormVisible !== false && (f as any).is_form_visible !== false).map((f) => String(f._id))
+          )
+          setEnabled(activeSet)
+        } else {
+          const perms = await getScreenPermissions({
+            screenId: screenId,
+            roleId: roleId,
+            industryId: industryId,
+            enabledOnly: true,
+          })
+          if (!cancelled) setEnabled(new Set(perms.map((p) => p.fieldId)))
+        }
       } catch (e: any) {
         if (!cancelled) {
           setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load permissions', sev: 'error' })
@@ -136,7 +155,7 @@ export default function ScreenPermissionsPage() {
     return () => {
       cancelled = true
     }
-  }, [industryId, roleId, screenId])
+  }, [industryId, roleId, screenId, isUsersScreen, fields])
 
   const sortedFields = useMemo(
     () => [...fields].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label)),
@@ -156,16 +175,30 @@ export default function ScreenPermissionsPage() {
   const clearAll = () => setEnabled(new Set())
 
   const save = async () => {
-    if (!industryId || !roleId || !screenId) return
+    if (!industryId || !screenId) return
+    if (!isUsersScreen && !roleId) return
     setSaving(true)
     try {
-      await bulkSetScreenPermissions({
-        screenId: screenId,
-        roleId: roleId,
-        industryId: industryId,
-        fieldIds: [...enabled],
-      })
-      setToast({ open: true, msg: 'Permissions updated', sev: 'success' })
+      if (isUsersScreen) {
+        // Save baseline visibility directly to ScreenField documents
+        await Promise.all(
+          fields.map((f) =>
+            api.put(`screen-fields/${f._id}`, {
+              isFormVisible: enabled.has(f._id),
+              is_form_visible: enabled.has(f._id),
+            })
+          )
+        )
+        setToast({ open: true, msg: 'User field visibility updated successfully', sev: 'success' })
+      } else {
+        await bulkSetScreenPermissions({
+          screenId: screenId,
+          roleId: roleId,
+          industryId: industryId,
+          fieldIds: [...enabled],
+        })
+        setToast({ open: true, msg: 'Permissions updated', sev: 'success' })
+      }
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Save failed', sev: 'error' })
     } finally {
@@ -240,7 +273,7 @@ export default function ScreenPermissionsPage() {
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={save}
-            disabled={!industryId || !roleId || !screenId || saving || loading}
+            disabled={!industryId || (!isUsersScreen && !roleId) || !screenId || saving || loading}
           >
             {saving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Save'}
           </Button>
@@ -298,10 +331,10 @@ export default function ScreenPermissionsPage() {
             select
             size="small"
             label="Role"
-            value={roleId}
+            value={isUsersScreen ? 'org-level' : roleId}
             onChange={(e) => setRoleId(e.target.value)}
             sx={{ minWidth: 200 }}
-            disabled={!roles.length}
+            disabled={isUsersScreen || !roles.length}
             SelectProps={{
               MenuProps: {
                 PaperProps: {
@@ -312,11 +345,15 @@ export default function ScreenPermissionsPage() {
               },
             }}
           >
-            {roles.map((r) => (
-              <MenuItem key={r._id} value={r._id}>
-                {r.name} ({r.key})
-              </MenuItem>
-            ))}
+            {isUsersScreen ? (
+              <MenuItem value="org-level">Organization-level (All Roles)</MenuItem>
+            ) : (
+              roles.map((r) => (
+                <MenuItem key={r._id} value={r._id}>
+                  {r.name} ({r.key})
+                </MenuItem>
+              ))
+            )}
           </TextField>
         </Stack>
 
@@ -324,7 +361,7 @@ export default function ScreenPermissionsPage() {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress />
           </Box>
-        ) : !screenId || !industryId || !roleId ? (
+        ) : !screenId || !industryId || (!isUsersScreen && !roleId) ? (
           <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
             Pick a screen, industry, and role to manage permissions.
           </Typography>

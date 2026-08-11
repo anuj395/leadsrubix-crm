@@ -19,6 +19,9 @@ class ObjectId {
   toJSON() {
     return this.str;
   }
+  toPostgres() {
+    return this.str;
+  }
 }
 ObjectId.isValid = function (val) {
   if (!val) return false;
@@ -125,6 +128,13 @@ function compileQuery(query, params = []) {
       continue;
     }
 
+    if (key.includes('.')) {
+      const [parentKey, childKey] = key.split('.');
+      params.push(JSON.stringify([{ [childKey]: String(val) }]));
+      parts.push(`data->'${parentKey}' @> $${params.length}::jsonb`);
+      continue;
+    }
+
     const isId = key === '_id' || key === 'id';
 
     if (val && typeof val === 'object' && !Array.isArray(val) && !(val instanceof RegExp) && !(val instanceof Date) && !ObjectId.isValid(val)) {
@@ -159,7 +169,7 @@ function compileQuery(query, params = []) {
           const pgOp = op === '$gte' ? '>=' : op === '$lte' ? '<=' : op === '$gt' ? '>' : '<';
           const isDate = opVal instanceof Date || (typeof opVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(opVal));
           const isNum = typeof opVal === 'number';
-          
+
           if (key === 'createdAt' || key === 'created_at') {
             params.push(opVal);
             parts.push(`created_at ${pgOp} $${params.length}`);
@@ -259,7 +269,7 @@ function matchDoc(doc, matchSpec) {
 }
 
 // Apply update query object to data
-function applyUpdateQuery(data, updateQuery) {
+function applyUpdateQuery(data, updateQuery, isInsert = false) {
   const nextData = { ...data };
   if (!updateQuery || typeof updateQuery !== 'object') return nextData;
 
@@ -274,6 +284,11 @@ function applyUpdateQuery(data, updateQuery) {
 
   if (updateQuery.$set) {
     for (const [k, v] of Object.entries(updateQuery.$set)) {
+      nextData[k] = v;
+    }
+  }
+  if (isInsert && updateQuery.$setOnInsert) {
+    for (const [k, v] of Object.entries(updateQuery.$setOnInsert)) {
       nextData[k] = v;
     }
   }
@@ -308,10 +323,94 @@ function applyUpdateQuery(data, updateQuery) {
   return nextData;
 }
 
+// Wrap subdocument array fields to support .id(), .pull(), .push() override and .toObject() on items
+function wrapArrayField(arr, subSchema) {
+  if (!Array.isArray(arr)) return arr;
+
+  if (!arr.id) {
+    Object.defineProperty(arr, 'id', {
+      value: function (idStr) {
+        return this.find(x => String(x._id || x.id) === String(idStr)) || null;
+      },
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+  }
+
+  if (!arr.pull) {
+    Object.defineProperty(arr, 'pull', {
+      value: function (idStr) {
+        const idx = this.findIndex(x => String(x._id || x.id) === String(idStr));
+        if (idx !== -1) {
+          this.splice(idx, 1);
+        }
+        return this;
+      },
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+  }
+
+  const originalPush = arr.push;
+  arr.push = function (...args) {
+    const wrappedArgs = args.map(item => {
+      if (item && typeof item === 'object') {
+        if (!item._id) {
+          item._id = new ObjectId().toString();
+        }
+        if (!item.toObject) {
+          Object.defineProperty(item, 'toObject', {
+            value: function () {
+              const copy = { ...this };
+              delete copy.toObject;
+              return copy;
+            },
+            enumerable: false,
+            writable: true,
+            configurable: true
+          });
+        }
+        if (subSchema) {
+          setupGettersSetters(item, subSchema);
+        }
+      }
+      return item;
+    });
+    return originalPush.apply(this, wrappedArgs);
+  };
+
+  arr.forEach(item => {
+    if (item && typeof item === 'object') {
+      if (!item._id) {
+        item._id = new ObjectId().toString();
+      }
+      if (!item.toObject) {
+        Object.defineProperty(item, 'toObject', {
+          value: function () {
+            const copy = { ...this };
+            delete copy.toObject;
+            return copy;
+          },
+          enumerable: false,
+          writable: true,
+          configurable: true
+        });
+      }
+      if (subSchema) {
+        setupGettersSetters(item, subSchema);
+      }
+    }
+  });
+
+  return arr;
+}
+
 // Set up getters/setters for virtuals/aliases
 function setupGettersSetters(doc, schema) {
   if (!schema) return;
-  
+
   // Standard _id to id mapping
   Object.defineProperty(doc, 'id', {
     get() {
@@ -323,6 +422,27 @@ function setupGettersSetters(doc, schema) {
     enumerable: true,
     configurable: true
   });
+
+  // Array fields wrapping
+  for (const [key, val] of Object.entries(schema.definition)) {
+    const isArray = Array.isArray(val) || val === Array || (val && val.type === Array);
+    if (isArray) {
+      const subSchema = (Array.isArray(val) && val[0] instanceof Schema) ? val[0] : (Array.isArray(val) ? val[0] : null);
+      const internalKey = '_' + key;
+      doc[internalKey] = wrapArrayField(doc[key] || [], subSchema);
+
+      Object.defineProperty(doc, key, {
+        get() {
+          return this[internalKey];
+        },
+        set(v) {
+          this[internalKey] = wrapArrayField(v || [], subSchema);
+        },
+        enumerable: true,
+        configurable: true
+      });
+    }
+  }
 
   // Aliases
   for (const [key, val] of Object.entries(schema.definition)) {
@@ -573,7 +693,11 @@ function createModel(modelName, schema) {
 
   class ModelClass {
     constructor(data = {}) {
-      this._id = data._id || new ObjectId().toString();
+      let finalId = data._id || new ObjectId().toString();
+      if (finalId && typeof finalId === 'object' && typeof finalId.toString === 'function') {
+        finalId = finalId.toString();
+      }
+      this._id = finalId;
       setupGettersSetters(this, schema);
       for (const [k, v] of Object.entries(data)) {
         if (k !== '_id') this[k] = v;
@@ -678,6 +802,37 @@ function createModel(modelName, schema) {
       return this.countDocuments({});
     }
 
+    static async bulkWrite(ops, options = {}) {
+      const results = {
+        ok: 1,
+        writeErrors: [],
+        writeConcernErrors: [],
+        insertedIds: {},
+        nInserted: 0,
+        nUpserted: 0,
+        nMatched: 0,
+        nModified: 0,
+        nRemoved: 0
+      };
+
+      for (let index = 0; index < ops.length; index++) {
+        const op = ops[index];
+        if (op.updateOne) {
+          const { filter, update, upsert } = op.updateOne;
+          const exists = await this.findOne(filter).lean().exec();
+          if (exists) {
+            await this.findOneAndUpdate(filter, update, { new: true }).exec();
+            results.nMatched++;
+            results.nModified++;
+          } else if (upsert) {
+            await this.findOneAndUpdate(filter, update, { upsert: true, new: true }).exec();
+            results.nUpserted++;
+          }
+        }
+      }
+      return results;
+    }
+
     static deleteOne(query = {}) {
       return toQueryLike(async () => {
         const { where, params } = compileQuery(query);
@@ -740,7 +895,7 @@ function createModel(modelName, schema) {
                 }
               }
             }
-            data = applyUpdateQuery(data, updateQuery);
+            data = applyUpdateQuery(data, updateQuery, true);
             data._id = newId;
 
             const now = new Date();
@@ -776,8 +931,22 @@ function createModel(modelName, schema) {
         const { where, params } = compileQuery(query);
         const selectSql = `SELECT * FROM ${tableName} WHERE ${where} LIMIT 1`;
         const res = await pool.query(selectSql, params);
-        if (res.rows.length === 0) return { modifiedCount: 0, matchedCount: 0 };
-        
+
+        if (res.rows.length === 0) {
+          if (options.upsert) {
+            const nextData = applyUpdateQuery({}, update);
+            for (const [k, v] of Object.entries(query)) {
+              if (!k.startsWith('$') && !k.includes('.') && nextData[k] === undefined) {
+                nextData[k] = v;
+              }
+            }
+            const doc = new this(nextData);
+            await doc.save();
+            return { modifiedCount: 0, matchedCount: 0, upsertedCount: 1, upsertedId: doc._id };
+          }
+          return { modifiedCount: 0, matchedCount: 0 };
+        }
+
         const row = res.rows[0];
         const nextData = applyUpdateQuery(row.data, update);
         const now = new Date();
@@ -795,7 +964,7 @@ function createModel(modelName, schema) {
         const { where, params } = compileQuery(query);
         const selectSql = `SELECT * FROM ${tableName} WHERE ${where}`;
         const res = await pool.query(selectSql, params);
-        
+
         const now = new Date();
         for (const row of res.rows) {
           const nextData = applyUpdateQuery(row.data, update);
@@ -1031,7 +1200,7 @@ module.exports = {
         dropIndex: async (indexName) => {
           try {
             await pool.query(`DROP INDEX IF EXISTS ${indexName}`);
-          } catch (e) {}
+          } catch (e) { }
         },
         find: (filter = {}) => {
           return {
