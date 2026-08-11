@@ -24,9 +24,9 @@ router.post('/resolve', (req, res, next) => {
 router.get('/', authenticate, ctrl.list);
 router.get('/:id', authenticate, ctrl.get);
 
-// writes — superAdmin and admin
-router.post('/', authenticate, permit('superAdmin', 'admin'), ctrl.create);
-router.put('/:id', authenticate, permit('superAdmin', 'admin'), ctrl.update);
-router.delete('/:id', authenticate, permit('superAdmin', 'admin'), ctrl.remove);
+// writes — superAdmin
+router.post('/', authenticate, permit('superAdmin'), ctrl.create);
+router.put('/:id', authenticate, permit('superAdmin'), ctrl.update);
+router.delete('/:id', authenticate, permit('superAdmin'), ctrl.remove);
 
 module.exports = router;

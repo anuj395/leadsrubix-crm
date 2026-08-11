@@ -1003,6 +1003,16 @@ exports.remove = async ({ id, authedUser }) => {
   const deleteFaqRes = await FAQ.deleteMany(orgFilter);
   console.log(`[organizationService] 26/27 Cascade deleted ${deleteFaqRes.deletedCount} FAQ documents`);
 
+  // Cascade delete Notifications
+  const Notification = mongoose.model('Notification');
+  const deleteNotificationsRes = await Notification.deleteMany(orgFilter);
+  console.log(`[organizationService] Cascade deleted ${deleteNotificationsRes.deletedCount} notifications`);
+
+  // Cascade delete Notification Settings
+  const NotificationSetting = mongoose.model('NotificationSetting');
+  const deleteNotificationSettingsRes = await NotificationSetting.deleteMany(orgFilter);
+  console.log(`[organizationService] Cascade deleted ${deleteNotificationSettingsRes.deletedCount} notification settings`);
+
   // 28. Cascade delete Workspace Identity Mapping
   const Workspace = mongoose.model('Workspace');
   const workspaceFilter = {

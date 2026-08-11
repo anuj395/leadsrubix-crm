@@ -692,16 +692,16 @@ export default function RolesAndPermissionsPage() {
         headerAlign: 'right',
         width: 110,
         renderCell: (p) => (
-          <>
-            <IconButton size="small" onClick={() => openFieldEdit(p.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-            {(isSuperAdmin || user?.role === 'admin') && (
+          isSuperAdmin ? (
+            <>
+              <IconButton size="small" onClick={() => openFieldEdit(p.row)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
               <IconButton size="small" color="error" onClick={() => removeField(p.row)}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
-            )}
-          </>
+            </>
+          ) : null
         ),
       },
     ],
@@ -878,10 +878,12 @@ export default function RolesAndPermissionsPage() {
 
   const visibleTabs = useMemo(() => {
     const list = [{ id: 'roles', label: 'Roles' }]
-    list.push({ id: 'fields', label: 'Fields Configuration' })
+    if (isSuperAdmin) {
+      list.push({ id: 'fields', label: 'Fields Configuration' })
+    }
     list.push({ id: 'visibility', label: 'Permission Fields' })
     return list
-  }, [])
+  }, [isSuperAdmin])
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -918,7 +920,7 @@ export default function RolesAndPermissionsPage() {
             title="User Roles"
             subtitle="Define security groups and base permissions."
             action={
-              isSuperAdmin && (
+              (isSuperAdmin || user?.role === 'admin') && (
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
