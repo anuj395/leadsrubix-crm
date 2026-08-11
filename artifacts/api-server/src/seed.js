@@ -191,7 +191,6 @@ async function ensureDevAdmin() {
     existing.isActive = undefined;
     existing.reportingTo = undefined;
     existing.reporting_to = undefined;
-    existing.needsPasswordChange = undefined;
     existing.needs_password_change = undefined;
     existing.fields = undefined;
     await existing.save();
@@ -557,12 +556,13 @@ const SCREEN_DEFAULTS = [
         field_key: 'designation', label: 'Designation', type: 'select', is_required: true, order: 7,
         dropdown_source: 'api', dropdown_api: '/api/options/designations'
       },
+      { field_key: 'isActive', label: 'Status', type: 'badge', is_required: false, order: 8, is_table_visible: true, is_form_visible: false },
       {
-        field_key: 'team', label: 'Team', type: 'select', is_required: true, order: 8,
+        field_key: 'team', label: 'Team', type: 'select', is_required: true, order: 9,
         dropdown_source: 'api', dropdown_api: '/api/options/teams'
       },
       {
-        field_key: 'branch', label: 'Branch', type: 'select', is_required: true, order: 9,
+        field_key: 'branch', label: 'Branch', type: 'select', is_required: true, order: 10,
         dropdown_source: 'api', dropdown_api: '/api/options/branches'
       },
     ],
@@ -832,7 +832,7 @@ async function seedScreens() {
   const fieldsByScreen = new Map();
   for (const spec of SCREEN_DEFAULTS) {
     const screen = await Screen.findOneAndUpdate(
-      { key: spec.key },
+      { key: spec.key, organization_id: null },
       { $set: { name: spec.name, description: spec.description, isActive: true } },
       { upsert: true, new: true },
     );
@@ -986,6 +986,12 @@ async function seedScreens() {
             }
           }
         }
+      } else {
+        // Sync the correct order to ensure layout changes are fully propagated
+        await ScreenField.updateOne(
+          { screen_id: orgScreen._id, field_key: bf.field_key },
+          { $set: { order: bf.order } }
+        );
       }
     }
   }

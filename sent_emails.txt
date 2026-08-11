@@ -106,3 +106,111 @@ Organization: Leads Rubix
 Username / Email: dev@digitalrubix.com
 Temp Password: s9IxWALp
 ========================================
+
+========================================
+Timestamp: 2026-08-11T05:37:14.617Z
+To: new-1786426634509@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: new-1786426634509@domain.com
+Temp Password: VrOxxtWE
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:37:39.606Z
+To: new-1786426659496@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: new-1786426659496@domain.com
+Temp Password: jvDuNL00
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:44:02.219Z
+To: new-1786427042122@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Validation Org
+Username / Email: new-1786427042122@domain.com
+Temp Password: qOowAXWC
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:48:46.231Z
+To: new-1786427326132@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Validation Org
+Username / Email: new-1786427326132@domain.com
+Temp Password: i2ml6K5v
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:49:02.156Z
+To: new-1786427342057@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Validation Org
+Username / Email: new-1786427342057@domain.com
+Temp Password: zWD5fWE7
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:49:52.348Z
+To: new-1786427392247@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Validation Org
+Username / Email: new-1786427392247@domain.com
+Temp Password: thS5imVa
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:52:20.505Z
+To: new-1786427540404@domain.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Validation Org
+Username / Email: new-1786427540404@domain.com
+Temp Password: sjRNJntA
+========================================
+
+========================================
+Timestamp: 2026-08-11T05:56:58.417Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lead@gmail.com
+Temp Password: iOqjagCK
+========================================
+
+========================================
+Timestamp: 2026-08-11T06:26:58.918Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: o8Bd2gZL
+========================================
+
+========================================
+Timestamp: 2026-08-11T06:39:40.328Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: 0RbqtKOU
+========================================
+
+========================================
+Timestamp: 2026-08-11T06:41:57.884Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: OWuoXXJL
+========================================
+
+========================================
+Timestamp: 2026-08-11T06:43:59.902Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: lead@gmail.com
+Temp Password: K5xfUBvr
+========================================

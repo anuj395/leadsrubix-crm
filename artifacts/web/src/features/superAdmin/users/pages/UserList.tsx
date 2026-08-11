@@ -210,11 +210,13 @@ export default function UserListPage() {
     CORE_COLUMNS.forEach((c) => headerMap.set(c.key, c))
 
     resolvedHeaders.forEach((c) => {
-      if (!headerMap.has(c.key)) {
-        headerMap.set(c.key, c)
+      // Normalize snake_case keys from the database to camelCase for the API/Frontend
+      const keyToUse = c.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+      if (!headerMap.has(keyToUse)) {
+        headerMap.set(keyToUse, { ...c, key: keyToUse })
       } else {
-        const core = headerMap.get(c.key)!
-        headerMap.set(c.key, { ...core, order: c.order, visible: c.visible })
+        const core = headerMap.get(keyToUse)!
+        headerMap.set(keyToUse, { ...core, order: c.order, visible: c.visible })
       }
     })
 

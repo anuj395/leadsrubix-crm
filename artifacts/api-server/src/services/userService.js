@@ -63,7 +63,7 @@ async function resolveAllowedFields({ industryCode, roleKey, industry_code, role
 
   // For the 'users' screen, visibility is organization-level (based on is_form_visible properties),
   // not role-level. So we bypass role permission checks and return all form-visible fields directly.
-  return { screen, fields: fields.filter((f) => f.is_form_visible) };
+  return { screen, fields: fields.filter((f) => f.is_form_visible !== false) };
 }
 
 function pickAllowedFields(payloadFields, allowedFieldDefs) {
@@ -270,11 +270,15 @@ exports.create = async ({ payload, authedUser }) => {
   });
 
   const payloadFields = {
-    firstName: payload.firstName,
-    lastName: payload.lastName,
+    firstName: payload.firstName || payload.first_name,
+    lastName: payload.lastName || payload.last_name,
     email: payload.email,
     role: payload.role,
     reportingTo: payload.reportingTo || payload.reporting_to,
+    designation: payload.designation,
+    team: payload.team,
+    branch: payload.branch,
+    contactNumber: payload.contactNumber || payload.contact_number || payload.contact_no || payload.phone,
     ...(payload.fields || {})
   };
   if (payloadFields.phone !== undefined && payloadFields.contactNumber === undefined) {
@@ -328,7 +332,7 @@ exports.create = async ({ payload, authedUser }) => {
     ]);
 
     if (!hasTeam || !hasBranch || !hasDesignation) {
-      const err = new Error('Please configure Branch, Team, and Designation in Settings before adding users.');
+      const err = new Error('Please go to Settings and configure Team, Branch, and Designation before adding users.');
       err.status = 400;
       throw err;
     }
@@ -613,6 +617,9 @@ exports.update = async ({ id, payload, authedUser }) => {
       email: payload.email !== undefined ? payload.email : existingDynamicFields.email,
       role: payload.role !== undefined ? payload.role : existingDynamicFields.role,
       reportingTo: (payload.reportingTo !== undefined || payload.reporting_to !== undefined) ? (payload.reportingTo || payload.reporting_to) : existingDynamicFields.reportingTo,
+      designation: payload.designation !== undefined ? payload.designation : existingDynamicFields.designation,
+      team: payload.team !== undefined ? payload.team : existingDynamicFields.team,
+      branch: payload.branch !== undefined ? payload.branch : existingDynamicFields.branch,
       ...(payload.fields || {})
     };
     if (merged.phone !== undefined && merged.contactNumber === undefined) {
@@ -743,8 +750,8 @@ exports.changePasswordByEmail = async ({ email, password, authedUser }) => {
     throw err;
   }
   user.password = password;
-  user.needsPasswordChange = false;
   user.needs_password_change = false;
+  user.needsPasswordChange = false;
   await user.save();
   return { success: true, message: 'Password updated successfully' };
 };

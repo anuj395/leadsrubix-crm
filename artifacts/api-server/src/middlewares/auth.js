@@ -85,7 +85,7 @@ module.exports.authenticate = async (req, res, next) => {
       }
     }
     // First-time login change password requirement check
-    if (fresh.needsPasswordChange || fresh.needs_password_change) {
+    if (fresh.needs_password_change || fresh.needsPasswordChange) {
       const reqPath = req.originalUrl || req.url || '';
       const isAllowed =
         reqPath.includes('/api/auth/me') ||

@@ -17,11 +17,11 @@ export function ProtectedRoute() {
     return <Navigate replace state={{ from: location }} to={paths.login} />
   }
 
-  if ((user?.needsPasswordChange || user?.needs_password_change) && location.pathname !== '/change-password') {
+  if (user?.needsPasswordChange && location.pathname !== '/change-password') {
     return <Navigate replace to="/change-password" />
   }
 
-  if (!(user?.needsPasswordChange || user?.needs_password_change) && location.pathname === '/change-password') {
+  if (!user?.needsPasswordChange && location.pathname === '/change-password') {
     return <Navigate replace to="/analytics" />
   }
 

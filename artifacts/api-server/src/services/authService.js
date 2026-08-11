@@ -27,7 +27,6 @@ exports.signup = async (payload) => {
       firstName: payload.name || 'Admin',
       organizationName: payload.name || 'Organization',
       industryId: payload.industryId || 'temp0001',
-      industryId: payload.industryId || 'temp0001',
     };
   }
 
@@ -108,10 +107,9 @@ exports.signup = async (payload) => {
     name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Admin',
     email: user.email || '',
     role: user.role,
-    industryId: user.industryId || user.industryId,
-    industryId: user.industryId || user.industryId,
+    industryId: user.industryId || user.industry_id || '',
+    organizationId: user.organizationId || user.organization_id || '',
     needsPasswordChange: !!(user.needsPasswordChange || user.needs_password_change),
-    needs_password_change: !!(user.needsPasswordChange || user.needs_password_change),
   };
 
   const token = jwt.sign({ id: safeUser.id, role: safeUser.role }, JWT_SECRET, {
@@ -149,10 +147,9 @@ exports.login = async (email, password) => {
     name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
     email: user.email,
     role: user.role,
-    industryId: user.industryId || user.industryId,
-    industryId: user.industryId || user.industryId,
+    industryId: user.industryId || user.industry_id || '',
+    organizationId: user.organizationId || user.organization_id || '',
     needsPasswordChange: !!(user.needsPasswordChange || user.needs_password_change),
-    needs_password_change: !!(user.needsPasswordChange || user.needs_password_change),
   };
   return { user: safeUser, token };
 };

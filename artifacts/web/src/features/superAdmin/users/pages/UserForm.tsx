@@ -6,6 +6,7 @@ import MenuItem from '@mui/material/MenuItem'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import SettingsIcon from '@mui/icons-material/Settings'
 import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 import Paper from '@mui/material/Paper'
@@ -289,15 +290,64 @@ export default function UserFormPage() {
       >
         <Box sx={{ mt: 2 }}>
           {configMissing && !id ? (
-            <Box sx={{ py: 4, px: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <Alert severity="warning" variant="filled" sx={{ width: '100%', borderRadius: '12px', fontSize: '1rem', fontWeight: 600 }}>
-                Please configure Branch, Team, and Designation in Settings before adding users.
-              </Alert>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
+                px: 3,
+                textAlign: 'center',
+                maxWidth: 600,
+                mx: 'auto',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 87, 34, 0.15) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 4,
+                  boxShadow: '0 8px 32px 0 rgba(255, 87, 34, 0.08)',
+                  border: '1px solid rgba(255, 87, 34, 0.15)',
+                }}
+              >
+                <SettingsIcon sx={{ fontSize: 40, color: '#ff5722' }} />
+              </Box>
+
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5, color: '#2d3748' }}>
+                Configuration Required
+              </Typography>
+
+              <Typography variant="body1" sx={{ color: '#718096', mb: 4, lineHeight: 1.6, maxWidth: 460 }}>
+                Please go to Settings and configure Team, Branch, and Designation before adding users.
+              </Typography>
+
               {!isSuperAdmin && (
                 <Button
                   variant="contained"
                   onClick={() => navigate('/settings')}
-                  sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
+                  sx={{
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 4,
+                    py: 1.5,
+                    fontSize: '1rem',
+                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                    boxShadow: '0 4px 14px 0 rgba(15, 23, 42, 0.3)',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px 0 rgba(15, 23, 42, 0.4)',
+                      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                    },
+                  }}
                 >
                   Go to Settings
                 </Button>

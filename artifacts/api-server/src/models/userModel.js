@@ -196,6 +196,10 @@ function camelToSnakeCase(str) {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
+function snakeToCamelCase(str) {
+  return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+}
+
 function normalizePayload(payload) {
   if (!payload) return payload;
   const out = {};
@@ -204,8 +208,10 @@ function normalizePayload(payload) {
       out[k] = v;
       continue;
     }
-    const dbKey = k.includes('_') ? k : camelToSnakeCase(k);
-    out[dbKey] = v;
+    const snakeKey = k.includes('_') ? k : camelToSnakeCase(k);
+    const camelKey = k.includes('_') ? snakeToCamelCase(k) : k;
+    out[snakeKey] = v;
+    out[camelKey] = v;
   }
   return out;
 }

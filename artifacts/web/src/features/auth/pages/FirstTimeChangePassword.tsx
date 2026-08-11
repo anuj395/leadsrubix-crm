@@ -49,7 +49,7 @@ export function FirstTimeChangePasswordPage() {
       setSuccess(true)
       
       // Update local Redux state and localStorage to clear first-login redirect flags
-      dispatch(updateUser({ needsPasswordChange: false, needs_password_change: false }))
+      dispatch(updateUser({ needsPasswordChange: false }))
       
       // Redirect to dashboard/analytics
       navigate('/analytics', { replace: true })
