@@ -367,3 +367,174 @@ Organization: Leads Rubix
 Username / Email: lead@gmail.com
 Temp Password: S4K9bN7P
 ========================================
+
+========================================
+Timestamp: 2026-08-11T09:23:34.779Z
+To: admin-fieldorg16645@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg16645@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T10:28:39.178Z
+To: admin-fieldorg58653@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg58653@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T10:41:16.609Z
+To: admin-fieldorg672@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg672@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T10:47:19.500Z
+To: admin-fieldorg40518@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg40518@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T10:53:21.389Z
+To: admin-fieldorg64227@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg64227@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T10:58:36.836Z
+To: admin-fieldorg44447@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg44447@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:08:44.615Z
+To: admin-fieldorg97801@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg97801@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:13:46.665Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: WUKeFMEk
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:15:48.257Z
+To: dakjsnd@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: daskjdnjkasd
+Username / Email: dakjsnd@gmail.com
+Temp Password: H617OX6F
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:19:39.706Z
+To: admin-fieldorg51182@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg51182@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:23:54.674Z
+To: admin-fieldorg88010@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg88010@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:31:35.362Z
+To: admin-fieldorg62236@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg62236@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:45:55.711Z
+To: admin-fieldorg55438@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg55438@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:51:22.882Z
+To: admin-fieldorg2591@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg2591@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T11:59:51.860Z
+To: admin-fieldorg23271@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg23271@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T12:04:04.305Z
+To: admin-fieldorg92666@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg92666@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T12:12:27.478Z
+To: admin-fieldorg86042@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg86042@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T12:16:25.847Z
+To: admin-fieldorg52146@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg52146@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-11T12:25:08.335Z
+To: admin-fieldorg40046@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg40046@org.com
+Temp Password: testAdminPassword123
+========================================

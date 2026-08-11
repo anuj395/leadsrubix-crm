@@ -30,13 +30,28 @@ import {
   type Screen,
   type ScreenField,
 } from '@/services/screenAdminService'
+import { useAuth } from '@/hooks/useAuth'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
 
 export default function ScreenPermissionsPage() {
-  const [industries, setIndustries] = useState<Industry[]>([])
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry: industryId,
+    setSelectedIndustry: setIndustryId,
+    filteredOrgs,
+    selectedOrg: orgId,
+    setSelectedOrg: setOrgId,
+  } = useSuperAdminScope(isSuperAdmin)
+
+  const orgs = useMemo(() => {
+    return filteredOrgs.map((o) => ({ value: o.code, label: o.name }))
+  }, [filteredOrgs])
+
   const [roles, setRoles] = useState<AdminRole[]>([])
   const [screens, setScreens] = useState<Screen[]>([])
   const [fields, setFields] = useState<ScreenField[]>([])
-  const [industryId, setIndustryId] = useState('')
   const [roleId, setRoleId] = useState('')
   const [screenId, setScreenId] = useState('')
   const [enabled, setEnabled] = useState<Set<string>>(new Set())
@@ -53,32 +68,27 @@ export default function ScreenPermissionsPage() {
   }, [screens, screenId])
   const isUsersScreen = selectedScreenKey === 'users'
 
-  // Load industries + screens once.
+  // Load screens once.
   useEffect(() => {
     void (async () => {
       try {
-        const [inds, scrs] = await Promise.all([getIndustries(), getScreens()])
-        setIndustries(inds)
-        const filtered = scrs.filter((s) => s.key !== 'users')
-        setScreens(filtered)
-        const realEstate = inds.find((i) => i.code === 'temp0001')
-        if (realEstate) setIndustryId(realEstate._id)
-        else if (inds[0]) setIndustryId(inds[0]._id)
-        if (filtered[0]) setScreenId(filtered[0]._id)
+        const scrs = await getScreens()
+        setScreens(scrs)
+        if (scrs[0]) setScreenId(scrs[0]._id)
       } catch (e: any) {
-        setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
+        setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
       }
     })()
   }, [])
 
-  // Roles for selected industry (race-safe).
+  // Roles for selected industry and organization (race-safe).
   useEffect(() => {
     if (!industryId) return
     let cancelled = false
     setRoleId('')
     void (async () => {
       try {
-        const list = await getRoles(industryId)
+        const list = await getRoles(industryId, orgId || undefined)
         if (cancelled) return
         setRoles(list)
         setRoleId(list[0]?._id ?? '')
@@ -91,7 +101,7 @@ export default function ScreenPermissionsPage() {
     return () => {
       cancelled = true
     }
-  }, [industryId])
+  }, [industryId, orgId])
 
   // Fields for selected screen (race-safe).
   useEffect(() => {
@@ -115,7 +125,7 @@ export default function ScreenPermissionsPage() {
     }
   }, [screenId])
 
-  // Existing permission set for the (screen, role, industry) triple (race-safe).
+  // Existing permission set for the (screen, role, industry, organization) quadruple (race-safe).
   useEffect(() => {
     if (!industryId || !screenId) {
       setEnabled(new Set())
@@ -138,11 +148,13 @@ export default function ScreenPermissionsPage() {
         } else {
           const perms = await getScreenPermissions({
             screenId: screenId,
-            roleId: roleId,
             industryId: industryId,
+            organizationId: orgId || undefined,
+            roleId: roleId,
             enabledOnly: true,
           })
-          if (!cancelled) setEnabled(new Set(perms.map((p) => p.fieldId)))
+          if (cancelled) return
+          setEnabled(new Set(perms.map((p) => String(p.fieldId || (p as any).field_id))))
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -155,7 +167,7 @@ export default function ScreenPermissionsPage() {
     return () => {
       cancelled = true
     }
-  }, [industryId, roleId, screenId, isUsersScreen, fields])
+  }, [industryId, orgId, roleId, screenId, fields, isUsersScreen])
 
   const sortedFields = useMemo(
     () => [...fields].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label)),
@@ -175,12 +187,10 @@ export default function ScreenPermissionsPage() {
   const clearAll = () => setEnabled(new Set())
 
   const save = async () => {
-    if (!industryId || !screenId) return
-    if (!isUsersScreen && !roleId) return
+    if (!screenId || !industryId || (!isUsersScreen && !roleId)) return
     setSaving(true)
     try {
       if (isUsersScreen) {
-        // Save baseline visibility directly to ScreenField documents
         await Promise.all(
           fields.map((f) =>
             api.put(`screen-fields/${f._id}`, {
@@ -192,12 +202,13 @@ export default function ScreenPermissionsPage() {
         setToast({ open: true, msg: 'User field visibility updated successfully', sev: 'success' })
       } else {
         await bulkSetScreenPermissions({
-          screenId: screenId,
-          roleId: roleId,
-          industryId: industryId,
-          fieldIds: [...enabled],
+          screenId,
+          roleId,
+          industryId,
+          organizationId: orgId || undefined,
+          fieldIds: Array.from(enabled),
         })
-        setToast({ open: true, msg: 'Permissions updated', sev: 'success' })
+        setToast({ open: true, msg: 'Screen permissions updated', sev: 'success' })
       }
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Save failed', sev: 'error' })
@@ -322,11 +333,37 @@ export default function ScreenPermissionsPage() {
             }}
           >
             {industries.map((i) => (
-              <MenuItem key={i._id} value={i._id}>
+              <MenuItem key={i.code} value={i.code}>
                 {i.name} ({i.code})
               </MenuItem>
             ))}
           </TextField>
+          {orgs.length > 0 && (
+            <TextField
+              select
+              size="small"
+              label="Organization / Workspace"
+              value={orgId}
+              onChange={(e) => setOrgId(e.target.value)}
+              sx={{ minWidth: 200 }}
+              disabled={!industryId}
+              SelectProps={{
+                MenuProps: {
+                  PaperProps: {
+                    style: {
+                      maxHeight: 400,
+                    },
+                  },
+                },
+              }}
+            >
+              {orgs.map((org) => (
+                <MenuItem key={org.value} value={org.value}>
+                  {org.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField
             select
             size="small"

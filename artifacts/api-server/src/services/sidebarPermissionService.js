@@ -63,7 +63,7 @@ exports.upsert = async (payload, authedUser) => {
   return permModel.upsert(payload);
 };
 
-exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }, authedUser) => {
+exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds, organizationId }, authedUser) => {
   if (!roleId || !industryId) {
     const err = new Error('roleId and industryId are required');
     err.status = 400;
@@ -108,7 +108,7 @@ exports.bulkSet = async ({ roleId, industryId, menu_ids, menuIds }, authedUser) 
     roleId,
     industryId: industry._id,
     menu_ids: menu_ids || menuIds,
-    organizationId: isSuperAdmin ? null : orgId
+    organizationId: isSuperAdmin ? (organizationId || null) : orgId
   });
 };
 

@@ -35,6 +35,10 @@ import {
   type ScreenFieldType,
   type DropdownSource,
 } from '@/services/screenAdminService'
+import { useAuth } from '@/hooks/useAuth'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
+import { api } from '@/services/api'
 
 interface FormState {
   _id?: string
@@ -68,6 +72,17 @@ const emptyForm: FormState = {
 }
 
 export default function ScreenFieldsPage() {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [screens, setScreens] = useState<Screen[]>([])
   const [screenId, setScreenId] = useState<string>('')
   const [items, setItems] = useState<ScreenField[]>([])
@@ -81,18 +96,25 @@ export default function ScreenFieldsPage() {
     sev: 'success',
   })
 
+  // Reload screens whenever org changes
   useEffect(() => {
+    let cancelled = false
     void (async () => {
       try {
-        const list = await getScreens()
-        const filtered = list.filter((s) => s.key !== 'users')
+        const list = await getScreens(isSuperAdmin ? (selectedOrg || undefined) : undefined)
+        if (cancelled) return
+        const filtered = list
         setScreens(filtered)
         if (filtered[0]) setScreenId(filtered[0]._id)
+        else setScreenId('')
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
       }
     })()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [selectedOrg])
 
   // Load fields whenever the selected screen changes (race-safe).
   useEffect(() => {
@@ -159,6 +181,7 @@ export default function ScreenFieldsPage() {
     }
     setSaving(true)
     try {
+      const orgParam = isSuperAdmin ? (selectedOrg || undefined) : undefined
       const payload = {
         screenId,
         fieldKey: form.fieldKey,
@@ -182,6 +205,8 @@ export default function ScreenFieldsPage() {
         sortable: form.sortable,
         order: Number(form.order) || 0,
         isActive: form.isActive,
+        organizationId: orgParam,
+        industryId: isSuperAdmin ? (selectedIndustry || undefined) : undefined,
       }
       if (form._id) {
         await updateScreenField(form._id, payload)
@@ -281,6 +306,15 @@ export default function ScreenFieldsPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <SuperAdminScopeSelector
+        isSuperAdmin={isSuperAdmin}
+        industries={industries}
+        selectedIndustry={selectedIndustry}
+        setSelectedIndustry={setSelectedIndustry}
+        filteredOrgs={filteredOrgs}
+        selectedOrg={selectedOrg}
+        setSelectedOrg={setSelectedOrg}
+      />
       <AppCard
         title="Screen Fields"
         subtitle="Master list of all fields available on each screen. Per-role/industry visibility is managed on the Screen Permissions page."

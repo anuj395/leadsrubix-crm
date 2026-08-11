@@ -26,6 +26,7 @@ exports.create = async (payload, authedUser) => {
   let wsId = payload.workspaceId || payload.workspace_id;
   let indId = payload.industryId || payload.industry_id;
 
+  const mongoose = require('mongoose');
   if (!isSuperAdmin) {
     const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
     if (!userOrgId) {
@@ -36,6 +37,15 @@ exports.create = async (payload, authedUser) => {
     orgId = userOrgId;
     wsId = authedUser?.workspaceId || authedUser?.workspace_id;
     indId = authedUser?.industryId || authedUser?.industry_id;
+  } else if (orgId) {
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({
+      $or: [{ organization_id: orgId }, { organizationId: orgId }]
+    }).lean().exec();
+    if (org) {
+      wsId = 'ws_' + orgId;
+      indId = org.industryId || org.industry_id;
+    }
   }
 
   const dup = await screenModel.findByKey(payload.key, orgId || undefined);

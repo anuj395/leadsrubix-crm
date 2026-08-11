@@ -29,6 +29,9 @@ import {
   deleteMenuRecord,
   type SidebarMenuRecord,
 } from '@/services/sidebarAdminService'
+import { useAuth } from '@/hooks/useAuth'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 interface FormState {
   _id?: string
@@ -54,6 +57,17 @@ const emptyForm: FormState = {
 }
 
 export default function MenusPage() {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [items, setItems] = useState<SidebarMenuRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -68,7 +82,9 @@ export default function MenusPage() {
   const refresh = async () => {
     setLoading(true)
     try {
-      setItems(await getMenus())
+      const orgParam = isSuperAdmin ? (selectedOrg || undefined) : undefined
+      const indParam = isSuperAdmin ? (selectedIndustry || undefined) : undefined
+      setItems(await getMenus(orgParam, indParam))
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
     } finally {
@@ -78,7 +94,7 @@ export default function MenusPage() {
 
   useEffect(() => {
     void refresh()
-  }, [])
+  }, [selectedOrg, selectedIndustry])
 
   const menuById = useMemo(() => new Map(items.map((m) => [m._id, m])), [items])
 
@@ -128,6 +144,8 @@ export default function MenusPage() {
     }
     setSaving(true)
     try {
+      const orgParam = isSuperAdmin ? (selectedOrg || undefined) : undefined
+      const indParam = isSuperAdmin ? (selectedIndustry || undefined) : undefined
       const payload = {
         key: form.key,
         name: form.name,
@@ -137,11 +155,13 @@ export default function MenusPage() {
         order: form.order,
         module: form.module || undefined,
         isActive: form.isActive,
+        organizationId: orgParam,
+        industryId: indParam,
       }
       if (form._id) {
-        await updateMenuRecord(form._id, payload)
+        await updateMenuRecord(form._id, payload as any)
       } else {
-        await createMenuRecord(payload)
+        await createMenuRecord(payload as any)
       }
       setDialogOpen(false)
       setToast({ open: true, msg: 'Saved', sev: 'success' })
@@ -231,6 +251,15 @@ export default function MenusPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <SuperAdminScopeSelector
+        isSuperAdmin={isSuperAdmin}
+        industries={industries}
+        selectedIndustry={selectedIndustry}
+        setSelectedIndustry={setSelectedIndustry}
+        filteredOrgs={filteredOrgs}
+        selectedOrg={selectedOrg}
+        setSelectedOrg={setSelectedOrg}
+      />
       <AppCard
         title="Sidebar Menus"
         subtitle="Master catalog of every navigation entry. Use parent_id to nest children."

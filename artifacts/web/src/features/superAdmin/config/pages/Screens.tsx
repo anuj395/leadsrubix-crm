@@ -27,6 +27,9 @@ import {
   deleteScreen,
   type Screen,
 } from '@/services/screenAdminService'
+import { useAuth } from '@/hooks/useAuth'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 interface FormState {
   _id?: string
@@ -40,6 +43,17 @@ interface FormState {
 const emptyForm: FormState = { key: '', name: '', description: '', order: 0, isActive: true }
 
 export default function ScreensPage() {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [items, setItems] = useState<Screen[]>([])
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -52,7 +66,8 @@ export default function ScreensPage() {
   const refresh = async () => {
     setLoading(true)
     try {
-      setItems((await getScreens()).filter((s) => s.key !== 'users'))
+      const orgParam = isSuperAdmin ? (selectedOrg || undefined) : undefined
+      setItems(await getScreens(orgParam))
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
     } finally {
@@ -60,7 +75,9 @@ export default function ScreensPage() {
     }
   }
 
-  useEffect(() => { void refresh() }, [])
+  useEffect(() => {
+    void refresh()
+  }, [selectedOrg])
 
   const openCreate = () => { setForm(emptyForm); setDialogOpen(true) }
   const openEdit = (row: Screen) => {
@@ -74,10 +91,21 @@ export default function ScreensPage() {
     }
     setSaving(true)
     try {
+      const orgParam = isSuperAdmin ? (selectedOrg || undefined) : undefined
+      const indParam = isSuperAdmin ? (selectedIndustry || undefined) : undefined
+      const payload = {
+        key: form.key,
+        name: form.name,
+        description: form.description,
+        order: form.order,
+        isActive: form.isActive,
+        organizationId: orgParam,
+        industryId: indParam,
+      }
       if (form._id) {
-        await updateScreen(form._id, { key: form.key, name: form.name, description: form.description, order: form.order, isActive: form.isActive })
+        await updateScreen(form._id, payload as any)
       } else {
-        await createScreen({ key: form.key, name: form.name, description: form.description, order: form.order, isActive: form.isActive })
+        await createScreen(payload as any)
       }
       setDialogOpen(false)
       setToast({ open: true, msg: 'Saved', sev: 'success' })
@@ -128,6 +156,15 @@ export default function ScreensPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <SuperAdminScopeSelector
+        isSuperAdmin={isSuperAdmin}
+        industries={industries}
+        selectedIndustry={selectedIndustry}
+        setSelectedIndustry={setSelectedIndustry}
+        filteredOrgs={filteredOrgs}
+        selectedOrg={selectedOrg}
+        setSelectedOrg={setSelectedOrg}
+      />
       <AppCard
         title="Screens"
         subtitle="Manage dynamic form sections and screen modules configuration."

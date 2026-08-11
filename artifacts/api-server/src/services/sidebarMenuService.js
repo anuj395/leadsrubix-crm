@@ -23,6 +23,7 @@ exports.create = async (payload, authedUser) => {
   const isSuperAdmin = authedUser?.role === 'superAdmin';
   let orgId = payload.organizationId || payload.organization_id;
   let wsId = payload.workspaceId || payload.workspace_id;
+  let indId = payload.industryId || payload.industry_id;
 
   if (!isSuperAdmin) {
     const userOrgId = authedUser?.organizationId || authedUser?.organization_id;
@@ -33,6 +34,17 @@ exports.create = async (payload, authedUser) => {
     }
     orgId = userOrgId;
     wsId = authedUser?.workspaceId || authedUser?.workspace_id;
+    indId = authedUser?.industryId || authedUser?.industry_id;
+  } else if (orgId) {
+    wsId = 'ws_' + orgId;
+    const mongoose = require('mongoose');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({
+      $or: [{ organization_id: orgId }, { organizationId: orgId }]
+    }).lean().exec();
+    if (org) {
+      indId = org.industryId || org.industry_id;
+    }
   }
 
   // Scope key uniqueness check to organization
@@ -56,7 +68,8 @@ exports.create = async (payload, authedUser) => {
   return menuModel.create({
     ...payload,
     organization_id: orgId || null,
-    workspace_id: wsId || null
+    workspace_id: wsId || null,
+    industry_id: indId || null,
   });
 };
 

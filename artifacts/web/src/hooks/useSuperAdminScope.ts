@@ -93,12 +93,15 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
         : []
     }
     if (!selectedIndustry) return organizations
+    const selIndDoc = industries.find(i => i.code === selectedIndustry || i._id === selectedIndustry)
+    const selIndIdStr = selIndDoc ? String(selIndDoc._id).toLowerCase() : String(selectedIndustry).toLowerCase()
+    const selIndCode = selIndDoc ? String(selIndDoc.code).toLowerCase() : String(selectedIndustry).toLowerCase()
+
     return organizations.filter((org) => {
       const orgIndId = String(org.industryId || '').toLowerCase()
-      const selIndId = String(selectedIndustry).toLowerCase()
-      return orgIndId === selIndId
+      return orgIndId === selIndIdStr || orgIndId === selIndCode
     })
-  }, [isSuperAdmin, organizations, selectedIndustry, selectedOrg, user])
+  }, [isSuperAdmin, organizations, selectedIndustry, selectedOrg, user, industries])
 
   useEffect(() => {
     if (!isSuperAdmin) return

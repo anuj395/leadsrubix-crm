@@ -70,7 +70,6 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'screen', module: 'uiNavigation' },
         { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'screen', module: 'uiNavigation' },
 
-        { key: 'accessControl.roles', name: 'Role & Permission', route: '/access-control/roles', icon: 'roles', module: 'accessControl' },
         { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', module: 'accessControl' },
         { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'lock', module: 'accessControl' },
 
@@ -2048,7 +2047,6 @@ async function seedAdminAnalyticsSidebarPermissions() {
     { key: 'uiNavigation.screens', name: 'Screens', route: '/ui-navigation/screens', icon: 'headers', parentKey: 'uiNavigation', order: 8.3 },
     { key: 'uiNavigation.screenFields', name: 'Screen Fields', route: '/ui-navigation/screen-fields', icon: 'headers', parentKey: 'uiNavigation', order: 8.4 },
 
-    { key: 'accessControl.roles', name: 'Role & Permission', route: '/access-control/roles', icon: 'shield', parentKey: 'accessControl', order: 9.1 },
     { key: 'accessControl.permissions', name: 'Permission Matrix (Sidebar)', route: '/access-control/permissions', icon: 'shield', parentKey: 'accessControl', order: 9.2 },
     { key: 'accessControl.screenPermissions', name: 'Permission Fields', route: '/access-control/screen-permissions', icon: 'shield', parentKey: 'accessControl', order: 9.3 },
 
@@ -2145,7 +2143,6 @@ async function seedAdminAnalyticsSidebarPermissions() {
     'uiNavigation.screens',
     'uiNavigation.screenFields',
     'accessControl',
-    'accessControl.roles',
     'accessControl.permissions',
     'accessControl.screenPermissions',
     'invoices',

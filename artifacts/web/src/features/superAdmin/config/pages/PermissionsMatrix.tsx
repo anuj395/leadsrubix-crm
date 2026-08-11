@@ -25,12 +25,28 @@ import {
   type AdminRole,
   type SidebarMenuRecord,
 } from '@/services/sidebarAdminService'
+import { api } from '@/services/api'
+import { useAuth } from '@/hooks/useAuth'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
 
 export default function PermissionsMatrixPage() {
-  const [industries, setIndustries] = useState<Industry[]>([])
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry: industryId,
+    setSelectedIndustry: setIndustryId,
+    filteredOrgs,
+    selectedOrg: orgId,
+    setSelectedOrg: setOrgId,
+  } = useSuperAdminScope(isSuperAdmin)
+
+  const orgs = useMemo(() => {
+    return filteredOrgs.map((o) => ({ value: o.code, label: o.name }))
+  }, [filteredOrgs])
+
   const [roles, setRoles] = useState<AdminRole[]>([])
   const [menus, setMenus] = useState<SidebarMenuRecord[]>([])
-  const [industryId, setIndustryId] = useState('')
   const [roleId, setRoleId] = useState('')
   const [enabled, setEnabled] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
@@ -41,30 +57,26 @@ export default function PermissionsMatrixPage() {
     sev: 'success',
   })
 
-  // Load industries + master menu catalog once.
+  // Load master menu catalog once.
   useEffect(() => {
     void (async () => {
       try {
-        const [inds, allMenus] = await Promise.all([getIndustries(), getMenus()])
-        setIndustries(inds)
+        const allMenus = await getMenus()
         setMenus(allMenus)
-        const realEstate = inds.find((i) => i.code === 'temp0001')
-        if (realEstate) setIndustryId(realEstate._id)
-        else if (inds[0]) setIndustryId(inds[0]._id)
       } catch (e: any) {
-        setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
+        setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load menus', sev: 'error' })
       }
     })()
   }, [])
 
-  // Reload roles whenever industry changes.
+  // Reload roles whenever industry or organization changes.
   useEffect(() => {
     if (!industryId) return
     let cancelled = false
     setRoleId('')
     void (async () => {
       try {
-        const list = await getRoles(industryId)
+        const list = await getRoles(industryId, orgId || undefined)
         if (cancelled) return
         setRoles(list)
         setRoleId(list[0]?._id ?? '')
@@ -76,9 +88,9 @@ export default function PermissionsMatrixPage() {
     return () => {
       cancelled = true
     }
-  }, [industryId])
+  }, [industryId, orgId])
 
-  // Reload current selections whenever (industry, role) changes.
+  // Reload current selections whenever (industry, organization, role) changes.
   useEffect(() => {
     if (!industryId || !roleId) {
       setEnabled(new Set())
@@ -90,6 +102,7 @@ export default function PermissionsMatrixPage() {
       try {
         const perms = await getPermissions({
           industryId: industryId,
+          organizationId: orgId || undefined,
           roleId: roleId,
           visibleOnly: true,
         })
@@ -105,7 +118,7 @@ export default function PermissionsMatrixPage() {
     return () => {
       cancelled = true
     }
-  }, [industryId, roleId])
+  }, [industryId, orgId, roleId])
 
   // Group menus by parent for flat ordering.
   const groupedMenus = useMemo(() => {
@@ -164,6 +177,7 @@ export default function PermissionsMatrixPage() {
     try {
       await bulkSetPermissions({
         industryId: industryId,
+        organizationId: orgId || undefined,
         roleId: roleId,
         menu_ids: [...enabled],
       })
@@ -308,11 +322,37 @@ export default function PermissionsMatrixPage() {
               }}
             >
               {industries.map((i) => (
-                <MenuItem key={i._id} value={i._id}>
+                <MenuItem key={i.code} value={i.code}>
                   {i.name} ({i.code})
                 </MenuItem>
               ))}
             </TextField>
+            {orgs.length > 0 && (
+              <TextField
+                select
+                size="small"
+                label="Organization / Workspace"
+                value={orgId}
+                onChange={(e) => setOrgId(e.target.value)}
+                sx={{ minWidth: 220 }}
+                disabled={!industryId}
+                SelectProps={{
+                  MenuProps: {
+                    PaperProps: {
+                      style: {
+                        maxHeight: 400,
+                      },
+                    },
+                  },
+                }}
+              >
+                {orgs.map((org) => (
+                  <MenuItem key={org.value} value={org.value}>
+                    {org.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
             <TextField
               select
               size="small"

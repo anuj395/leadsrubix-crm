@@ -30,18 +30,23 @@ exports.SidebarMenu = SidebarMenu;
 
 exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId, organization_id, industryId, industry_id } = {}) => {
   const pId = parentId !== undefined ? parentId : parent_id;
-  const q = {};
-  if (activeOnly) q.is_active = true;
-  if (pId !== undefined) q.parent_id = pId;
+  const andConds = [];
+  if (activeOnly) andConds.push({ is_active: true });
+  if (pId !== undefined) andConds.push({ parent_id: pId });
+
   const orgId = organizationId !== undefined ? organizationId : organization_id;
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
-    q.$or = [{ organization_id: orgId }, { organization_id: null }];
+    andConds.push({ $or: [{ organization_id: orgId }, { organization_id: null }] });
   } else {
-    q.organization_id = null;
+    andConds.push({ organization_id: null });
   }
-  const indId = industryId !== undefined ? industryId : industry_id;
-  if (indId) q.industry_id = indId;
 
+  const indId = industryId !== undefined ? industryId : industry_id;
+  if (indId) {
+    andConds.push({ $or: [{ industry_id: indId }, { industry_id: null }] });
+  }
+
+  const q = andConds.length ? { $and: andConds } : {};
   const rawList = await SidebarMenu.find(q).sort({ order: 1, name: 1 }).exec();
 
   const menuMap = new Map();

@@ -134,9 +134,21 @@ router.get('/:key', (req, res, next) => {
       const targetIndustry = req.query.industryId || req.query.industry_code;
       let query = {};
       if (targetIndustry) {
+        const Industry = mongoose.model('Industry');
+        let indDoc = null;
+        if (mongoose.Types.ObjectId.isValid(targetIndustry)) {
+          indDoc = await Industry.findById(targetIndustry).lean().exec();
+        }
+        if (!indDoc) {
+          indDoc = await Industry.findOne({ code: targetIndustry }).lean().exec();
+        }
+        const indCode = indDoc ? indDoc.code : targetIndustry;
+        const indIdStr = indDoc ? String(indDoc._id) : targetIndustry;
         query.$or = [
-          { industry_id: targetIndustry },
-          { industryId: targetIndustry }
+          { industry_id: indIdStr },
+          { industryId: indIdStr },
+          { industry_id: indCode },
+          { industryId: indCode }
         ];
       }
       const list = await Organization.find(query).sort({ organization_name: 1 }).lean().exec();

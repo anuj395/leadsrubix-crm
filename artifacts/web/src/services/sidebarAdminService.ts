@@ -112,8 +112,12 @@ export interface SidebarMenuInput {
   isActive?: boolean
 }
 
-export async function getMenus(): Promise<SidebarMenuRecord[]> {
-  return safeList<SidebarMenuRecord>('sidebar-menus')
+export async function getMenus(organizationId?: string, industryId?: string): Promise<SidebarMenuRecord[]> {
+  const params = new URLSearchParams()
+  if (organizationId) params.set('organizationId', organizationId)
+  if (industryId) params.set('industryId', industryId)
+  const qs = params.toString()
+  return safeList<SidebarMenuRecord>(qs ? `sidebar-menus?${qs}` : 'sidebar-menus')
 }
 
 export async function createMenuRecord(data: SidebarMenuInput): Promise<SidebarMenuRecord> {
@@ -156,6 +160,7 @@ export interface SidebarPermissionRecord {
 export async function getPermissions(params: {
   roleId?: string
   industryId?: string
+  organizationId?: string
   menuId?: string
   menu_id?: string
   visibleOnly?: boolean
@@ -164,6 +169,7 @@ export async function getPermissions(params: {
   const mId = params.menuId || params.menu_id
   if (params.roleId) search.set('roleId', params.roleId)
   if (params.industryId) search.set('industryId', params.industryId)
+  if (params.organizationId) search.set('organizationId', params.organizationId)
   if (mId) search.set('menuId', mId)
   if (params.visibleOnly) search.set('visible', 'true')
   const qs = search.toString()
@@ -173,14 +179,16 @@ export async function getPermissions(params: {
 export async function bulkSetPermissions(input: {
   roleId: string
   industryId: string
+  organizationId?: string
   menuIds?: string[]
   menu_ids?: string[]
 }): Promise<SidebarPermissionRecord[]> {
   const payload = {
     roleId: input.roleId,
     industryId: input.industryId,
+    organizationId: input.organizationId,
     menuIds: input.menuIds || input.menu_ids,
   }
   const res = await api.post('sidebar-permissions/bulk', payload)
-  return (res.data?.items ?? []) as SidebarPermissionRecord[]
+  return res.data as SidebarPermissionRecord[]
 }
