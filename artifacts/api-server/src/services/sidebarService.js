@@ -195,7 +195,15 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     }
   }
 
-  const items = Array.from(itemsMap.values());
+  let items = Array.from(itemsMap.values());
+
+  if (key === 'superAdmin') {
+    const usersParent = items.find((it) => it.key === 'users');
+    if (usersParent) {
+      usersParent.route = '/users';
+    }
+    items = items.filter((it) => it.key !== 'users.list');
+  }
 
   return {
     industryId: String(industry._id),

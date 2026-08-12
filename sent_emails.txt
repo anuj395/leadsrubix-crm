@@ -583,3 +583,183 @@ Organization: Field Test Org
 Username / Email: admin-fieldorg93976@org.com
 Temp Password: testAdminPassword123
 ========================================
+
+========================================
+Timestamp: 2026-08-11T13:15:20.806Z
+To: anorg47874@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg47874
+Username / Email: anorg47874@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:15:40.578Z
+To: anorg51615@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg51615
+Username / Email: anorg51615@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:17:46.998Z
+To: anorg36953@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg36953
+Username / Email: anorg36953@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:18:15.468Z
+To: anorg49231@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg49231
+Username / Email: anorg49231@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:18:52.541Z
+To: anorg22839@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg22839
+Username / Email: anorg22839@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:19:17.497Z
+To: anorg44860@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg44860
+Username / Email: anorg44860@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:20:20.570Z
+To: anorg83585@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg83585
+Username / Email: anorg83585@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:21:09.853Z
+To: anorg55351@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg55351
+Username / Email: anorg55351@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-11T13:21:41.732Z
+To: anorg93042@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg93042
+Username / Email: anorg93042@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:28:29.087Z
+To: anorg75223@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg75223
+Username / Email: anorg75223@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:35:00.183Z
+To: anorg38288@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg38288
+Username / Email: anorg38288@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:35:15.267Z
+To: anorg35496@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg35496
+Username / Email: anorg35496@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:38:40.239Z
+To: anorg49732@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg49732
+Username / Email: anorg49732@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:39:27.338Z
+To: anorg29415@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg29415
+Username / Email: anorg29415@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:42:53.826Z
+To: anorg68084@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg68084
+Username / Email: anorg68084@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:43:25.286Z
+To: anorg75030@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg75030
+Username / Email: anorg75030@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:43:43.310Z
+To: anorg27397@leadsrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: anorg27397
+Username / Email: anorg27397@leadsrubix.com
+Temp Password: Password123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:47:21.608Z
+To: admin-fieldorg77894@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Field Test Org
+Username / Email: admin-fieldorg77894@org.com
+Temp Password: testAdminPassword123
+========================================
+
+========================================
+Timestamp: 2026-08-12T04:56:43.195Z
+To: cxzkcjzx@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: dkasjdkfsn
+Username / Email: cxzkcjzx@gmail.com
+Temp Password: BnjmcKet
+========================================
+
+========================================
+Timestamp: 2026-08-12T06:06:46.155Z
+To: super_created_admin_test@testorg.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: dkasjdkfsn
+Username / Email: super_created_admin_test@testorg.com
+Temp Password: Password123!
+========================================

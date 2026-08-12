@@ -46,7 +46,7 @@ const DEFAULT_SIDEBAR_CONFIGS = [
     roles: {
       admin: [
         { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', module: 'analytics' },
-        { key: 'users', name: 'User', route: '', icon: 'users', module: 'users' },
+        { key: 'users', name: 'Users', route: '', icon: 'users', module: 'users' },
         { key: 'users.list', name: 'User List', route: '/users', icon: 'users', module: 'users' },
         { key: 'users.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'shield', module: 'users' },
         { key: 'leads.contact', name: 'Contacts List', route: '/leads/contacts', icon: 'contact', module: 'leads' },
@@ -66,8 +66,6 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'integrations.webhook', name: 'Webhook Integrations', route: '/integrations', icon: 'api', module: 'integrations' },
         { key: 'integrations.api', name: 'API Token', route: '/integrations/api', icon: 'api', module: 'integrations' },
         { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', module: 'integrations' },
-
-        { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', module: 'uiNavigation' },
 
         { key: 'invoices.paymentLogs', name: 'Payment Invoices Logs', route: '/invoices/payment-invoices', icon: 'billing', module: 'invoices' },
         { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', module: 'invoices' },
@@ -2007,7 +2005,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
   const CANONICAL_MENUS = [
     { key: 'analytics', name: 'Analytics', route: '/analytics', icon: 'analytics', parentKey: null, order: 1 },
     { key: 'organization', name: 'Organization', route: '/organization/list', icon: 'organization', parentKey: null, order: 2 },
-    { key: 'users', name: 'User', route: '', icon: 'users', parentKey: null, order: 3 },
+    { key: 'users', name: 'Users', route: '', icon: 'users', parentKey: null, order: 3 },
     { key: 'users.list', name: 'User List', route: '/users', icon: 'users', parentKey: 'users', order: 3.1 },
     { key: 'users.roles', name: 'Roles & Permissions', route: '/users/roles', icon: 'shield', parentKey: 'users', order: 3.2 },
     { key: 'leads', name: 'Lead', route: '', icon: 'leads', parentKey: null, order: 4 },
@@ -2124,7 +2122,6 @@ async function seedAdminAnalyticsSidebarPermissions() {
     'organization',
     'users',
     'users.list',
-    'users.roles',
     'leads',
     'leads.contact',
     'leads.tasks',

@@ -64,15 +64,31 @@ exports.listConfigs = async (req, res, next) => {
     const query = { industry_id: { $in: industryIds } };
 
     if (isSuperAdmin) {
-      if (organizationId) query.organization_id = organizationId;
+      if (organizationId && organizationId !== 'null' && organizationId !== 'undefined') {
+        query.organization_id = organizationId;
+      } else {
+        query.organization_id = { $in: [null, undefined] };
+      }
     } else {
       const userOrgId = req.user.organizationId || req.user.organization_id;
       if (userOrgId) {
-        query.$or = [{ organization_id: userOrgId }, { organization_id: null }];
+        query.$or = [{ organization_id: userOrgId }, { organization_id: { $in: [null, undefined] } }];
+      } else {
+        query.organization_id = { $in: [null, undefined] };
       }
     }
 
-    const docs = await AnalyticsConfig.find(query).lean().exec();
+    let docs = await AnalyticsConfig.find(query).lean().exec();
+
+    // Fallback to industry default template if organization override does not exist
+    if (isSuperAdmin && organizationId && organizationId !== 'null' && organizationId !== 'undefined' && docs.length === 0) {
+      const fallbackQuery = {
+        industry_id: { $in: industryIds },
+        organization_id: { $in: [null, undefined] }
+      };
+      docs = await AnalyticsConfig.find(fallbackQuery).lean().exec();
+    }
+
     res.json({ items: docs });
   } catch (err) {
     next(err);
@@ -102,6 +118,7 @@ exports.getConfigById = async (req, res, next) => {
 exports.createConfig = async (req, res, next) => {
   try {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
+    const Industry = mongoose.model('Industry');
     const payload = req.body || {};
 
     if (req.user.role !== 'superAdmin') {
@@ -111,6 +128,16 @@ exports.createConfig = async (req, res, next) => {
       payload.organization_id = userOrgId;
       payload.industry_id = userIndId;
       payload.workspace_id = userWsId;
+    }
+
+    if (payload.industry_id) {
+      let ind = await Industry.findOne({ code: payload.industry_id }).lean().exec();
+      if (!ind && mongoose.Types.ObjectId.isValid(payload.industry_id)) {
+        ind = await Industry.findById(payload.industry_id).lean().exec();
+      }
+      if (ind) {
+        payload.industry_id = String(ind._id);
+      }
     }
 
     const doc = await AnalyticsConfig.create(payload);
@@ -138,6 +165,17 @@ exports.updateConfig = async (req, res, next) => {
         req.body.workspace_id = userWsId;
         delete req.body.organizationId;
         delete req.body.workspaceId;
+      }
+    }
+
+    if (req.body && req.body.industry_id) {
+      const Industry = mongoose.model('Industry');
+      let ind = await Industry.findOne({ code: req.body.industry_id }).lean().exec();
+      if (!ind && mongoose.Types.ObjectId.isValid(req.body.industry_id)) {
+        ind = await Industry.findById(req.body.industry_id).lean().exec();
+      }
+      if (ind) {
+        req.body.industry_id = String(ind._id);
       }
     }
 

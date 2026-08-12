@@ -44,6 +44,9 @@ import {
 } from '@mui/icons-material'
 
 import axiosInstance from '@/services/axiosInstance'
+import { useAuth } from '@/hooks/useAuth'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 interface ColumnConfig {
   key: string
@@ -82,6 +85,10 @@ interface AnalyticsConfig {
   industry_id: string
   dashboard_key: string
   tabs: TabConfig[]
+  organization_id?: string
+  organizationId?: string
+  workspace_id?: string
+  workspaceId?: string
 }
 
 interface Industry {
@@ -94,8 +101,17 @@ export default function AnalyticsConfigPage() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
 
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [selectedIndustryId, setSelectedIndustryId] = useState<string>('')
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry: selectedIndustryId,
+    setSelectedIndustry: setSelectedIndustryId,
+    filteredOrgs,
+    selectedOrg: selectedOrgId,
+    setSelectedOrg: setSelectedOrgId
+  } = useSuperAdminScope(isSuperAdmin)
+
   const [config, setConfig] = useState<AnalyticsConfig | null>(null)
   
   const [loading, setLoading] = useState(false)
@@ -139,19 +155,7 @@ export default function AnalyticsConfigPage() {
     columnsText: ''
   })
 
-  // Load industries
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await axiosInstance.get('/industries')
-        setIndustries(res.data?.items ?? [])
-      } catch (err: any) {
-        setToast({ open: true, msg: 'Failed to fetch industries', sev: 'error' })
-      }
-    })()
-  }, [])
-
-  // Load configuration when selected industry changes
+  // Load configuration when selected industry or organization changes
   useEffect(() => {
     if (!selectedIndustryId) {
       setConfig(null)
@@ -160,7 +164,13 @@ export default function AnalyticsConfigPage() {
     ;(async () => {
       setLoading(true)
       try {
-        const res = await axiosInstance.get(`/analytics/configs?industryId=${selectedIndustryId}`)
+        let url = `/analytics/configs?industryId=${selectedIndustryId}`
+        if (selectedOrgId) {
+          url += `&organizationId=${selectedOrgId}`
+        } else {
+          url += `&organizationId=null`
+        }
+        const res = await axiosInstance.get(url)
         if (res.data?.items?.length > 0) {
           const fetched = res.data.items[0] as AnalyticsConfig
           const normalizedTabs = fetched.tabs.map(t => {
@@ -185,6 +195,10 @@ export default function AnalyticsConfigPage() {
         } else {
           setConfig({
             industry_id: selectedIndustryId,
+            organization_id: selectedOrgId || undefined,
+            organizationId: selectedOrgId || undefined,
+            workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+            workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
             dashboard_key: 'default',
             tabs: []
           })
@@ -195,16 +209,28 @@ export default function AnalyticsConfigPage() {
         setLoading(false)
       }
     })()
-  }, [selectedIndustryId])
+  }, [selectedIndustryId, selectedOrgId])
 
   const saveConfig = async () => {
     if (!config) return
     setSaving(true)
     try {
-      if (config._id) {
-        await axiosInstance.put(`/analytics/configs/${config._id}`, config)
+      const payload: any = {
+        ...config,
+        industry_id: selectedIndustryId,
+        organization_id: selectedOrgId || undefined,
+        organizationId: selectedOrgId || undefined,
+        workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+        workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+      }
+
+      const isSavingNewOverride = selectedOrgId && (!config.organization_id || config.organization_id !== selectedOrgId)
+
+      if (config._id && !isSavingNewOverride) {
+        await axiosInstance.put(`/analytics/configs/${config._id}`, payload)
       } else {
-        const res = await axiosInstance.post('/analytics/configs', config)
+        delete payload._id
+        const res = await axiosInstance.post('/analytics/configs', payload)
         setConfig(res.data)
       }
       setToast({ open: true, msg: 'Layout config saved successfully', sev: 'success' })
@@ -499,35 +525,16 @@ export default function AnalyticsConfigPage() {
           </Button>
         </Stack>
 
-        {/* Industry Selector Grid */}
-        <Box
-          sx={{
-            p: 3,
-            borderRadius: '16px',
-            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
-            border: '1px solid',
-            borderColor: 'divider',
-            mb: 4
-          }}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary' }}>
-            Scope Context Selection
-          </Typography>
-          <TextField
-            select
-            size="small"
-            label="Industry Domain Template"
-            value={selectedIndustryId}
-            onChange={(e) => setSelectedIndustryId(e.target.value)}
-            sx={{ minWidth: 320, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-          >
-            {industries.map(ind => (
-              <MenuItem key={ind._id} value={ind._id}>
-                {ind.name} (Code: {ind.code})
-              </MenuItem>
-            ))}
-          </TextField>
-        </Box>
+        {/* Scope Context Selection */}
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustryId}
+          setSelectedIndustry={setSelectedIndustryId}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrgId}
+          setSelectedOrg={setSelectedOrgId}
+        />
 
         <Divider sx={{ my: 4 }} />
 
