@@ -36,6 +36,7 @@ import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
 import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 import {
   listUsersPaged,
+  listUsers,
   deleteUser,
   updateUser,
   type AdminUser,
@@ -73,6 +74,7 @@ export default function UserListPage() {
   const [items, setItems] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(false)
   const [rowCount, setRowCount] = useState(0)
+  const [userMap, setUserMap] = useState<Map<string, string>>(new Map())
 
   // Shared Super Admin Scope Context
   const {
@@ -145,7 +147,15 @@ export default function UserListPage() {
       })
       setResolvedHeaders(resolved.table_headers)
 
-      // 3. Fetch server paginated data
+      // 3. Fetch all users (including admins) to map reporting manager email IDs
+      const allUsers = await listUsers(activeIndustry, true, activeOrg)
+      const uMap = new Map<string, string>()
+      allUsers.forEach((u) => {
+        uMap.set(String(u._id), u.email || '')
+      })
+      setUserMap(uMap)
+
+      // 4. Fetch server paginated data
       const sort = sortModel[0]
       const sortField = sort && SERVER_SORTABLE.has(sort.field) ? sort.field : undefined
       const sortDir = sort?.sort === 'desc' ? 'desc' : 'asc'
@@ -210,10 +220,12 @@ export default function UserListPage() {
     CORE_COLUMNS.forEach((c) => headerMap.set(c.key, c))
 
     resolvedHeaders.forEach((c) => {
-      // Normalize snake_case keys from the database to camelCase for the API/Frontend
-      const keyToUse = c.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+      const keyToUse = c.key
+      if (keyToUse === 'firstName' || keyToUse === 'lastName') {
+        return
+      }
       if (!headerMap.has(keyToUse)) {
-        headerMap.set(keyToUse, { ...c, key: keyToUse })
+        headerMap.set(keyToUse, c)
       } else {
         const core = headerMap.get(keyToUse)!
         headerMap.set(keyToUse, { ...core, order: c.order, visible: c.visible })
@@ -227,8 +239,8 @@ export default function UserListPage() {
 
   const gridColumns = useMemo<GridColDef<AdminUser>[]>(() => {
     const cols: GridColDef<AdminUser>[] = allColumns.map((header) => {
-      // Hide organization columns for non-superAdmin
-      if (header.key === 'organizationName' && !isSuperAdmin) {
+      // Hide organization columns (selected at top)
+      if (header.key === 'organizationName') {
         return null as any
       }
 
@@ -247,6 +259,12 @@ export default function UserListPage() {
         col.flex = 1.2
         col.minWidth = 160
         col.valueGetter = (_v, row) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '—'
+      } else if (header.key === 'reportingTo') {
+        col.valueGetter = (_v, row) => {
+          const val = row.reportingTo || (row as any).reporting_to
+          if (!val) return '—'
+          return userMap.get(String(val)) || val
+        }
       } else if (header.key === 'isActive' || header.key === 'status') {
         col.minWidth = 180
         col.flex = 1.2

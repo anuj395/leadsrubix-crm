@@ -322,7 +322,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const tableHeaders = allowed
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
-      key: f.field_key,
+      key: f.field_key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase()),
       label: f.label,
       type: f.type,
       sortable: f.sortable,
@@ -335,7 +335,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     .filter((f) => f.is_form_visible)
     .sort((a, b) => a.order - b.order)
     .map((f) => ({
-      key: f.field_key,
+      key: f.field_key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase()),
       label: f.label,
       type: f.type,
       required: f.is_required,

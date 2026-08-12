@@ -59,7 +59,7 @@ async function resolveAllowedFields({ industryCode, roleKey, industry_code, role
   const orgId = organizationId || organization_id;
   const screen = await screenModel.findByKey(USERS_SCREEN_KEY, orgId || undefined);
   if (!screen || !screen.isActive) return { fields: [], screen: null };
-  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
+  const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true, organizationId: orgId });
 
   // For the 'users' screen, visibility is organization-level (based on is_form_visible properties),
   // not role-level. So we bypass role permission checks and return all form-visible fields directly.
@@ -398,7 +398,9 @@ exports.create = async ({ payload, authedUser }) => {
       err.status = 400;
       throw err;
     }
+    const orgId = authedUser?.organizationId || payload.organizationId || '';
     const existingPhone = await userModel.User.findOne({
+      organization_id: orgId || null,
       $or: [
         { contact_number: cleanNum },
         { contact_no: cleanNum },
@@ -685,6 +687,7 @@ exports.update = async ({ id, payload, authedUser }) => {
     }
     const existingPhone = await userModel.User.findOne({
       _id: { $ne: id },
+      organization_id: target.organization_id || target.organizationId || null,
       $or: [
         { contact_number: cleanNum },
         { contact_no: cleanNum },

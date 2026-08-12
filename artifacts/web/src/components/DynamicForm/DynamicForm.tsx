@@ -150,6 +150,7 @@ interface Props {
   fullWidthSubmit?: boolean
   onChange?: (values: Record<string, Value>) => void
   singleColumn?: boolean
+  disabledFields?: string[]
 }
 
 export function DynamicForm({
@@ -170,6 +171,7 @@ export function DynamicForm({
   fullWidthSubmit = false,
   onChange,
   singleColumn = false,
+  disabledFields = [],
 }: Props) {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -180,6 +182,8 @@ export function DynamicForm({
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [trialPeriodLicenses, setTrialPeriodLicenses] = useState<number>(10)
+
+  const isFieldDisabled = (fieldKey: string) => readOnly || disabledFields.includes(fieldKey)
 
   useEffect(() => {
     onChange?.(values)
@@ -611,7 +615,7 @@ export function DynamicForm({
                     />
                   )}
                   fullWidth
-                  disabled={isLoading || readOnly}
+                  disabled={isLoading || isFieldDisabled(f.key)}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       minHeight: '45px !important',
@@ -635,7 +639,7 @@ export function DynamicForm({
                 onChange={(e) => setValue(f.key, e.target.value)}
                 error={!!err || !!dropdownErr}
                 helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}
-                disabled={isLoading || readOnly || f.key === 'industryId' || f.key === 'industry_id'}
+                disabled={isLoading || isFieldDisabled(f.key) || f.key === 'industryId' || f.key === 'industry_id'}
                 fullWidth
                 SelectProps={{
                   MenuProps: {
@@ -667,7 +671,7 @@ export function DynamicForm({
                 multiline
                 rows={3}
                 fullWidth
-                disabled={readOnly}
+                disabled={isFieldDisabled(f.key)}
                 sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
               />
             )
@@ -681,7 +685,7 @@ export function DynamicForm({
                   <Checkbox
                     checked={!!value}
                     onChange={(e) => setValue(f.key, e.target.checked)}
-                    disabled={readOnly}
+                    disabled={isFieldDisabled(f.key)}
                   />
                 }
                 label={labelWithRequired}
@@ -720,7 +724,7 @@ export function DynamicForm({
                 error={!!err}
                 helperText={err}
                 fullWidth
-                disabled={readOnly}
+                disabled={isFieldDisabled(f.key)}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -732,7 +736,7 @@ export function DynamicForm({
                             const nextCode = e.target.value as string
                             setValue(f.key, `${nextCode} ${localNumber}`.trim())
                           }}
-                          disabled={readOnly}
+                          disabled={isFieldDisabled(f.key)}
                           disableUnderline
                           renderValue={(value) => {
                             const match = DIALING_CODES.find((dc) => dc.code === value)
@@ -787,7 +791,7 @@ export function DynamicForm({
                   id={`image-upload-${f.key}`}
                   accept="image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml"
                   style={{ display: 'none' }}
-                  disabled={readOnly}
+                  disabled={isFieldDisabled(f.key)}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -864,7 +868,7 @@ export function DynamicForm({
                     <Button
                       variant="contained"
                       size="medium"
-                      disabled={readOnly}
+                      disabled={isFieldDisabled(f.key)}
                       onClick={() => document.getElementById(`image-upload-${f.key}`)?.click()}
                       sx={{
                         textTransform: 'none',
@@ -885,7 +889,7 @@ export function DynamicForm({
                         variant="contained"
                         size="medium"
                         color="error"
-                        disabled={readOnly}
+                        disabled={isFieldDisabled(f.key)}
                         onClick={() => {
                           setValue(f.key, '');
                           if (values.hasOwnProperty('imageName')) {
@@ -958,7 +962,7 @@ export function DynamicForm({
               error={!!err}
               helperText={err}
               fullWidth
-              disabled={readOnly || f.key === 'industryId' || f.key === 'industry_id'}
+              disabled={isFieldDisabled(f.key) || f.key === 'industryId' || f.key === 'industry_id'}
               InputLabelProps={inputType === 'datetime-local' ? { shrink: true } : undefined}
             />
           )

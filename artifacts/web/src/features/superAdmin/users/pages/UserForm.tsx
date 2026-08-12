@@ -153,6 +153,10 @@ export default function UserFormPage() {
               email: match.email ?? '',
               role: match.role ?? '',
               reportingTo: match.reportingTo ?? (match as any).reporting_to ?? '',
+              contactNumber: (match as any).contactNumber ?? (match as any).contact_number ?? '',
+              designation: (match as any).designation ?? '',
+              team: (match as any).team ?? '',
+              branch: (match as any).branch ?? '',
             })
           } else {
             setToast({ open: true, msg: 'User not found', sev: 'error' })
@@ -227,7 +231,7 @@ export default function UserFormPage() {
       const email = String(dynVals.email || '')
       const firstName = String(dynVals.firstName || '')
       const lastName = String(dynVals.lastName || '')
-      const reportingTo = String(dynVals.reportingTo || dynVals.reporting_to || '')
+      const reportingTo = String(dynVals.reportingTo || '')
 
       const payload: any = {
         firstName: firstName.trim(),
@@ -237,7 +241,12 @@ export default function UserFormPage() {
         organizationId: core.organizationId || undefined,
         isActive: core.isActive,
         reportingTo: reportingTo || undefined,
-        fields: dynVals,
+        fields: {
+          ...dynVals,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          reportingTo: reportingTo || undefined,
+        },
       }
 
       if (id) {
@@ -360,6 +369,7 @@ export default function UserFormPage() {
               roleKey={isSuperAdmin ? selectedRole : authedUser?.role}
               organizationId={isSuperAdmin ? core.organizationId : (authedUser as any)?.organizationId}
               initialValues={dynamicValues as Record<string, string | number | boolean | null>}
+              disabledFields={id ? ['email'] : []}
               onSubmit={async (vals) => { await handleSubmit(vals as Record<string, unknown>) }}
               onChange={(vals) => {
                 if (vals.role && vals.role !== selectedRole) {

@@ -526,6 +526,7 @@ export default function RolesAndPermissionsPage() {
         screenId,
         ...next,
       })
+      showToast('Permission saved successfully', 'success')
       setActionRows((prev) => {
         const without = prev.filter((p) => String(p.screenId) !== String(screenId))
         return [...without, saved]
@@ -710,48 +711,51 @@ export default function RolesAndPermissionsPage() {
   )
 
   const actionsColumns = useMemo<GridColDef<Screen>[]>(
-    () => [
-      {
-        field: 'name',
-        headerName: 'Module',
-        flex: 1.5,
-        renderCell: (p) => {
-          const s = p.row
-          const busy = actionSaving === s._id
-          return (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <span>{s.name || s.key}</span>
-              <Box component="code" sx={{ color: 'text.secondary', fontSize: '0.85em' }}>
-                ({s.key})
-              </Box>
-              {busy && <CircularProgress size={14} />}
-            </Stack>
-          )
+    () => {
+      const cols: GridColDef<Screen>[] = [
+        {
+          field: 'name',
+          headerName: 'Module',
+          flex: 1.5,
+          renderCell: (p) => {
+            const s = p.row
+            const busy = actionSaving === s._id
+            return (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <span>{s.name || s.key}</span>
+                <Box component="code" sx={{ color: 'text.secondary', fontSize: '0.85em' }}>
+                  ({s.key})
+                </Box>
+                {busy && <CircularProgress size={14} />}
+              </Stack>
+            )
+          },
         },
-      },
-      ...(['view', 'add', 'edit', 'delete'] as const).map((a) => ({
-        field: `can_${a}`,
-        headerName: a.charAt(0).toUpperCase() + a.slice(1),
-        width: 90,
-        align: 'center' as const,
-        headerAlign: 'center' as const,
-        sortable: false,
-        filterable: false,
-        renderCell: (p: GridRenderCellParams<Screen>) => {
-          const s = p.row
-          const row = actionByScreen.get(s._id)
-          const busy = actionSaving === s._id
-          return (
-            <Checkbox
-              size="small"
-              checked={!!row?.[`can_${a}` as const]}
-              disabled={busy || isPrivilegedRole}
-              onChange={() => toggleAction(s._id, a)}
-            />
-          )
-        },
-      })),
-      {
+        ...(['view', 'add', 'edit', 'delete'] as const).map((a) => ({
+          field: `can_${a}`,
+          headerName: a.charAt(0).toUpperCase() + a.slice(1),
+          width: 90,
+          align: 'center' as const,
+          headerAlign: 'center' as const,
+          sortable: false,
+          filterable: false,
+          renderCell: (p: GridRenderCellParams<Screen>) => {
+            const s = p.row
+            const row = actionByScreen.get(s._id)
+            const busy = actionSaving === s._id
+            return (
+              <Checkbox
+                size="small"
+                checked={!!row?.[`can_${a}` as const]}
+                disabled={busy || isPrivilegedRole}
+                onChange={() => toggleAction(s._id, a)}
+              />
+            )
+          },
+        })),
+      ]
+
+      cols.push({
         field: 'permissions',
         headerName: 'Permissions',
         width: 120,
@@ -773,8 +777,10 @@ export default function RolesAndPermissionsPage() {
             </Button>
           )
         },
-      },
-    ],
+      })
+
+      return cols
+    },
     [actionByScreen, actionSaving, isPrivilegedRole, toggleAction, selectedScreenForPerms],
   )
 
@@ -881,8 +887,9 @@ export default function RolesAndPermissionsPage() {
     const list = [{ id: 'roles', label: 'Roles' }]
     if (isSuperAdmin) {
       list.push({ id: 'fields', label: 'Fields Configuration' })
+      list.push({ id: 'visibility', label: 'Permission Fields' })
     }
-    list.push({ id: 'visibility', label: 'Permission Fields' })
+    list.push({ id: 'actions', label: 'Action Permissions' })
     return list
   }, [isSuperAdmin])
 
