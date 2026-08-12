@@ -49,6 +49,8 @@ export async function deleteIndustryRecord(id: string): Promise<void> {
 export interface AdminRole {
   _id: string
   industryId: string
+  organizationId?: string
+  organization_id?: string
   key: string
   name: string
   description?: string

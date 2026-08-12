@@ -50,14 +50,14 @@ exports.get = async (req, res, next) => {
     if (!screenKey) {
       return res.status(404).json({ message: `Unknown module "${module}"` });
     }
-    const screen = await screenModel.findByKey(screenKey);
+    const screen = await screenModel.findByKey(screenKey, organizationId);
     if (!screen) {
       // Spec: "If none exists, returns default column config for that module"
       // Our defaults live in seed.js — when the screen hasn't been seeded yet
       // we return an empty columns array rather than fabricating one.
       return res.json({ organizationId, module, columns: [] });
     }
-    const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true });
+    const fields = await fieldModel.list({ screenId: screen._id, activeOnly: true, organizationId });
     res.json({
       organizationId,
       module,

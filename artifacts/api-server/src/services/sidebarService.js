@@ -27,6 +27,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
 
   const RoleModel = mongoose.model('Role');
+  const SidebarMenuModel = mongoose.model('SidebarMenu');
   let role = null;
   if (targetOrgId) {
     role = await RoleModel.findOne({
@@ -76,6 +77,43 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     }).lean().exec();
   }
 
+  // Map any global menu IDs in perms to organization's cloned menu IDs
+  if (targetOrgId && perms.length > 0) {
+    const allOrgMenus = await SidebarMenuModel.find({
+      $or: [
+        { organization_id: targetOrgId },
+        { organization_id: null }
+      ]
+    }).lean().exec();
+
+    const keyToClonedId = new Map();
+    const globalIdToKey = new Map();
+
+    for (const m of allOrgMenus) {
+      if (m.organization_id === targetOrgId || m.organizationId === targetOrgId) {
+        keyToClonedId.set(m.key, String(m._id));
+      } else {
+        globalIdToKey.set(String(m._id), m.key);
+      }
+    }
+
+    perms = perms.map(p => {
+      const menuIdStr = String(p.menu_id);
+      let targetKey = globalIdToKey.get(menuIdStr);
+      if (!targetKey) {
+        const mObj = allOrgMenus.find(m => String(m._id) === menuIdStr);
+        if (mObj) targetKey = mObj.key;
+      }
+      if (targetKey && keyToClonedId.has(targetKey)) {
+        return {
+          ...p,
+          menu_id: new mongoose.Types.ObjectId(keyToClonedId.get(targetKey))
+        };
+      }
+      return p;
+    });
+  }
+
   if (!perms.length) {
     return {
       industryId: String(industry._id),
@@ -85,7 +123,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     };
   }
 
-  const SidebarMenuModel = mongoose.model('SidebarMenu');
+
 
   // Load globally visible menu keys for this industry + role to enforce Super Admin visibility overrides
   const globallyVisibleMenuKeys = new Set();

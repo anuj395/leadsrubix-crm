@@ -763,3 +763,21 @@ Organization: dkasjdkfsn
 Username / Email: super_created_admin_test@testorg.com
 Temp Password: Password123!
 ========================================
+
+========================================
+Timestamp: 2026-08-12T06:43:34.243Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: W0YbfHoF
+========================================
+
+========================================
+Timestamp: 2026-08-12T07:04:26.197Z
+To: super_created_admin_test@testorg.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: super_created_admin_test@testorg.com
+Temp Password: Password123!
+========================================

@@ -260,7 +260,7 @@ export default function RolesAndPermissionsPage() {
     if (!usersScreen) return
     setFieldsLoading(true)
     try {
-      const list = await getScreenFields(usersScreen._id)
+      const list = await getScreenFields(usersScreen._id, selectedOrg || undefined)
       setFields(list.sort((a, b) => a.order - b.order))
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } }
@@ -269,7 +269,7 @@ export default function RolesAndPermissionsPage() {
       setFieldsLoading(false)
     }
   }
-  useEffect(() => { void refreshFields() }, [usersScreen])
+  useEffect(() => { void refreshFields() }, [usersScreen, selectedOrg])
 
   // ── Per-role enabled field set ────────────────────────────────────────────
   useEffect(() => {
@@ -550,12 +550,13 @@ export default function RolesAndPermissionsPage() {
     void (async () => {
       try {
         const [fieldsList, existingPerms] = await Promise.all([
-          getScreenFields(selectedScreenForPerms._id),
+          getScreenFields(selectedScreenForPerms._id, selectedOrg || undefined),
           getScreenPermissions({
             screenId: selectedScreenForPerms._id,
             roleId: actionRoleId,
             industryId: selectedIndustry,
             enabledOnly: true,
+            organizationId: selectedOrg || undefined,
           })
         ])
         if (cancelled) return
@@ -569,7 +570,7 @@ export default function RolesAndPermissionsPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [selectedScreenForPerms, actionRoleId, selectedIndustry])
+  }, [selectedScreenForPerms, actionRoleId, selectedIndustry, selectedOrg])
 
   const savePermFields = async () => {
     if (!selectedScreenForPerms || !actionRoleId || !selectedIndustry) return

@@ -253,8 +253,9 @@ exports.fetchById = async ({ id, authedUser }) => {
  */
 exports.create = async ({ payload, authedUser }) => {
   const isSuperAdmin = authedUser?.role === 'superAdmin';
-  if (isSuperAdmin) {
-    const e = new Error('Forbidden: Super Admin cannot create users. Only Organization Admin can add users.');
+  const roleToCreate = String(payload.role || 'sales');
+  if (isSuperAdmin && roleToCreate !== 'admin') {
+    const e = new Error('Forbidden: Super Admin cannot create standard users. Only Organization Admin can add users.');
     e.status = 403;
     throw e;
   }
@@ -289,6 +290,8 @@ exports.create = async ({ payload, authedUser }) => {
   }
   if (authedUser?.role !== 'superAdmin' && authedUser?.organizationId) {
     payloadFields.organizationId = authedUser.organizationId;
+  } else if (payload.organizationId) {
+    payloadFields.organizationId = payload.organizationId;
   }
 
   const cleanedFields = pickAllowedFields(payloadFields, allowed);
@@ -318,9 +321,9 @@ exports.create = async ({ payload, authedUser }) => {
   if (!role) { const e = new Error('role is required'); e.status = 400; throw e; }
   if (!industryId) { const e = new Error('industryId is required'); e.status = 400; throw e; }
 
-  const targetOrgId = authedUser?.organizationId || '';
+  const targetOrgId = authedUser?.organizationId || payload.organizationId || '';
 
-  if (targetOrgId) {
+  if (targetOrgId && role !== 'admin') {
     const Team = mongoose.model('Team');
     const Branch = mongoose.model('Branch');
     const Designation = mongoose.model('Designation');
@@ -418,7 +421,7 @@ exports.create = async ({ payload, authedUser }) => {
     password,
     role,
     industryId,
-    organizationId: authedUser?.organizationId || '',
+    organizationId: authedUser?.organizationId || payload.organizationId || '',
     organizationName: authedUser?.organizationName || '',
     isActive: payload.isActive !== false,
     status: payload.isActive !== false ? 'ACTIVE' : 'INACTIVE',

@@ -24,6 +24,7 @@ export interface CreateUserInput {
   lastName?: string
   role: string
   industryId?: string
+  organizationId?: string
   isActive?: boolean
   reportingTo?: string
   fields?: Record<string, unknown>
@@ -71,10 +72,15 @@ async function safeList(path: string): Promise<AdminUser[]> {
   return (res.data?.items ?? []) as AdminUser[]
 }
 
-export async function listUsers(industryId?: string, includeAdmin?: boolean): Promise<AdminUser[]> {
+export async function listUsers(
+  industryId?: string,
+  includeAdmin?: boolean,
+  organizationId?: string,
+): Promise<AdminUser[]> {
   const params = new URLSearchParams()
   if (industryId) params.set('industryId', industryId)
   if (includeAdmin) params.set('includeAdmin', 'true')
+  if (organizationId) params.set('organizationId', organizationId)
   const qs = params.toString()
   return safeList(`users${qs ? `?${qs}` : ''}`)
 }

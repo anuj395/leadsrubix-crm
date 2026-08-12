@@ -42,12 +42,58 @@ exports.list = async ({ roleId, industryId, menuId, menu_id, visibleOnly = false
   if (industryId) q.industry_id = industryId;
   if (mId) q.menu_id = mId;
   if (visibleOnly) q.is_visible = true;
+  let rawPerms = [];
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
-    q.$or = [{ organization_id: orgId }, { organization_id: null }];
+    const orgQuery = { ...q, organization_id: orgId };
+    const orgCount = await SidebarPermission.countDocuments(orgQuery);
+    if (orgCount > 0) {
+      rawPerms = await SidebarPermission.find(orgQuery).exec();
+    } else {
+      q.organization_id = null;
+      rawPerms = await SidebarPermission.find(q).exec();
+    }
   } else {
     q.organization_id = null;
+    rawPerms = await SidebarPermission.find(q).exec();
   }
-  return SidebarPermission.find(q).exec();
+
+  if (orgId && rawPerms.length > 0) {
+    const mongoose = require('mongoose');
+    const SidebarMenu = mongoose.model('SidebarMenu');
+    const allOrgMenus = await SidebarMenu.find({
+      $or: [
+        { organization_id: orgId },
+        { organization_id: null }
+      ]
+    }).lean().exec();
+
+    const keyToClonedId = new Map();
+    const globalIdToKey = new Map();
+
+    for (const m of allOrgMenus) {
+      if (m.organization_id === orgId || m.organizationId === orgId) {
+        keyToClonedId.set(m.key, String(m._id));
+      } else {
+        globalIdToKey.set(String(m._id), m.key);
+      }
+    }
+
+    rawPerms = rawPerms.map(p => {
+      const o = p.toObject ? p.toObject() : p;
+      const menuIdStr = String(o.menu_id || o.menuId);
+      let targetKey = globalIdToKey.get(menuIdStr);
+      if (!targetKey) {
+        const mObj = allOrgMenus.find(m => String(m._id) === menuIdStr);
+        if (mObj) targetKey = mObj.key;
+      }
+      if (targetKey && keyToClonedId.has(targetKey)) {
+        o.menu_id = new mongoose.Types.ObjectId(keyToClonedId.get(targetKey));
+        o.menuId = o.menu_id;
+      }
+      return o;
+    });
+  }
+  return rawPerms;
 };
 
 exports.findById = async (id) => SidebarPermission.findById(id).exec();
@@ -94,14 +140,64 @@ exports.removeByMenu = async (menuId) =>
 exports.bulkSetForRoleIndustry = async ({ roleId, industryId, menuIds, menu_ids, organizationId, organization_id }) => {
   const ids = Array.isArray(menuIds || menu_ids) ? (menuIds || menu_ids) : [];
   const orgId = organizationId !== undefined ? organizationId : (organization_id !== undefined ? organization_id : null);
-  await SidebarPermission.deleteMany({
-    role_id: roleId,
-    industry_id: industryId,
-    organization_id: orgId,
-    menu_id: { $nin: ids },
-  });
-  if (ids.length) {
-    const ops = ids.map((menuId) => ({
+
+  const mongoose = require('mongoose');
+  const SidebarMenu = mongoose.model('SidebarMenu');
+
+  // 1. Fetch all checked menus to find their keys
+  const checkedMenus = await SidebarMenu.find({
+    _id: { $in: ids }
+  }).lean().exec();
+  const checkedKeys = new Set(checkedMenus.map(m => m.key));
+
+  // 2. Fetch all menus matching orgId or null
+  const allMenus = await SidebarMenu.find({
+    $or: [
+      { organization_id: orgId },
+      { organization_id: null }
+    ]
+  }).lean().exec();
+
+  // 3. Separate menu IDs into checked (to enable) and unchecked (to delete)
+  const checkedMenuIds = [];
+  const uncheckedMenuIds = [];
+
+  for (const m of allMenus) {
+    if (checkedKeys.has(m.key)) {
+      if (orgId) {
+        if (m.organization_id === orgId || m.organizationId === orgId) {
+          checkedMenuIds.push(m._id);
+        } else {
+          const hasClone = allMenus.some(c => c.key === m.key && (c.organization_id === orgId || c.organizationId === orgId));
+          if (!hasClone) {
+            checkedMenuIds.push(m._id);
+          } else {
+            uncheckedMenuIds.push(m._id);
+          }
+        }
+      } else {
+        if (!m.organization_id && !m.organizationId) {
+          checkedMenuIds.push(m._id);
+        }
+      }
+    } else {
+      uncheckedMenuIds.push(m._id);
+    }
+  }
+
+  // 4. Delete any permissions for unchecked menus (both cloned and global IDs)
+  if (uncheckedMenuIds.length > 0) {
+    await SidebarPermission.deleteMany({
+      role_id: roleId,
+      industry_id: industryId,
+      organization_id: orgId,
+      menu_id: { $in: uncheckedMenuIds }
+    });
+  }
+
+  // 5. Upsert checked menu permissions
+  if (checkedMenuIds.length > 0) {
+    const ops = checkedMenuIds.map((menuId) => ({
       updateOne: {
         filter: { role_id: roleId, industry_id: industryId, menu_id: menuId, organization_id: orgId },
         update: {
@@ -113,5 +209,6 @@ exports.bulkSetForRoleIndustry = async ({ roleId, industryId, menuIds, menu_ids,
     }));
     await SidebarPermission.bulkWrite(ops, { ordered: false });
   }
+
   return SidebarPermission.find({ role_id: roleId, industry_id: industryId, organization_id: orgId }).exec();
 };

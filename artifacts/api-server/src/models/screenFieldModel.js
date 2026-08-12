@@ -52,11 +52,66 @@ exports.ScreenField = ScreenField;
 exports.FIELD_TYPES = FIELD_TYPES;
 exports.DROPDOWN_SOURCES = DROPDOWN_SOURCES;
 
-exports.list = async ({ screenId, activeOnly = false } = {}) => {
+exports.list = async ({ screenId, activeOnly = false, organizationId, organization_id } = {}) => {
   const q = {};
   if (screenId) q.screen_id = screenId;
   if (activeOnly) q.is_active = true;
-  return ScreenField.find(q).sort({ order: 1, label: 1 }).exec();
+
+  const orgId = organizationId !== undefined ? organizationId : organization_id;
+  if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
+    q.$or = [{ organization_id: orgId }, { organization_id: null }, { organization_id: { $exists: false } }];
+  } else {
+    q.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
+  }
+
+  const rawList = await ScreenField.find(q).sort({ order: 1, label: 1 }).exec();
+
+  function shapePublic(doc) {
+    if (!doc) return null;
+    const o = doc.toObject ? doc.toObject() : { ...doc };
+    return {
+      ...o,
+      _id: String(o._id),
+      id: String(o._id),
+      fieldKey: o.fieldKey || o.field_key,
+      field_key: o.fieldKey || o.field_key,
+      label: o.label,
+      type: o.type,
+      options: o.options || [],
+      dropdownSource: o.dropdownSource || o.dropdown_source || 'none',
+      dropdown_source: o.dropdownSource || o.dropdown_source || 'none',
+      dropdownApi: o.dropdownApi || o.dropdown_api || '',
+      dropdown_api: o.dropdownApi || o.dropdown_api || '',
+      isTableVisible: o.isTableVisible !== false && o.is_table_visible !== false,
+      is_table_visible: o.isTableVisible !== false && o.is_table_visible !== false,
+      isFormVisible: o.isFormVisible !== false && o.is_form_visible !== false,
+      is_form_visible: o.isFormVisible !== false && o.is_form_visible !== false,
+      isRequired: !!(o.isRequired || o.is_required),
+      is_required: !!(o.isRequired || o.is_required),
+      sortable: o.sortable !== false,
+      order: typeof o.order === 'number' ? o.order : 0,
+      isActive: o.isActive !== false && o.is_active !== false,
+      is_active: o.isActive !== false && o.is_active !== false,
+      defaultValue: o.defaultValue !== undefined ? o.defaultValue : (o.default_value !== undefined ? o.default_value : null),
+      default_value: o.defaultValue !== undefined ? o.defaultValue : (o.default_value !== undefined ? o.default_value : null),
+      organizationId: o.organizationId || o.organization_id || null,
+      organization_id: o.organizationId || o.organization_id || null,
+    };
+  }
+
+  const fieldMap = new Map();
+  for (const f of rawList) {
+    const key = f.field_key;
+    const shaped = shapePublic(f);
+    const existing = fieldMap.get(key);
+    if (!existing) {
+      fieldMap.set(key, shaped);
+    } else if (orgId && (f.organization_id === orgId || f.organizationId === orgId)) {
+      fieldMap.set(key, shaped);
+    }
+  }
+
+  return Array.from(fieldMap.values());
 };
 
 exports.findById = async (id) => ScreenField.findById(id).exec();

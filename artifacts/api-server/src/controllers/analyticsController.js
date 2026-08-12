@@ -140,6 +140,25 @@ exports.createConfig = async (req, res, next) => {
       }
     }
 
+    const targetOrgId = req.user.role === 'superAdmin'
+      ? (payload.organization_id || payload.organizationId || null)
+      : (req.user.organizationId || req.user.organization_id || null);
+
+    const existingConfig = await AnalyticsConfig.findOne({
+      organization_id: targetOrgId,
+      industry_id: payload.industry_id,
+      dashboard_key: payload.dashboard_key || 'default'
+    }).exec();
+
+    if (existingConfig) {
+      const updated = await AnalyticsConfig.findByIdAndUpdate(
+        existingConfig._id,
+        { $set: payload },
+        { new: true }
+      ).lean().exec();
+      return res.json(updated);
+    }
+
     const doc = await AnalyticsConfig.create(payload);
     res.status(201).json(doc);
   } catch (err) {
@@ -152,6 +171,14 @@ exports.updateConfig = async (req, res, next) => {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
     const existing = await AnalyticsConfig.findById(req.params.id).lean().exec();
     if (!existing) return res.status(404).json({ message: 'Config not found' });
+
+    const targetOrgId = req.user.role === 'superAdmin'
+      ? (req.body?.organization_id || req.body?.organizationId || null)
+      : (req.user.organizationId || req.user.organization_id || null);
+
+    if (!existing.organization_id && !targetOrgId) {
+      return res.status(403).json({ message: 'Forbidden: Only Super Admins can manage template configurations' });
+    }
 
     if (req.user.role !== 'superAdmin') {
       const userOrgId = req.user.organizationId || req.user.organization_id;
@@ -166,6 +193,31 @@ exports.updateConfig = async (req, res, next) => {
         delete req.body.organizationId;
         delete req.body.workspaceId;
       }
+    }
+
+    if (targetOrgId && (!existing.organization_id || existing.organization_id !== targetOrgId)) {
+      const query = {
+        organization_id: targetOrgId,
+        industry_id: existing.industry_id,
+        dashboard_key: existing.dashboard_key
+      };
+      
+      const updateData = {
+        ...req.body,
+        organization_id: targetOrgId,
+        workspace_id: req.user.role === 'superAdmin' ? (req.body?.workspace_id || req.body?.workspaceId || 'ws_' + targetOrgId) : (req.user.workspaceId || req.user.workspace_id || 'ws_' + targetOrgId),
+        industry_id: existing.industry_id,
+        dashboard_key: existing.dashboard_key
+      };
+      delete updateData._id;
+      delete updateData.id;
+
+      const doc = await AnalyticsConfig.findOneAndUpdate(
+        query,
+        { $set: updateData },
+        { upsert: true, new: true }
+      ).lean().exec();
+      return res.json(doc);
     }
 
     if (req.body && req.body.industry_id) {
@@ -191,6 +243,10 @@ exports.deleteConfig = async (req, res, next) => {
     const AnalyticsConfig = mongoose.model('AnalyticsConfig');
     const existing = await AnalyticsConfig.findById(req.params.id).lean().exec();
     if (!existing) return res.status(404).json({ message: 'Config not found' });
+
+    if (!existing.organization_id && req.user.role !== 'superAdmin') {
+      return res.status(403).json({ message: 'Forbidden: Only Super Admins can manage template configurations' });
+    }
 
     if (req.user.role !== 'superAdmin') {
       const userOrgId = req.user.organizationId || req.user.organization_id;

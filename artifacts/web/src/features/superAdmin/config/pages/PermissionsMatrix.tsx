@@ -57,17 +57,23 @@ export default function PermissionsMatrixPage() {
     sev: 'success',
   })
 
-  // Load master menu catalog once.
+  // Reload menus whenever organization or industry changes.
   useEffect(() => {
+    let cancelled = false
     void (async () => {
       try {
-        const allMenus = await getMenus()
+        const allMenus = await getMenus(orgId || undefined, industryId || undefined)
+        if (cancelled) return
         setMenus(allMenus)
       } catch (e: any) {
+        if (cancelled) return
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load menus', sev: 'error' })
       }
     })()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [orgId, industryId])
 
   // Reload roles whenever industry or organization changes.
   useEffect(() => {

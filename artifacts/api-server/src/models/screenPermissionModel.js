@@ -42,15 +42,85 @@ exports.list = async ({ screenId, roleId, industryId, fieldId, enabledOnly = fal
   if (fieldId) q.field_id = fieldId;
   if (enabledOnly) q.is_enabled = true;
   const orgId = organizationId !== undefined ? organizationId : organization_id;
+  
+  let rawPerms = [];
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
     const orgQuery = { ...q, organization_id: orgId };
     const orgCount = await ScreenPermission.countDocuments(orgQuery);
     if (orgCount > 0) {
-      return ScreenPermission.find(orgQuery).exec();
+      rawPerms = await ScreenPermission.find(orgQuery).exec();
+    } else {
+      q.organization_id = null;
+      rawPerms = await ScreenPermission.find(q).exec();
     }
+  } else {
+    q.organization_id = null;
+    rawPerms = await ScreenPermission.find(q).exec();
   }
-  q.organization_id = null;
-  return ScreenPermission.find(q).exec();
+
+  if (orgId && rawPerms.length > 0) {
+    const mongoose = require('mongoose');
+    const Screen = mongoose.model('Screen');
+    const ScreenField = mongoose.model('ScreenField');
+
+    const screens = await Screen.find({
+      $or: [{ organization_id: orgId }, { organization_id: null }]
+    }).lean().exec();
+
+    const fields = await ScreenField.find({
+      $or: [{ organization_id: orgId }, { organization_id: null }]
+    }).lean().exec();
+
+    const screenKeyToClonedId = new Map();
+    const globalScreenIdToKey = new Map();
+    for (const s of screens) {
+      if (s.organization_id === orgId || s.organizationId === orgId) {
+        screenKeyToClonedId.set(s.key, String(s._id));
+      } else {
+        globalScreenIdToKey.set(String(s._id), s.key);
+      }
+    }
+
+    const fieldKeyToClonedId = new Map();
+    const globalFieldIdToKey = new Map();
+    for (const f of fields) {
+      if (f.organization_id === orgId || f.organizationId === orgId) {
+        fieldKeyToClonedId.set(f.field_key, String(f._id));
+      } else {
+        globalFieldIdToKey.set(String(f._id), f.field_key);
+      }
+    }
+
+    rawPerms = rawPerms.map(p => {
+      const o = p.toObject ? p.toObject() : p;
+      
+      const sIdStr = String(o.screen_id || o.screenId);
+      let screenKey = globalScreenIdToKey.get(sIdStr);
+      if (!screenKey) {
+        const sObj = screens.find(s => String(s._id) === sIdStr);
+        if (sObj) screenKey = sObj.key;
+      }
+      if (screenKey && screenKeyToClonedId.has(screenKey)) {
+        o.screen_id = new mongoose.Types.ObjectId(screenKeyToClonedId.get(screenKey));
+        o.screenId = o.screen_id;
+      }
+
+      const fIdStr = String(o.field_id || o.fieldId);
+      let fieldKey = globalFieldIdToKey.get(fIdStr);
+      if (!fieldKey) {
+        const fObj = fields.find(f => String(f._id) === fIdStr);
+        if (fObj) fieldKey = fObj.field_key;
+      }
+      if (fieldKey && fieldKeyToClonedId.has(fieldKey)) {
+        o.field_id = new mongoose.Types.ObjectId(fieldKeyToClonedId.get(fieldKey));
+        o.fieldId = o.field_id;
+      }
+
+      return o;
+    });
+  }
+
+  return rawPerms;
 };
 
 exports.findById = async (id) => ScreenPermission.findById(id).exec();

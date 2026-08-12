@@ -30,6 +30,8 @@ import { InputField } from '@/components/forms/InputField'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 import {
   listUsers,
   createUser,
@@ -65,8 +67,14 @@ export default function AdminRolesPage() {
   const authedUser = useAppSelector((s) => s.auth.user)
   const isSuperAdmin = authedUser?.role === 'superAdmin'
 
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [filterIndustry, setFilterIndustry] = useState<string>('')
+  const {
+    industries,
+    selectedIndustry: filterIndustry,
+    setSelectedIndustry: setFilterIndustry,
+    filteredOrgs,
+    selectedOrg: orgId,
+    setSelectedOrg: setOrgId,
+  } = useSuperAdminScope(isSuperAdmin)
 
   const [items, setItems] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(false)
@@ -93,16 +101,12 @@ export default function AdminRolesPage() {
     let cancelled = false
     void (async () => {
       try {
-        const [inds, scr] = await Promise.all([getIndustries(), getScreens()])
+        const scr = await getScreens()
         if (cancelled) return
-        setIndustries(inds)
         setScreens(scr.filter((s) => s.isActive))
-        const realEstate = inds.find((i) => i.code === 'temp0001')
-        const defaultCode = realEstate ? realEstate.code : (inds[0]?.code ?? '')
-        setFilterIndustry((cur) => cur || defaultCode)
       } catch (e) {
         const err = e as { response?: { data?: { message?: string } } }
-        showToast(err?.response?.data?.message ?? 'Failed to load reference data', 'error')
+        showToast(err?.response?.data?.message ?? 'Failed to load screens', 'error')
       }
     })()
     return () => { cancelled = true }
@@ -113,10 +117,10 @@ export default function AdminRolesPage() {
     setAdminRole(null)
     void (async () => {
       if (!filterIndustry) return
-      const ind = industries.find((i) => i.code === filterIndustry)
+      const ind = industries.find((i) => i.code === filterIndustry || i._id === filterIndustry)
       if (!ind) return
       try {
-        const roles = await getRoles(ind._id)
+        const roles = await getRoles(ind._id, orgId || undefined)
         if (cancelled) return
         setAdminRole(roles.find((r) => r.key === 'admin') ?? null)
       } catch {
@@ -124,13 +128,13 @@ export default function AdminRolesPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [filterIndustry, industries])
+  }, [filterIndustry, industries, orgId])
 
   const refreshUsers = async () => {
     if (!filterIndustry) { setItems([]); return }
     setLoading(true)
     try {
-      const list = await listUsers(filterIndustry)
+      const list = await listUsers(filterIndustry, undefined, orgId || undefined)
       setItems(list.filter((u) => u.role === 'admin'))
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } }
@@ -140,7 +144,7 @@ export default function AdminRolesPage() {
     }
   }
   useEffect(() => { void refreshUsers() // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterIndustry])
+  }, [filterIndustry, orgId])
 
   const refreshModuleAccess = async () => {
     if (!adminRole || !filterIndustry || screens.length === 0) {
@@ -151,7 +155,10 @@ export default function AdminRolesPage() {
     setPermsLoading(true)
     try {
       const perms = await getScreenPermissions({
-        roleId: adminRole._id, industryId: ind._id, enabledOnly: true,
+        roleId: adminRole._id,
+        industryId: ind._id,
+        enabledOnly: true,
+        organizationId: adminRole.organizationId || adminRole.organization_id || undefined,
       })
       const byScreen: Record<string, boolean> = {}
       for (const s of screens) byScreen[s._id] = false
@@ -176,11 +183,13 @@ export default function AdminRolesPage() {
     if (!adminRole || !currentIndustry) return
     setModuleSaving((m) => ({ ...m, [screen._id]: true }))
     try {
-      const fields: ScreenField[] = next ? await getScreenFields(screen._id) : []
+      const orgId = adminRole.organizationId || adminRole.organization_id || undefined
+      const fields: ScreenField[] = next ? await getScreenFields(screen._id, orgId) : []
       const fieldIds = fields.filter((f) => f.isActive).map((f) => f._id)
       await bulkSetScreenPermissions({
         screenId: screen._id, roleId: adminRole._id,
         industryId: currentIndustry._id, fieldIds: next ? fieldIds : [],
+        organizationId: orgId,
       })
       setModuleAccess((m) => ({ ...m, [screen._id]: next }))
       showToast(`${screen.name}: ${next ? 'enabled' : 'disabled'} for admins`)
@@ -216,10 +225,12 @@ export default function AdminRolesPage() {
         })
         showToast('Admin updated')
       } else {
+        if (!orgId) { setFormError('Pick an organization first'); return }
         await createUser({
           name: core.name.trim(), email: core.email.trim().toLowerCase(),
           password: core.password, role: 'admin',
           industryId: filterIndustry, isActive: core.isActive,
+          organizationId: orgId || undefined,
         })
         showToast('Admin created')
       }
@@ -304,20 +315,21 @@ export default function AdminRolesPage() {
         title="Admin Roles"
         subtitle="Manage the admins who run each organization, and which modules they can access."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} disabled={!filterIndustry}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} disabled={!filterIndustry || !orgId}>
             Add Admin
           </Button>
         }
       >
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5 }}>
-          <TextField select size="small" label="Organization (Industry)"
-            value={filterIndustry} onChange={(e) => setFilterIndustry(e.target.value)}
-            sx={{ minWidth: 280 }}
-          >
-            {industries.map((i) => (
-              <MenuItem key={i._id} value={i.code}>{i.name} ({i.code})</MenuItem>
-            ))}
-          </TextField>
+          <SuperAdminScopeSelector
+            isSuperAdmin={true}
+            industries={industries}
+            selectedIndustry={filterIndustry}
+            setSelectedIndustry={setFilterIndustry}
+            filteredOrgs={filteredOrgs}
+            selectedOrg={orgId}
+            setSelectedOrg={setOrgId}
+          />
         </Stack>
 
         <AppDataGrid onReload={refreshUsers}

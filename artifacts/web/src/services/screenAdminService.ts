@@ -152,8 +152,11 @@ export async function deleteScreen(id: string): Promise<void> {
 }
 
 // ── Fields CRUD ──────────────────────────────────────────────────────────────
-export async function getScreenFields(screenId?: string): Promise<ScreenField[]> {
-  const qs = screenId ? `?screenId=${encodeURIComponent(screenId)}` : ''
+export async function getScreenFields(screenId?: string, organizationId?: string): Promise<ScreenField[]> {
+  const parts: string[] = []
+  if (screenId) parts.push(`screenId=${encodeURIComponent(screenId)}`)
+  if (organizationId) parts.push(`organizationId=${encodeURIComponent(organizationId)}`)
+  const qs = parts.length ? `?${parts.join('&')}` : ''
   return safeList<ScreenField>(`screen-fields${qs}`)
 }
 export async function createScreenField(data: ScreenFieldInput): Promise<ScreenField> {

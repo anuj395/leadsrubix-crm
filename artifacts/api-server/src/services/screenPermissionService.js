@@ -14,8 +14,10 @@ exports.list = async (opts) => {
   }
   const items = await permissionModel.list(opts);
   const q = { activeOnly: true };
-  if (opts && opts.screenId) {
-    q.screenId = opts.screenId;
+  if (opts) {
+    if (opts.screenId) q.screenId = opts.screenId;
+    if (opts.organizationId) q.organizationId = opts.organizationId;
+    if (opts.organization_id) q.organization_id = opts.organization_id;
   }
   const fields = await fieldModel.list(q);
   const validFieldIds = new Set(fields.map((f) => String(f._id)));
@@ -118,7 +120,7 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationI
 
   // Verify every requested field belongs to this screen.
   if (fieldIds.length > 0) {
-    const fields = await fieldModel.list({ screenId });
+    const fields = await fieldModel.list({ screenId, organizationId: orgId });
     const validIds = new Set(fields.map((f) => String(f._id)));
     const invalid = fieldIds.filter((id) => !validIds.has(String(id)));
     if (invalid.length > 0) {
@@ -164,13 +166,22 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   }
 
   const mongoose = require('mongoose');
-  const orgId = organizationId || authedUser?.organizationId || null;
+  const orgId = organizationId || authedUser?.organizationId || authedUser?.organization_id || null;
 
   const ScreenModel = mongoose.model('Screen');
-  let screen = await ScreenModel.findOne({
-    key: finalScreenKey,
-    $or: [{ organization_id: orgId }, { organization_id: null }]
-  }).sort({ organization_id: -1 }).exec();
+  let screen = null;
+  if (orgId) {
+    screen = await ScreenModel.findOne({
+      key: finalScreenKey,
+      organization_id: orgId
+    }).exec();
+  }
+  if (!screen) {
+    screen = await ScreenModel.findOne({
+      key: finalScreenKey,
+      organization_id: null
+    }).exec();
+  }
 
   if (!screen || !screen.is_active) {
     const err = new Error('Screen not found');
@@ -224,11 +235,20 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   let role = null;
   if (!bypassPermissions) {
     const RoleModel = mongoose.model('Role');
-    role = await RoleModel.findOne({
-      $or: [{ organization_id: orgId }, { organization_id: null }],
-      industry_id: industry._id,
-      key: resolvedRoleKey
-    }).sort({ organization_id: -1 }).exec();
+    if (orgId) {
+      role = await RoleModel.findOne({
+        organization_id: orgId,
+        industry_id: industry._id,
+        key: resolvedRoleKey
+      }).exec();
+    }
+    if (!role) {
+      role = await RoleModel.findOne({
+        organization_id: null,
+        industry_id: industry._id,
+        key: resolvedRoleKey
+      }).exec();
+    }
 
     if (!role && resolvedRoleKey === 'superAdmin') {
       try {

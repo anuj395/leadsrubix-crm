@@ -2,9 +2,14 @@ const service = require('../services/screenFieldService');
 
 exports.list = async (req, res, next) => {
   try {
+    const orgId = req.user?.role === 'superAdmin'
+      ? req.query.organizationId
+      : (req.user?.organizationId || null);
+
     const items = await service.list({
       screenId: req.query.screenId,
       activeOnly: req.query.active === 'true',
+      organizationId: orgId,
     });
     res.json({ items });
   } catch (err) {

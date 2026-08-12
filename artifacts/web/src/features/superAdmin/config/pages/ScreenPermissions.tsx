@@ -68,18 +68,25 @@ export default function ScreenPermissionsPage() {
   }, [screens, screenId])
   const isUsersScreen = selectedScreenKey === 'users'
 
-  // Load screens once.
+  // Reload screens whenever orgId changes.
   useEffect(() => {
+    let cancelled = false
     void (async () => {
       try {
-        const scrs = await getScreens()
+        const scrs = await getScreens(orgId || undefined)
+        if (cancelled) return
         setScreens(scrs)
         if (scrs[0]) setScreenId(scrs[0]._id)
+        else setScreenId('')
       } catch (e: any) {
+        if (cancelled) return
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
       }
     })()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [orgId])
 
   // Roles for selected industry and organization (race-safe).
   useEffect(() => {
@@ -112,7 +119,7 @@ export default function ScreenPermissionsPage() {
     let cancelled = false
     void (async () => {
       try {
-        const list = await getScreenFields(screenId)
+        const list = await getScreenFields(screenId, orgId || undefined)
         if (!cancelled) setFields(list)
       } catch (e: any) {
         if (!cancelled) {
@@ -123,7 +130,7 @@ export default function ScreenPermissionsPage() {
     return () => {
       cancelled = true
     }
-  }, [screenId])
+  }, [screenId, orgId])
 
   // Existing permission set for the (screen, role, industry, organization) quadruple (race-safe).
   useEffect(() => {

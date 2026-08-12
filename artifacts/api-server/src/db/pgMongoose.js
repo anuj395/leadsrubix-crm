@@ -156,9 +156,27 @@ function compileQuery(query, params = []) {
           }
         } else if (op === '$in') {
           if (Array.isArray(opVal) && opVal.length > 0) {
-            const list = opVal.map(x => String(x));
-            params.push(list);
-            parts.push(isId ? `_id = ANY($${params.length})` : `data->>'${key}' = ANY($${params.length})`);
+            const hasNull = opVal.includes(null) || opVal.includes(undefined);
+            const nonNulls = opVal.filter(x => x !== null && x !== undefined);
+
+            const subParts = [];
+            if (nonNulls.length > 0) {
+              const list = nonNulls.map(x => String(x));
+              params.push(list);
+              subParts.push(isId ? `_id = ANY($${params.length})` : `data->>'${key}' = ANY($${params.length})`);
+            }
+            if (hasNull) {
+              if (isId) {
+                subParts.push(`_id IS NULL`);
+              } else {
+                subParts.push(`data->>'${key}' IS NULL OR NOT (data ? '${key}')`);
+              }
+            }
+            if (subParts.length > 0) {
+              parts.push(`(${subParts.join(' OR ')})`);
+            } else {
+              parts.push('1=0');
+            }
           } else {
             parts.push('1=0');
           }
@@ -411,20 +429,24 @@ function wrapArrayField(arr, subSchema) {
 function setupGettersSetters(doc, schema) {
   if (!schema) return;
 
-  // Standard _id to id mapping
-  Object.defineProperty(doc, 'id', {
-    get() {
-      return this._id ? String(this._id) : undefined;
-    },
-    set(v) {
-      this._id = v;
-    },
-    enumerable: true,
-    configurable: true
-  });
+  const definition = schema.definition || schema;
+
+  // Standard _id to id mapping (only if "id" is not a defined schema field)
+  if (!definition.hasOwnProperty('id') && !definition.id) {
+    Object.defineProperty(doc, 'id', {
+      get() {
+        return this._id ? String(this._id) : undefined;
+      },
+      set(v) {
+        this._id = v;
+      },
+      enumerable: true,
+      configurable: true
+    });
+  }
 
   // Array fields wrapping
-  for (const [key, val] of Object.entries(schema.definition)) {
+  for (const [key, val] of Object.entries(definition)) {
     const isArray = Array.isArray(val) || val === Array || (val && val.type === Array);
     if (isArray) {
       const subSchema = (Array.isArray(val) && val[0] instanceof Schema) ? val[0] : (Array.isArray(val) ? val[0] : null);
@@ -445,7 +467,7 @@ function setupGettersSetters(doc, schema) {
   }
 
   // Aliases
-  for (const [key, val] of Object.entries(schema.definition)) {
+  for (const [key, val] of Object.entries(definition)) {
     if (val && typeof val === 'object' && val.alias) {
       const alias = val.alias;
       Object.defineProperty(doc, alias, {
@@ -461,7 +483,7 @@ function setupGettersSetters(doc, schema) {
     }
   }
   // Virtuals
-  for (const [name, virt] of Object.entries(schema.virtuals)) {
+  for (const [name, virt] of Object.entries(schema.virtuals || {})) {
     Object.defineProperty(doc, name, {
       get() {
         if (virt.get) return virt.get.call(this);

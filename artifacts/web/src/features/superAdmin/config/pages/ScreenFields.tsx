@@ -126,7 +126,7 @@ export default function ScreenFieldsPage() {
     setLoading(true)
     void (async () => {
       try {
-        const list = await getScreenFields(screenId)
+        const list = await getScreenFields(screenId, selectedOrg || undefined)
         if (!cancelled) setItems(list)
       } catch (e: any) {
         if (!cancelled) {
@@ -139,12 +139,12 @@ export default function ScreenFieldsPage() {
     return () => {
       cancelled = true
     }
-  }, [screenId])
+  }, [screenId, selectedOrg])
 
   const refresh = async () => {
     if (!screenId) return
     try {
-      setItems(await getScreenFields(screenId))
+      setItems(await getScreenFields(screenId, selectedOrg || undefined))
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to refresh', sev: 'error' })
     }
