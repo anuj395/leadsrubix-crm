@@ -33,6 +33,7 @@ ObjectId.isValid = function (val) {
 class Schema {
   constructor(definition = {}, options = {}) {
     this.definition = definition;
+    this.paths = definition;
     this.options = options;
     this.virtuals = {};
     this.preHooks = { save: [] };
@@ -95,11 +96,50 @@ function toQueryLike(execFn) {
   return obj;
 }
 
+function normalizeQueryFilter(filter, schema) {
+  if (!filter || typeof filter !== 'object' || !schema) {
+    return filter;
+  }
+  const definition = schema.tree || schema.definition || {};
+  const aliasMap = {};
+  for (const [k, v] of Object.entries(definition)) {
+    if (v && typeof v === 'object' && v.alias) {
+      aliasMap[v.alias] = k;
+    }
+  }
+
+  const result = {};
+  for (const [key, val] of Object.entries(filter)) {
+    let resolvedKey = key;
+    if (aliasMap[key]) {
+      resolvedKey = aliasMap[key];
+    }
+
+    if (key === '$or' && Array.isArray(val)) {
+      result[resolvedKey] = val.map(item => normalizeQueryFilter(item, schema));
+    } else if (key === '$and' && Array.isArray(val)) {
+      result[resolvedKey] = val.map(item => normalizeQueryFilter(item, schema));
+    } else if (val && typeof val === 'object' && !Array.isArray(val) && !(val instanceof RegExp) && !(val instanceof Date)) {
+      result[resolvedKey] = normalizeQueryFilter(val, schema);
+    } else {
+      result[resolvedKey] = val;
+    }
+  }
+  return result;
+}
+
 // Compile MongoDB query to SQL WHERE clause for PG JSONB
-function compileQuery(query, params = []) {
+function compileQuery(query, params = [], schema = null) {
+  const originalQuery = { ...query };
+  if (schema) {
+    query = normalizeQueryFilter(query, schema);
+  }
+
   if (!query || typeof query !== 'object' || Object.keys(query).length === 0) {
     return { where: '1=1', params };
   }
+
+  console.log('[pgMongoose debug] compileQuery normalized:', originalQuery, '->', query);
 
   const parts = [];
 
@@ -108,7 +148,7 @@ function compileQuery(query, params = []) {
       if (Array.isArray(val) && val.length > 0) {
         const subParts = [];
         for (const sub of val) {
-          const res = compileQuery(sub, params);
+          const res = compileQuery(sub, params, schema);
           subParts.push(`(${res.where})`);
         }
         parts.push(`(${subParts.join(' OR ')})`);
@@ -120,7 +160,7 @@ function compileQuery(query, params = []) {
       if (Array.isArray(val) && val.length > 0) {
         const subParts = [];
         for (const sub of val) {
-          const res = compileQuery(sub, params);
+          const res = compileQuery(sub, params, schema);
           subParts.push(`(${res.where})`);
         }
         parts.push(`(${subParts.join(' AND ')})`);
@@ -537,7 +577,7 @@ class QueryBuilder {
   }
   async exec() {
     const tableName = this.model.tableName;
-    const { where, params } = compileQuery(this.filter);
+    const { where, params } = compileQuery(this.filter, [], this.model.schema);
 
     let sql = `SELECT * FROM ${tableName} WHERE ${where}`;
 
@@ -795,6 +835,10 @@ function createModel(modelName, schema) {
       return true;
     }
 
+    markModified(path) {
+      // Dummy implementation for compatibility
+    }
+
     static async syncIndexes() {
       return [];
     }
@@ -814,7 +858,7 @@ function createModel(modelName, schema) {
 
     static countDocuments(query = {}) {
       return toQueryLike(async () => {
-        const { where, params } = compileQuery(query);
+        const { where, params } = compileQuery(query, [], this.schema);
         const res = await pool.query(`SELECT COUNT(*)::integer as count FROM ${tableName} WHERE ${where}`, params);
         return res.rows[0].count;
       });
@@ -857,7 +901,7 @@ function createModel(modelName, schema) {
 
     static deleteOne(query = {}) {
       return toQueryLike(async () => {
-        const { where, params } = compileQuery(query);
+        const { where, params } = compileQuery(query, [], this.schema);
         const res = await pool.query(`DELETE FROM ${tableName} WHERE _id IN (SELECT _id FROM ${tableName} WHERE ${where} LIMIT 1)`, params);
         return { deletedCount: res.rowCount };
       });
@@ -865,7 +909,7 @@ function createModel(modelName, schema) {
 
     static deleteMany(query = {}) {
       return toQueryLike(async () => {
-        const { where, params } = compileQuery(query);
+        const { where, params } = compileQuery(query, [], this.schema);
         const res = await pool.query(`DELETE FROM ${tableName} WHERE ${where}`, params);
         return { deletedCount: res.rowCount };
       });
@@ -902,7 +946,7 @@ function createModel(modelName, schema) {
 
     static findOneAndUpdate(query, updateQuery, options = {}) {
       return toQueryLike(async () => {
-        const { where, params } = compileQuery(query);
+        const { where, params } = compileQuery(query, [], this.schema);
         const selectSql = `SELECT * FROM ${tableName} WHERE ${where} LIMIT 1`;
         const res = await pool.query(selectSql, params);
 
@@ -950,7 +994,7 @@ function createModel(modelName, schema) {
 
     static updateOne(query, update, options = {}) {
       return toQueryLike(async () => {
-        const { where, params } = compileQuery(query);
+        const { where, params } = compileQuery(query, [], this.schema);
         const selectSql = `SELECT * FROM ${tableName} WHERE ${where} LIMIT 1`;
         const res = await pool.query(selectSql, params);
 
@@ -983,7 +1027,7 @@ function createModel(modelName, schema) {
 
     static updateMany(query, update, options = {}) {
       return toQueryLike(async () => {
-        const { where, params } = compileQuery(query);
+        const { where, params } = compileQuery(query, [], this.schema);
         const selectSql = `SELECT * FROM ${tableName} WHERE ${where}`;
         const res = await pool.query(selectSql, params);
 
@@ -1038,7 +1082,7 @@ function createModel(modelName, schema) {
       });
 
       if (matchStage) {
-        const { where, params } = compileQuery(matchStage.$match);
+        const { where, params } = compileQuery(matchStage.$match, [], this.schema);
         const res = await pool.query(`SELECT * FROM ${tableName} WHERE ${where}`, params);
         currentDocs = res.rows.map(row => ({ _id: row._id, ...row.data, createdAt: row.created_at, updatedAt: row.updated_at }));
       } else {

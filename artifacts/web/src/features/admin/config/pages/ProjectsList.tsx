@@ -94,8 +94,21 @@ export default function ProjectsListPage() {
   const columns = useMemo<GridColDef<Project>[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
-      if (header.key === 'organizationId' || header.key === 'organizationId') return null
+    const sNoCol: GridColDef<Project> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = items.findIndex((item) => item.id === row.id || (item as any)._id === (row as any)._id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
+    const baseCols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
+      if (header.key === 'organizationId' || header.key === 'organizationName') return null
 
       const col: GridColDef<Project> = {
         field: header.key as keyof Project,
@@ -121,6 +134,11 @@ export default function ProjectsListPage() {
       return col
     }).filter(Boolean) as GridColDef<Project>[]
 
+    const cols: GridColDef<Project>[] = [
+      sNoCol,
+      ...baseCols
+    ]
+
     cols.push({
       field: '__actions' as any,
       headerName: 'Actions',
@@ -144,7 +162,7 @@ export default function ProjectsListPage() {
     })
 
     return cols
-  }, [resolvedScreen, items])
+  }, [resolvedScreen, items, navigate])
 
   return (
     <Box

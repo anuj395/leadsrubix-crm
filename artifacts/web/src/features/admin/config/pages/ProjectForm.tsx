@@ -8,10 +8,12 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
+import { useAppSelector } from '@/store/hooks'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import type { Project } from './ProjectsList'
 
 export default function ProjectFormPage() {
+  const user = useAppSelector((s) => s.auth.user)
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
   const [loading, setLoading] = useState(false)
@@ -90,7 +92,7 @@ export default function ProjectFormPage() {
         <Box sx={{ mt: 2 }}>
           <DynamicForm
             screen="configProjects"
-            industry_code={undefined}
+            industry_code={user?.industryId}
             role_key="admin"
             initialValues={editingItem ? (editingItem as any) : {}}
             onCancel={() => navigate('/configuration/projects')}

@@ -66,7 +66,7 @@ export default function ApiListPage() {
 
       const [tokens, orgsData, resolved] = await Promise.all([
         getApiTokens({ industryId: activeIndustry, organizationId: activeOrg }),
-        listOrganizationsPaged({ page: 1, pageSize: 200 }),
+        listOrganizationsPaged({ page: 0, pageSize: 200 }),
         resolveScreen({ screenKey: 'configApi', industryCode: activeIndustry || 'temp0001' })
       ])
 
@@ -137,7 +137,7 @@ export default function ApiListPage() {
       filterable: false,
       disableColumnMenu: true,
       valueGetter: (_v, row) => {
-        const idx = filteredItems.findIndex((item) => item.id === row.id || item._id === row._id)
+        const idx = filteredItems.findIndex((item) => item.id === row.id)
         return idx !== -1 ? idx + 1 : ''
       }
     }
@@ -167,7 +167,7 @@ export default function ApiListPage() {
               return new Date(v as string).toLocaleString()
             }
             if (header.key === 'api_key' || header.key === 'apiKey') {
-              const val = p.row.api_key || (p.row as any).apiKey || ''
+              const val = p.row.apiKey || ''
               return (
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <code style={{ fontSize: '0.85rem' }}>{val}</code>
@@ -198,12 +198,12 @@ export default function ApiListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id || p.row._id}/edit?industry=${selectedIndustry}`)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit?industry=${selectedIndustry}&organization=${selectedOrg}`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id || p.row._id || '')}>
+            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id || '')}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -212,7 +212,7 @@ export default function ApiListPage() {
     })
 
     return cols
-  }, [resolvedScreen, filteredItems, navigate, selectedIndustry])
+  }, [resolvedScreen, filteredItems, navigate, selectedIndustry, selectedOrg])
 
   return (
     <Box
@@ -230,7 +230,7 @@ export default function ApiListPage() {
         title="API Integration Credentials"
         subtitle="Manage secure API connection credentials, country codes, and incoming webhook triggers."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/configuration/api/new?industry=${selectedIndustry}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/configuration/api/new?industry=${selectedIndustry}&organization=${selectedOrg}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Add API
           </Button>
         }

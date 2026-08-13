@@ -45,7 +45,7 @@ const OrganizationResources = mongoose.model('OrganizationResources', organizati
 
 exports.ResourceItem = OrganizationResources;
 
-exports.list = async ({ organizationId, industryId, resource_key, all = false } = {}) => {
+exports.list = async ({ organizationId, industryId, workspaceId, resource_key, all = false } = {}) => {
   if ((resource_key === 'resource_projects' || resource_key === 'resourceProjects') && all) {
     const docs = await OrganizationResources.find({}).exec();
     const allProjects = [];
@@ -106,7 +106,12 @@ exports.list = async ({ organizationId, industryId, resource_key, all = false } 
   }
   if (!doc) return [];
   const fieldName = getFieldName(resource_key);
-  const items = doc[fieldName] || [];
+  let items = doc[fieldName] || [];
+
+  if (workspaceId) {
+    items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
+  }
+
   // Sort by createdAt descending (matching old behavior)
   return [...items].sort((a, b) => {
     const da = a.createdAt ? new Date(a.createdAt) : new Date(0);

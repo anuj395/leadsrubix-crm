@@ -101,7 +101,20 @@ export default function ApiListPage() {
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
     if (!resolvedScreen) return []
 
-    const cols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
+    const sNoCol: GridColDef<ApiTokenConfig> = {
+      field: 'sNo',
+      headerName: 'S. No.',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      valueGetter: (_v, row) => {
+        const idx = items.findIndex((item) => item.id === row.id)
+        return idx !== -1 ? idx + 1 : ''
+      }
+    }
+
+    const baseCols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
       .filter((h) => h.key !== 'organizationId' && h.key !== 'organizationName')
       .map((header) => {
         const col: GridColDef<ApiTokenConfig> = {
@@ -132,17 +145,17 @@ export default function ApiListPage() {
         col.width = 180
         col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
       } else if (header.key === 'api_key' || header.key === 'apiKey') {
-        col.field = 'api_key' as any
+        col.field = 'apiKey' as any
         col.flex = 1.2
         col.minWidth = 200
         col.renderCell = (p) => {
-          const val = p.row.api_key || (p.row as any).apiKey || ''
+          const val = p.row.apiKey || ''
           return (
             <Stack direction="row" alignItems="center" spacing={1}>
               <code style={{ fontSize: '0.85rem' }}>{val}</code>
               <IconButton size="small" onClick={() => handleCopy(val)}>
                 <ContentCopyIcon fontSize="inherit" />
-              </IconButton>
+               </IconButton>
             </Stack>
           )
         }
@@ -150,6 +163,11 @@ export default function ApiListPage() {
 
       return col
     })
+
+    const cols: GridColDef<ApiTokenConfig>[] = [
+      sNoCol,
+      ...baseCols
+    ]
 
     cols.push({
       field: '__actions' as any,
@@ -174,7 +192,7 @@ export default function ApiListPage() {
     })
 
     return cols
-  }, [resolvedScreen, items, leadSources])
+  }, [resolvedScreen, items, navigate])
 
   return (
     <Box

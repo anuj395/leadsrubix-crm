@@ -249,9 +249,14 @@ router.get('/:key', (req, res, next) => {
         }
       }
 
+      const workspaceId = req.user.role === 'superAdmin'
+        ? (req.query.workspaceId || null)
+        : (req.user.workspaceId || req.user.workspace_id || null);
+
       const list = await resourceItemModel.list({
         organizationId: orgId,
         industryId: resolvedIndustryId,
+        workspaceId,
         resource_key: targetKey,
       });
 
@@ -277,10 +282,12 @@ router.get('/:key', (req, res, next) => {
         }
       }
       const toCamelCase = (str) => str.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
+      const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       const displayFieldCamel = toCamelCase(displayField);
+      const displayFieldSnake = toSnakeCase(displayField);
 
       const options = list.map(item => {
-        const val = item[displayField] || item[displayFieldCamel] || item.name || item.value || Object.values(item).filter(v => typeof v !== 'object')[0] || item.id;
+        const val = item[displayField] || item[displayFieldCamel] || item[displayFieldSnake] || item.name || item.value || Object.values(item).filter(v => typeof v !== 'object')[0] || item.id;
         return { value: String(val || ''), label: String(val || '') };
       });
 

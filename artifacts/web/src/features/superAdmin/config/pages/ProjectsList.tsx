@@ -79,7 +79,7 @@ export default function ProjectsListPage() {
 
       const [resProjects, orgsResult, resolved] = await Promise.all([
         api.get(`/resources/resourceProjects?${params.toString()}`),
-        listOrganizationsPaged({ page: 1, pageSize: 200 }),
+        listOrganizationsPaged({ page: 0, pageSize: 200 }),
         resolveScreen({
           screenKey: 'configProjects',
           industryCode: activeIndustry || 'temp0001',
@@ -191,7 +191,7 @@ export default function ProjectsListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id || (p.row as any)._id}/edit?industry=${selectedIndustry}`)}>
+            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id || (p.row as any)._id}/edit?industry=${selectedIndustry}&organization=${selectedOrg}`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -223,7 +223,7 @@ export default function ProjectsListPage() {
         title="Projects List"
         subtitle="Manage master project parameters, RERA configurations, and links."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/configuration/projects/new?industry=${selectedIndustry}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/configuration/projects/new?industry=${selectedIndustry}&organization=${selectedOrg}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Add Project
           </Button>
         }

@@ -16,6 +16,7 @@ export default function SuperAdminProjectFormPage() {
   const { id } = useParams<{ id?: string }>()
   const [searchParams] = useSearchParams()
   const industryCode = searchParams.get('industry') || undefined
+  const defaultOrgId = searchParams.get('organization') || ''
   const [loading, setLoading] = useState(false)
   const [editingItem, setEditingItem] = useState<Project | null>(null)
   const [initializing, setInitializing] = useState(!!id)
@@ -50,11 +51,20 @@ export default function SuperAdminProjectFormPage() {
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true)
+      const params = new URLSearchParams()
+      if (industryCode) {
+        params.set('industryId', industryCode)
+        params.set('industry_code', industryCode)
+      }
+      if (values.organizationId) {
+        params.set('organizationId', values.organizationId)
+      }
+
       if (id) {
-        await api.put(`/resources/resourceProjects/${id}`, values)
+        await api.put(`/resources/resourceProjects/${id}?${params.toString()}`, { ...values, industryId: industryCode, industry_code: industryCode })
         setToast({ open: true, msg: 'Project updated successfully', sev: 'success' })
       } else {
-        await api.post('/resources/resourceProjects', values)
+        await api.post(`/resources/resourceProjects?${params.toString()}`, { ...values, industryId: industryCode, industry_code: industryCode })
         setToast({ open: true, msg: 'Project created successfully', sev: 'success' })
       }
       setTimeout(() => navigate('/configuration/projects'), 1500)
@@ -94,7 +104,7 @@ export default function SuperAdminProjectFormPage() {
             screen="configProjects"
             industry_code={industryCode}
             role_key="admin"
-            initialValues={editingItem ? (editingItem as any) : { organizationId: '', status: 'ACTIVE' }}
+            initialValues={editingItem ? (editingItem as any) : { organizationId: defaultOrgId, status: 'ACTIVE' }}
             onCancel={() => navigate('/configuration/projects')}
             submitLabel={id ? 'Save' : 'Create'}
             onSubmit={handleSubmit}

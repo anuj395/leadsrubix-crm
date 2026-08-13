@@ -4,6 +4,8 @@ const apiTokenSchema = new mongoose.Schema(
   {
     api_key: { type: String, required: true, unique: true },
     organization_id: { type: String, required: true, alias: 'organizationId' },
+    industry_id: { type: String, default: null, alias: 'industryId' },
+    workspace_id: { type: String, default: null, alias: 'workspaceId' },
     source: { type: String, required: true }, // e.g. "Webhook", "Facebook"
     lead_source_id: { type: String, default: null, alias: 'leadSourceId' }, // camelCase matching Firebase
     country_code: { type: String, default: '+91', alias: 'countryCode' },

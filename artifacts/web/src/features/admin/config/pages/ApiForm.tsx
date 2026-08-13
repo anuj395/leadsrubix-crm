@@ -8,9 +8,11 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { getApiTokens, createApiToken, updateApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
+import { useAppSelector } from '@/store/hooks'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 
 export default function ApiFormPage() {
+  const user = useAppSelector((s) => s.auth.user)
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
   const [loading, setLoading] = useState(false)
@@ -89,9 +91,9 @@ export default function ApiFormPage() {
         <Box sx={{ mt: 2 }}>
           <DynamicForm
             screen="configApi"
-            industry_code={undefined}
+            industry_code={user?.industryId}
             role_key="admin"
-            initialValues={editingItem ? (editingItem as any) : {}}
+            initialValues={editingItem ? (editingItem as any) : { status: 'ACTIVE' }}
             onCancel={() => navigate('/configuration/api')}
             submitLabel={id ? 'Save' : 'Create'}
             onSubmit={handleSubmit}

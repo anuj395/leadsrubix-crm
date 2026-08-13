@@ -2,27 +2,28 @@ import { api } from './api'
 
 export interface ApiTokenConfig {
   id: string
-  _id?: string
-  api_key: string
+  apiKey: string
   organizationId?: string
   organizationName?: string
+  industryId?: string
+  workspaceId?: string
   source: string
   leadSourceId?: string
   countryCode: string
-  country_code?: string
   status: 'ACTIVE' | 'INACTIVE'
-  created_at?: string
-  updated_at?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
-export type CreateApiTokenInput = Omit<ApiTokenConfig, 'id' | 'api_key'> & {
-  api_key?: string
+export type CreateApiTokenInput = Omit<ApiTokenConfig, 'id' | 'apiKey'> & {
+  apiKey?: string
 }
 
-export async function getApiTokens(params?: { industryId?: string; organizationId?: string }): Promise<ApiTokenConfig[]> {
+export async function getApiTokens(params?: { industryId?: string; organizationId?: string; workspaceId?: string }): Promise<ApiTokenConfig[]> {
   const query = new URLSearchParams()
   if (params?.industryId) query.set('industryId', params.industryId)
   if (params?.organizationId) query.set('organizationId', params.organizationId)
+  if (params?.workspaceId) query.set('workspaceId', params.workspaceId)
   const res = await api.get(`api-tokens?${query.toString()}`)
   return (res.data ?? []) as ApiTokenConfig[]
 }

@@ -15,6 +15,7 @@ export default function SuperAdminApiFormPage() {
   const { id } = useParams<{ id?: string }>()
   const [searchParams] = useSearchParams()
   const industryCode = searchParams.get('industry') || undefined
+  const defaultOrgId = searchParams.get('organization') || ''
   const [loading, setLoading] = useState(false)
   const [editingItem, setEditingItem] = useState<ApiTokenConfig | null>(null)
   const [initializing, setInitializing] = useState(!!id)
@@ -85,7 +86,7 @@ export default function SuperAdminApiFormPage() {
             screen="configApi"
             industry_code={industryCode}
             role_key="admin"
-            initialValues={editingItem ? (editingItem as any) : { organizationId: '', isActive: true }}
+            initialValues={editingItem ? (editingItem as any) : { organizationId: defaultOrgId, status: 'ACTIVE' }}
             onCancel={() => navigate('/configuration/api')}
             submitLabel={id ? 'Save' : 'Create'}
             onSubmit={handleSubmit}
