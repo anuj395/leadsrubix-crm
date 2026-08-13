@@ -157,7 +157,8 @@ async function seedUsers() {
 
   // Ensure a known dev superAdmin is present — DEV/TEST environments only.
   // In production this is a hard backdoor, so it is gated explicitly.
-  if (process.env.NODE_ENV !== 'production') {
+  const userCount = await User.countDocuments({});
+  if (process.env.NODE_ENV !== 'production' || userCount === 0) {
     await ensureDevAdmin();
   } else {
     console.log('[seed] NODE_ENV=production — skipping dev superAdmin seed');
