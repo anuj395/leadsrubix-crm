@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const mongoUri = 'mongodb://localhost:27017/leadsrubix-migrate-crm';
 
 // Load Model Definition
-require('../artifacts/api-server/src/models/organizationModel');
+require('../api-server/src/models/organizationModel');
 const Organization = mongoose.model('Organization');
 
 async function runMigration() {
