@@ -1,6 +1,6 @@
 // src/index.js
 // Entry point for the application. Loads config, creates server. Enforce secure tenant, industry, teams and branches option matching.
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const pgMongoose = require('./db/pgMongoose');
 require.cache[require.resolve('mongoose')] = {
   id: require.resolve('mongoose'),
