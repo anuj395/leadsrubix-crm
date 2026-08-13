@@ -37,7 +37,6 @@ minimumReleaseAgeExclude:
 packages:
   - api-server
   - web
-  - app
   - lib/*
   - lib/integrations/*
   - scripts
