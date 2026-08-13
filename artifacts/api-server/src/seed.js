@@ -259,7 +259,7 @@ async function migrateAndSeedSidebar() {
     // Industry
     const industry = await Industry.findOneAndUpdate(
       { code: industryCode },
-      { $setOnInsert: { code: industryCode, name: industryCode, isActive: true } },
+      { $setOnInsert: { code: industryCode, name: industryCode, is_active: true } },
       { upsert: true, new: true },
     );
 
@@ -339,7 +339,7 @@ async function migrateAndSeedSidebar() {
                 module: moduleKey,
                 parent_id: null,
                 organization_id: null,
-                isActive: true,
+                is_active: true,
               },
             },
             { upsert: true, new: true },
@@ -359,7 +359,7 @@ async function migrateAndSeedSidebar() {
               route: m.route || '',
               module: moduleKey,
               organization_id: null,
-              isActive: true,
+              is_active: true,
             },
           },
           { upsert: true, new: true },
@@ -827,7 +827,7 @@ async function seedScreens() {
   for (const spec of SCREEN_DEFAULTS) {
     const screen = await Screen.findOneAndUpdate(
       { key: spec.key, organization_id: null },
-      { $set: { name: spec.name, description: spec.description, isActive: true } },
+      { $set: { name: spec.name, description: spec.description, is_active: true } },
       { upsert: true, new: true },
     );
     const fieldDocs = [];
@@ -1185,7 +1185,7 @@ async function seedLeadDistributionSidebar() {
         module: 'leadDistribution',
         parent_id: null,
         route: '',
-        isActive: true,
+        is_active: true,
         order: 5,
         organization_id: null,
       }
@@ -1210,7 +1210,7 @@ async function seedLeadDistributionSidebar() {
           icon: child.icon,
           parent_id: parentMenu._id,
           module: 'leadDistribution',
-          isActive: true,
+          is_active: true,
           order: 5.1 + (i * 0.1),
           organization_id: null,
         }
@@ -2084,7 +2084,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
         order: item.order,
         organization_id: null,
         industry_id: null,
-        isActive: true,
+        is_active: true,
       });
     } else {
       await SidebarMenu.updateOne(
@@ -2099,7 +2099,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
             order: item.order,
             organization_id: null,
             industry_id: null,
-            isActive: true,
+            is_active: true,
           },
         }
       );
@@ -2111,7 +2111,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
   // Ensure default temp0001 industry exists
   let temp0001Ind = await Industry.findOne({ code: 'temp0001' }).exec();
   if (!temp0001Ind) {
-    temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', isActive: true });
+    temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', is_active: true });
   }
 
   const allMenus = Array.from(menuDocMap.values());
