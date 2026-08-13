@@ -2111,7 +2111,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
   // Ensure default temp0001 industry exists
   let temp0001Ind = await Industry.findOne({ code: 'temp0001' }).exec();
   if (!temp0001Ind) {
-    temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', is_active: true });
+    temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', is_active: true, status: 'Launched' });
   }
 
   const allMenus = Array.from(menuDocMap.values());
