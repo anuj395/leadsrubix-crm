@@ -862,3 +862,12 @@ Organization: cxzjcjkzx
 Username / Email: dsjadjk@gmail.com
 Temp Password: ugyvf94B
 ========================================
+
+========================================
+Timestamp: 2026-08-14T05:06:21.864Z
+To: test@test.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Test Org
+Username / Email: test@test.com
+Temp Password: DYPSqdbw
+========================================
