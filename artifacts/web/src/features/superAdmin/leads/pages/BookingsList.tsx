@@ -156,9 +156,11 @@ export default function BookingsListPage() {
         title="Bookings List"
         subtitle="List of active customer bookings and sales commitments."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-            Add Booking
-          </Button>
+          <Tooltip title="Log a new customer booking/sale record">
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+              Add Booking
+            </Button>
+          </Tooltip>
         }
         fullHeight
       >

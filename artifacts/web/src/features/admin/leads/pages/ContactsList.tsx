@@ -208,26 +208,32 @@ export default function ContactsListPage() {
           <Stack direction="row" spacing={1.5}>
             {selectedIds.length > 0 && (
               <>
-                <Button
-                  variant="outlined"
-                  startIcon={<SwapHorizIcon />}
-                  onClick={() => setOpenOwnerModal(true)}
-                >
-                  Change Owner ({selectedIds.length})
-                </Button>
-                <Button
-                  variant="contained"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleBulkDelete}
-                >
-                  Delete ({selectedIds.length})
-                </Button>
+                <Tooltip title="Reassign selected leads to a different team member">
+                  <Button
+                    variant="outlined"
+                    startIcon={<SwapHorizIcon />}
+                    onClick={() => setOpenOwnerModal(true)}
+                  >
+                    Change Owner ({selectedIds.length})
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Permanently delete the selected lead contacts">
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={handleBulkDelete}
+                  >
+                    Delete ({selectedIds.length})
+                  </Button>
+                </Tooltip>
               </>
             )}
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
-              Add Contact
-            </Button>
+            <Tooltip title="Add a new lead contact to the database">
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
+                Add Contact
+              </Button>
+            </Tooltip>
           </Stack>
         }
         fullHeight

@@ -32,11 +32,42 @@ import Alert from '@mui/material/Alert'
 import Select from '@mui/material/Select'
 import InputAdornment from '@mui/material/InputAdornment'
 import Autocomplete from '@mui/material/Autocomplete'
+import Tooltip from '@mui/material/Tooltip'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
 import { api } from '@/services/api'
 import { useAuth } from '@/hooks/useAuth'
 import { compressImage } from '@/utils/imageCompressor'
-
+const getFieldTooltip = (key: string, label: string) => {
+  const normalizedKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+  const map: Record<string, string> = {
+    customerName: 'Full Name:\nFull name of the customer\nor lead contact.',
+    emailId: 'Email Address:\nPrimary email address\nfor communication.',
+    mobileNumber: 'Mobile Number:\nMobile phone number with\ncountry dialing code.',
+    alternateMobileNumber: 'Alternate Number:\nSecondary contact number\nif primary is unreachable.',
+    projectName: 'Project:\nAssociated property\ndevelopment project name.',
+    stage: 'Lead Stage:\nCurrent status or progression\nstage of this lead.',
+    leadSource: 'Lead Source:\nMarketing or referral channel\nwhere the lead came from.',
+    leadType: 'Lead Type:\nCategorization based on\nlead source type.',
+    note: 'Notes:\nInternal notes about customer\ninteractions and status.',
+    remarks: 'Remarks:\nAdditional staff remarks or\nstatus updates.',
+    priority: 'Priority:\nPriority urgency level\nfor lead follow-ups.',
+    name: 'Name:\nDescriptive name for this\nitem or setting.',
+    description: 'Description:\nDetailed details explaining\nthis config entry.',
+    address: 'Address:\nPhysical address or\nlocation details.',
+    status: 'Status:\nToggle active or\ninactive state.',
+    industryId: 'Industry:\nIndustry category code\nfor organization.',
+    organizationId: 'Organization:\nThe organization this\nconfiguration belongs to.',
+    distributionType: 'Distribution Type:\nAlgorithm used to assign leads\n(e.g. Round Robin, Manual).',
+    leadManagerUsers: 'Lead Managers:\nSelect lead managers authorized\nto assign leads.',
+    users: 'Sales Associates:\nSelect sales associates\nassigned to this flow.',
+    apiKey: 'API Key:\nSecret API key used for\nexternal integrations.',
+    apiUrl: 'API URL:\nIntegration target endpoint URL\nfor lead payload data.',
+    webhookUrl: 'Webhook URL:\nTarget URL to post real-time\nevent payloads.',
+    integrationName: 'Integration Name:\nFriendly identifier name\nfor the integration.',
+  }
+  return map[normalizedKey] || map[key] || `Configure the\n${label} field.`
+}
 
 type Value = string | number | boolean | null | string[]
 
@@ -504,7 +535,14 @@ export function DynamicForm({
           }
           const value = values[f.key]
           const err = errors[f.key] || ''
-          const labelWithRequired = f.required ? `${f.label} *` : f.label
+          const labelWithRequired = (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <span>{f.required ? `${f.label} *` : f.label}</span>
+              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{getFieldTooltip(f.key, f.label)}</Box>} placement="top">
+                <InfoOutlinedIcon sx={{ fontSize: '0.85rem', color: 'text.disabled', opacity: 0.6, cursor: 'help' }} />
+              </Tooltip>
+            </Box>
+          )
 
           if (f.type === 'select') {
             const apiUrl = getDropdownUrl(f)

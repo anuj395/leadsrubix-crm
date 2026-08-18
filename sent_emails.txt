@@ -862,3 +862,31 @@ Organization: cxzjcjkzx
 Username / Email: dsjadjk@gmail.com
 Temp Password: ugyvf94B
 ========================================
+[2026-08-18T10:19:18.255Z] To: info@leadsrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=07047e916349bff7eec3782f1c7c99f1bfbbfa9f
+[2026-08-18T10:19:52.843Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=8be65f9d4aacceac745f7f0141eb0b716793e34c
+[2026-08-18T10:22:30.337Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=05d27905a587bd0e503f63de27dfa7673640b21c
+[2026-08-18T10:29:02.740Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=dcae9cca3ee445d866e9cd4b9a0d73857b3c785f
+[2026-08-18T10:29:55.303Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=8f3a5763c2fa3fd7230ca0403b6adbf388937518
+[2026-08-18T10:39:22.506Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=682e454746b468c8c68f068636667c804e0875f4
+[2026-08-18T10:40:05.360Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=b56495eccdb39989b79a925d687e036f0f85f7fe
+[2026-08-18T10:41:49.061Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=afee9b9c4201209fa593d4ca23909817fd696492
+[2026-08-18T10:48:17.469Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=a2654561cea2f1ccc3603cf55a5ca541dce9b8df
+[2026-08-18T10:49:07.820Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=9ecaf4dace1274536f14446356ada414664a10f4
+[2026-08-18T10:57:57.959Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=a61546b0faf5ae2b4936cd0e8337ba2f89edd237
+[2026-08-18T11:01:54.282Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=d40f9df92595348c089d42843df407ce24885882
+[2026-08-18T11:02:33.913Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=266e1e50bed2c72dd73b8637e3f18bef598f5bf4
+[2026-08-18T11:06:47.827Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=9735d1f08f0b18bb28ef0d697d3c731c39a4bf91
+[2026-08-18T11:11:08.643Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=a6d5d5a7e2e8a942732d53c7f428b62047d41131
+[2026-08-18T11:15:22.746Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=96acf928b7142d2862235f15714515a22ba411ce
+[2026-08-18T11:19:37.889Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=d5b2ce925b3341cfbd999e6ee1996bf9ce82096e
+[2026-08-18T11:22:53.251Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=689ac5273069a8274b8bdc43d178ac4e86343729
+[2026-08-18T11:24:37.308Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=26de645a884d89684f3d5fba07eb5397fc6669c0
+
+========================================
+Timestamp: 2026-08-18T12:34:02.815Z
+To: raj@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: HeathCare
+Username / Email: raj@gmail.com
+Temp Password: nqhFb5wa
+========================================

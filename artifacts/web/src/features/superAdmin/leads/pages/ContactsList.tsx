@@ -6,6 +6,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
+import Tooltip from '@mui/material/Tooltip'
 import { Add as AddIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
@@ -123,9 +124,11 @@ export default function ContactsListPage() {
         title="Contacts"
         subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/leads/contacts/new?industry=${selectedIndustry || ''}&organization=${selectedOrg || ''}`)}>
-            Add Contact
-          </Button>
+          <Tooltip title="Add a new lead contact to the database">
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/leads/contacts/new?industry=${selectedIndustry || ''}&organization=${selectedOrg || ''}`)}>
+              Add Contact
+            </Button>
+          </Tooltip>
         }
         fullHeight
       >

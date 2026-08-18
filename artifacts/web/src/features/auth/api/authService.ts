@@ -85,4 +85,17 @@ export const authService = {
       throw new Error('Unable to reach authentication server.')
     }
   },
+
+  async resetPassword(payload: any): Promise<{ message: string }> {
+    try {
+      const response = await api.post('auth/reset-password', payload)
+      return response.data
+    } catch (err: any) {
+      if (err?.response) {
+        const msg = err.response?.data?.message || 'Unable to reset password.'
+        throw new Error(msg)
+      }
+      throw new Error('Unable to reach authentication server.')
+    }
+  },
 }

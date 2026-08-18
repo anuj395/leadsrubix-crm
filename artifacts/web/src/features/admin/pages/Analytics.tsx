@@ -118,6 +118,18 @@ interface DashboardPayload {
   }
 }
 
+const metricDescriptions: Record<string, string> = {
+  'Total Leads': 'Total Leads:\nThe sum of all leads collected\nin the system.',
+  'Fresh': 'Fresh Leads:\nNewly added leads that have\nnot yet been contacted.',
+  'Call Back': 'Call Back:\nLeads scheduled for\na follow-up call.',
+  'Interested': 'Interested Leads:\nLeads who have shown interest\nin your project or offer.',
+  'Closed Won': 'Closed Won:\nSuccessfully converted leads\nwho completed a deal.',
+  'Not Interested': 'Not Interested:\nLeads who have stated\nthey are not interested.',
+  'Closed Lost': 'Closed Lost:\nLeads that have been marked\nas lost or inactive.',
+  'Completed Visits': 'Completed Visits:\nThe count of successfully finished\ncustomer property visits.',
+  'Scheduled Visits': 'Scheduled Visits:\nProperty visits scheduled\nfor the future.',
+}
+
 export default function AnalyticsPage() {
   const theme = useTheme()
   const navigate = useNavigate()
@@ -801,43 +813,44 @@ export default function AnalyticsPage() {
                       }
 
                       return (
-                        <Card
-                          key={w.id}
-                          onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
-                          sx={{
-                            p: 1.5,
-                            borderRadius: '10px',
-                            border: '1px solid',
-                            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                            background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                            borderLeft: `3px solid ${cardPayload.color}`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            minHeight: 80,
-                            cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
-                            transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': w.id === 'totalLeads' ? {} : {
-                              transform: 'translateY(-2px)',
-                              boxShadow: isDark
-                                ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
-                                : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
-                              borderColor: alpha(cardPayload.color, 0.5),
-                            }
-                          }}
-                        >
-                          <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {cardPayload.label}
+                        <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                          <Card
+                            onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: '10px',
+                              border: '1px solid',
+                              borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                              background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                              borderLeft: `3px solid ${cardPayload.color}`,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              minHeight: 80,
+                              cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                              transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': w.id === 'totalLeads' ? {} : {
+                                transform: 'translateY(-2px)',
+                                boxShadow: isDark
+                                  ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                                  : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                                borderColor: alpha(cardPayload.color, 0.5),
+                              }
+                            }}
+                          >
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                {cardPayload.label}
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                                {cardPayload.icon}
+                              </Box>
+                            </Stack>
+                            <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                              {cardPayload.val}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                              {cardPayload.icon}
-                            </Box>
-                          </Stack>
-                          <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                            {cardPayload.val}
-                          </Typography>
-                        </Card>
+                          </Card>
+                        </Tooltip>
                       )
                     })}
                   </Box>
@@ -899,43 +912,44 @@ export default function AnalyticsPage() {
               }
 
               return (
-                <Card
-                  key={w.id}
-                  onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                    background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                    borderLeft: `3px solid ${cardPayload.color}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: 80,
-                    cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
-                    transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': w.id === 'totalLeads' ? {} : {
-                      transform: 'translateY(-2px)',
-                      boxShadow: isDark
-                        ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
-                        : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
-                      borderColor: alpha(cardPayload.color, 0.5),
-                    }
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {cardPayload.label}
+                <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                  <Card
+                    onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: '10px',
+                      border: '1px solid',
+                      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                      background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                      borderLeft: `3px solid ${cardPayload.color}`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: 80,
+                      cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                      transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': w.id === 'totalLeads' ? {} : {
+                        transform: 'translateY(-2px)',
+                        boxShadow: isDark
+                          ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                          : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                        borderColor: alpha(cardPayload.color, 0.5),
+                      }
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {cardPayload.label}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                        {cardPayload.icon}
+                      </Box>
+                    </Stack>
+                    <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                      {cardPayload.val}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                      {cardPayload.icon}
-                    </Box>
-                  </Stack>
-                  <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                    {cardPayload.val}
-                  </Typography>
-                </Card>
+                  </Card>
+                </Tooltip>
               )
             })}
           </Box>
@@ -1271,43 +1285,44 @@ export default function AnalyticsPage() {
                   }
 
                   return (
-                    <Card
-                      key={w.id}
-                      onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: '10px',
-                        border: '1px solid',
-                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                        background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                        borderLeft: `3px solid ${cardPayload.color}`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        minHeight: 80,
-                        cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
-                        transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': w.id === 'totalLeads' ? {} : {
-                          transform: 'translateY(-2px)',
-                          boxShadow: isDark
-                            ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
-                            : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
-                          borderColor: alpha(cardPayload.color, 0.5),
-                        }
-                      }}
-                    >
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                          {cardPayload.label}
+                    <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                      <Card
+                        onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '10px',
+                          border: '1px solid',
+                          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                          background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                          borderLeft: `3px solid ${cardPayload.color}`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          minHeight: 80,
+                          cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                          transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': w.id === 'totalLeads' ? {} : {
+                            transform: 'translateY(-2px)',
+                            boxShadow: isDark
+                              ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                              : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                            borderColor: alpha(cardPayload.color, 0.5),
+                          }
+                        }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {cardPayload.label}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                            {cardPayload.icon}
+                          </Box>
+                        </Stack>
+                        <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                          {cardPayload.val}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                          {cardPayload.icon}
-                        </Box>
-                      </Stack>
-                      <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                        {cardPayload.val}
-                      </Typography>
-                    </Card>
+                      </Card>
+                    </Tooltip>
                   );
                 })}
               </Box>

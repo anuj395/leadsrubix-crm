@@ -30,6 +30,7 @@ import FormatListBulletedOutlinedIcon from '@mui/icons-material/FormatListBullet
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import ContactsOutlinedIcon from '@mui/icons-material/ContactsOutlined'
 import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 
 import Button from '@mui/material/Button'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
@@ -179,16 +180,66 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     },
   } as const
 
+  // ── Descriptions Map ───────────────────────────────────────────────────────
+  const menuDescriptions: Record<string, string> = {
+    'analytics': 'Analytics Overview:\nView dashboards, lead stats,\nand performance metrics.',
+    'organization': 'Organization:\nManage company settings,\nprofile, and configuration.',
+    'users': 'Team & Access:\nManage users, invite members,\nand configure roles.',
+    'users.list': 'Team Members:\nAdd, edit, or deactivate\nworkspace members.',
+    'users.roles': 'Roles & Permissions:\nCustomize permission levels\nfor different roles.',
+    'leads.contact': 'Contacts List:\nStore and search lead profiles,\nattributes, and history.',
+    'leads.tasks': 'Tasks List:\nManage follow-up assignments,\ndeadlines, and progress.',
+    'leads.call': 'Call Logs List:\nRecord calls, review status,\nand call durations.',
+    'leadDistribution.list': 'Lead Distribution:\nAutomate rules for distributing\nnew leads to sales reps.',
+    'leadDistribution.reassignList': 'Reassign List:\nManually re-route active leads\nto team members.',
+    'configuration.projects': 'Project:\nDefine target projects\nor campaigns.',
+    'configuration.resources': 'Resource:\nMaintain digital assets,\ndocuments, and media.',
+    'configuration.holiday': 'Holidays:\nDefine non-working national\nor organization holidays.',
+    'configuration.days': 'Working Days:\nAdjust office schedules,\nhours, and weekly offs.',
+    'configuration.domainSettings': 'Domain Setting:\nCustomize white-label subdomain\nand portal brandings.',
+    'integrations.apiData': 'API Data:\nView incoming payload logs\nfrom third-party integrations.',
+    'integrations.webhook': 'Webhook Integrations:\nConnect incoming hooks\nfor leads ingestion.',
+    'integrations.api': 'API Token:\nGenerate secure credentials\nfor integrations.',
+    'integrations.whatsapp': 'WhatsApp API:\nConfigure templates and\nactive outreach numbers.',
+    'invoices.paymentLogs': 'Payment Invoices Logs:\nReview historical billing\ndetails and invoices.',
+    'invoices.receiptsHistory': 'Receipts History:\nAccess generated payment\nreceipts and charges.',
+    'account.subscription': 'Subscription Details:\nView plan features, usage\nmetrics, and limits.',
+    'account.password': 'Update Password:\nChange login password\nfor security.',
+    'support.news': 'News List:\nAccess broadcast alerts,\nblogs, and announcements.',
+    'support.faq': 'FAQ List:\nRead knowledge base articles\nand answers to common queries.',
+  }
+
   // ── Render helpers ────────────────────────────────────────────────────────
   function renderLeaf(item: SidebarNavItem) {
     const Icon = getIcon(item.icon)
+    const description = menuDescriptions[item.id] || menuDescriptions[item.module || ''] || ''
+
     const content = (
       <>
         <Icon sx={{ fontSize: '1.2rem', flexShrink: 0 }} />
         {!collapsed && (
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'inherit' }}>
-            {item.name}
-          </Typography>
+          <>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'inherit', flexGrow: 1 }}>
+              {item.name}
+            </Typography>
+            {description && (
+              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{description}</Box>} placement="right">
+                <InfoOutlinedIcon
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  sx={{
+                    fontSize: '0.95rem',
+                    color: theme.palette.text.disabled,
+                    opacity: 0.6,
+                    cursor: 'pointer',
+                    '&:hover': { opacity: 1, color: theme.palette.secondary.main }
+                  }}
+                />
+              </Tooltip>
+            )}
+          </>
         )}
       </>
     )
@@ -223,6 +274,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     const Icon = getIcon(item.icon)
     const isExpanded    = expandedItems[item.id] ?? false
     const isChildActive = item.children?.some((c) => c.route === location.pathname) ?? false
+    const description = menuDescriptions[item.id] || menuDescriptions[item.module || ''] || ''
 
     return (
       <Box key={item.id}>
@@ -248,6 +300,24 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                 <Typography sx={{ flexGrow: 1, fontSize: '0.875rem', fontWeight: isChildActive ? 700 : 500, color: 'inherit' }}>
                   {item.name}
                 </Typography>
+                {description && (
+                  <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{description}</Box>} placement="right">
+                    <InfoOutlinedIcon
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      sx={{
+                        fontSize: '0.95rem',
+                        color: theme.palette.text.disabled,
+                        opacity: 0.6,
+                        mr: 0.5,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 1, color: theme.palette.secondary.main }
+                      }}
+                    />
+                  </Tooltip>
+                )}
                 <ChevronRightRoundedIcon
                   sx={{
                     fontSize: '1rem',
@@ -266,13 +336,33 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
             spacing={0.15}
             sx={{ mt: 0.25, ml: 1.5, pl: 1.25, borderLeft: `1.5px solid ${theme.palette.divider}` }}
           >
-            {item.children?.map((child) => (
-              <Box key={child.id} component={NavLink} to={child.route} end sx={childItemSx}>
-                <Typography variant="body2" sx={{ color: 'inherit', fontSize: '0.8125rem' }}>
-                  {child.name}
-                </Typography>
-              </Box>
-            ))}
+            {item.children?.map((child) => {
+              const childDesc = menuDescriptions[child.id] || ''
+              return (
+                <Box key={child.id} component={NavLink} to={child.route} end sx={{ ...childItemSx, justifyContent: 'space-between', width: '100%' }}>
+                  <Typography variant="body2" sx={{ color: 'inherit', fontSize: '0.8125rem', flexGrow: 1 }}>
+                    {child.name}
+                  </Typography>
+                  {childDesc && (
+                    <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{childDesc}</Box>} placement="right">
+                      <InfoOutlinedIcon
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        sx={{
+                          fontSize: '0.85rem',
+                          color: theme.palette.text.disabled,
+                          opacity: 0.5,
+                          cursor: 'pointer',
+                          '&:hover': { opacity: 1, color: theme.palette.secondary.main }
+                        }}
+                      />
+                    </Tooltip>
+                  )}
+                </Box>
+              )
+            })}
           </Stack>
         </Collapse>
       </Box>

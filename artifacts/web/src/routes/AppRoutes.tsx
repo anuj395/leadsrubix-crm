@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { ForgotPasswordPage, LoginPage, SignupPage, FirstTimeChangePasswordPage } from '@/features/auth'
+import { ForgotPasswordPage, LoginPage, SignupPage, FirstTimeChangePasswordPage, ResetPasswordPage } from '@/features/auth'
 import AuthLayout from '@/layouts/AuthLayout'
 import { MainLayout } from '@/layouts/MainLayout/MainLayout'
 import { ProtectedRoute } from './ProtectedRoute'
@@ -30,6 +30,7 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Route>
 
       {/* Protected Routes */}

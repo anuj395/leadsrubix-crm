@@ -33,6 +33,7 @@ import InputBase from '@mui/material/InputBase'
 import Popover from '@mui/material/Popover'
 import Stack from '@mui/material/Stack'
 import Switch from '@mui/material/Switch'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { alpha, useTheme } from '@mui/material/styles'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -297,17 +298,19 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     sx={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}
                 >
                     {/* Hamburger — mobile only */}
-                    <IconButton
-                        onClick={onMobileMenuOpen}
-                        sx={{
-                            display: { xs: 'flex', md: 'none' },
-                            ...iconBtnSx,
-                            flexShrink: 0,
-                        }}
-                        aria-label="Open navigation menu"
-                    >
-                        <MenuRoundedIcon fontSize="small" />
-                    </IconButton>
+                    <Tooltip title="Toggle Navigation Menu">
+                        <IconButton
+                            onClick={onMobileMenuOpen}
+                            sx={{
+                                display: { xs: 'flex', md: 'none' },
+                                ...iconBtnSx,
+                                flexShrink: 0,
+                            }}
+                            aria-label="Open navigation menu"
+                        >
+                            <MenuRoundedIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
 
                     {/* Breadcrumbs — hidden on xs, visible on sm+ */}
                     <Stack
@@ -381,81 +384,87 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     sx={{ flexShrink: 0 }}
                 >
                     {/* Search bar — hidden on mobile, visible on sm+ */}
-                    <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={1}
-                        sx={{
-                            display: { xs: 'none', sm: 'flex' },
-                            width: { sm: '10rem', md: '14rem', lg: '18rem' },
-                            px: 1.25,
-                            py: 0.5,
-                            borderRadius: '10px',
-                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(15,17,23,0.08)'}`,
-                            transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:focus-within': {
-                                borderColor: theme.palette.secondary.main,
-                                boxShadow: `0 0 0 3px ${alpha(theme.palette.secondary.main, 0.16)}`,
-                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.95)',
-                            },
-                        }}
-                    >
-                        <SearchRoundedIcon sx={{ color: theme.palette.text.secondary, fontSize: 17, flexShrink: 0 }} />
-                        <InputBase
-                            placeholder="Search…"
+                    <Tooltip title="Search leads, tasks, and configurations (⌘K)" placement="bottom">
+                        <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
                             sx={{
-                                flexGrow: 1,
-                                minWidth: 0,
-                                fontSize: '0.8125rem',
-                                color: theme.palette.text.primary,
-                                '& input::placeholder': {
-                                    color: theme.palette.text.secondary,
-                                    opacity: 1,
+                                display: { xs: 'none', sm: 'flex' },
+                                width: { sm: '10rem', md: '14rem', lg: '18rem' },
+                                px: 1.25,
+                                py: 0.5,
+                                borderRadius: '10px',
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(15,17,23,0.08)'}`,
+                                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:focus-within': {
+                                    borderColor: theme.palette.secondary.main,
+                                    boxShadow: `0 0 0 3px ${alpha(theme.palette.secondary.main, 0.16)}`,
+                                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.95)',
                                 },
                             }}
-                        />
-                        <Typography
-                            sx={{
-                                display: { sm: 'none', lg: 'block' },
-                                color: alpha(theme.palette.text.secondary, 0.55),
-                                fontWeight: 500,
-                                fontSize: '0.6875rem',
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0,
-                            }}
                         >
-                            ⌘K
-                        </Typography>
-                    </Stack>
+                            <SearchRoundedIcon sx={{ color: theme.palette.text.secondary, fontSize: 17, flexShrink: 0 }} />
+                            <InputBase
+                                placeholder="Search…"
+                                sx={{
+                                    flexGrow: 1,
+                                    minWidth: 0,
+                                    fontSize: '0.8125rem',
+                                    color: theme.palette.text.primary,
+                                    '& input::placeholder': {
+                                        color: theme.palette.text.secondary,
+                                        opacity: 1,
+                                    },
+                                }}
+                            />
+                            <Typography
+                                sx={{
+                                    display: { sm: 'none', lg: 'block' },
+                                    color: alpha(theme.palette.text.secondary, 0.55),
+                                    fontWeight: 500,
+                                    fontSize: '0.6875rem',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                ⌘K
+                            </Typography>
+                        </Stack>
+                    </Tooltip>
 
                     {/* Dark mode toggle */}
-                    <IconButton onClick={handleThemeToggle} sx={{
-                        ...iconBtnSx,
-                        '& svg': {
-                            transition: 'transform 500ms cubic-bezier(0.4, 0, 0.2, 1)',
-                            transform: isRotating ? 'rotate(360deg)' : 'none'
-                        }
-                    }} aria-label="Toggle color mode">
-                        {mode === 'dark'
-                            ? <LightModeOutlinedIcon fontSize="small" />
-                            : <DarkModeOutlinedIcon fontSize="small" />}
-                    </IconButton>
+                    <Tooltip title={mode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'} placement="bottom">
+                        <IconButton onClick={handleThemeToggle} sx={{
+                            ...iconBtnSx,
+                            '& svg': {
+                                transition: 'transform 500ms cubic-bezier(0.4, 0, 0.2, 1)',
+                                transform: isRotating ? 'rotate(360deg)' : 'none'
+                            }
+                        }} aria-label="Toggle color mode">
+                            {mode === 'dark'
+                                ? <LightModeOutlinedIcon fontSize="small" />
+                                : <DarkModeOutlinedIcon fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
 
                     {/* Notifications */}
-                    <IconButton
-                        onClick={handleNotificationsToggle}
-                        sx={{
-                            ...iconBtnSx,
-                            backgroundColor: Boolean(notificationsAnchor) ? alpha(theme.palette.secondary.main, 0.08) : theme.palette.background.default,
-                            borderColor: Boolean(notificationsAnchor) ? theme.palette.secondary.main : theme.palette.divider,
-                        }}
-                        aria-label="Notifications"
-                    >
-                        <Badge badgeContent={unreadCount} color="error" max={99}>
-                            <NotificationsNoneRoundedIcon fontSize="small" />
-                        </Badge>
-                    </IconButton>
+                    <Tooltip title="View Notifications" placement="bottom">
+                        <IconButton
+                            onClick={handleNotificationsToggle}
+                            sx={{
+                                ...iconBtnSx,
+                                backgroundColor: Boolean(notificationsAnchor) ? alpha(theme.palette.secondary.main, 0.08) : theme.palette.background.default,
+                                borderColor: Boolean(notificationsAnchor) ? theme.palette.secondary.main : theme.palette.divider,
+                            }}
+                            aria-label="Notifications"
+                        >
+                            <Badge badgeContent={unreadCount} color="error" max={99}>
+                                <NotificationsNoneRoundedIcon fontSize="small" />
+                            </Badge>
+                        </IconButton>
+                    </Tooltip>
 
                     <Popover
                         id="navbar-notifications-popover"
@@ -597,90 +606,92 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     </Popover>
 
                     {/* Profile button */}
-                    <ButtonBase
-                        onClick={handleProfileToggle}
-                        aria-describedby={isProfileMenuOpen ? 'navbar-profile-popover' : undefined}
-                        sx={{
-                            pl: { xs: 0.5, sm: 0.25 },
-                            pr: { xs: 0.5, sm: 0.5 },
-                            py: { xs: 0.5, sm: 0.25 },
-                            borderRadius: '10px',
-                            border: `1px solid ${isProfileMenuOpen ? theme.palette.divider : 'transparent'}`,
-                            backgroundColor: isProfileMenuOpen
-                                ? alpha(theme.palette.secondary.main, 0.08)
-                                : 'transparent',
-                            transition: 'all 180ms ease',
-                            minHeight: { xs: 44, sm: 'auto' },
-                            minWidth: { xs: 44, sm: 'auto' },
-                            '&:hover': {
-                                backgroundColor: alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.12 : 0.06),
-                                borderColor: theme.palette.secondary.main,
-                            },
-                        }}
-                    >
-                        <Stack direction="row" spacing={{ xs: 0, sm: 0.75 }} alignItems="center">
-                            <Avatar
-                                sx={{
-                                    width: { xs: '2rem', md: '2rem' },
-                                    height: { xs: '2rem', md: '2rem' },
-                                    flexShrink: 0,
-                                    bgcolor: alpha(theme.palette.secondary.main, mode === 'dark' ? 0.22 : 0.12),
-                                    color: theme.palette.secondary.main,
-                                    fontWeight: 700,
-                                    fontSize: '0.8125rem',
-                                }}
-                            >
-                                {initials}
-                            </Avatar>
-
-                            {/* Name + role — only on sm+ */}
-                            <Box sx={{
-                                minWidth: 0,
-                                textAlign: 'left',
-                                display: { xs: 'none', sm: 'block' },
-                                maxWidth: { sm: '7rem', md: '9rem' },
-                            }}>
-                                <Typography
+                    <Tooltip title="View profile, settings, and sign out options" placement="bottom">
+                        <ButtonBase
+                            onClick={handleProfileToggle}
+                            aria-describedby={isProfileMenuOpen ? 'navbar-profile-popover' : undefined}
+                            sx={{
+                                pl: { xs: 0.5, sm: 0.25 },
+                                pr: { xs: 0.5, sm: 0.5 },
+                                py: { xs: 0.5, sm: 0.25 },
+                                borderRadius: '10px',
+                                border: `1px solid ${isProfileMenuOpen ? theme.palette.divider : 'transparent'}`,
+                                backgroundColor: isProfileMenuOpen
+                                    ? alpha(theme.palette.secondary.main, 0.08)
+                                    : 'transparent',
+                                transition: 'all 180ms ease',
+                                minHeight: { xs: 44, sm: 'auto' },
+                                minWidth: { xs: 44, sm: 'auto' },
+                                '&:hover': {
+                                    backgroundColor: alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.12 : 0.06),
+                                    borderColor: theme.palette.secondary.main,
+                                },
+                            }}
+                        >
+                            <Stack direction="row" spacing={{ xs: 0, sm: 0.75 }} alignItems="center">
+                                <Avatar
                                     sx={{
-                                        fontWeight: 600,
-                                        color: theme.palette.text.primary,
-                                        lineHeight: 1.15,
+                                        width: { xs: '2rem', md: '2rem' },
+                                        height: { xs: '2rem', md: '2rem' },
+                                        flexShrink: 0,
+                                        bgcolor: alpha(theme.palette.secondary.main, mode === 'dark' ? 0.22 : 0.12),
+                                        color: theme.palette.secondary.main,
+                                        fontWeight: 700,
                                         fontSize: '0.8125rem',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
                                     }}
                                 >
-                                    {user?.name ?? 'Guest User'}
-                                </Typography>
-                                <Typography
+                                    {initials}
+                                </Avatar>
+
+                                {/* Name + role — only on sm+ */}
+                                <Box sx={{
+                                    minWidth: 0,
+                                    textAlign: 'left',
+                                    display: { xs: 'none', sm: 'block' },
+                                    maxWidth: { sm: '7rem', md: '9rem' },
+                                }}>
+                                    <Typography
+                                        sx={{
+                                            fontWeight: 600,
+                                            color: theme.palette.text.primary,
+                                            lineHeight: 1.15,
+                                            fontSize: '0.8125rem',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        }}
+                                    >
+                                        {user?.name ?? 'Guest User'}
+                                    </Typography>
+                                    <Typography
+                                        sx={{
+                                            color: theme.palette.text.secondary,
+                                            lineHeight: 1.2,
+                                            fontSize: '0.6875rem',
+                                            fontWeight: 400,
+                                            mt: 0.1,
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        }}
+                                    >
+                                        {user ? roleConfig[user.role].label : 'Guest'}
+                                    </Typography>
+                                </Box>
+
+                                <KeyboardArrowDownRoundedIcon
                                     sx={{
                                         color: theme.palette.text.secondary,
-                                        lineHeight: 1.2,
-                                        fontSize: '0.6875rem',
-                                        fontWeight: 400,
-                                        mt: 0.1,
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        fontSize: '1rem',
+                                        flexShrink: 0,
+                                        transform: isProfileMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                        transition: 'transform 180ms ease',
+                                        display: { xs: 'none', sm: 'block' },
                                     }}
-                                >
-                                    {user ? roleConfig[user.role].label : 'Guest'}
-                                </Typography>
-                            </Box>
-
-                            <KeyboardArrowDownRoundedIcon
-                                sx={{
-                                    color: theme.palette.text.secondary,
-                                    fontSize: '1rem',
-                                    flexShrink: 0,
-                                    transform: isProfileMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                                    transition: 'transform 180ms ease',
-                                    display: { xs: 'none', sm: 'block' },
-                                }}
-                            />
-                        </Stack>
-                    </ButtonBase>
+                                />
+                            </Stack>
+                        </ButtonBase>
+                    </Tooltip>
                 </Stack>
             </Stack>
 
