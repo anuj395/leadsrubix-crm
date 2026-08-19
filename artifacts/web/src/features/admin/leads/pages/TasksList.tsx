@@ -54,7 +54,7 @@ export default function TasksListPage() {
   })
 
   // Load screen config using useTableConfig
-  const { columns: dbColumns, loading: configLoading, error: configError } =
+  const { columns: dbColumns, loading: configLoading, error: configError, screenName } =
     useTableConfig('tasks', industryId)
 
   const refresh = async () => {
@@ -195,7 +195,7 @@ export default function TasksListPage() {
       )}
 
       <AppCard
-        title="Tasks"
+        title={screenName || 'Tasks'}
         subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
         fullHeight
       >

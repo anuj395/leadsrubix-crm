@@ -177,7 +177,7 @@ export default function ProjectsListPage() {
       }}
     >
       <AppCard
-        title="Projects List"
+        title={resolvedScreen?.screen?.name || 'Projects List'}
         subtitle="Manage master project parameters, RERA configurations, and links."
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>

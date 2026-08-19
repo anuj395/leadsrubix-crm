@@ -13,8 +13,8 @@ const permModel = require('../models/sidebarPermissionModel');
  */
 async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, organizationId, workspaceId }) {
   const mongoose = require('mongoose');
-  const code = industryCode || industry_code;
   const key = roleKey || role_key;
+  const code = key === 'superAdmin' ? 'temp0001' : (industryCode || industry_code);
   if (!code || !key) {
     return { industryCode: code, roleKey: key, menus: [] };
   }
@@ -78,7 +78,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
 
   // Map any global menu IDs in perms to organization's cloned menu IDs
-  if (targetOrgId && perms.length > 0) {
+  if (targetOrgId && key !== 'superAdmin' && perms.length > 0) {
     const allOrgMenus = await SidebarMenuModel.find({
       $or: [
         { organization_id: targetOrgId },
@@ -228,7 +228,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     const existing = itemsMap.get(keyLower);
     if (!existing) {
       itemsMap.set(keyLower, item);
-    } else if (item.organization_id && !existing.organization_id) {
+    } else if (item.organization_id && !existing.organization_id && key !== 'superAdmin') {
       itemsMap.set(keyLower, item);
     }
   }

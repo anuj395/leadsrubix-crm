@@ -136,22 +136,8 @@ export default function AdminScreensPage() {
         field: 'isActive', headerName: 'Status', width: 100,
         renderCell: (p) => <StatusBadge value={p.value ? 'Active' : 'Inactive'} />,
       },
-      {
-        field: '__actions', headerName: 'Actions', sortable: false, filterable: false,
-        align: 'right', headerAlign: 'right', width: 110,
-        renderCell: (p) => (
-          <>
-            <IconButton size="small" onClick={() => openEdit(p.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-            <IconButton size="small" color="error" onClick={() => remove(p.row)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </>
-        ),
-      },
     ],
-    [openEdit, remove],
+    [],
   )
 
   return (
@@ -159,11 +145,6 @@ export default function AdminScreensPage() {
       <AppCard
         title="Organization Screens"
         subtitle="Manage logical UI screens and view contexts for your organization."
-        action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-            Add Custom Screen
-          </Button>
-        }
         fullHeight
       >
         <AppDataGrid

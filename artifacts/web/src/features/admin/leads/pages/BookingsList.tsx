@@ -54,7 +54,7 @@ export default function BookingsListPage() {
   })
 
   // Load screen config using useTableConfig
-  const { columns: dbColumns, loading: configLoading } =
+  const { columns: dbColumns, loading: configLoading, screenName } =
     useTableConfig('bookings', industryId)
 
   const refresh = async () => {
@@ -174,7 +174,7 @@ export default function BookingsListPage() {
       }}
     >
       <AppCard
-        title="Bookings List"
+        title={screenName || 'Bookings List'}
         subtitle="List of active customer bookings and sales commitments."
         action={
           <Tooltip title="Log a new customer booking/sale record">

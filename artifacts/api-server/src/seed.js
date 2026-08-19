@@ -2106,16 +2106,187 @@ async function seedAdminAnalyticsSidebarPermissions() {
       existingDoc = await SidebarMenu.findOne({ _id: existingDoc._id });
     }
     menuDocMap.set(item.key, existingDoc);
-  }
+    }
 
-  // Ensure default temp0001 industry exists
-  let temp0001Ind = await Industry.findOne({ code: 'temp0001' }).exec();
-  if (!temp0001Ind) {
-    temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', is_active: true, status: 'Launched' });
-  }
+    // 1b. Seed Industry-specific Sidebar Menu overrides
+    const INDUSTRY_MENU_OVERRIDES = {
+      temp0002: {
+        'analytics': 'Sales Dashboard',
+        'leads': 'Customers',
+        'leads.contact': 'Customers List',
+        'leads.tasks': 'Support Tickets',
+        'leads.call': 'Support Call Logs',
+        'leads.booking': 'Sales Orders',
+        'configuration.projects': 'Products Catalog',
+        'configuration.resources': 'Fulfillment Warehouses',
+        'integrations.api': 'Store API Keys',
+        'leadDistribution': 'Order Routing',
+        'leadDistribution.list': 'Routing Rules',
+        'leadDistribution.reassignList': 'Order Reassignments',
+        'invoices': 'Store Invoices',
+        'invoices.paymentLogs': 'Store Payments',
+        'invoices.receiptsHistory': 'Receipts History',
+        'support.news': 'Announcements',
+        'support.faq': 'Customer FAQ',
+        'tool.areaConverter': 'Weight Converter',
+        'tool.emiCalculator': 'Tax Calculator'
+      },
+      temp0003: {
+        'analytics': 'Patient Analytics',
+        'leads': 'Patients',
+        'leads.contact': 'Patients List',
+        'leads.tasks': 'Consultations List',
+        'leads.call': 'Telehealth Logs',
+        'leads.booking': 'Appointments List',
+        'configuration.projects': 'Clinical Specialties',
+        'configuration.resources': 'Doctors & Staff',
+        'integrations.api': 'EHR Connections',
+        'leadDistribution': 'Patient Triaging',
+        'leadDistribution.list': 'Triage Rules',
+        'leadDistribution.reassignList': 'Patient Transfers',
+        'invoices': 'Bills & Claims',
+        'invoices.paymentLogs': 'Claim Logs',
+        'invoices.receiptsHistory': 'Receipts History',
+        'support.news': 'Hospital Bulletins',
+        'support.faq': 'Patient FAQ',
+        'tool.areaConverter': 'Dosage Converter',
+        'tool.emiCalculator': 'Premium Calculator'
+      },
+      temp0004: {
+        'analytics': 'Academic Analytics',
+        'leads': 'Students',
+        'leads.contact': 'Students List',
+        'leads.tasks': 'Admissions Tasks',
+        'leads.call': 'Inquiry Calls',
+        'leads.booking': 'Enrollments List',
+        'configuration.projects': 'Academic Programs',
+        'configuration.resources': 'Faculty & Staff',
+        'integrations.api': 'LMS API Tokens',
+        'leadDistribution': 'Admissions Routing',
+        'leadDistribution.list': 'Routing Rules',
+        'leadDistribution.reassignList': 'Counselor Transfers',
+        'invoices': 'Tuition Invoices',
+        'invoices.paymentLogs': 'Tuition Fee Logs',
+        'invoices.receiptsHistory': 'Receipts History',
+        'support.news': 'School Announcements',
+        'support.faq': 'Student FAQ',
+        'tool.areaConverter': 'GPA Calculator',
+        'tool.emiCalculator': 'Tuition EMI'
+      },
+      temp0005: {
+        'analytics': 'Client Analytics',
+        'leads': 'Clients',
+        'leads.contact': 'Investors List',
+        'leads.tasks': 'KYC & Advisory Tasks',
+        'leads.call': 'Advisory Calls',
+        'leads.booking': 'Transactions List',
+        'configuration.projects': 'Financial Portfolios',
+        'configuration.resources': 'Relationship Advisors',
+        'integrations.api': 'Banking API Tokens',
+        'leadDistribution': 'Client Matching',
+        'leadDistribution.list': 'Matching Rules',
+        'leadDistribution.reassignList': 'Advisor Reassignments',
+        'invoices': 'Client Statements',
+        'invoices.paymentLogs': 'Transaction Logs',
+        'invoices.receiptsHistory': 'Statement History',
+        'support.news': 'Market Bulletins',
+        'support.faq': 'Client FAQ',
+        'tool.areaConverter': 'Currency Converter',
+        'tool.emiCalculator': 'Loan EMI'
+      },
+      temp0006: {
+        'analytics': 'Project Metrics',
+        'leads': 'Accounts',
+        'leads.contact': 'Accounts List',
+        'leads.tasks': 'Service Desk Tasks',
+        'leads.call': 'Tech Support Calls',
+        'leads.booking': 'Subscriptions List',
+        'configuration.projects': 'SOW Contracts',
+        'configuration.resources': 'Developers & Engineers',
+        'integrations.api': 'Jira API Tokens',
+        'leadDistribution': 'Ticket Routing',
+        'leadDistribution.list': 'Routing Rules',
+        'leadDistribution.reassignList': 'Ticket Reassignments',
+        'invoices': 'Invoices & Payments',
+        'invoices.paymentLogs': 'Payment Logs',
+        'invoices.receiptsHistory': 'Receipts History',
+        'support.news': 'System Status News',
+        'support.faq': 'Knowledge Base',
+        'tool.areaConverter': 'Bandwidth Calculator',
+        'tool.emiCalculator': 'Billing Estimator'
+      },
+      temp0007: {
+        'analytics': 'Production Metrics',
+        'leads': 'Dealers',
+        'leads.contact': 'Dealers List',
+        'leads.tasks': 'Quality Checks',
+        'leads.call': 'Logistics Calls',
+        'leads.booking': 'Purchase Orders',
+        'configuration.projects': 'Production Runs',
+        'configuration.resources': 'Assembly Lines',
+        'integrations.api': 'ERP API Tokens',
+        'leadDistribution': 'Dealer Allocations',
+        'leadDistribution.list': 'Allocation Rules',
+        'leadDistribution.reassignList': 'Dealer Reallocations',
+        'invoices': 'Dealer Invoices',
+        'invoices.paymentLogs': 'Dealer Payment Logs',
+        'invoices.receiptsHistory': 'Receipts History',
+        'support.news': 'Plant Bulletins',
+        'support.faq': 'Distributor FAQ',
+        'tool.areaConverter': 'Unit Converter',
+        'tool.emiCalculator': 'Leasing Estimator'
+      }
+    };
 
-  const allMenus = Array.from(menuDocMap.values());
-  if (!allMenus.length) return;
+    for (const [indCode, overrides] of Object.entries(INDUSTRY_MENU_OVERRIDES)) {
+      let indDoc = await Industry.findOne({ code: indCode }).exec();
+      if (!indDoc) {
+        const indNames = {
+          temp0001: 'Real Estate',
+          temp0002: 'E-commerce',
+          temp0003: 'Healthcare',
+          temp0004: 'Education',
+          temp0005: 'Financial Services',
+          temp0006: 'IT & Tech Services',
+          temp0007: 'Manufacturing'
+        };
+        indDoc = await Industry.create({ code: indCode, name: indNames[indCode] || indCode, is_active: true, status: 'Launched' });
+      }
+
+      const indIdStr = String(indDoc._id);
+
+      for (const [menuKey, overName] of Object.entries(overrides)) {
+        const globalMenu = menuDocMap.get(menuKey);
+        if (!globalMenu) continue;
+
+        let existingIndDoc = await SidebarMenu.findOne({ key: menuKey, organization_id: null, industry_id: indIdStr });
+        if (!existingIndDoc) {
+          existingIndDoc = await SidebarMenu.create({
+            key: menuKey,
+            name: overName,
+            route: globalMenu.route,
+            icon: globalMenu.icon,
+            module: globalMenu.module,
+            parent_id: globalMenu.parent_id,
+            order: globalMenu.order,
+            organization_id: null,
+            industry_id: indIdStr,
+            is_active: true,
+          });
+        } else {
+          await SidebarMenu.updateOne(
+            { _id: existingIndDoc._id },
+            { $set: { name: overName, route: globalMenu.route, icon: globalMenu.icon, parent_id: globalMenu.parent_id, order: globalMenu.order } }
+          );
+        }
+      }
+    }
+
+    // Ensure default temp0001 industry exists
+    let temp0001Ind = await Industry.findOne({ code: 'temp0001' }).exec();
+    if (!temp0001Ind) {
+      temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', is_active: true, status: 'Launched' });
+    }
 
   // 2. Grant FULL sidebar permissions to all superAdmin template roles (excluding Domain Settings)
   const superAdminAllowedKeys = new Set([
@@ -2159,7 +2330,27 @@ async function seedAdminAnalyticsSidebarPermissions() {
   for (const r of superAdminRoles) {
     const orgId = null;
     const indId = r.industry_id || temp0001Ind._id;
-    for (const menu of allMenus) {
+
+    const rawMenus = await SidebarMenu.find({
+      organization_id: null,
+      industry_id: null
+    }).lean().exec();
+
+    const menuMapByKey = new Map();
+    for (const m of rawMenus) {
+      const key = m.key;
+      if (!menuMapByKey.has(key)) {
+        menuMapByKey.set(key, m);
+      } else {
+        const existing = menuMapByKey.get(key);
+        if (!existing.industry_id && m.industry_id) {
+          menuMapByKey.set(key, m);
+        }
+      }
+    }
+    const superAdminMenus = Array.from(menuMapByKey.values());
+
+    for (const menu of superAdminMenus) {
       const isVisible = superAdminAllowedKeys.has(menu.key);
       try {
         await SidebarPermission.updateOne(
@@ -2174,26 +2365,57 @@ async function seedAdminAnalyticsSidebarPermissions() {
           { upsert: true }
         );
       } catch (e) {
-        // ignore duplicate index conflicts
+        // ignore
       }
     }
   }
 
   // 3. Grant standard sidebar permissions to all admin template roles
   const adminRoles = await Role.find({ key: 'admin', organization_id: null }).lean().exec();
-  const adminAllowedKeys = new Set();
-  const defaultAdminList = DEFAULT_SIDEBAR_CONFIGS.find(cfg => cfg.industryId === 'temp0001')?.roles?.admin || [];
-  for (const m of defaultAdminList) {
-    adminAllowedKeys.add(m.key);
-    if (m.key.includes('.')) {
-      adminAllowedKeys.add(m.key.split('.')[0]);
-    }
-  }
+  const baseAdminKeys = [
+    'uiNavigation',
+    'uiNavigation.analyticsConfig',
+    'uiNavigation.screenFields',
+    'accessControl',
+    'accessControl.screenPermissions',
+  ];
 
   for (const r of adminRoles) {
     const orgId = null;
     const indId = r.industry_id || temp0001Ind._id;
-    for (const menu of allMenus) {
+
+    const adminAllowedKeys = new Set(baseAdminKeys);
+    const defaultAdminList = DEFAULT_SIDEBAR_CONFIGS.find(cfg => cfg.industryId === 'temp0001')?.roles?.admin || [];
+    for (const m of defaultAdminList) {
+      adminAllowedKeys.add(m.key);
+      if (m.key.includes('.')) {
+        adminAllowedKeys.add(m.key.split('.')[0]);
+      }
+    }
+
+    const rawMenus = await SidebarMenu.find({
+      organization_id: null,
+      $or: [
+        { industry_id: null },
+        { industry_id: String(indId) }
+      ]
+    }).lean().exec();
+
+    const menuMapByKey = new Map();
+    for (const m of rawMenus) {
+      const key = m.key;
+      if (!menuMapByKey.has(key)) {
+        menuMapByKey.set(key, m);
+      } else {
+        const existing = menuMapByKey.get(key);
+        if (!existing.industry_id && m.industry_id) {
+          menuMapByKey.set(key, m);
+        }
+      }
+    }
+    const adminMenus = Array.from(menuMapByKey.values());
+
+    for (const menu of adminMenus) {
       const isVisible = adminAllowedKeys.has(menu.key);
       try {
         await SidebarPermission.updateOne(

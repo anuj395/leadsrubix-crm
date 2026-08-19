@@ -38,8 +38,33 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
   }
 
   // 3. Clone Sidebar Menus (preserving parent-child hierarchy)
-  const templateMenus = await SidebarMenu.find({ organization_id: null }).lean();
-  const menuIdMap = {};
+  const templateMenusRaw = await SidebarMenu.find({
+    organization_id: null,
+    $or: [
+      { industry_id: null },
+      { industry_id: String(industryDbId) }
+    ]
+  }).lean();
+
+  // Deduplicate by key, favoring the industry-specific menu over the global one
+  const menuMapByKey = new Map();
+  for (const m of templateMenusRaw) {
+    const key = m.key;
+    if (!menuMapByKey.has(key)) {
+      menuMapByKey.set(key, m);
+    } else {
+      const existing = menuMapByKey.get(key);
+      if (!existing.industry_id && m.industry_id) {
+        menuMapByKey.set(key, m);
+      }
+    }
+  }
+  const templateMenus = Array.from(menuMapByKey.values());
+  // Step 3: Clone Sidebar Menus (preserving parent-child hierarchy using keys)
+  const allTemplates = await SidebarMenu.find({ organization_id: null }).lean();
+  const idToKeyMap = new Map(allTemplates.map(m => [String(m._id), m.key]));
+  const keyToClonedId = new Map();
+  const menuIdMap = {}; // keep old ID map for compatibility with permissions
 
   // Step 3a: Clone top-level menus (parent_id is null)
   const topLevelMenus = templateMenus.filter(m => !m.parent_id);
@@ -56,6 +81,7 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
       module: m.module,
       is_active: m.is_active,
     });
+    keyToClonedId.set(m.key, String(created._id));
     menuIdMap[String(m._id)] = String(created._id);
   }
 
@@ -63,7 +89,15 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
   const childMenus = templateMenus.filter(m => m.parent_id);
   for (const m of childMenus) {
     const oldParentIdStr = String(m.parent_id);
-    const newParentId = menuIdMap[oldParentIdStr] ? new mongoose.Types.ObjectId(menuIdMap[oldParentIdStr]) : null;
+    const parentKey = idToKeyMap.get(oldParentIdStr);
+    const newParentIdStr = parentKey ? keyToClonedId.get(parentKey) : null;
+    let newParentId = newParentIdStr ? new mongoose.Types.ObjectId(newParentIdStr) : null;
+    if (!newParentId && parentKey) {
+      const globalParent = allTemplates.find(t => t.key === parentKey && !t.organization_id && !t.industry_id);
+      if (globalParent) {
+        newParentId = globalParent._id;
+      }
+    }
     const created = await SidebarMenu.create({
       key: m.key,
       name: m.name,
@@ -76,6 +110,7 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
       module: m.module,
       is_active: m.is_active,
     });
+    keyToClonedId.set(m.key, String(created._id));
     menuIdMap[String(m._id)] = String(created._id);
   }
 

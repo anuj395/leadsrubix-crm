@@ -13,6 +13,7 @@ import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
+import { useTableConfig } from '@/hooks/useTableConfig'
 import api from '@/services/axiosInstance'
 
 interface CallLog {
@@ -37,6 +38,7 @@ interface CallLog {
 
 export default function CallLogsListPage() {
   const { user } = useAppSelector(selectAuth)
+  const { screenName } = useTableConfig('calls', user?.industryId)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [logs, setLogs] = useState<CallLog[]>([])
@@ -221,7 +223,7 @@ export default function CallLogsListPage() {
 
       {/* Search and Table */}
       <AppCard
-        title="Call Logs List"
+        title={screenName || 'Call Logs List'}
         subtitle="Curated agent call details and client conversations."
         fullHeight
       >

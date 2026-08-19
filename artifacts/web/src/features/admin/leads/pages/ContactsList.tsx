@@ -35,7 +35,7 @@ export default function ContactsListPage() {
   })
 
   // Load screen config using useTableConfig
-  const { columns: dbColumns, loading: configLoading, error: configError } =
+  const { columns: dbColumns, loading: configLoading, error: configError, screenName } =
     useTableConfig('contacts', industryId)
 
   const refresh = async () => {
@@ -202,7 +202,7 @@ export default function ContactsListPage() {
       )}
 
       <AppCard
-        title="Contacts"
+        title={screenName || 'Contacts'}
         subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
         action={
           <Stack direction="row" spacing={1.5}>

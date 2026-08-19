@@ -206,6 +206,27 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     module: "Configuration"
   },
   {
+    key: "configuration.screenFields",
+    name: "Screen Fields",
+    route: "/configuration/screen-fields",
+    icon: "headers",
+    module: "Configuration"
+  },
+  {
+    key: "configuration.screenPermissions",
+    name: "Permission Fields",
+    route: "/configuration/screen-permissions",
+    icon: "shield",
+    module: "Configuration"
+  },
+  {
+    key: "configuration.analyticsConfig",
+    name: "Analytics Layout Builder",
+    route: "/configuration/analytics-config",
+    icon: "settings",
+    module: "Configuration"
+  },
+  {
     key: "leadDistribution.list",
     name: "Lead Distribution List",
     route: "/lead-distribution/list",

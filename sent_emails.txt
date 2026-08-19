@@ -890,3 +890,75 @@ Organization: HeathCare
 Username / Email: raj@gmail.com
 Temp Password: nqhFb5wa
 ========================================
+
+========================================
+Timestamp: 2026-08-19T05:18:50.120Z
+To: dev1@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Test Ord
+Username / Email: dev1@digitalrubix.com
+Temp Password: rhms1qYy
+========================================
+
+========================================
+Timestamp: 2026-08-19T06:37:04.912Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: KIy8pkdo
+========================================
+
+========================================
+Timestamp: 2026-08-19T06:43:56.254Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: n9UkD9Hx
+========================================
+
+========================================
+Timestamp: 2026-08-19T06:52:08.481Z
+To: aaaa@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: dajksda
+Username / Email: aaaa@gmail.com
+Temp Password: MeA52lFp
+========================================
+
+========================================
+Timestamp: 2026-08-19T06:53:44.089Z
+To: eeee@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: xaklxklz
+Username / Email: eeee@gmail.com
+Temp Password: 9qpkJSbI
+========================================
+
+========================================
+Timestamp: 2026-08-19T07:51:20.250Z
+To: eeee@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: daskldmaslkd
+Username / Email: eeee@gmail.com
+Temp Password: sfJ7SIOT
+========================================
+
+========================================
+Timestamp: 2026-08-19T07:51:43.612Z
+To: admin-1787125903361@org.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: daskldmaslkd
+Username / Email: admin-1787125903361@org.com
+Temp Password: 1hVzyYaC
+========================================
+
+========================================
+Timestamp: 2026-08-19T08:22:00.862Z
+To: hhhh@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: xSXklzc
+Username / Email: hhhh@gmail.com
+Temp Password: rEZ4uOLo
+========================================

@@ -15,6 +15,7 @@ interface UseTableConfigResult {
   loading: boolean
   error: string | null
   reload: () => void
+  screenName: string
 }
 
 // Whitelist of types that the DataTable understands. Anything else falls back
@@ -29,6 +30,7 @@ export function useTableConfig(
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [screenName, setScreenName] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +42,7 @@ export function useTableConfig(
         if (!industryId) {
           if (!cancelled) {
             setColumns([])
+            setScreenName('')
             setError('Missing industryId — cannot load table configuration')
           }
           return
@@ -58,12 +61,16 @@ export function useTableConfig(
           sortable: h.sortable,
         }))
 
-        if (!cancelled) setColumns(cols)
+        if (!cancelled) {
+          setColumns(cols)
+          setScreenName(industryId === 'temp0001' ? '' : (data.screen?.name || ''))
+        }
       } catch (err) {
         if (!cancelled) {
           const msg = err instanceof Error ? err.message : 'Failed to load table config'
           setError(msg)
           setColumns([])
+          setScreenName('')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -78,5 +85,5 @@ export function useTableConfig(
 
   const reload = useCallback(() => setTick((t) => t + 1), [])
 
-  return { columns, loading, error, reload }
+  return { columns, loading, error, reload, screenName }
 }

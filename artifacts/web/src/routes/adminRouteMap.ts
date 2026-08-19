@@ -99,6 +99,14 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/holiday-config/:id/edit": HolidayConfigFormPage,
   "/configuration/days-config": DaysConfigPage,
   "/configuration/domain-settings": DomainSettingsPage,
+  "/configuration/screens": ScreensPage,
+  "/configuration/screen-fields": ScreenFieldsPage,
+  "/configuration/screen-permissions": ScreenPermissionsPage,
+  "/configuration/analytics-config": AnalyticsConfigPage,
+  "/ui-navigation/screens": ScreensPage,
+  "/ui-navigation/screen-fields": ScreenFieldsPage,
+  "/ui-navigation/analytics-config": AnalyticsConfigPage,
+  "/access-control/screen-permissions": ScreenPermissionsPage,
 
 
   "/integrations": IntegrationsPage,
