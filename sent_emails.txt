@@ -1124,3 +1124,21 @@ Organization: Leads Rubix
 Username / Email: lead@gmail.com
 Temp Password: 7eO5U8hs
 ========================================
+
+========================================
+Timestamp: 2026-08-20T12:41:19.701Z
+To: team@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix Edit Test
+Username / Email: team@gmail.com
+Temp Password: 6Sp0JtKE
+========================================
+
+========================================
+Timestamp: 2026-08-20T12:42:43.634Z
+To: sales@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix Edit Test
+Username / Email: sales@gmail.com
+Temp Password: 9Y1RbP7o
+========================================

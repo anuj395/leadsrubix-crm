@@ -228,10 +228,10 @@ export default function UserFormPage() {
       setFormError(null)
 
       const role = String(dynVals.role || '')
-      const email = String(dynVals.email || '')
-      const firstName = String(dynVals.firstName || '')
-      const lastName = String(dynVals.lastName || '')
-      const reportingTo = String(dynVals.reportingTo || '')
+      const email = String(dynVals.email_id || dynVals.email || '')
+      const firstName = String(dynVals.first_name || dynVals.firstName || '')
+      const lastName = String(dynVals.last_name || dynVals.lastName || '')
+      const reportingTo = String(dynVals.reporting_to || dynVals.reportingTo || '')
 
       const payload: any = {
         firstName: firstName.trim(),
@@ -245,7 +245,10 @@ export default function UserFormPage() {
           ...dynVals,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           reportingTo: reportingTo || undefined,
+          reporting_to: reportingTo || undefined,
         },
       }
 
