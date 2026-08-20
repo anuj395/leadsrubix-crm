@@ -10,7 +10,9 @@ exports.list = async (req, res, next) => {
       screenId: req.query.screenId,
       activeOnly: req.query.active === 'true',
       organizationId: orgId,
-      industryCode: req.user?.industryId || req.user?.industry_id,
+      industryCode: req.user?.role === 'superAdmin'
+        ? (req.query.industryId || req.query.industryCode || req.query.industry_id || req.user?.industryId)
+        : (req.user?.industryId || null),
     });
     res.json({ items });
   } catch (err) {

@@ -10,7 +10,9 @@ exports.list = async (req, res, next) => {
     const items = await service.list({
       activeOnly: req.query.active === 'true',
       organizationId,
-      industryCode: req.user?.industryId || req.user?.industry_id,
+      industryCode: isSuperAdmin
+        ? (req.query.industryId || req.query.industryCode || req.query.industry_id || req.user?.industryId)
+        : (req.user?.industryId || null),
     });
     res.json({ items });
   } catch (err) {

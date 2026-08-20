@@ -134,10 +134,12 @@ async function safeList<T>(path: string): Promise<T[]> {
   return (res.data?.items ?? []) as T[]
 }
 
-// ── Screens CRUD ─────────────────────────────────────────────────────────────
-export async function getScreens(organizationId?: string): Promise<Screen[]> {
-  const path = organizationId ? `screens?organizationId=${organizationId}` : 'screens'
-  return safeList<Screen>(path)
+export async function getScreens(organizationId?: string, industryId?: string): Promise<Screen[]> {
+  const parts: string[] = []
+  if (organizationId) parts.push(`organizationId=${encodeURIComponent(organizationId)}`)
+  if (industryId) parts.push(`industryId=${encodeURIComponent(industryId)}`)
+  const qs = parts.length ? `?${parts.join('&')}` : ''
+  return safeList<Screen>(`screens${qs}`)
 }
 export async function createScreen(data: ScreenInput): Promise<Screen> {
   const res = await api.post('screens', data)
@@ -151,11 +153,11 @@ export async function deleteScreen(id: string): Promise<void> {
   await api.delete(`screens/${id}`)
 }
 
-// ── Fields CRUD ──────────────────────────────────────────────────────────────
-export async function getScreenFields(screenId?: string, organizationId?: string): Promise<ScreenField[]> {
+export async function getScreenFields(screenId?: string, organizationId?: string, industryId?: string): Promise<ScreenField[]> {
   const parts: string[] = []
   if (screenId) parts.push(`screenId=${encodeURIComponent(screenId)}`)
   if (organizationId) parts.push(`organizationId=${encodeURIComponent(organizationId)}`)
+  if (industryId) parts.push(`industryId=${encodeURIComponent(industryId)}`)
   const qs = parts.length ? `?${parts.join('&')}` : ''
   return safeList<ScreenField>(`screen-fields${qs}`)
 }

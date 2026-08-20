@@ -67,7 +67,8 @@ export default function ScreensPage() {
     setLoading(true)
     try {
       const orgParam = isSuperAdmin ? (selectedOrg || undefined) : undefined
-      setItems(await getScreens(orgParam))
+      const indParam = isSuperAdmin ? (selectedIndustry || undefined) : undefined
+      setItems(await getScreens(orgParam, indParam))
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load', sev: 'error' })
     } finally {
@@ -77,7 +78,7 @@ export default function ScreensPage() {
 
   useEffect(() => {
     void refresh()
-  }, [selectedOrg])
+  }, [selectedOrg, selectedIndustry])
 
   const openCreate = () => { setForm(emptyForm); setDialogOpen(true) }
   const openEdit = (row: Screen) => {
