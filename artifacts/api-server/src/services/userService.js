@@ -76,9 +76,18 @@ function pickAllowedFields(payloadFields, allowedFieldDefs) {
   });
 
   const normalizedPayload = {};
+  // First pass: copy camelCase keys (stale/initial values)
   for (const [k, v] of Object.entries(payloadFields || {})) {
-    const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-    normalizedPayload[camelKey] = v;
+    if (!k.includes('_')) {
+      normalizedPayload[k] = v;
+    }
+  }
+  // Second pass: copy snake_case keys (actual updated input fields) to overwrite stale ones
+  for (const [k, v] of Object.entries(payloadFields || {})) {
+    if (k.includes('_')) {
+      const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      normalizedPayload[camelKey] = v;
+    }
   }
 
   for (const [camelKey, v] of Object.entries(normalizedPayload)) {

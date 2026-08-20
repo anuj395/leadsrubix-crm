@@ -1115,3 +1115,12 @@ Organization: mfgB1
 Username / Email: mfgb1@gmail.com
 Temp Password: epHS0MF0
 ========================================
+
+========================================
+Timestamp: 2026-08-20T12:17:37.696Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lead@gmail.com
+Temp Password: 7eO5U8hs
+========================================
