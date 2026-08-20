@@ -373,6 +373,51 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                     </Typography>
                 </Stack>
 
+                {/* Center / Right: Subdomain Badge & 70% Workspace Setup Completion Bar Widget (Non-SuperAdmin Tenants Only) */}
+                {user?.role !== 'superAdmin' && Boolean(user?.organizationName) && (
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ display: { xs: 'none', lg: 'flex' } }}>
+                        {/* Subdomain Slug Badge */}
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.5,
+                                py: 0.5,
+                                borderRadius: '999px',
+                                backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                            }}
+                        >
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10B981' }} />
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: theme.palette.secondary.main }}>
+                                {`${String(user?.organizationName || '').toLowerCase().replace(/[^a-z0-9]/g, '')}.leadsrubix.com`}
+                            </Typography>
+                        </Box>
+
+                        {/* 70% Workspace Setup Completion Progress Bar */}
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1.25,
+                                px: 1.75,
+                                py: 0.5,
+                                borderRadius: '12px',
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                border: `1px solid ${theme.palette.divider}`,
+                            }}
+                        >
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: theme.palette.text.primary }}>
+                                Setup 70%
+                            </Typography>
+                            <Box sx={{ width: 60, height: 6, borderRadius: 3, backgroundColor: alpha(theme.palette.text.secondary, 0.15), overflow: 'hidden' }}>
+                                <Box sx={{ width: '70%', height: '100%', borderRadius: 3, backgroundColor: '#10B981' }} />
+                            </Box>
+                        </Box>
+                    </Stack>
+                )}
+
                 {/* Right: search + actions */}
                 <Stack
                     direction="row"

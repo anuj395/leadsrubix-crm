@@ -1,0 +1,123 @@
+{
+  "runId": "audit_1787030206405",
+  "timestamp": "2026-08-18T05:16:46.405Z",
+  "environment": "Local / Hybrid PostgreSQL",
+  "totalTests": 12,
+  "passed": 12,
+  "failed": 0,
+  "durationMs": 1344,
+  "modules": [
+    {
+      "name": "Authentication",
+      "tests": [
+        {
+          "name": "SuperAdmin Login & Credential Verification",
+          "status": "PASSED",
+          "durationMs": 78,
+          "detail": "Authenticated as team@leadsrubix.com (Role: superAdmin)"
+        },
+        {
+          "name": "Invalid Password Rejection with HTTP 401",
+          "status": "PASSED",
+          "durationMs": 77,
+          "detail": "Correctly rejected invalid credentials"
+        }
+      ]
+    },
+    {
+      "name": "Dynamic Industries",
+      "tests": [
+        {
+          "name": "SuperAdmin Custom Industry Creation",
+          "status": "PASSED",
+          "durationMs": 28,
+          "detail": "Created Industry: Auto Logistics & Fleet Transport with 3 template roles"
+        },
+        {
+          "name": "Retrieve Active Industries List",
+          "status": "PASSED",
+          "durationMs": 2,
+          "detail": "Retrieved 14 active industries"
+        }
+      ]
+    },
+    {
+      "name": "Workspace Provisioning",
+      "tests": [
+        {
+          "name": "Onboard Client into Custom Industry",
+          "status": "PASSED",
+          "durationMs": 948,
+          "detail": "Provisioned Workspace 'Global Speed Logistics Inc' (ID: p5a3NcZStFuyDh8DWnQx)"
+        },
+        {
+          "name": "Verify Cloned Industry Roles Inheritance",
+          "status": "PASSED",
+          "durationMs": 1,
+          "detail": "Cloned 3 roles: admin, dispatcher, route_manager"
+        }
+      ]
+    },
+    {
+      "name": "Tenant Isolation",
+      "tests": [
+        {
+          "name": "Tenant Boundary Isolation on Contact & Task Records",
+          "status": "PASSED",
+          "durationMs": 8,
+          "detail": "Tenant records strictly isolated (Created Contact: 6a83eabf0000e09de166d480, Task: 6a83eabf00000918e94c915a)"
+        }
+      ]
+    },
+    {
+      "name": "Workspace Backup",
+      "tests": [
+        {
+          "name": "Export Full Structured JSON Workspace Archive",
+          "status": "PASSED",
+          "durationMs": 17,
+          "detail": "Backup archive generated with 165 fields, 1 contacts, 3 roles"
+        }
+      ]
+    },
+    {
+      "name": "Account Deletion",
+      "tests": [
+        {
+          "name": "Client Admin Submits Account Deletion Request",
+          "status": "PASSED",
+          "durationMs": 5,
+          "detail": "Deletion request submitted: Account deletion request submitted successfully. Awaiting Platform Admin approval."
+        },
+        {
+          "name": "SuperAdmin Reviews & Approves Account Deletion",
+          "status": "PASSED",
+          "durationMs": 32,
+          "detail": "SuperAdmin approved deletion. Workspace status is DELETED"
+        }
+      ]
+    },
+    {
+      "name": "Subdomain Blacklist",
+      "tests": [
+        {
+          "name": "Enforce Subdomain Reallocation Protection (Tombstone)",
+          "status": "PASSED",
+          "durationMs": 6,
+          "detail": "Successfully blocked with error: \"The subdomain 'fleet_1787030206731' is permanently retired/blacklisted and cannot be allocated in live CRM.\""
+        }
+      ]
+    },
+    {
+      "name": "Navigation Engine",
+      "tests": [
+        {
+          "name": "Resolve Client Admin Streamlined Navigation",
+          "status": "PASSED",
+          "durationMs": 2,
+          "detail": "Resolved 0 sidebar menus for Client Admin"
+        }
+      ]
+    }
+  ]
+}

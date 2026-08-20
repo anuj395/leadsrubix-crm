@@ -43,6 +43,16 @@ const organizationSchema = new mongoose.Schema(
     logo_url: { type: String, default: '', alias: 'logoUrl' },
     primary_color: { type: String, default: '#1976d2', alias: 'primaryColor' },
     app_name: { type: String, default: 'Leads Rubix CRM', alias: 'appName' },
+    deletion_request: {
+      status: { type: String, enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'], default: 'NONE' },
+      reason: { type: String, default: '' },
+      feedback: { type: String, default: '' },
+      requested_at: { type: Date, default: null, alias: 'requestedAt' },
+      requested_by: { type: String, default: null, alias: 'requestedBy' },
+      reviewed_at: { type: Date, default: null, alias: 'reviewedAt' },
+      reviewed_by: { type: String, default: null, alias: 'reviewedBy' },
+      rejection_reason: { type: String, default: '', alias: 'rejectionReason' },
+    },
   },
   { 
     timestamps: true, 

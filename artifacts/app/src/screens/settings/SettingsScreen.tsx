@@ -4,130 +4,201 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Switch,
   TouchableOpacity,
+  TextInput,
+  Switch,
   StatusBar,
+  Platform,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { subdomainService } from '../../services/subdomainService';
+import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
+import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { theme } from '../../theme/theme';
 
-export const SettingsScreen = () => {
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailDigest, setEmailDigest] = useState(true);
-  const [biometric, setBiometric] = useState(false);
+export const SettingsScreen = ({ navigation }: any) => {
+  const [selectedCurrency, setSelectedCurrency] = useState<'INR' | 'USD' | 'AED' | 'GBP' | 'EUR'>('INR');
+  const [customDomainInput, setCustomDomainInput] = useState('');
+  const [activeCustomDomain, setActiveCustomDomain] = useState<string | null>(null);
 
-  const handleChangePassword = () => {
+  const [biometricLock, setBiometricLock] = useState(true);
+  const [autoCallPopup, setAutoCallPopup] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
+
+  const currencies = [
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee (INR)' },
+    { code: 'USD', symbol: '$', name: 'US Dollar (USD)' },
+    { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham (AED)' },
+    { code: 'GBP', symbol: '£', name: 'British Pound (GBP)' },
+    { code: 'EUR', symbol: '€', name: 'Euro (EUR)' },
+  ] as const;
+
+  const handleMapCustomDomain = async () => {
+    if (!customDomainInput.trim()) {
+      Alert.alert('Domain Required', 'Please enter a valid custom domain (e.g. crm.acmerealty.com).');
+      return;
+    }
+
+    const domain = customDomainInput.trim().toLowerCase();
+    const res = await subdomainService.mapCustomDomain('client1', domain);
+    setActiveCustomDomain(domain);
+
     Alert.alert(
-      'Update Password',
-      'A password reset link has been dispatched to your work email address.'
+      'Custom Domain CNAME Target Issued',
+      `${res.message}\n\nCNAME Target: ${res.cnameTarget}`,
+      [{ text: 'Got it' }]
     );
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
 
-      {/* Header */}
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>App Settings & Security</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Account Security Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Security & Credentials</Text>
-
-          <TouchableOpacity style={styles.settingRow} onPress={handleChangePassword} activeOpacity={0.7}>
-            <View style={styles.iconBox}>
-              <Ionicons name="key-outline" size={18} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTextGroup}>
-              <Text style={styles.rowTitle}>Update Password</Text>
-              <Text style={styles.rowSub}>Change your workspace authentication password</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+      {/* Clean Executive #272944 Hero Header Banner */}
+      <View style={styles.hero3DHeader}>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity
+            style={styles.backBtnCircle}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back-sharp" size={18} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <View style={styles.divider} />
+          <CompanyLogo variant="white" height={36} />
 
-          <View style={styles.settingRow}>
-            <View style={styles.iconBox}>
-              <Ionicons name="finger-print-outline" size={18} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTextGroup}>
-              <Text style={styles.rowTitle}>Biometric Authentication</Text>
-              <Text style={styles.rowSub}>Use Face ID / Fingerprint for quick login</Text>
-            </View>
-            <Switch
-              value={biometric}
-              onValueChange={setBiometric}
-              trackColor={{ false: '#CBD5E1', true: theme.colors.primary }}
-              thumbColor="#FFFFFF"
+          <View style={{ width: 34 }} />
+        </View>
+
+        <View style={styles.statusBadgePill}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.headerTagText}>SUBDOMAIN & WORKSPACE CONFIGURATION</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Subdomain & Custom Domain Mapping Card */}
+        <View style={styles.card3D}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>SUBDOMAIN & CUSTOM DOMAIN MAPPING</Text>
+            <InfoGuideBadge
+              title="Workspace Subdomain"
+              description="Every client receives an active default subdomain (e.g. client1.leadsrubix.com). Enterprise accounts can map custom domains with SSL."
             />
+          </View>
+
+          {/* Active Subdomain Banner */}
+          <View style={styles.activeSubdomainBox}>
+            <Ionicons name="globe-sharp" size={18} color="#0284C7" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.subdomainLabel}>Active Default Subdomain:</Text>
+              <Text style={styles.subdomainUrlText}>https://client1.leadsrubix.com</Text>
+            </View>
+            <View style={styles.activeBadgePill}>
+              <Text style={styles.activeBadgeText}>ACTIVE</Text>
+            </View>
+          </View>
+
+          {/* Custom Domain Input */}
+          <Text style={styles.fieldLabel}>CUSTOM CNAME DOMAIN MAPPING</Text>
+          <View style={styles.domainInputRow}>
+            <TextInput
+              style={styles.domainInput}
+              placeholder="e.g. crm.acmerealty.com"
+              placeholderTextColor="#94A3B8"
+              value={customDomainInput}
+              onChangeText={setCustomDomainInput}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.mapBtn} onPress={handleMapCustomDomain} activeOpacity={0.8}>
+              <Text style={styles.mapBtnText}>Map Domain</Text>
+            </TouchableOpacity>
+          </View>
+
+          {activeCustomDomain && (
+            <View style={styles.mappedDomainNotice}>
+              <Ionicons name="checkmark-circle-sharp" size={16} color="#059669" />
+              <Text style={styles.mappedDomainText}>
+                CNAME target issued for <Text style={{ fontWeight: '800' }}>{activeCustomDomain}</Text>. Point CNAME to <Text style={{ fontWeight: '800' }}>client1.leadsrubix.com</Text>.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Currency Preferences */}
+        <View style={styles.card3D}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>WORKSPACE CURRENCY PREFERENCE</Text>
+            <InfoGuideBadge
+              title="Workspace Currency"
+              description="Select currency symbol for CPQ quotes, revenue analytics, and transaction values."
+            />
+          </View>
+
+          <View style={styles.currencyGrid}>
+            {currencies.map((curr) => {
+              const isSelected = selectedCurrency === curr.code;
+              return (
+                <TouchableOpacity
+                  key={curr.code}
+                  style={[styles.currencyChip, isSelected && styles.currencyChipSelected]}
+                  onPress={() => setSelectedCurrency(curr.code)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.currencySymbolText, isSelected && styles.currencySymbolTextSelected]}>
+                    {curr.symbol}
+                  </Text>
+                  <Text style={[styles.currencyCodeText, isSelected && styles.currencyCodeTextSelected]}>
+                    {curr.code}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        {/* Notifications & Alert Preferences */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Alert Preferences</Text>
+        {/* Security & Automation Switches */}
+        <View style={styles.card3D}>
+          <Text style={styles.cardTitle}>SECURITY & AUTOMATION TOGGLES</Text>
 
-          <View style={styles.settingRow}>
-            <View style={styles.iconBox}>
-              <Ionicons name="notifications-outline" size={18} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTextGroup}>
-              <Text style={styles.rowTitle}>Push Notifications</Text>
-              <Text style={styles.rowSub}>Receive instant alerts on new lead assignments</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleLabel}>Face ID / Touch ID Biometric Lock</Text>
+              <Text style={styles.toggleSub}>Require biometrics to access buyer data</Text>
             </View>
             <Switch
-              value={pushEnabled}
-              onValueChange={setPushEnabled}
-              trackColor={{ false: '#CBD5E1', true: theme.colors.primary }}
-              thumbColor="#FFFFFF"
+              value={biometricLock}
+              onValueChange={setBiometricLock}
+              trackColor={{ false: '#CBD5E1', true: theme.colors.brand700 }}
             />
           </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.settingRow}>
-            <View style={styles.iconBox}>
-              <Ionicons name="mail-unread-outline" size={18} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTextGroup}>
-              <Text style={styles.rowTitle}>Daily Email Summary</Text>
-              <Text style={styles.rowSub}>Receive daily morning digest of pending tasks</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleLabel}>Auto Post-Call Outcome Popup</Text>
+              <Text style={styles.toggleSub}>Show 1-tap outcome logger after phone call</Text>
             </View>
             <Switch
-              value={emailDigest}
-              onValueChange={setEmailDigest}
-              trackColor={{ false: '#CBD5E1', true: theme.colors.primary }}
-              thumbColor="#FFFFFF"
+              value={autoCallPopup}
+              onValueChange={setAutoCallPopup}
+              trackColor={{ false: '#CBD5E1', true: theme.colors.brand700 }}
             />
           </View>
-        </View>
 
-        {/* System & Connection Info */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>System & Environment</Text>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>API Server Endpoint</Text>
-            <Text style={styles.infoValue}>http://localhost:8080/api</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ADB USB Port Forwarding</Text>
-            <Text style={[styles.infoValue, { color: theme.colors.emerald }]}>Active (tcp:8080)</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Mobile App Version</Text>
-            <Text style={styles.infoValue}>v1.4.2 Enterprise</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleLabel}>Real-Time Push Notifications</Text>
+              <Text style={styles.toggleSub}>Alert on new lead assignments & due tasks</Text>
+            </View>
+            <Switch
+              value={pushNotifications}
+              onValueChange={setPushNotifications}
+              trackColor={{ false: '#CBD5E1', true: theme.colors.brand700 }}
+            />
           </View>
         </View>
       </ScrollView>
@@ -140,87 +211,227 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBar: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+  hero3DHeader: {
+    width: '100%',
+    backgroundColor: '#272944',
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#0F101E',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.4,
-  },
-  content: {
-    padding: theme.spacing.lg,
-    gap: theme.spacing.lg,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardHeader: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.md,
-  },
-  settingRow: {
+  headerTopRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+  backBtnCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  rowTextGroup: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  rowSub: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: theme.spacing.md,
-  },
-  infoRow: {
+  statusBadgePill: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    gap: 6,
   },
-  infoLabel: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
+  greenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
   },
-  infoValue: {
-    fontSize: 13,
+  headerTagText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  card3D: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderBottomWidth: 3,
+    borderBottomColor: '#CBD5E1',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 1.1,
+  },
+  activeSubdomainBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  subdomainLabel: {
+    fontSize: 10,
+    color: '#64748B',
     fontWeight: '700',
-    color: theme.colors.textPrimary,
+  },
+  subdomainUrlText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.brand700,
+  },
+  activeBadgePill: {
+    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  activeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    marginBottom: 6,
+    letterSpacing: 0.8,
+  },
+  domainInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  domainInput: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  mapBtn: {
+    backgroundColor: theme.colors.brand700,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  mappedDomainNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+    gap: 6,
+  },
+  mappedDomainText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#059669',
+    fontWeight: '500',
+  },
+  currencyGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    gap: 6,
+  },
+  currencyChipSelected: {
+    backgroundColor: theme.colors.brand700,
+    borderColor: theme.colors.brand700,
+  },
+  currencySymbolText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  currencySymbolTextSelected: {
+    color: '#FFFFFF',
+  },
+  currencyCodeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  currencyCodeTextSelected: {
+    color: '#FFFFFF',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  toggleSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 });

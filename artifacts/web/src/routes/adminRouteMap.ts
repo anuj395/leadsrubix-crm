@@ -41,9 +41,6 @@ import SulekhaPage from '@/features/admin/integrations/pages/Sulekha'
 import WebsitePage from '@/features/admin/integrations/pages/Website'
 import HousingPage from '@/features/admin/integrations/pages/Housing'
 
-
-
-
 import NewsListPage from '@/features/admin/support/pages/NewsList'
 import FaqListPage from '@/features/admin/support/pages/FaqList'
 
@@ -69,6 +66,7 @@ import ReassignLogicPage from '@/features/admin/leaddistribution/pages/ReassignL
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
   "/users": UserListPage,
+  "/users/list": UserListPage,
   "/users/new": UserFormPage,
   "/users/:id/edit": UserFormPage,
   "/users/roles": RolesAndPermissionsPage,
@@ -82,7 +80,7 @@ export const routeComponentMap: Record<string, any> = {
 
   "/leads/tasks": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
-  // "/leads/bookings": BookingsListPage,
+  "/leads/bookings": BookingsListPage,
 
   "/configuration/projects": ProjectsListPage,
   "/configuration/projects/new": ProjectFormPage,
@@ -90,7 +88,7 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/api": ApiListPage,
   "/configuration/api/new": ApiFormPage,
   "/configuration/api/:id/edit": ApiFormPage,
-  // "/configuration/booking-form": BookingFormPage,
+  "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
   "/configuration/whatsapp": WhatsappApiPage,
   "/integrations/whatsapp": WhatsappApiPage,
@@ -99,7 +97,14 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/holiday-config/:id/edit": HolidayConfigFormPage,
   "/configuration/days-config": DaysConfigPage,
   "/configuration/domain-settings": DomainSettingsPage,
-
+  "/configuration/screens": ScreensPage,
+  "/configuration/screen-fields": ScreenFieldsPage,
+  "/configuration/permissions": PermissionsMatrixPage,
+  "/configuration/menus": MenusPage,
+  "/ui-navigation/menus": MenusPage,
+  "/ui-navigation/screens": ScreensPage,
+  "/ui-navigation/screen-fields": ScreenFieldsPage,
+  "/ui-navigation/analytics-config": AnalyticsConfigPage,
 
   "/integrations": IntegrationsPage,
   "/integrations/api": ApiListPage,
@@ -111,10 +116,6 @@ export const routeComponentMap: Record<string, any> = {
   "/integrations/sulekha": SulekhaPage,
   "/integrations/website": WebsitePage,
   "/integrations/housing": HousingPage,
-
-
-
-
 
   "/support/news": NewsListPage,
   "/support/faq": FaqListPage,

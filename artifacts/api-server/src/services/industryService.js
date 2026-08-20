@@ -23,32 +23,37 @@ exports.create = async (payload) => {
     throw err;
   }
   
-  // Find all industries to determine the next serial number
-  const all = await industryModel.list();
-  let maxSeq = 0;
-  for (const item of all) {
-    const match = /^temp(\d+)$/i.exec(item.code);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (num > maxSeq) maxSeq = num;
+  let code = payload.code ? String(payload.code).toLowerCase().trim() : null;
+  if (!code) {
+    // Find all industries to determine the next serial number
+    const all = await industryModel.list();
+    let maxSeq = 0;
+    for (const item of all) {
+      const match = /^temp(\d+)$/i.exec(item.code);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxSeq) maxSeq = num;
+      }
     }
+    const nextSeq = maxSeq + 1;
+    code = `temp${String(nextSeq).padStart(4, '0')}`;
   }
-  const nextSeq = maxSeq + 1;
-  const nextCode = `temp${String(nextSeq).padStart(4, '0')}`;
 
-  const existing = await industryModel.findByCode(nextCode);
+  const existing = await industryModel.findByCode(code);
   if (existing) {
-    const err = new Error('Generated industry code already exists');
+    const err = new Error(`Industry code '${code}' already exists`);
     err.status = 409;
     throw err;
   }
 
   return industryModel.create({
-    code: nextCode,
+    code,
     name: payload.name,
     description: payload.description,
-    isActive: payload.isActive,
-    status: payload.status,
+    isActive: payload.isActive !== false,
+    status: payload.status || 'Launched',
+    translations: payload.translations,
+    templateRoles: payload.templateRoles || payload.template_roles,
   });
 };
 

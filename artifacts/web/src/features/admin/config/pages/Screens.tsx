@@ -39,6 +39,24 @@ interface FormState {
 
 const emptyForm: FormState = { key: '', name: '', description: '', order: 0, isActive: true }
 
+const SCREEN_BUSINESS_NAMES: Record<string, string> = {
+  configApi: 'API & Webhook Integrations',
+  bookings: 'Customer Vehicle Bookings',
+  resourceBudget: 'Deal Budget Ranges',
+  callback: 'Follow-up Call Backs',
+  resourceCarousel: 'Dashboard Banner Announcements',
+  contacts: 'Customer Leads & Contacts',
+  notes: 'Lead Notes & Activity Logs',
+  interested: 'Buyer Vehicle Interest Details',
+  leadDistribution: 'Automatic Lead Distribution Rules',
+  leadRotation: 'Agent Round-Robin Assignment',
+  resourceLeadSource: 'Marketing Lead Channels',
+  resourceLocation: 'Showroom & Workshop Branch Locations',
+  lost: 'Lost Deal Reasons',
+  notInterested: 'Uninterested Feedback Notes',
+  organization: 'Dealership Organization Profile',
+}
+
 export default function AdminScreensPage() {
   const { user } = useAuth()
   const [items, setItems] = useState<Screen[]>([])
@@ -53,7 +71,14 @@ export default function AdminScreensPage() {
   const refresh = async () => {
     setLoading(true)
     try {
-      setItems((await getScreens()).filter((s) => s.key !== 'users'))
+      const raw = await getScreens()
+      const mapped = raw
+        .filter((s) => s.key !== 'users')
+        .map((s) => ({
+          ...s,
+          name: SCREEN_BUSINESS_NAMES[s.key] || s.name || s.key,
+        }))
+      setItems(mapped)
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
     } finally {

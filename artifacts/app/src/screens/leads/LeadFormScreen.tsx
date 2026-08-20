@@ -1,278 +1,281 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Alert,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../api/apiClient';
+import { leadService } from '../../services/leadService';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { theme } from '../../theme/theme';
 
+export interface LeadFormField {
+  key: string;
+  label: string;
+  type: string;
+  isRequired?: boolean;
+  options?: { value: string; label: string }[];
+}
+
+const DEFAULT_LEAD_FIELDS: LeadFormField[] = [
+  { key: 'name', label: 'Buyer Full Name', type: 'text', isRequired: true },
+  { key: 'email', label: 'Email Address', type: 'email', isRequired: true },
+  { key: 'phone', label: 'Contact Phone Number', type: 'phone', isRequired: true },
+  { key: 'budget', label: 'Target Budget Range', type: 'text', isRequired: true },
+  { key: 'propertyType', label: 'Property Type', type: 'text', isRequired: true },
+  { key: 'source', label: 'Lead Inquiry Source', type: 'text', isRequired: true },
+  { key: 'project', label: 'Interested Development Project', type: 'text', isRequired: true },
+];
+
 export const LeadFormScreen = ({ navigation }: any) => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [project, setProject] = useState('Grand Horizon Towers');
-  const [budget, setBudget] = useState('₹75L - 1.2Cr');
-  const [source, setSource] = useState('Google Ads');
-  const [notes, setNotes] = useState('');
+  const [fields, setFields] = useState<LeadFormField[]>(DEFAULT_LEAD_FIELDS);
+  const [loadingSchema, setLoadingSchema] = useState(true);
+
+  const [formValues, setFormValues] = useState<Record<string, string>>({
+    name: '',
+    email: '',
+    phone: '',
+    budget: '₹2.5 Cr - ₹3.5 Cr',
+    propertyType: '3 BHK Luxury Apartment',
+    source: '99acres Portal',
+    project: 'Grand Horizon Towers',
+  });
+
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [fnFocused, setFnFocused] = useState(false);
-  const [phoneFocused, setPhoneFocused] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
+  // Dynamically resolve lead form schema from backend API
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingSchema(true);
+
+    apiClient
+      .post('/screens/resolve', {
+        screenKey: 'lead',
+        industryCode: 'real_estate',
+        roleKey: 'sales',
+      })
+      .then((res) => {
+        if (!isMounted) return;
+        const raw = res.data?.formFields || res.data?.form_fields || res.data?.fields || [];
+        if (Array.isArray(raw) && raw.length > 0) {
+          const mapped: LeadFormField[] = raw.map((f: any) => ({
+            key: f.key || f.fieldKey || f.field_key,
+            label: f.label || f.name || f.key,
+            type: f.type || 'text',
+            isRequired: f.isRequired ?? f.is_required ?? false,
+            options: f.options ? f.options.map((o: any) => (typeof o === 'string' ? { value: o, label: o } : o)) : [],
+          }));
+          setFields(mapped.length > 0 ? mapped : DEFAULT_LEAD_FIELDS);
+        } else {
+          setFields(DEFAULT_LEAD_FIELDS);
+        }
+        setLoadingSchema(false);
+      })
+      .catch((err) => {
+        console.warn('Failed to resolve dynamic lead fields, using defaults:', err);
+        if (!isMounted) return;
+        setFields(DEFAULT_LEAD_FIELDS);
+        setLoadingSchema(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleValueChange = (key: string, value: string) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleSubmit = async () => {
-    if (!firstName.trim() || !phone.trim()) {
-      Alert.alert('Required Fields', 'Please enter at least buyer first name and contact phone.');
+    const name = formValues.name || formValues.firstName || '';
+    const phone = formValues.phone || formValues.contactNo || '';
+    const email = formValues.email || formValues.emailId || '';
+
+    if (!name.trim()) {
+      Alert.alert('Required Field', 'Please enter Buyer Full Name.');
+      return;
+    }
+    if (!phone.trim()) {
+      Alert.alert('Required Field', 'Please enter Contact Phone Number.');
       return;
     }
 
     try {
       setSubmitting(true);
-      const payload = {
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-        contact_no: phone.trim(),
+      await leadService.createLead({
+        name: name.trim(),
         phone: phone.trim(),
-        email_id: email.trim(),
-        company_name: project.trim(),
-        project_name: project.trim(),
-        budget: budget.trim(),
-        lead_source: source.trim(),
-        lead_status: 'Fresh',
+        email: email.trim(),
+        budget: formValues.budget || '₹2.5 Cr',
+        propertyType: formValues.propertyType || '3 BHK Apartment',
+        source: formValues.source || 'Direct Call',
+        project: formValues.project || 'Grand Horizon Towers',
         status: 'Fresh',
-        notes: notes.trim(),
-      };
+      });
 
-      await apiClient.post('/contacts', payload);
-      Alert.alert('Success', 'Buyer lead added to sales pipeline!');
-      navigation.navigate('Leads');
+      Alert.alert(
+        'Buyer Lead Created!',
+        'New real estate prospect registered successfully in your pipeline.',
+        [
+          {
+            text: 'View Leads Pipeline',
+            onPress: () => navigation.navigate('LeadsList'),
+          },
+        ]
+      );
     } catch (err: any) {
-      console.error('Lead save error:', err);
-      const msg = err.message || err.response?.data?.message || 'Failed to add buyer lead';
-      Alert.alert('Error', msg);
+      console.error('Failed to create lead:', err);
+      Alert.alert('Error', err.message || 'Unable to register lead.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.outerCanvas}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
 
-      {/* Clean Solid #272944 Executive Header Banner */}
-      <View style={styles.fullBleedHeroHeader}>
+      {/* Clean Executive #272944 Hero Header Banner */}
+      <View style={styles.hero3DHeader}>
         <View style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.backBtnCircle} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.backBtnCircle}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
             <Ionicons name="arrow-back-sharp" size={18} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <CompanyLogo variant="white" height={32} />
+          <CompanyLogo variant="white" height={36} />
 
           <View style={{ width: 34 }} />
         </View>
 
         <View style={styles.statusBadgePill}>
           <View style={styles.greenPulseDot} />
-          <Text style={styles.statusBadgeText}>ADD BUYER INQUIRY / LEAD</Text>
+          <Text style={styles.headerTagText}>CREATE PROSPECTIVE BUYER LEAD</Text>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.flexOne}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Animated AI Mascot Advisor Companion */}
-        <AIAdvisorMascot screenName="Leads" message="Pro Tip: Contact fresh buyer leads within 5 mins to increase closing rate by 80%!" />
+        <ScrollView
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Animated AI Mascot Advisor Companion */}
+          <AIAdvisorMascot
+            screenName="LeadForm"
+            message="Register new buyer lead inquiries to assign advisors and trigger follow-ups!"
+          />
 
-        {/* 3D Framed Form Card */}
-        <View style={styles.framedFormCard3D}>
-          <Text style={styles.headingTitle}>Buyer Profile Details</Text>
-          <Text style={styles.headingSubtext}>Enter buyer contact info, project interest & budget</Text>
+          {/* 3D Framed Form Card */}
+          <View style={styles.framedCard3D}>
+            <Text style={styles.cardTitle}>New Buyer Registration</Text>
+            <Text style={styles.cardSubtitle}>Configure prospect interest & budget criteria</Text>
 
-          {/* First Name Input */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>FIRST NAME *</Text>
-            <View style={[styles.inputBox, fnFocused && styles.inputBoxFocused]}>
-              <View style={[styles.fieldIconBadge, fnFocused && styles.fieldIconBadgeFocused]}>
-                <Ionicons name="person" size={16} color={fnFocused ? '#FFFFFF' : theme.colors.brand700} />
+            {loadingSchema ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator size="small" color={theme.colors.brand700} />
+                <Text style={styles.loadingText}>Configuring lead schema fields...</Text>
               </View>
-              <TextInput
-                style={styles.textInputControl}
-                placeholder="e.g. Rahul"
-                placeholderTextColor={theme.colors.textDisabled}
-                value={firstName}
-                onChangeText={setFirstName}
-                onFocus={() => setFnFocused(true)}
-                onBlur={() => setFnFocused(false)}
-              />
-            </View>
-          </View>
-
-          {/* Last Name Input */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>LAST NAME</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInputControl}
-                placeholder="e.g. Sharma"
-                placeholderTextColor={theme.colors.textDisabled}
-                value={lastName}
-                onChangeText={setLastName}
-              />
-            </View>
-          </View>
-
-          {/* Contact Phone Input */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>CONTACT PHONE *</Text>
-            <View style={[styles.inputBox, phoneFocused && styles.inputBoxFocused]}>
-              <View style={[styles.fieldIconBadge, phoneFocused && styles.fieldIconBadgeFocused]}>
-                <Ionicons name="call" size={16} color={phoneFocused ? '#FFFFFF' : theme.colors.brand700} />
-              </View>
-              <TextInput
-                style={styles.textInputControl}
-                placeholder="+91 98765 43210"
-                placeholderTextColor={theme.colors.textDisabled}
-                value={phone}
-                onChangeText={setPhone}
-                onFocus={() => setPhoneFocused(true)}
-                onBlur={() => setPhoneFocused(false)}
-                keyboardType="phone-pad"
-              />
-            </View>
-          </View>
-
-          {/* Email Address Input */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-            <View style={[styles.inputBox, emailFocused && styles.inputBoxFocused]}>
-              <View style={[styles.fieldIconBadge, emailFocused && styles.fieldIconBadgeFocused]}>
-                <Ionicons name="mail" size={16} color={emailFocused ? '#FFFFFF' : theme.colors.brand700} />
-              </View>
-              <TextInput
-                style={styles.textInputControl}
-                placeholder="rahul@example.com"
-                placeholderTextColor={theme.colors.textDisabled}
-                value={email}
-                onChangeText={setEmail}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
-
-          {/* Project Interest */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>PROJECT INTEREST</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInputControl}
-                placeholder="e.g. Grand Horizon Towers"
-                placeholderTextColor={theme.colors.textDisabled}
-                value={project}
-                onChangeText={setProject}
-              />
-            </View>
-          </View>
-
-          {/* Target Budget */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>TARGET BUDGET</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInputControl}
-                placeholder="e.g. ₹75L - 1.2Cr"
-                placeholderTextColor={theme.colors.textDisabled}
-                value={budget}
-                onChangeText={setBudget}
-              />
-            </View>
-          </View>
-
-          {/* Lead Source */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>LEAD SOURCE</Text>
-            <View style={styles.sourcePillGroup}>
-              {(['Google Ads', 'Housing.com', 'MagicBricks', 'Direct Referral'] as const).map((s) => {
-                const isSelected = source === s;
-                return (
-                  <TouchableOpacity
-                    key={s}
-                    style={[styles.sourcePill, isSelected && styles.sourcePillActive]}
-                    onPress={() => setSource(s)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.sourcePillText, isSelected && styles.sourcePillTextActive]}>
-                      {s}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Notes */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>BUYER REQUIREMENTS & NOTES</Text>
-            <View style={styles.textAreaBox}>
-              <TextInput
-                style={styles.textAreaControl}
-                placeholder="Preferred floor height, 3BHK requirement, site visit availability..."
-                placeholderTextColor={theme.colors.textDisabled}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-          </View>
-
-          {/* 3D Primary Save Button */}
-          <TouchableOpacity
-            style={styles.primaryCtaButton3D}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.88}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <View style={styles.ctaContentRow}>
-                <Text style={styles.ctaButtonText}>Add Buyer Lead</Text>
-                <View style={styles.ctaArrowCircle}>
-                  <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
-                </View>
+              <View>
+                {fields.map((field) => {
+                  const key = field.key;
+                  const val = formValues[key] || '';
+                  const isFocused = focusedField === key;
+                  const isRequired = field.isRequired;
+
+                  return (
+                    <View key={key} style={styles.fieldBlock}>
+                      <Text style={styles.fieldLabel}>
+                        {field.label.toUpperCase()} {isRequired ? '*' : ''}
+                      </Text>
+                      <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+                        <View style={[styles.fieldIconBadge, isFocused && styles.fieldIconBadgeFocused]}>
+                          <Ionicons
+                            name={
+                              key.toLowerCase().includes('email')
+                                ? 'mail'
+                                : key.toLowerCase().includes('phone')
+                                ? 'call'
+                                : key.toLowerCase().includes('project')
+                                ? 'business'
+                                : key.toLowerCase().includes('budget')
+                                ? 'cash'
+                                : 'person'
+                            }
+                            size={16}
+                            color={isFocused ? '#FFFFFF' : theme.colors.brand700}
+                          />
+                        </View>
+                        <TextInput
+                          style={styles.textInputControl}
+                          placeholder={`Enter ${field.label.toLowerCase()}...`}
+                          placeholderTextColor={theme.colors.textDisabled}
+                          value={val}
+                          onChangeText={(text) => handleValueChange(key, text)}
+                          onFocus={() => setFocusedField(key)}
+                          onBlur={() => setFocusedField(null)}
+                          keyboardType={key.toLowerCase().includes('email') ? 'email-address' : 'default'}
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* 3D Submit Button */}
+                <TouchableOpacity
+                  style={styles.primaryCtaButton3D}
+                  onPress={handleSubmit}
+                  disabled={submitting}
+                  activeOpacity={0.88}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <View style={styles.ctaContentRow}>
+                      <Text style={styles.ctaButtonText}>Register Buyer Lead</Text>
+                      <View style={styles.ctaArrowCircle}>
+                        <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  outerCanvas: {
+  container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  fullBleedHeroHeader: {
+  flexOne: {
+    flex: 1,
+  },
+  hero3DHeader: {
     width: '100%',
     backgroundColor: '#272944',
     paddingTop: Platform.OS === 'ios' ? 60 : 44,
@@ -286,7 +289,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 18,
     elevation: 8,
-    overflow: 'hidden',
   },
   headerTopRow: {
     width: '100%',
@@ -323,21 +325,20 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#34D399',
   },
-  statusBadgeText: {
-    color: '#F8FAFC',
+  headerTagText: {
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.1,
   },
-  scrollContentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+  contentContainer: {
+    padding: 16,
     paddingBottom: 40,
   },
-  framedFormCard3D: {
+  framedCard3D: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 24,
+    padding: 22,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderBottomWidth: 3,
@@ -348,21 +349,31 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 5,
   },
-  headingTitle: {
-    fontSize: 22,
+  cardTitle: {
+    fontSize: 20,
     fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.4,
   },
-  headingSubtext: {
+  cardSubtitle: {
     fontSize: 13,
     color: '#64748B',
-    marginTop: 4,
-    marginBottom: 24,
+    marginTop: 3,
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  loadingBox: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#64748B',
     fontWeight: '500',
   },
   fieldBlock: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   fieldLabel: {
     fontSize: 11,
@@ -381,7 +392,7 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     borderBottomWidth: 2.5,
     borderBottomColor: '#CBD5E1',
-    height: 54,
+    height: 52,
   },
   inputBoxFocused: {
     borderColor: theme.colors.brand700,
@@ -402,51 +413,10 @@ const styles = StyleSheet.create({
   },
   textInputControl: {
     flex: 1,
-    height: 54,
+    height: 52,
     color: '#0F172A',
     fontSize: 15,
     fontWeight: '600',
-  },
-  sourcePillGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  sourcePill: {
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-  },
-  sourcePillActive: {
-    backgroundColor: theme.colors.brand700,
-    borderColor: theme.colors.brand700,
-  },
-  sourcePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  sourcePillTextActive: {
-    color: '#FFFFFF',
-  },
-  textAreaBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderBottomWidth: 2.5,
-    borderBottomColor: '#CBD5E1',
-  },
-  textAreaControl: {
-    minHeight: 70,
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlignVertical: 'top',
   },
   primaryCtaButton3D: {
     backgroundColor: theme.colors.brand700,

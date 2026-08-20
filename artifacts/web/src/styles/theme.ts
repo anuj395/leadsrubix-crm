@@ -549,17 +549,16 @@ export function createAppTheme(mode: ThemeMode = DEFAULT_THEME_MODE) {
             minHeight: '45px',
             height: '45px',
             boxSizing: 'border-box',
-            backgroundColor: isDark ? 'rgba(8, 10, 24, 0.45)' : 'rgba(255, 255, 255, 0.55)',
-            backdropFilter: 'blur(4px)',
+            backgroundColor: isDark ? 'rgba(8, 10, 24, 0.45)' : '#FFFFFF',
             transition: 'box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease',
             '&.MuiInputBase-multiline': {
               height: 'auto',
             },
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
+              borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.30)',
             },
             '&.Mui-focused': {
-              backgroundColor: isDark ? 'rgba(8, 10, 24, 0.7)' : 'rgba(255, 255, 255, 0.85)',
+              backgroundColor: isDark ? 'rgba(8, 10, 24, 0.7)' : '#FFFFFF',
               boxShadow: `0 0 0 3px ${isDark ? 'rgba(79,106,245,0.22)' : 'rgba(79,106,245,0.14)'}`,
             },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
@@ -568,7 +567,7 @@ export function createAppTheme(mode: ThemeMode = DEFAULT_THEME_MODE) {
             },
           }),
           notchedOutline: ({ theme: t }) => ({
-            borderColor: t.palette.divider,
+            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.14)',
             transition: 'border-color 160ms ease',
           }),
           input: {
@@ -761,15 +760,18 @@ export function createAppTheme(mode: ThemeMode = DEFAULT_THEME_MODE) {
         styleOverrides: {
           tooltip: {
             fontFamily,
-            fontSize: '0.75rem',
+            fontSize: '0.78rem',
+            lineHeight: 1.45,
             fontWeight: sharedTokens.fontWeightMedium,
-            borderRadius: 6,
-            padding: '0.375rem 0.625rem',
-            backgroundColor: isDark ? darken(sharedTokens.primary, 0.06) : sharedTokens.primary,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.20)',
-            maxWidth: '90vw',
+            borderRadius: 8,
+            padding: '7px 11px',
+            backgroundColor: isDark ? '#1e293b' : '#0f172a',
+            color: '#f8fafc',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)'}`,
+            maxWidth: 240,
           },
-          arrow: { color: isDark ? darken(sharedTokens.primary, 0.06) : sharedTokens.primary },
+          arrow: { color: isDark ? '#1e293b' : '#0f172a' },
         },
       },
 

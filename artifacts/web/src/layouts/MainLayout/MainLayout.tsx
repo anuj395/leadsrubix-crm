@@ -62,8 +62,8 @@ export function MainLayout() {
         gridTemplateColumns: {
           xs: '1fr',
           md: isSidebarCollapsed
-            ? '5.25rem minmax(0, 1fr)'
-            : 'clamp(14rem, 18vw, 17rem) minmax(0, 1fr)',
+            ? '4.75rem minmax(0, 1fr)'
+            : '16.5rem minmax(0, 1fr)',
         },
         background: 'transparent',
         overflow: 'hidden',

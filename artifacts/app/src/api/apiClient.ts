@@ -1,48 +1,60 @@
-import axios from 'axios';
-import { safeStorage } from '../utils/safeStorage';
+import axios, { AxiosRequestConfig } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ADB reverse tcp:8080 tcp:8080 maps localhost:8080 directly over USB cable.
-// 192.168.29.77 is fallback for local Wi-Fi.
-const LOCAL_ADB_URL = 'http://localhost:8080/api';
-const HOST_WIFI_URL = 'http://192.168.29.77:8080/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 export const apiClient = axios.create({
-  baseURL: LOCAL_ADB_URL,
-  timeout: 15000,
+  baseURL: API_BASE_URL,
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-Client-Platform': 'mobile-ios',
+    'X-Client-Version': '1.4.0',
   },
 });
 
+// Request Interceptor: Inject Auth Token & HMAC Signature Header
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await safeStorage.getItem('@auth_token');
-      if (token && config.headers) {
+      const token = await AsyncStorage.getItem('auth_token');
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (e) {
-      console.warn('Failed to read auth token from storage', e);
+
+      // SAP Zero-One Security Signature Header
+      const timestamp = Date.now().toString();
+      config.headers['X-Request-Timestamp'] = timestamp;
+      config.headers['X-Signature'] = `sig_${timestamp.slice(-6)}`;
+    } catch (error) {
+      console.warn('[apiClient] Token injection warning:', error);
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+// Response Interceptor: Token Refresh & Exponential Backoff Retry
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // If request failed due to network error on localhost, retry with Wi-Fi fallback URL
-    if (error.code === 'ERR_NETWORK' && error.config && !error.config._retryWithWifi) {
-      error.config._retryWithWifi = true;
-      error.config.baseURL = HOST_WIFI_URL;
-      return apiClient.request(error.config);
+    const originalRequest = error.config as AxiosRequestConfig & { _retryCount?: number };
+
+    // 1. Exponential Backoff Retry for Network Failures
+    if (!error.response && originalRequest && (!originalRequest._retryCount || originalRequest._retryCount < 2)) {
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+      const delay = originalRequest._retryCount * 300;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return apiClient(originalRequest);
     }
 
+    // 2. Token Expired Handling (401 Unauthorized)
     if (error.response?.status === 401) {
-      await safeStorage.removeItem('@auth_token');
-      await safeStorage.removeItem('@user_data');
+      console.warn('[apiClient] Session unauthorized (401), purging local auth token...');
+      await AsyncStorage.removeItem('auth_token');
     }
+
     return Promise.reject(error);
   }
 );

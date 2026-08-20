@@ -871,3 +871,237 @@ Organization: Test Org
 Username / Email: test@test.com
 Temp Password: DYPSqdbw
 ========================================
+
+========================================
+Timestamp: 2026-08-17T07:40:51.203Z
+To: principal@skodamobility.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Skoda Mobility Motors Pvt Ltd
+Username / Email: principal@skodamobility.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T07:51:06.863Z
+To: dealer.principal@skodamobility.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Skoda Mobility Motors Pvt Ltd
+Username / Email: dealer.principal@skodamobility.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T08:05:09.713Z
+To: principal.skoda3s@skodamobility.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Skoda Mobility Motors 3S
+Username / Email: principal.skoda3s@skodamobility.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T08:26:45.167Z
+To: principal@apexautomobility.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Apex Auto Mobility 3S Pvt Ltd
+Username / Email: principal@apexautomobility.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T08:26:51.111Z
+To: md@skylineinfra.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Skyline Infra Group Ltd
+Username / Email: md@skylineinfra.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:00:12.616Z
+To: admin@grandpalaceresorts.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Grand Palace Resorts & Luxury Suites
+Username / Email: admin@grandpalaceresorts.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:00:29.348Z
+To: admin@grandpalaceresorts.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Grand Palace Resorts & Luxury Suites
+Username / Email: admin@grandpalaceresorts.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:00:29.898Z
+To: director@primesquarerealty.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: PrimeSquare Realty Partners
+Username / Email: director@primesquarerealty.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:10:15.057Z
+To: admin@ironfitgym.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: IronFit Elite Gym & Spa
+Username / Email: admin@ironfitgym.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:10:33.157Z
+To: admin@ironfitgym.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: IronFit Elite Gym & Spa
+Username / Email: admin@ironfitgym.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:11:19.917Z
+To: admin@ironfitgym.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: IronFit Elite Gym & Spa
+Username / Email: admin@ironfitgym.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:11:43.711Z
+To: admin@ironfitgym.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: IronFit Elite Gym & Spa
+Username / Email: admin@ironfitgym.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:12:34.459Z
+To: admin@ironfitgym.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: IronFit Elite Gym & Spa
+Username / Email: admin@ironfitgym.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:20:22.916Z
+To: director@fleet_1786969222415.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Global Speed Logistics Inc
+Username / Email: director@fleet_1786969222415.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:20:54.227Z
+To: director@fleet_1786969253838.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Global Speed Logistics Inc
+Username / Email: director@fleet_1786969253838.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:21:09.315Z
+To: director@fleet_1786969268876.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Global Speed Logistics Inc
+Username / Email: director@fleet_1786969268876.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:21:36.248Z
+To: director@fleet_1786969295840.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Global Speed Logistics Inc
+Username / Email: director@fleet_1786969295840.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:26:29.534Z
+To: admin@royalheritageresorts.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Royal Heritage Palace & Luxury Suites
+Username / Email: admin@royalheritageresorts.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:26:30.097Z
+To: director@apexrealtypartners.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Apex Realty Channel Partners
+Username / Email: director@apexrealtypartners.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:26:30.572Z
+To: ceo@novatechcloud.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: NovaTech Solutions & Cloud Consulting
+Username / Email: ceo@novatechcloud.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-17T12:26:34.321Z
+To: director@fleet_1786969593876.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Global Speed Logistics Inc
+Username / Email: director@fleet_1786969593876.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-18T05:16:47.483Z
+To: director@fleet_1787030206731.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Global Speed Logistics Inc
+Username / Email: director@fleet_1787030206731.com
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-18T06:08:53.003Z
+To: admin@aurahorizon.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Aura Horizon Luxury Resorts & Spa
+Username / Email: admin@aurahorizon.com
+Temp Password: 3RrJvQAj
+========================================
+
+========================================
+Timestamp: 2026-08-18T06:09:18.006Z
+To: admin@aurahorizon.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Aura Horizon Luxury Resorts & Spa
+Username / Email: admin@aurahorizon.com
+Temp Password: 3yie6B4l
+========================================
+
+========================================
+Timestamp: 2026-08-18T06:09:18.970Z
+To: rohan@skylinecapitalrealty.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Skyline Capital Realty Partners
+Username / Email: rohan@skylinecapitalrealty.com
+Temp Password: aeAg4Iuq
+========================================
+
+========================================
+Timestamp: 2026-08-18T06:09:20.570Z
+To: ananya@nexiscloud.io
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Nexis Cloud & AI Technologies
+Username / Email: ananya@nexiscloud.io
+Temp Password: ZT04YiO4
+========================================

@@ -1,276 +1,250 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TextInput,
+  ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
+  TextInput,
   StatusBar,
+  Platform,
+  RefreshControl,
+  ActivityIndicator,
   Linking,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../../api/apiClient';
+import { leadService, LeadItem } from '../../services/leadService';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { theme } from '../../theme/theme';
 
 export const LeadsListScreen = ({ navigation }: any) => {
+  const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [leads, setLeads] = useState<any[]>([]);
-  const [filteredLeads, setFilteredLeads] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('All Buyers');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  const fetchLeads = async () => {
+  const statusFilters = ['ALL', 'Fresh', 'Contacted', 'Qualified', 'Won', 'Lost'];
+
+  const fetchLeadsData = useCallback(async () => {
     try {
-      const res = await apiClient.get('/contacts');
-      const items = res.data?.items || res.data || [];
-      setLeads(items);
-      setFilteredLeads(items);
+      setLoading(true);
+      const data = await leadService.getLeads({
+        status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+        q: searchQuery.trim() || undefined,
+      });
+      setLeads(data);
     } catch (err) {
-      console.warn('Failed to fetch leads:', err);
+      console.error('Failed to load leads:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [selectedStatus, searchQuery]);
 
   useEffect(() => {
-    fetchLeads();
-  }, []);
+    fetchLeadsData();
+  }, [fetchLeadsData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchLeads();
+    fetchLeadsData();
   };
 
-  useEffect(() => {
-    let result = leads;
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (item) =>
-          (item.first_name || item.name || '').toLowerCase().includes(q) ||
-          (item.contact_no || item.phone || '').includes(q) ||
-          (item.company_name || item.project_name || '').toLowerCase().includes(q)
-      );
-    }
-
-    if (selectedFilter !== 'All Buyers') {
-      if (selectedFilter === 'Fresh Inquiries') {
-        result = result.filter((item) =>
-          (item.lead_status || item.status || '').toLowerCase().includes('fresh') ||
-          (item.lead_status || item.status || '').toLowerCase().includes('new')
-        );
-      } else if (selectedFilter === 'Site Visit') {
-        result = result.filter((item) =>
-          (item.lead_status || item.status || '').toLowerCase().includes('visit') ||
-          (item.lead_status || item.status || '').toLowerCase().includes('contact')
-        );
-      } else if (selectedFilter === 'Qualified') {
-        result = result.filter((item) =>
-          (item.lead_status || item.status || '').toLowerCase().includes('qualif')
-        );
-      } else if (selectedFilter === 'Won / Booked') {
-        result = result.filter((item) =>
-          (item.lead_status || item.status || '').toLowerCase().includes('won')
-        );
-      }
-    }
-
-    setFilteredLeads(result);
-  }, [searchQuery, selectedFilter, leads]);
-
-  const handleCall = (phone: string) => {
-    if (!phone) {
-      Alert.alert('No Phone', 'No phone number available for this buyer.');
-      return;
-    }
-    Linking.openURL(`tel:${phone}`);
+  const handleCall = (phone?: string) => {
+    if (phone) Linking.openURL(`tel:${phone}`);
   };
 
-  const handleWhatsApp = (phone: string) => {
-    if (!phone) {
-      Alert.alert('No Phone', 'No phone number available for WhatsApp.');
-      return;
+  const handleWhatsApp = (phone?: string) => {
+    if (phone) {
+      const clean = phone.replace(/[^0-9]/g, '');
+      Linking.openURL(`whatsapp://send?phone=${clean}`);
     }
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    Linking.openURL(`whatsapp://send?phone=${cleanPhone}`);
   };
 
-  const renderLeadCard = ({ item }: { item: any }) => {
-    const leadName =
-      item.first_name || item.name || item.contact_person || 'Unnamed Buyer';
-    const leadPhone = item.contact_no || item.phone || item.mobile_number || 'No Phone';
-    const leadStatus = item.lead_status || item.status || 'Fresh';
-    const projectName = item.company_name || item.project_name || 'Grand Horizon Towers';
-    const source = item.lead_source || item.source || 'Website Inbound';
-    const budget = item.budget || '₹75L - 1.2Cr';
-
-    return (
-      <TouchableOpacity
-        style={styles.leadCard3D}
-        onPress={() => navigation.navigate('LeadDetail', { lead: item })}
-        activeOpacity={0.8}
-      >
-        {/* Card Header Row */}
-        <View style={styles.cardHeaderRow}>
-          <View style={styles.identityGroup}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarLetter}>{leadName.charAt(0).toUpperCase()}</Text>
-            </View>
-            <View>
-              <Text style={styles.buyerNameText}>{leadName}</Text>
-              <Text style={styles.projectText} numberOfLines={1}>{projectName}</Text>
-            </View>
-          </View>
-
-          <StatusBadge status={leadStatus} size="sm" />
-        </View>
-
-        {/* Real Estate Requirement Grid */}
-        <View style={styles.reqGridBox}>
-          <View style={styles.reqCol}>
-            <Text style={styles.reqLabel}>TARGET BUDGET</Text>
-            <Text style={[styles.reqValue, theme.typography.tabularNumbers]}>{budget}</Text>
-          </View>
-
-          <View style={styles.reqCol}>
-            <Text style={styles.reqLabel}>SOURCE</Text>
-            <Text style={styles.reqValue} numberOfLines={1}>{source}</Text>
-          </View>
-
-          <View style={styles.reqCol}>
-            <Text style={styles.reqLabel}>PHONE</Text>
-            <Text style={[styles.reqValue, theme.typography.tabularNumbers]}>{leadPhone}</Text>
-          </View>
-        </View>
-
-        {/* Card Bottom Quick Actions Bar */}
-        <View style={styles.cardFooterActions}>
-          <TouchableOpacity
-            style={styles.dialerBtnCall}
-            onPress={() => handleCall(leadPhone)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="call" size={14} color="#FFFFFF" />
-            <Text style={styles.dialerBtnText}>Call Buyer</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dialerBtnWhatsApp}
-            onPress={() => handleWhatsApp(leadPhone)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
-            <Text style={styles.dialerBtnText}>WhatsApp</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dialerBtnTask}
-            onPress={() => navigation.navigate('TaskForm', { lead: item })}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="calendar-outline" size={14} color={theme.colors.brand700} />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'fresh':
+        return { bg: 'rgba(2, 132, 199, 0.12)', text: '#0284C7' };
+      case 'contacted':
+        return { bg: 'rgba(217, 119, 6, 0.12)', text: '#D97706' };
+      case 'qualified':
+        return { bg: 'rgba(124, 58, 237, 0.12)', text: '#7C3AED' };
+      case 'won':
+        return { bg: 'rgba(5, 150, 105, 0.12)', text: '#059669' };
+      case 'lost':
+        return { bg: 'rgba(225, 29, 72, 0.12)', text: '#E11D48' };
+      default:
+        return { bg: 'rgba(71, 85, 105, 0.12)', text: '#475569' };
+    }
   };
-
-  const filterPills = ['All Buyers', 'Fresh Inquiries', 'Site Visit', 'Qualified', 'Won / Booked'];
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
 
-      {/* Top Header Bar */}
-      <View style={styles.headerBar}>
-        <CompanyLogo variant="dark" height={32} />
-        <TouchableOpacity
-          style={styles.addLeadBtn}
-          onPress={() => navigation.navigate('LeadForm')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.addLeadBtnText}>Add Buyer</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Clean Executive #272944 Hero Header Banner */}
+      <View style={styles.hero3DHeader}>
+        <View style={styles.headerTopRow}>
+          <CompanyLogo variant="white" height={34} />
+          <TouchableOpacity
+            style={styles.addBtn3D}
+            onPress={() => navigation.navigate('LeadForm')}
+            activeOpacity={0.88}
+          >
+            <Ionicons name="add-sharp" size={16} color="#FFFFFF" />
+            <Text style={styles.addBtnText}>New Lead</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Sticky Search & Filter Input */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color={theme.colors.textMuted} style={styles.searchIcon} />
+        <View style={styles.headerTagPill}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.headerTagText}>REAL ESTATE BUYER LEADS PIPELINE</Text>
+        </View>
+
+        {/* Search Input Bar */}
+        <View style={styles.searchBarBox}>
+          <Ionicons name="search-sharp" size={18} color="#64748B" style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search buyers by name, phone, or project..."
-            placeholderTextColor={theme.colors.textDisabled}
+            style={styles.searchInputControl}
+            placeholder="Search leads by buyer name, phone, project..."
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
-      {/* Horizontal Stage Filter Bar */}
-      <View style={styles.pillsScrollRow}>
-        <FlatList
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
+        }
+      >
+        {/* Animated AI Mascot Companion */}
+        <AIAdvisorMascot screenName="LeadsList" />
+
+        {/* Horizontal Status Filter Chips */}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={filterPills}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => {
-            const isSelected = selectedFilter === item;
+          style={styles.statusFilterBar}
+          contentContainerStyle={styles.statusFilterContent}
+        >
+          {statusFilters.map((st) => {
+            const isSelected = selectedStatus === st;
             return (
               <TouchableOpacity
-                style={[styles.filterPill, isSelected && styles.filterPillActive]}
-                onPress={() => setSelectedFilter(item)}
+                key={st}
+                style={[styles.statusChip, isSelected && styles.statusChipSelected]}
+                onPress={() => setSelectedStatus(st)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                  {item}
+                <Text style={[styles.statusChipText, isSelected && styles.statusChipTextSelected]}>
+                  {st.toUpperCase()}
                 </Text>
               </TouchableOpacity>
             );
-          }}
-          contentContainerStyle={{ paddingHorizontal: theme.spacing.md, gap: 8 }}
-        />
-      </View>
+          })}
+        </ScrollView>
 
-      {/* Buyer Pipeline Stream */}
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} size="large" color={theme.colors.brand700} />
-      ) : (
-        <FlatList
-          data={filteredLeads}
-          renderItem={renderLeadCard}
-          keyExtractor={(item, index) => item._id || String(index)}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={<AIAdvisorMascot screenName="Leads" />}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.colors.brand700}
-              colors={[theme.colors.brand700]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={48} color={theme.colors.textMuted} />
-              <Text style={styles.emptyTitle}>No Buyer Inquiries Found</Text>
-              <Text style={styles.emptySub}>No buyer leads match your active search or stage filter.</Text>
+        {/* Lead List Items */}
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={theme.colors.brand700} />
+            <Text style={styles.loadingText}>Fetching buyer leads pipeline...</Text>
+          </View>
+        ) : leads.length === 0 ? (
+          <View style={styles.emptyCard3D}>
+            <View style={styles.emptyIconBadge}>
+              <Ionicons name="people-outline" size={28} color={theme.colors.brand700} />
             </View>
-          }
-        />
-      )}
+            <Text style={styles.emptyTitle}>No Buyer Leads Found</Text>
+            <Text style={styles.emptySubtext}>Try adjusting your search query or status filter.</Text>
+          </View>
+        ) : (
+          leads.map((lead) => {
+            const stColor = getStatusColor(lead.status);
+
+            return (
+              <View key={lead.id} style={styles.leadCard3D}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarText}>{(lead.name || 'B').charAt(0).toUpperCase()}</Text>
+                  </View>
+
+                  <View style={styles.leadInfoGroup}>
+                    <Text style={styles.leadNameText}>{lead.name}</Text>
+                    <Text style={styles.leadProjectText} numberOfLines={1}>
+                      {lead.project} • {lead.createdAt}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.statusPill, { backgroundColor: stColor.bg }]}>
+                    <Text style={[styles.statusPillText, { color: stColor.text }]}>
+                      {lead.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Lead Specifications Strip */}
+                <View style={styles.leadSpecStrip}>
+                  <View style={styles.specItem}>
+                    <Text style={styles.specLabel}>BUDGET</Text>
+                    <Text style={[styles.specValue, theme.typography.tabularNumbers]}>{lead.budget}</Text>
+                  </View>
+
+                  <View style={styles.specItem}>
+                    <Text style={styles.specLabel}>PROPERTY TYPE</Text>
+                    <Text style={styles.specValue} numberOfLines={1}>{lead.propertyType}</Text>
+                  </View>
+
+                  <View style={styles.specItem}>
+                    <Text style={styles.specLabel}>SOURCE</Text>
+                    <Text style={styles.specValue} numberOfLines={1}>{lead.source}</Text>
+                  </View>
+                </View>
+
+                {/* One-Tap Contact Buttons */}
+                <View style={styles.actionFooterRow}>
+                  <TouchableOpacity
+                    style={styles.callBtn}
+                    onPress={() => handleCall(lead.phone)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="call" size={14} color="#FFFFFF" />
+                    <Text style={styles.actionBtnText}>Call Buyer</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.whatsappBtn}
+                    onPress={() => handleWhatsApp(lead.phone)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
+                    <Text style={styles.actionBtnText}>WhatsApp</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.detailsBtn}
+                    onPress={() => navigation.navigate('LeadDetails', { leadId: lead.id })}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chevron-forward-sharp" size={14} color={theme.colors.brand700} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -278,94 +252,171 @@ export const LeadsListScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.canvas,
+    backgroundColor: '#F8FAFC',
   },
-  headerBar: {
+  hero3DHeader: {
+    width: '100%',
+    backgroundColor: '#272944',
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#0F101E',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  headerTopRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xs,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    marginBottom: 8,
   },
-  addLeadBtn: {
+  addBtn3D: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.brand700,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: theme.borderRadius.md,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     gap: 4,
   },
-  addLeadBtnText: {
+  addBtnText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
   },
-  searchSection: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    backgroundColor: '#FFFFFF',
-  },
-  searchBox: {
+  headerTagPill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceSubtle,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: 12,
-    height: 46,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    gap: 6,
+  },
+  greenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
+  },
+  headerTagText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
+  searchBarBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   searchIcon: {
     marginRight: 8,
   },
-  searchInput: {
+  searchInputControl: {
     flex: 1,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
+    height: 48,
+    fontSize: 13,
+    color: '#0F172A',
     fontWeight: '500',
   },
-  pillsScrollRow: {
+  clearSearchBtn: {
+    padding: 4,
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  statusFilterBar: {
+    marginBottom: 14,
+  },
+  statusFilterContent: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  statusChip: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  filterPill: {
-    backgroundColor: theme.colors.surfaceSubtle,
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: theme.borderRadius.round,
+    paddingVertical: 7,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#CBD5E1',
   },
-  filterPillActive: {
+  statusChipSelected: {
     backgroundColor: theme.colors.brand700,
     borderColor: theme.colors.brand700,
   },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
+  statusChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
   },
-  filterPillTextActive: {
+  statusChipTextSelected: {
     color: '#FFFFFF',
   },
-  listContent: {
-    padding: theme.spacing.md,
-    paddingBottom: 40,
+  loadingBox: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  emptyCard3D: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderBottomWidth: 3,
+    borderBottomColor: '#CBD5E1',
+    marginTop: 12,
+  },
+  emptyIconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  emptySubtext: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+    fontWeight: '500',
   },
   leadCard3D: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E2E8F0',
     borderBottomWidth: 3,
     borderBottomColor: '#CBD5E1',
     shadowColor: '#0F172A',
@@ -376,117 +427,108 @@ const styles = StyleSheet.create({
   },
   cardHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  identityGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
+    marginBottom: 12,
   },
   avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(39, 41, 68, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(39, 41, 68, 0.15)',
+    borderColor: 'rgba(39, 41, 68, 0.18)',
   },
-  avatarLetter: {
-    fontSize: 15,
+  avatarText: {
+    fontSize: 16,
     fontWeight: '800',
     color: theme.colors.brand700,
   },
-  buyerNameText: {
-    ...theme.typography.bodyBold,
-    color: theme.colors.textPrimary,
-  },
-  projectText: {
-    ...theme.typography.caption,
-    color: theme.colors.textMuted,
-    marginTop: 1,
-  },
-  reqGridBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.surfaceSubtle,
-    borderRadius: theme.borderRadius.md,
-    padding: 10,
-    marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  reqCol: {
+  leadInfoGroup: {
     flex: 1,
   },
-  reqLabel: {
-    ...theme.typography.overline,
-    fontSize: 9,
-    color: theme.colors.textMuted,
+  leadNameText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  reqValue: {
+  leadProjectText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    marginTop: 2,
+    color: '#64748B',
+    marginTop: 1,
   },
-  cardFooterActions: {
+  statusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  statusPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  leadSpecStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  specItem: {
+    flex: 1,
+  },
+  specLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  specValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  actionFooterRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  dialerBtnCall: {
+  callBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.brand700,
     paddingVertical: 8,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 10,
     gap: 6,
   },
-  dialerBtnWhatsApp: {
+  whatsappBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#25D366',
     paddingVertical: 8,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 10,
     gap: 6,
   },
-  dialerBtnTask: {
+  detailsBtn: {
     width: 34,
     height: 34,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.surfaceSubtle,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#CBD5E1',
   },
-  dialerBtnText: {
+  actionBtnText: {
     fontSize: 11,
     fontWeight: '800',
     color: '#FFFFFF',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    ...theme.typography.h3,
-    color: theme.colors.textPrimary,
-    marginTop: 12,
-  },
-  emptySub: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.textMuted,
-    marginTop: 4,
   },
 });

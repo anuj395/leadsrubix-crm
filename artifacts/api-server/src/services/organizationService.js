@@ -272,6 +272,18 @@ exports.create = async ({ payload, authedUser }) => {
   });
   const cleaned = pickAllowed(payload?.fields ?? payload ?? {}, allowedFields, true);
 
+  // Validate Subdomain against Permanent Blacklist / Retired Subdomains
+  const requestedSubdomain = String(cleaned.subdomain || payload.subdomain || cleaned.code || payload.code || '').toLowerCase().trim();
+  if (requestedSubdomain) {
+    const subdomainBlacklistModel = require('../models/subdomainBlacklistModel');
+    const isBlacklisted = await subdomainBlacklistModel.isBlacklisted(requestedSubdomain);
+    if (isBlacklisted) {
+      const err = new Error(`The subdomain '${requestedSubdomain}' is permanently retired/blacklisted and cannot be allocated in live CRM.`);
+      err.status = 400;
+      throw err;
+    }
+  }
+
   const orgId = generateOrgId();
 
   // Fetch pricing plan settings from DB
@@ -336,6 +348,8 @@ exports.create = async ({ payload, authedUser }) => {
     validTill,
     organizationId: orgId,
     industryId: industryId,
+    subdomain: requestedSubdomain || undefined,
+    customDomain: payload.customDomain || payload.cname || mergedWithDefaults.customDomain || undefined,
     isActive: payload.isActive !== false,
     createdBy: creatorId,
   });
@@ -1028,3 +1042,298 @@ exports.remove = async ({ id, authedUser }) => {
   console.log(`[organizationService] Completed Enterprise Cascade Deletion for Organization: ${orgId}`);
   return organizationModel.remove(id);
 };
+
+/**
+ * Client Admin initiates a formal request for account and workspace deletion.
+ */
+exports.requestDeletion = async ({ authedUser, reason, feedback }) => {
+  const user = await resolveActor(authedUser);
+  if (!user) {
+    const err = new Error('Authentication required');
+    err.status = 401;
+    throw err;
+  }
+
+  const orgId = user.organizationId || user.organization_id;
+  if (!orgId) {
+    const err = new Error('No active organization associated with user');
+    err.status = 400;
+    throw err;
+  }
+
+  const org = await organizationModel.findById(orgId);
+  if (!org) {
+    const err = new Error('Organization not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (user.role !== 'admin' && user.role !== 'superAdmin') {
+    const err = new Error('Only Client Admin can submit an account deletion request');
+    err.status = 403;
+    throw err;
+  }
+
+  const Organization = mongoose.model('Organization');
+  const updated = await Organization.findByIdAndUpdate(
+    org._id,
+    {
+      $set: {
+        'deletion_request.status': 'PENDING',
+        'deletion_request.reason': reason || 'Client Admin requested account deletion',
+        'deletion_request.feedback': feedback || '',
+        'deletion_request.requested_at': new Date(),
+        'deletion_request.requested_by': user.email || user.name || 'Client Admin',
+        'deletion_request.rejection_reason': '',
+      },
+    },
+    { new: true }
+  );
+
+  return {
+    success: true,
+    message: 'Account deletion request submitted successfully. Awaiting Platform Admin approval.',
+    deletionRequest: updated.deletion_request,
+  };
+};
+
+/**
+ * SuperAdmin lists all submitted account deletion requests.
+ */
+exports.listDeletionRequests = async ({ authedUser }) => {
+  const user = await resolveActor(authedUser);
+  const isSuperAdmin = (user?.role || authedUser?.role) === 'superAdmin';
+  if (!isSuperAdmin) {
+    const err = new Error('Only Platform SuperAdmin can view deletion requests');
+    err.status = 403;
+    throw err;
+  }
+
+  const Organization = mongoose.model('Organization');
+  const orgs = await Organization.find({
+    'deletion_request.status': { $in: ['PENDING', 'APPROVED', 'REJECTED'] },
+  }).lean().exec();
+
+  return orgs.map(org => ({
+    id: org._id,
+    organizationId: org.organization_id || org.organizationId,
+    organizationName: org.organization_name || org.name,
+    subdomain: org.subdomain || '',
+    customDomain: org.custom_domain || '',
+    industryId: org.industry_id || org.industryId,
+    status: org.status,
+    deletionRequest: org.deletion_request,
+    createdAt: org.createdAt,
+  }));
+};
+
+/**
+ * SuperAdmin approves account deletion, shuts down the workspace, and permanently blacklists the subdomain.
+ */
+exports.approveDeletionRequest = async ({ id, authedUser }) => {
+  const user = await resolveActor(authedUser);
+  const isSuperAdmin = (user?.role || authedUser?.role) === 'superAdmin';
+  if (!isSuperAdmin) {
+    const err = new Error('Only Platform SuperAdmin can approve deletion requests');
+    err.status = 403;
+    throw err;
+  }
+
+  const org = await organizationModel.findById(id);
+  if (!org) {
+    const err = new Error('Organization not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const orgId = org.organization_id || org.organizationId || String(org._id);
+  const subdomain = (org.subdomain || '').toLowerCase().trim();
+
+  // 1. Permanently blacklist subdomain so it can NEVER be reused or reallocated in live CRM
+  if (subdomain) {
+    const subdomainBlacklistModel = require('../models/subdomainBlacklistModel');
+    await subdomainBlacklistModel.blacklistSubdomain({
+      subdomain,
+      organizationId: orgId,
+      organizationName: org.organization_name || org.name,
+      retiredBy: user.email || 'Super Admin',
+      reason: org.deletion_request?.reason || 'DELETED_WORKSPACE_TOMBSTONE',
+    });
+    console.log(`[organizationService] Subdomain '${subdomain}' permanently blacklisted and retired.`);
+  }
+
+  // 2. Mark organization status as DELETED & deactivate
+  const Organization = mongoose.model('Organization');
+  const updatedOrg = await Organization.findByIdAndUpdate(
+    org._id,
+    {
+      $set: {
+        status: 'DELETED',
+        is_active: false,
+        'deletion_request.status': 'APPROVED',
+        'deletion_request.reviewed_at': new Date(),
+        'deletion_request.reviewed_by': user.email || 'Super Admin',
+      },
+    },
+    { new: true }
+  );
+
+  // 3. Deactivate all users belonging to this organization
+  const User = mongoose.model('User');
+  await User.updateMany(
+    { $or: [{ organizationId: orgId }, { organization_id: orgId }] },
+    { $set: { isActive: false, is_active: false, status: 'inactive' } }
+  );
+
+  return {
+    success: true,
+    message: `Organization '${org.organization_name || org.name}' has been deleted and its subdomain '${subdomain}' is permanently retired.`,
+    organization: updatedOrg,
+  };
+};
+
+/**
+ * SuperAdmin rejects account deletion request with a reason.
+ */
+exports.rejectDeletionRequest = async ({ id, authedUser, rejectionReason }) => {
+  const user = await resolveActor(authedUser);
+  const isSuperAdmin = (user?.role || authedUser?.role) === 'superAdmin';
+  if (!isSuperAdmin) {
+    const err = new Error('Only Platform SuperAdmin can reject deletion requests');
+    err.status = 403;
+    throw err;
+  }
+
+  const org = await organizationModel.findById(id);
+  if (!org) {
+    const err = new Error('Organization not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const Organization = mongoose.model('Organization');
+  const updatedOrg = await Organization.findByIdAndUpdate(
+    org._id,
+    {
+      $set: {
+        'deletion_request.status': 'REJECTED',
+        'deletion_request.reviewed_at': new Date(),
+        'deletion_request.reviewed_by': user.email || 'Super Admin',
+        'deletion_request.rejection_reason': rejectionReason || 'Deletion request declined by Administrator',
+      },
+    },
+    { new: true }
+  );
+
+  return {
+    success: true,
+    message: 'Deletion request has been rejected.',
+    organization: updatedOrg,
+  };
+};
+
+/**
+ * Export complete workspace data backup for the Client Admin / Organization.
+ */
+exports.exportWorkspaceBackup = async ({ id, authedUser }) => {
+  const user = await resolveActor(authedUser);
+  if (!user) {
+    const err = new Error('Authentication required');
+    err.status = 401;
+    throw err;
+  }
+
+  const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
+  const targetId = id || user.organizationId || user.organization_id;
+  const org = await organizationModel.findById(targetId);
+
+  if (!org) {
+    const err = new Error('Organization not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const orgId = org.organization_id || org.organizationId || String(org._id);
+  const userOrgId = user.organizationId || user.organization_id;
+
+  if (!isSuperAdmin && userOrgId !== orgId) {
+    const err = new Error('Unauthorized to export other tenant data');
+    err.status = 403;
+    throw err;
+  }
+
+  const orgFilter = {
+    $or: [
+      { organization_id: orgId },
+      { organizationId: orgId },
+      { organization_id: String(org._id) },
+      { organizationId: String(org._id) }
+    ]
+  };
+
+  const User = mongoose.model('User');
+  const Role = mongoose.model('Role');
+  const Contact = mongoose.model('Contact');
+  const Task = mongoose.model('Task');
+  const Booking = mongoose.model('Booking');
+  const CallLog = mongoose.model('CallLog');
+  const ScreenField = mongoose.model('ScreenField');
+  const AnalyticsConfig = mongoose.model('AnalyticsConfig');
+
+  const [
+    users,
+    roles,
+    contacts,
+    tasks,
+    bookings,
+    callLogs,
+    customFields,
+    analyticsConfigs,
+  ] = await Promise.all([
+    User.find(orgFilter).select('-password').lean().exec(),
+    Role.find(orgFilter).lean().exec(),
+    Contact.find(orgFilter).lean().exec(),
+    Task.find(orgFilter).lean().exec(),
+    Booking.find(orgFilter).lean().exec(),
+    CallLog.find(orgFilter).lean().exec(),
+    ScreenField.find(orgFilter).lean().exec(),
+    AnalyticsConfig.find(orgFilter).lean().exec(),
+  ]);
+
+  const sanitizedUsers = (users || []).map(u => {
+    const copy = { ...u };
+    delete copy.password;
+    return copy;
+  });
+
+  return {
+    exportMetadata: {
+      generatedAt: new Date().toISOString(),
+      generatedBy: user.email || user.name || 'Admin',
+      organizationId: orgId,
+      organizationName: org.organization_name || org.name,
+      subdomain: org.subdomain || '',
+      industryId: org.industry_id || org.industryId,
+      version: '1.0.0',
+      totalRecords: {
+        users: sanitizedUsers.length,
+        roles: roles.length,
+        contacts: contacts.length,
+        tasks: tasks.length,
+        bookings: bookings.length,
+        callLogs: callLogs.length,
+        customFields: customFields.length,
+      },
+    },
+    organization: org.toObject ? org.toObject() : org,
+    users: sanitizedUsers,
+    roles,
+    customFields,
+    contacts,
+    tasks,
+    bookings,
+    callLogs,
+    analyticsConfigs,
+  };
+};
+

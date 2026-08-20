@@ -11,11 +11,21 @@ exports.resolveDomain = async (req, res, next) => {
 
     let org = await Organization.findOne({ custom_domain: host, is_active: true }).exec();
 
+    let sub = '';
     if (!org && host.includes('.')) {
       const parts = host.split('.');
       if (parts.length >= 3) {
-        const sub = parts[0];
+        sub = parts[0];
         if (sub && sub !== 'www' && sub !== 'api' && sub !== 'app') {
+          const subdomainBlacklistModel = require('../models/subdomainBlacklistModel');
+          const isBlacklisted = await subdomainBlacklistModel.isBlacklisted(sub);
+          if (isBlacklisted) {
+            return res.json({
+              resolved: false,
+              isBlacklisted: true,
+              message: `The workspace '${sub}' has been permanently deleted and retired.`,
+            });
+          }
           org = await Organization.findOne({ subdomain: sub, is_active: true }).exec();
         }
       }

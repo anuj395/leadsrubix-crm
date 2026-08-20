@@ -36,16 +36,22 @@ function getInitialThemeMode(initialMode?: ThemeMode): ThemeMode {
   if (initialMode) return initialMode
 
   const storedMode = globalThis.localStorage?.getItem(THEME_MODE_STORAGE_KEY)
-  if (storedMode === 'light' || storedMode === 'dark') return storedMode
+  if (storedMode === 'dark') {
+    globalThis.localStorage?.removeItem(THEME_MODE_STORAGE_KEY)
+  }
 
-  if (globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark'
-
-  return DEFAULT_THEME_MODE
+  return 'light'
 }
 
 export function useThemeMode() {
   const context = useContext(ThemeModeContext)
-  if (!context) throw new Error('useThemeMode must be used within AppProviders')
+  if (!context) {
+    return {
+      mode: 'light' as ThemeMode,
+      setMode: () => {},
+      toggleMode: () => {},
+    }
+  }
   return context
 }
 

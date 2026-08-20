@@ -169,9 +169,30 @@ function compileQuery(query, params = [], schema = null) {
     }
 
     if (key.includes('.')) {
-      const [parentKey, childKey] = key.split('.');
-      params.push(JSON.stringify([{ [childKey]: String(val) }]));
-      parts.push(`data->'${parentKey}' @> $${params.length}::jsonb`);
+      const dotParts = key.split('.');
+      const lastKey = dotParts[dotParts.length - 1];
+      const jsonbPath = dotParts.slice(0, -1).reduce((acc, curr, idx) => idx === 0 ? `data->'${curr}'` : `${acc}->'${curr}'`, '');
+      const targetColumn = `(${jsonbPath}->>'${lastKey}')`;
+      
+      if (val && typeof val === 'object' && !Array.isArray(val) && !(val instanceof RegExp) && !(val instanceof Date) && !ObjectId.isValid(val)) {
+        for (const [op, opVal] of Object.entries(val)) {
+          if (op === '$in' && Array.isArray(opVal)) {
+            const list = opVal.map(x => String(x));
+            params.push(list);
+            parts.push(`${targetColumn} = ANY($${params.length})`);
+          } else if (op === '$ne') {
+            if (opVal === null) {
+              parts.push(`${targetColumn} IS NOT NULL`);
+            } else {
+              params.push(String(opVal));
+              parts.push(`${targetColumn} <> $${params.length}`);
+            }
+          }
+        }
+      } else {
+        params.push(String(val));
+        parts.push(`${targetColumn} = $${params.length}`);
+      }
       continue;
     }
 
@@ -342,7 +363,22 @@ function applyUpdateQuery(data, updateQuery, isInsert = false) {
 
   if (updateQuery.$set) {
     for (const [k, v] of Object.entries(updateQuery.$set)) {
-      nextData[k] = v;
+      if (k.includes('.')) {
+        const parts = k.split('.');
+        let curr = nextData;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const p = parts[i];
+          if (!curr[p] || typeof curr[p] !== 'object') {
+            curr[p] = {};
+          } else {
+            curr[p] = { ...curr[p] };
+          }
+          curr = curr[p];
+        }
+        curr[parts[parts.length - 1]] = v;
+      } else {
+        nextData[k] = v;
+      }
     }
   }
   if (isInsert && updateQuery.$setOnInsert) {
@@ -618,7 +654,17 @@ class QueryBuilder {
       sql += ` OFFSET ${this._skip}`;
     }
 
-    const res = await pool.query(sql, params);
+    let res;
+    try {
+      res = await pool.query(sql, params);
+    } catch (err) {
+      if (err && err.code === '42P01') {
+        await ensureTableAndIndexes(this.tableName, this.model.schema);
+        res = await pool.query(sql, params);
+      } else {
+        throw err;
+      }
+    }
     const docs = res.rows.map(row => {
       const data = { _id: row._id, ...row.data };
       if (!data.createdAt) data.createdAt = row.created_at;
@@ -787,19 +833,40 @@ function createModel(modelName, schema) {
       delete plain._id;
 
       const now = new Date();
-      // Check if document exists
-      const res = await pool.query(`SELECT 1 FROM ${tableName} WHERE _id = $1`, [this._id]);
-      if (res.rows.length > 0) {
-        await pool.query(`
-          UPDATE ${tableName} 
-          SET data = $1, updated_at = $2 
-          WHERE _id = $3
-        `, [JSON.stringify(plain), now, this._id]);
-      } else {
-        await pool.query(`
-          INSERT INTO ${tableName} (_id, data, created_at, updated_at) 
-          VALUES ($1, $2, $3, $4)
-        `, [this._id, JSON.stringify(plain), now, now]);
+      try {
+        // Check if document exists
+        const res = await pool.query(`SELECT 1 FROM ${tableName} WHERE _id = $1`, [this._id]);
+        if (res.rows.length > 0) {
+          await pool.query(`
+            UPDATE ${tableName} 
+            SET data = $1, updated_at = $2 
+            WHERE _id = $3
+          `, [JSON.stringify(plain), now, this._id]);
+        } else {
+          await pool.query(`
+            INSERT INTO ${tableName} (_id, data, created_at, updated_at) 
+            VALUES ($1, $2, $3, $4)
+          `, [this._id, JSON.stringify(plain), now, now]);
+        }
+      } catch (err) {
+        if (err && err.code === '42P01') {
+          await ensureTableAndIndexes(tableName, schema);
+          const res = await pool.query(`SELECT 1 FROM ${tableName} WHERE _id = $1`, [this._id]);
+          if (res.rows.length > 0) {
+            await pool.query(`
+              UPDATE ${tableName} 
+              SET data = $1, updated_at = $2 
+              WHERE _id = $3
+            `, [JSON.stringify(plain), now, this._id]);
+          } else {
+            await pool.query(`
+              INSERT INTO ${tableName} (_id, data, created_at, updated_at) 
+              VALUES ($1, $2, $3, $4)
+            `, [this._id, JSON.stringify(plain), now, now]);
+          }
+        } else {
+          throw err;
+        }
       }
       return this;
     }

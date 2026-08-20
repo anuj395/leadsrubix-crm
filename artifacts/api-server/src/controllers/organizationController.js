@@ -173,3 +173,64 @@ exports.upgradeSubscription = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.requestDeletion = async (req, res, next) => {
+  try {
+    const result = await service.requestDeletion({
+      authedUser: req.user,
+      reason: req.body?.reason,
+      feedback: req.body?.feedback,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listDeletionRequests = async (req, res, next) => {
+  try {
+    const items = await service.listDeletionRequests({ authedUser: req.user });
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.approveDeletionRequest = async (req, res, next) => {
+  try {
+    const result = await service.approveDeletionRequest({
+      id: req.params.id,
+      authedUser: req.user,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.rejectDeletionRequest = async (req, res, next) => {
+  try {
+    const result = await service.rejectDeletionRequest({
+      id: req.params.id,
+      authedUser: req.user,
+      rejectionReason: req.body?.rejectionReason,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.exportWorkspaceBackup = async (req, res, next) => {
+  try {
+    const backup = await service.exportWorkspaceBackup({
+      id: req.params.id,
+      authedUser: req.user,
+    });
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="workspace-backup-${backup.exportMetadata.subdomain || 'crm'}-${Date.now()}.json"`);
+    res.json(backup);
+  } catch (err) {
+    next(err);
+  }
+};

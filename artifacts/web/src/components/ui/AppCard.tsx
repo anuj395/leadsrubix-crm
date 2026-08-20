@@ -48,12 +48,12 @@ export function AppCard({ action, children, subtitle, title, sx, fullHeight = fa
           {/* <Stack sx={{ minWidth: 0, flex: '1 1 12rem' }}> */}
           <Stack sx={{ minWidth: 0, flex: { xs: '1 1 4rem', sm: '1 1 12rem' } }}>
             <Typography
-              variant="overline"
+              variant="h5"
               sx={{
-                color: theme.palette.secondary.main,
+                color: theme.palette.text.primary,
                 fontWeight: 700,
-                letterSpacing: '0.08em',
-                lineHeight: 1.4,
+                fontSize: '1.25rem',
+                lineHeight: 1.3,
                 mb: subtitle ? 0.5 : 0,
               }}
             >
@@ -64,7 +64,8 @@ export function AppCard({ action, children, subtitle, title, sx, fullHeight = fa
                 variant="body2"
                 sx={{
                   color: theme.palette.text.secondary,
-                  lineHeight: 1.55,
+                  lineHeight: 1.5,
+                  fontSize: '0.875rem',
                 }}
               >
                 {subtitle}

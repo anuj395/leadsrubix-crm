@@ -49,6 +49,7 @@ require('./models/sidebarModel');
 require('./models/taskModel');
 require('./models/notificationModel');
 require('./models/notificationSettingModel');
+require('./models/subdomainBlacklistModel');
 
 const {
   seedUsers,

@@ -86,36 +86,100 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "organization", name: "Organization", route: "/organization/list", icon: "organization", module: "organization" },
   { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
 
-  { key: "leads.contacts", name: "Contacts List", route: "/leads/contacts", icon: "contact", module: "leads" },
-  { key: "leads.tasks", name: "Tasks List", route: "/leads/tasks", icon: "tasks", module: "leads" },
-  { key: "leads.callLogs", name: "Call Logs List", route: "/leads/call-logs", icon: "call", module: "leads" },
-  { key: "leads.sorted", name: "Sorted List", route: "/leads/sorted", icon: "sort", module: "leads" },
+  {
+    key: "leads",
+    name: "Lead Inquiries",
+    icon: "leads",
+    module: "leads",
+    children: [
+      { key: "leads.contacts", name: "Contacts", route: "/leads/contacts", icon: "contact", module: "leads" },
+      { key: "leads.tasks", name: "Tasks & Activities", route: "/leads/tasks", icon: "tasks", module: "leads" },
+      { key: "leads.callLogs", name: "Call Interaction Logs", route: "/leads/call-logs", icon: "call", module: "leads" },
+      { key: "leads.sorted", name: "Sorted List", route: "/leads/sorted", icon: "sort", module: "leads" },
+    ]
+  },
 
-  { key: "configuration.industries", name: "Industry", route: "/configuration/industries", icon: "organization", module: "configuration" },
-  { key: "configuration.projects", name: "Project", route: "/configuration/projects", icon: "projects", module: "configuration" },
-  { key: "configuration.resources", name: "Resources", route: "/configuration/resources", icon: "resources", module: "configuration" },
+  {
+    key: "configuration",
+    name: "Configuration",
+    icon: "configuration",
+    module: "configuration",
+    children: [
+      { key: "configuration.industries", name: "Industry", route: "/configuration/industries", icon: "organization", module: "configuration" },
+      { key: "configuration.projects", name: "Project & Service", route: "/configuration/projects", icon: "projects", module: "configuration" },
+      { key: "configuration.resources", name: "Resources & Assets", route: "/configuration/resources", icon: "resources", module: "configuration" },
+    ]
+  },
 
-  { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
-  { key: "integrations.whatsapp", name: "WhatsApp API", route: "/integrations/whatsapp", icon: "whatsapp", module: "integrations" },
+  {
+    key: "integrations",
+    name: "Integrations & API",
+    icon: "api",
+    module: "integrations",
+    children: [
+      { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
+      { key: "integrations.whatsapp", name: "WhatsApp API", route: "/integrations/whatsapp", icon: "whatsapp", module: "integrations" },
+    ]
+  },
 
-  { key: "uiNavigation.analyticsConfig", name: "Analytics Layout Builder", route: "/ui-navigation/analytics-config", icon: "settings", module: "uiNavigation" },
-  { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/ui-navigation/menus", icon: "sidebar", module: "uiNavigation" },
-  { key: "uiNavigation.screens", name: "Screens", route: "/ui-navigation/screens", icon: "headers", module: "uiNavigation" },
-  { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/ui-navigation/screen-fields", icon: "headers", module: "uiNavigation" },
+  {
+    key: "uiNavigation",
+    name: "UI & Navigation",
+    icon: "sidebar",
+    module: "uiNavigation",
+    children: [
+      { key: "uiNavigation.analyticsConfig", name: "Analytics Layout Builder", route: "/ui-navigation/analytics-config", icon: "settings", module: "uiNavigation" },
+      { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/ui-navigation/menus", icon: "sidebar", module: "uiNavigation" },
+      { key: "uiNavigation.screens", name: "Screens", route: "/ui-navigation/screens", icon: "headers", module: "uiNavigation" },
+      { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/ui-navigation/screen-fields", icon: "headers", module: "uiNavigation" },
+    ]
+  },
 
-  { key: "accessControl.roles", name: "Roles & Permissions", route: "/access-control/roles", icon: "shield", module: "accessControl" },
-  { key: "accessControl.permissions", name: "Permission Matrix (Sidebar)", route: "/access-control/permissions", icon: "shield", module: "accessControl" },
-  { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/access-control/screen-permissions", icon: "shield", module: "accessControl" },
+  {
+    key: "accessControl",
+    name: "Access Control",
+    icon: "shield",
+    module: "accessControl",
+    children: [
+      { key: "accessControl.roles", name: "Roles & Permissions", route: "/access-control/roles", icon: "shield", module: "accessControl" },
+      { key: "accessControl.permissions", name: "Permission Matrix (Sidebar)", route: "/access-control/permissions", icon: "shield", module: "accessControl" },
+      { key: "accessControl.screenPermissions", name: "Permission Fields", route: "/access-control/screen-permissions", icon: "shield", module: "accessControl" },
+    ]
+  },
 
-  { key: "invoices.paymentLogs", name: "Payment Invoice Logs", route: "/invoices/payment-invoices", icon: "billing", module: "invoices" },
-  { key: "invoices.receiptsHistory", name: "Receipts & Historical Charges", route: "/invoices/receipts-history", icon: "subscription", module: "invoices" },
+  {
+    key: "invoices",
+    name: "Invoices",
+    icon: "billing",
+    module: "invoices",
+    children: [
+      { key: "invoices.paymentLogs", name: "Payment Invoice Logs", route: "/invoices/payment-invoices", icon: "billing", module: "invoices" },
+      { key: "invoices.receiptsHistory", name: "Receipts & Historical Charges", route: "/invoices/receipts-history", icon: "subscription", module: "invoices" },
+    ]
+  },
 
-  { key: "support.news", name: "News List", route: "/support/news", icon: "news", module: "support" },
-  { key: "support.faq", name: "FAQ List", route: "/support/faq", icon: "faq", module: "support" },
+  {
+    key: "account",
+    name: "Account & Settings",
+    icon: "settings",
+    module: "account",
+    children: [
+      { key: "account.licenses", name: "License Cost", route: "/account/licenses", icon: "billing", module: "account" },
+      { key: "account.coupons", name: "Coupons", route: "/account/coupons", icon: "coupon", module: "account" },
+      { key: "account.password", name: "Update Password", route: "/account/update-password", icon: "password", module: "account" },
+    ]
+  },
 
-  { key: "account.licenses", name: "License Cost", route: "/account/licenses", icon: "billing", module: "account" },
-  { key: "account.coupons", name: "Coupons", route: "/account/coupons", icon: "coupon", module: "account" },
-  { key: "account.password", name: "Update Password", route: "/account/update-password", icon: "password", module: "account" }
+  {
+    key: "support",
+    name: "Support",
+    icon: "support",
+    module: "support",
+    children: [
+      { key: "support.news", name: "News List", route: "/support/news", icon: "news", module: "support" },
+      { key: "support.faq", name: "FAQ List", route: "/support/faq", icon: "faq", module: "support" },
+    ]
+  }
 ]
 
 export const adminMenuConfig: SuperAdminMenuItem[] = [

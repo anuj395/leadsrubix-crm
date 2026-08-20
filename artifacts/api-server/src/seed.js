@@ -9,32 +9,59 @@ const mongoose = require('mongoose');
 
 const DEFAULT_INDUSTRIES = [
   {
+    id: 'auto_sales_service_3s',
+    code: 'auto_sales_service_3s',
+    name: 'Auto Sales & Service Dealership (3S/4S Outlet)'
+  },
+  {
+    id: 'basic_crm',
+    code: 'basic_crm',
+    name: 'Universal Basic CRM'
+  },
+  {
     id: 'temp0001',
+    code: 'real_estate',
     name: 'Real Estate'
   },
   {
     id: 'temp0002',
+    code: 'ecommerce',
     name: 'E-commerce'
   },
   {
     id: 'temp0003',
+    code: 'healthcare',
     name: 'Healthcare'
   },
   {
     id: 'temp0004',
+    code: 'education',
     name: 'Education'
   },
   {
     id: 'temp0005',
+    code: 'financial_services',
     name: 'Financial Services'
   },
   {
     id: 'temp0006',
+    code: 'it_saas',
     name: 'IT & Tech Services'
   },
   {
     id: 'temp0007',
+    code: 'manufacturing',
     name: 'Manufacturing'
+  },
+  {
+    id: 'hospitality',
+    code: 'hospitality',
+    name: 'Hospitality & Luxury Stays'
+  },
+  {
+    id: 'real_estate_channel_partner',
+    code: 'real_estate_channel_partner',
+    name: 'Real Estate Channel Partner'
   }
 ];
 

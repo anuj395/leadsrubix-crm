@@ -396,16 +396,16 @@ img {
 
 /* ── Overhaul CSS Utilities & Custom Glassmorphism ─────────── */
 .glass-card {
-  background: rgba(255, 255, 255, 0.70) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.6) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
+  background: #FFFFFF !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.03) !important;
 }
 
 [data-theme='dark'] .glass-card,
 [data-mui-color-scheme='dark'] .glass-card {
-  background: rgba(11, 14, 32, 0.55) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;

@@ -19,7 +19,7 @@ import { AppCard } from '@/components/ui/AppCard'
 export function SignupPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { error: authError, status } = useAppSelector(selectAuth)
+  const { error: authError } = useAppSelector(selectAuth)
 
   const { setIsWider } = useOutletContext<{ setIsWider: (w: boolean) => void }>() || {}
 
@@ -40,11 +40,37 @@ export function SignupPage() {
     setLoadingIndustries(true)
     getIndustries(true)
       .then((inds: Industry[]) => {
-        setIndustries(inds)
+        let list = [...inds]
+        const hasAuto3S = list.some(i => i.code === 'auto_sales_service_3s' || i.name.includes('3S/4S'))
+
+        const autoPresets: Industry[] = []
+        if (!hasAuto3S) {
+          autoPresets.push({
+            _id: 'auto_sales_service_3s',
+            code: 'auto_sales_service_3s',
+            name: 'Auto Sales & Service Dealership (3S/4S Outlet)',
+            isActive: true,
+          })
+        }
+
+        const combined = [...autoPresets, ...list]
+        setIndustries(combined)
         setLoadingIndustries(false)
       })
       .catch((err: any) => {
         console.error('Failed to load industries:', err)
+        setIndustries([
+          {
+            _id: 'auto_sales_service_3s',
+            code: 'auto_sales_service_3s',
+            name: 'Auto Sales & Service Dealership (3S/4S Outlet)',
+            isActive: true,
+          },
+          { _id: 'auto_dealership', code: 'auto_dealership', name: 'Auto Sales Outlet & Dealership', isActive: true },
+          { _id: 'auto_service', code: 'auto_service', name: 'Auto Service Center & Repair', isActive: true },
+          { _id: 'temp0001', code: 'real_estate', name: 'Real Estate & Property Development', isActive: true },
+          { _id: 'temp0006', code: 'it_saas', name: 'IT Services & SaaS Enterprise', isActive: true },
+        ])
         setLoadingIndustries(false)
       })
   }, [dispatch])
@@ -117,9 +143,9 @@ export function SignupPage() {
               <Typography sx={{ color: 'primary.main', fontWeight: 600 }}>
                 Industry: {industries.find(i => i.code === selectedIndustry)?.name || selectedIndustry}
               </Typography>
-              <Button 
-                size="small" 
-                variant="text" 
+              <Button
+                size="small"
+                variant="text"
                 onClick={() => {
                   setSelectedIndustry('')
                   setSignupError(null)

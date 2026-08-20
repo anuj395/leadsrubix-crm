@@ -114,12 +114,151 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     });
   }
 
-  if (!perms.length) {
+  const SUPERADMIN_ONLY_KEYS = new Set([
+    'uiNavigation',
+    'uiNavigation.analyticsConfig',
+    'uiNavigation.menus',
+    'uiNavigation.screens',
+    'uiNavigation.screenFields',
+    'accessControl',
+    'accessControl.permissions',
+    'accessControl.screenPermissions',
+    'configuration.industries',
+    'configuration.domainSettings',
+    'leads.sorted',
+    'integrations.webhook',
+    'integrations.api',
+    'organization',
+    'account.licenses',
+    'account.coupons',
+  ]);
+
+  const DEFAULT_INDUSTRY_TRANSLATIONS = {
+    hospitality: {
+      projects: 'Properties & Suites',
+      resources: 'Dining & Banquet Amenities',
+      contacts: 'Guest & Corporate Records',
+      tasks: 'Check-ins & Guest Tours',
+      quotes: 'Tariff & Event Packages',
+      bookings: 'Room & Event Reservations',
+      leads: 'Guest & Event Inquiries',
+      configuration: 'Hotel & Venue Inventory',
+    },
+    real_estate_channel_partner: {
+      projects: 'Developer Mandates & Projects',
+      resources: 'Marketing Collateral & Brochures',
+      contacts: 'Buyer & Investor Portfolio',
+      tasks: 'Client Site Visits & Builder Meets',
+      quotes: 'Cost Sheets & Price Quotes',
+      bookings: 'Unit Closures & Registrations',
+      leads: 'Buyer Inquiries & CP Leads',
+      configuration: 'Mandate Inventory & Config',
+    },
+    it_saas: {
+      projects: 'Software Products & Deliverables',
+      resources: 'Developer Assets & Toolkits',
+      contacts: 'B2B Accounts & Stakeholders',
+      tasks: 'Demos & POCs',
+      quotes: 'SaaS Proposals & TCO Quotes',
+      bookings: 'Contract Wins',
+      leads: 'Inbound Prospects',
+      configuration: 'Product Catalog',
+    },
+    auto_sales_service_3s: {
+      projects: 'Vehicle Inventory',
+      resources: 'Workshop Spares',
+      contacts: 'Customer Records',
+      tasks: 'Test Drives',
+      quotes: 'Vehicle Quotations',
+      bookings: 'Vehicle Bookings',
+      leads: 'Car Inquiries',
+      configuration: 'Dealership Inventory',
+    },
+    basic_crm: {
+      projects: 'Products & Services',
+      resources: 'Resources & Inventory',
+      contacts: 'Contacts & Leads',
+      tasks: 'Tasks & Follow-ups',
+      quotes: 'Quotations & Proposals',
+      bookings: 'Bookings & Closures',
+      leads: 'Lead Inquiries',
+      configuration: 'Operations & Catalog',
+    },
+  };
+
+  const STANDARD_NAME_MAP = {
+    'analytics': 'Analytics Overview',
+    'users': 'Team & Access',
+    'users.list': 'Team Members',
+    'users.roles': 'Roles & Permissions',
+    'leadDistribution': 'Lead Distribution',
+    'leadDistribution.list': 'Lead Routing Rules',
+    'leadDistribution.reassignList': 'Reassign Leads',
+    'configuration': 'Operations & Catalog',
+    'configuration.days': 'Business Hours & Shifts',
+    'configuration.holiday': 'Holidays Calendar',
+    'integrations': 'Integrations & API',
+    'integrations.apiData': 'API & Webhook Integrations',
+    'integrations.whatsapp': 'WhatsApp Cloud API',
+    'leads.call': 'Call Interaction Logs',
+    'account.subscription': 'Subscription & Billing',
+  };
+
+  function shapeMenu(m) {
+    const rawTranslations = industry.translations || DEFAULT_INDUSTRY_TRANSLATIONS[industry.code] || DEFAULT_INDUSTRY_TRANSLATIONS.basic_crm;
+    let name = m.name;
+
+    if (m.key === 'leads.contact' || m.name === 'Contacts List') name = rawTranslations.contacts || 'Contacts & Leads';
+    else if (m.key === 'leads.tasks' || m.name === 'Tasks List') name = rawTranslations.tasks || 'Tasks & Follow-ups';
+    else if (m.key === 'leads.booking' || m.name === 'Bookings List') name = rawTranslations.bookings || 'Bookings & Closures';
+    else if (m.key === 'configuration.projects' || m.name === 'Project') name = rawTranslations.projects || 'Projects & Mandates';
+    else if (m.key === 'configuration.resources' || m.name === 'Resource') name = rawTranslations.resources || 'Resources & Inventory';
+    else if (m.key === 'configuration' || m.name === 'Configuration') name = rawTranslations.configuration || 'Operations & Catalog';
+    else if (m.key === 'leads' || m.name === 'Lead') name = rawTranslations.leads || 'Lead Pipeline';
+    else if (STANDARD_NAME_MAP[m.key]) name = STANDARD_NAME_MAP[m.key];
+
+    return {
+      _id: String(m._id),
+      key: m.key,
+      name,
+      icon: m.icon,
+      route: m.route || '',
+      parent_id: m.parent_id ? String(m.parent_id) : null,
+      order: m.order || 999,
+      module: m.module || m.key,
+      is_active: m.is_active !== false,
+    };
+  }
+
+  if (!perms.length || key === 'admin' || key === 'superAdmin') {
+    let allMenus = [];
+    if (targetOrgId) {
+      allMenus = await SidebarMenuModel.find({
+        $or: [
+          { organization_id: targetOrgId },
+          { organizationId: targetOrgId }
+        ],
+        is_active: true
+      }).sort({ order: 1 }).lean().exec();
+    }
+    if (!allMenus || !allMenus.length) {
+      allMenus = await SidebarMenuModel.find({
+        organization_id: null,
+        is_active: true
+      }).sort({ order: 1 }).lean().exec();
+    }
+
+    // Filter out superAdmin-only internal menus for non-superAdmin roles
+    const filteredMenus = allMenus.filter(m => {
+      if (key === 'superAdmin') return true;
+      return !SUPERADMIN_ONLY_KEYS.has(m.key);
+    });
+
     return {
       industryId: String(industry._id),
       industry_code: code,
-      role: key,
-      menus: [],
+      roleKey: key,
+      menus: filteredMenus.map(shapeMenu),
     };
   }
 
@@ -193,7 +332,12 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   const permByMenu = new Map(perms.map((p) => [String(p.menu_id), p]));
 
   const rawItems = [...menuById.values()]
+    .filter((m) => {
+      if (key === 'superAdmin') return true;
+      return !SUPERADMIN_ONLY_KEYS.has(m.key);
+    })
     .map((m) => {
+      const shaped = shapeMenu(m);
       const perm = permByMenu.get(String(m._id));
       const orderOverride = perm ? perm.order_override : undefined;
       const order =
@@ -201,18 +345,12 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
           ? orderOverride
           : typeof m.order === 'number'
             ? m.order
-            : 0;
+            : shaped.order;
       return {
-        _id: String(m._id),
-        key: m.key,
-        name: m.name,
-        icon: m.icon || '',
-        route: m.route || '',
-        parent_id: m.parent_id ? String(m.parent_id) : null,
-        parentId: m.parent_id ? String(m.parent_id) : null,
+        ...shaped,
         order,
-        module: m.module || '',
-        organization_id: m.organization_id || null
+        parentId: shaped.parent_id,
+        organization_id: m.organization_id || null,
       };
     })
     .sort((a, b) => a.order - b.order);

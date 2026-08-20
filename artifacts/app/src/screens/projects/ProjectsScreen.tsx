@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
+import { quoteService } from '../../services/quoteService';
 import { theme } from '../../theme/theme';
 
 export const ProjectsScreen = () => {
@@ -22,6 +23,9 @@ export const ProjectsScreen = () => {
       location: 'Golf Course Extension, Sector 65',
       type: 'Luxury 3 & 4 BHK Apartments',
       priceRange: '₹1.8 Cr - ₹3.5 Cr',
+      basePrice: 18000000,
+      plc: 500000,
+      parking: 300000,
       availableUnits: 14,
       totalUnits: 120,
       status: 'Ready to Move',
@@ -34,6 +38,9 @@ export const ProjectsScreen = () => {
       location: 'Southern Peripheral Road, Sector 70',
       type: 'Premium Residential Villas',
       priceRange: '₹3.2 Cr - ₹6.5 Cr',
+      basePrice: 32000000,
+      plc: 1000000,
+      parking: 500000,
       availableUnits: 6,
       totalUnits: 45,
       status: 'Under Construction',
@@ -46,6 +53,9 @@ export const ProjectsScreen = () => {
       location: 'Cyber City Phase II',
       type: 'Grade-A Commercial Offices',
       priceRange: '₹95 L - ₹2.8 Cr',
+      basePrice: 9500000,
+      plc: 250000,
+      parking: 200000,
       availableUnits: 22,
       totalUnits: 90,
       status: 'New Launch',
@@ -53,6 +63,33 @@ export const ProjectsScreen = () => {
       bgColor: 'rgba(2, 132, 199, 0.12)',
     },
   ]);
+
+  const handleGenerateQuote = (project: any) => {
+    const q = quoteService.calculateQuote({
+      unitType: project.type,
+      basePrice: project.basePrice,
+      floorRise: 200000,
+      plcCharges: project.plc,
+      parkingCharges: project.parking,
+      gstRate: 0.05,
+    });
+
+    Alert.alert(
+      `CPQ Quotation Breakdown`,
+      `Project: ${project.name}\nBase Price: ₹${(project.basePrice / 100000).toFixed(1)} L\nPLC & Parking: ₹${((project.plc + project.parking) / 100000).toFixed(1)} L\nGST (5%): ₹${(q.gstAmount / 100000).toFixed(2)} L\n\nTotal Estimated Booking Value: ${q.formattedTotal}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Share PDF via WhatsApp',
+          onPress: () =>
+            Alert.alert(
+              'CPQ Quotation Sent',
+              `PDF Quotation for ${project.name} shared via WhatsApp!`
+            ),
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -119,12 +156,12 @@ export const ProjectsScreen = () => {
             {/* Quick Action Footer */}
             <View style={styles.cardFooterActions}>
               <TouchableOpacity
-                style={styles.brochureBtn}
-                onPress={() => Alert.alert('E-Brochure', `Project brochure for ${project.name} ready to share via WhatsApp!`)}
+                style={styles.quoteBtn}
+                onPress={() => handleGenerateQuote(project)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="document-text-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.brochureBtnText}>Share Brochure</Text>
+                <Ionicons name="calculator-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.quoteBtnText}>Generate CPQ Quote</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -287,7 +324,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  brochureBtn: {
+  quoteBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -297,7 +334,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
-  brochureBtnText: {
+  quoteBtnText: {
     fontSize: 12,
     fontWeight: '800',
     color: '#FFFFFF',

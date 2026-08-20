@@ -3,38 +3,36 @@ import Container from '@mui/material/Container'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Outlet, useLocation } from 'react-router-dom'
-import { useTheme } from '@mui/material/styles'
-import { alpha } from '@mui/material/styles'
+import { ThemeProvider, alpha } from '@mui/material/styles'
+import CssBaseline from '@mui/material/CssBaseline'
+import { useMemo, useState } from 'react'
 
-import { useState } from 'react'
+import { createAppTheme } from '@/styles/theme'
 
 export default function AuthLayout() {
-  const theme = useTheme()
   const location = useLocation()
-  const isDark = theme.palette.mode === 'dark'
   const [isWider, setIsWider] = useState(false)
+  const lightTheme = useMemo(() => createAppTheme('light'), [])
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        width: '100%',
-        overflowX: 'hidden',
-        display: 'flex',
-        alignItems: { xs: 'flex-start', sm: 'center' },
-        justifyContent: 'center',
-        // Responsive padding — snug on mobile
-        px: { xs: 1, sm: 2, md: 3 },
-        py: { xs: 2.5, sm: 4, md: 6 },
-        background: isDark
-       ? `radial-gradient(ellipse 80% 60% at 10% 5%, ${alpha(theme.palette.primary.main, 0.12)} 0%, transparent 60%),
-         radial-gradient(ellipse 60% 50% at 90% 90%, ${alpha(theme.palette.primary.dark, 0.40)} 0%, transparent 55%),
-         linear-gradient(160deg, #0B0D1A 0%, #111629 100%)`
-       : `radial-gradient(ellipse 80% 60% at 10% 5%, ${alpha(theme.palette.primary.main, 0.09)} 0%, transparent 60%),
-         radial-gradient(ellipse 60% 50% at 90% 90%, ${alpha(theme.palette.primary.dark, 0.06)} 0%, transparent 55%),
-         linear-gradient(160deg, #eef1ff 0%, #fafbff 60%, #f5f6fa 100%)`,
-      }}
-    >
+    <ThemeProvider theme={lightTheme}>
+      <CssBaseline />
+      <Box
+        sx={{
+          minHeight: '100vh',
+          width: '100%',
+          overflowX: 'hidden',
+          display: 'flex',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          justifyContent: 'center',
+          // Responsive padding — snug on mobile
+          px: { xs: 1, sm: 2, md: 3 },
+          py: { xs: 2.5, sm: 4, md: 6 },
+          background: `radial-gradient(ellipse 80% 60% at 10% 5%, ${alpha(lightTheme.palette.primary.main, 0.09)} 0%, transparent 60%),
+            radial-gradient(ellipse 60% 50% at 90% 90%, ${alpha(lightTheme.palette.primary.dark, 0.06)} 0%, transparent 55%),
+            linear-gradient(160deg, #eef1ff 0%, #fafbff 60%, #f5f6fa 100%)`,
+        }}
+      >
       <Container maxWidth="lg" disableGutters sx={{ width: '100%' }}>
         <Stack
           direction={{ xs: 'column', md: 'row' }}
@@ -55,7 +53,7 @@ export default function AuthLayout() {
           >
             <Box
               component="img"
-              src={isDark ? '/companylogo_white.png' : '/companylogo_dark.png'}
+              src="/companylogo_dark.png"
               alt="Leads Rubix"
               sx={{
                 height: 38,
@@ -69,7 +67,7 @@ export default function AuthLayout() {
             <Typography
               variant="overline"
               sx={{
-                color: theme.palette.primary.main,
+                color: lightTheme.palette.secondary.main,
                 fontWeight: 700,
                 letterSpacing: '0.1em',
                 mb: 1.5,
@@ -83,8 +81,9 @@ export default function AuthLayout() {
               variant="h2"
               sx={{
                 mb: 2,
-                color: theme.palette.text.primary,
+                color: lightTheme.palette.text.primary,
                 lineHeight: 1.15,
+                fontWeight: 800,
               }}
             >
               Lead operations built for fast teams.
@@ -92,7 +91,7 @@ export default function AuthLayout() {
 
             <Typography
               sx={{
-                color: theme.palette.text.secondary,
+                color: lightTheme.palette.text.secondary,
                 fontSize: '1rem',
                 lineHeight: 1.7,
                 maxWidth: 380,
@@ -112,10 +111,9 @@ export default function AuthLayout() {
                   key={feat}
                   sx={{
                     fontSize: '0.875rem',
-                    color: isDark
-                      ? alpha(theme.palette.text.primary, 0.75)
-                      : alpha(theme.palette.text.primary, 0.65),
+                    color: alpha(lightTheme.palette.text.primary, 0.75),
                     lineHeight: 1.5,
+                    fontWeight: 500,
                   }}
                 >
                   {feat}
@@ -148,7 +146,7 @@ export default function AuthLayout() {
             >
               <Box
                 component="img"
-                src={isDark ? '/companylogo_white.png' : '/companylogo_dark.png'}
+                src="/companylogo_dark.png"
                 alt="Leads Rubix"
                 sx={{
                   height: 30,
@@ -162,5 +160,6 @@ export default function AuthLayout() {
         </Stack>
       </Container>
     </Box>
+  </ThemeProvider>
   )
 }

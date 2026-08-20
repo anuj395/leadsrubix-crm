@@ -30,6 +30,7 @@ import FormatListBulletedOutlinedIcon from '@mui/icons-material/FormatListBullet
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import ContactsOutlinedIcon from '@mui/icons-material/ContactsOutlined'
 import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 
 import Button from '@mui/material/Button'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
@@ -182,20 +183,43 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   // ── Render helpers ────────────────────────────────────────────────────────
   function renderLeaf(item: SidebarNavItem) {
     const Icon = getIcon(item.icon)
+    const infoText = item.infoHelp || item.description
+
     const content = (
       <>
         <Icon sx={{ fontSize: '1.2rem', flexShrink: 0 }} />
         {!collapsed && (
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'inherit' }}>
-            {item.name}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', minWidth: 0 }}>
+            <Typography noWrap sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'inherit' }}>
+              {item.name}
+            </Typography>
+            {infoText && (
+              <Tooltip title={infoText} placement="bottom-end" arrow enterDelay={100} leaveDelay={200}>
+                <Box
+                  component="span"
+                  sx={{
+                    ml: 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    opacity: 0.35,
+                    cursor: 'help',
+                    transition: 'all 180ms ease',
+                    '&:hover': { opacity: 1, color: activeColor, transform: 'scale(1.15)' },
+                  }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                >
+                  <InfoOutlinedIcon sx={{ fontSize: '0.85rem' }} />
+                </Box>
+              </Tooltip>
+            )}
+          </Box>
         )}
       </>
     )
 
     if (item.route) {
       return (
-        <Tooltip title={collapsed ? item.name : ''} placement="right" key={item.id}>
+        <Tooltip title={collapsed ? (infoText ? `${item.name} — ${infoText}` : item.name) : ''} placement="right" key={item.id}>
           <Box
             component={NavLink}
             to={item.route}
@@ -223,10 +247,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     const Icon = getIcon(item.icon)
     const isExpanded    = expandedItems[item.id] ?? false
     const isChildActive = item.children?.some((c) => c.route === location.pathname) ?? false
+    const infoText = item.infoHelp || item.description
 
     return (
       <Box key={item.id}>
-        <Tooltip title={collapsed ? item.name : ''} placement="right">
+        <Tooltip title={collapsed ? (infoText ? `${item.name} — ${infoText}` : item.name) : ''} placement="right">
           <Box
             component="button"
             type="button"
@@ -248,6 +273,25 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                 <Typography sx={{ flexGrow: 1, fontSize: '0.875rem', fontWeight: isChildActive ? 700 : 500, color: 'inherit' }}>
                   {item.name}
                 </Typography>
+                {infoText && (
+                  <Tooltip title={infoText} placement="bottom-end" arrow enterDelay={100} leaveDelay={200}>
+                    <Box
+                      component="span"
+                      sx={{
+                        mr: 0.75,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        opacity: 0.35,
+                        cursor: 'help',
+                        transition: 'all 180ms ease',
+                        '&:hover': { opacity: 1, color: activeColor, transform: 'scale(1.15)' },
+                      }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      <InfoOutlinedIcon sx={{ fontSize: '0.85rem' }} />
+                    </Box>
+                  </Tooltip>
+                )}
                 <ChevronRightRoundedIcon
                   sx={{
                     fontSize: '1rem',
@@ -266,13 +310,34 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
             spacing={0.15}
             sx={{ mt: 0.25, ml: 1.5, pl: 1.25, borderLeft: `1.5px solid ${theme.palette.divider}` }}
           >
-            {item.children?.map((child) => (
-              <Box key={child.id} component={NavLink} to={child.route} end sx={childItemSx}>
-                <Typography variant="body2" sx={{ color: 'inherit', fontSize: '0.8125rem' }}>
-                  {child.name}
-                </Typography>
-              </Box>
-            ))}
+            {item.children?.map((child) => {
+              const childInfo = child.infoHelp || child.description
+              return (
+                <Box key={child.id} component={NavLink} to={child.route} end sx={childItemSx}>
+                  <Typography variant="body2" sx={{ color: 'inherit', fontSize: '0.8125rem', flexGrow: 1 }}>
+                    {child.name}
+                  </Typography>
+                  {childInfo && (
+                    <Tooltip title={childInfo} placement="bottom-end" arrow enterDelay={100} leaveDelay={200}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          opacity: 0.35,
+                          cursor: 'help',
+                          transition: 'all 180ms ease',
+                          '&:hover': { opacity: 1, color: activeColor, transform: 'scale(1.15)' },
+                        }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      >
+                        <InfoOutlinedIcon sx={{ fontSize: '0.8rem' }} />
+                      </Box>
+                    </Tooltip>
+                  )}
+                </Box>
+              )
+            })}
           </Stack>
         </Collapse>
       </Box>
