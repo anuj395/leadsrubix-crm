@@ -56,7 +56,7 @@ exports.remove = async (req, res, next) => {
 
 exports.resolve = async (req, res, next) => {
   try {
-    const { screen_key, industry_code, role_key, screenKey, industryCode, roleKey } = req.body || {};
+    const { screen_key, industry_code, role_key, screenKey, industryCode, roleKey, organizationId, organization_id } = req.body || {};
     const finalScreenKey = screenKey || screen_key;
     const finalIndustryCode = industryCode || industry_code;
     const finalRoleKey = roleKey || role_key;
@@ -70,6 +70,7 @@ exports.resolve = async (req, res, next) => {
       industryCode: (isSuperAdmin || isGuestSignup) ? finalIndustryCode : req.user?.industryId,
       roleKey: (isSuperAdmin || isAdmin || isGuestSignup) ? (finalRoleKey || 'admin') : undefined,
       authedUser: req.user,
+      organizationId: isSuperAdmin ? (organizationId || organization_id) : undefined,
     });
     res.json(out);
   } catch (err) {

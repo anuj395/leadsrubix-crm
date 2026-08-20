@@ -82,6 +82,7 @@ export default function TasksListPage() {
           screenKey: 'tasks',
           industryCode: isSuperAdmin ? activeIndustry || 'temp0001' : undefined,
           roleKey: isSuperAdmin ? 'admin' : undefined,
+          organizationId: isSuperAdmin ? activeOrg || undefined : undefined,
         }),
       ])
       const rawItems = listRes.data?.items ?? []

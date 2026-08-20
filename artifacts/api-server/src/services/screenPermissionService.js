@@ -580,12 +580,57 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     }
   };
 
+  const TASKS_TRANSLATIONS = {
+    temp0002: {
+      customerName: 'Customer Name',
+      contactNumber: 'Contact Number',
+    },
+    temp0003: {
+      customerName: 'Patient Name',
+      contactNumber: 'Phone Number',
+      contactOwnerEmail: 'Attending Doctor Email',
+      projectName: 'Specialty',
+      budget: 'Treatment Budget',
+      location: 'Hospital / Clinic',
+    },
+    temp0004: {
+      customerName: 'Student Name',
+      contactNumber: 'Phone Number',
+      contactOwnerEmail: 'Counselor Email',
+      projectName: 'Course / Program',
+      budget: 'Fee Budget',
+    },
+    temp0005: {
+      customerName: 'Client Name',
+      contactNumber: 'Phone Number',
+      contactOwnerEmail: 'Advisor Email',
+      projectName: 'Portfolio',
+      budget: 'Investment Budget',
+    },
+    temp0006: {
+      customerName: 'Lead Name',
+      contactNumber: 'Phone Number',
+      contactOwnerEmail: 'Tech Lead Email',
+      projectName: 'Service / Catalog',
+      budget: 'Deal Value',
+    },
+    temp0007: {
+      customerName: 'Distributor Name',
+      contactNumber: 'Phone Number',
+      contactOwnerEmail: 'Manager Email',
+      projectName: 'Product Category',
+      budget: 'Distributor Value',
+      location: 'Factory / Plant',
+    }
+  };
+
   const indCode = String(industry?.code || '').toLowerCase().trim();
   const translations = (finalScreenKey === 'configProjects' && PROJECT_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'users' && USER_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'leadDistribution' && DISTRIBUTION_TRANSLATIONS[indCode]) ||
                        (finalScreenKey === 'leadRotation' && ROTATION_TRANSLATIONS[indCode]) || 
-                       (finalScreenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || {};
+                       (finalScreenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || 
+                       (finalScreenKey === 'tasks' && TASKS_TRANSLATIONS[indCode]) || {};
 
   let resolvedScreenName = screen.name;
   if (finalScreenKey === 'configProjects') {

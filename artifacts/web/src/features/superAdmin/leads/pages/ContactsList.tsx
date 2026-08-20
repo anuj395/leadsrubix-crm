@@ -52,6 +52,7 @@ export default function ContactsListPage() {
           screenKey: 'contacts',
           industryCode: isSuperAdmin ? activeIndustry || 'temp0001' : undefined,
           roleKey: isSuperAdmin ? 'admin' : undefined,
+          organizationId: isSuperAdmin ? activeOrg || undefined : undefined,
         }),
       ])
       setItems(list)
