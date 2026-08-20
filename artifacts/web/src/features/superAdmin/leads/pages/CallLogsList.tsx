@@ -96,104 +96,120 @@ export default function CallLogsListPage() {
     return { total, answered, missed, inbound, outbound }
   }, [logs])
 
-  const columns = useMemo<GridColDef<CallLog>[]>(() => [
-    {
-      field: 'type',
-      headerName: 'Dir',
-      width: 80,
-      renderCell: (params) => {
-        const isI = String(params.value || '').toLowerCase() === 'inbound'
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            {isI ? (
-              <CallReceivedIcon sx={{ color: 'success.main', fontSize: '1.1rem' }} />
-            ) : (
-              <CallMadeIcon sx={{ color: 'secondary.main', fontSize: '1.1rem' }} />
-            )}
-          </Box>
-        )
+  const columns = useMemo<GridColDef<CallLog>[]>(() => {
+    const indCode = String(selectedIndustry || '').toLowerCase().trim()
+    const customerLabel = indCode === 'temp0003' ? 'Patient Name' : 
+                          indCode === 'temp0004' ? 'Student Name' : 
+                          indCode === 'temp0005' ? 'Client Name' : 
+                          indCode === 'temp0006' ? 'Lead Name' : 
+                          indCode === 'temp0007' ? 'Distributor Name' : 
+                          'Customer Name'
+    const agentLabel = indCode === 'temp0003' ? 'Attending Doctor' : 
+                       indCode === 'temp0004' ? 'Counselor' : 
+                       indCode === 'temp0005' ? 'Advisor' : 
+                       indCode === 'temp0006' ? 'Tech Lead' : 
+                       indCode === 'temp0007' ? 'Manager' : 
+                       'Agent'
+
+    return [
+      {
+        field: 'type',
+        headerName: 'Dir',
+        width: 80,
+        renderCell: (params) => {
+          const isI = String(params.value || '').toLowerCase() === 'inbound'
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+              {isI ? (
+                <CallReceivedIcon sx={{ color: 'success.main', fontSize: '1.1rem' }} />
+              ) : (
+                <CallMadeIcon sx={{ color: 'secondary.main', fontSize: '1.1rem' }} />
+              )}
+            </Box>
+          )
+        },
       },
-    },
-    {
-      field: 'customerName',
-      headerName: 'Customer Name',
-      flex: 1.2,
-      minWidth: 160,
-      valueGetter: (_v, row) => row.customerName || row.customer_name || '',
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'contactNumber',
-      headerName: 'Phone Number',
-      flex: 1,
-      minWidth: 130,
-      valueGetter: (_v, row) => row.contactNumber || row.contact_no || ''
-    },
-    {
-      field: 'createdBy',
-      headerName: 'Agent',
-      flex: 1,
-      minWidth: 140,
-      valueGetter: (_v, row) => row.createdBy || row.created_by || '',
-      renderCell: (params) => (
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
-          <SupportAgentIcon sx={{ fontSize: '1.05rem', color: 'text.secondary' }} />
-          <Typography variant="body2">{params.value}</Typography>
-        </Stack>
-      ),
-    },
-    {
-      field: 'organization_name',
-      headerName: 'Organization Name',
-      flex: 1.2,
-      minWidth: 150,
-    },
-    {
-      field: 'stage',
-      headerName: 'Status',
-      width: 120,
-      valueGetter: (_v, row) => row.stage || row.status || '',
-      renderCell: (params) => <StatusBadge value={params.value} />,
-    },
-    {
-      field: 'duration',
-      headerName: 'Duration',
-      width: 100,
-      valueGetter: (_v, row) => {
-        const d = Number(row.duration) || 0;
-        if (d === 0) return '0s';
-        const mins = Math.floor(d / 60);
-        const secs = d % 60;
-        return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-      }
-    },
-    {
-      field: 'created_at',
-      headerName: 'Date & Time',
-      flex: 1.2,
-      minWidth: 140,
-      valueGetter: (_v, row) => {
-        const dateStr = row.created_at || row.createdAt;
-        return dateStr ? new Date(dateStr).toLocaleString() : '';
-      }
-    },
-    {
-      field: 'details',
-      headerName: 'Call Summary/Notes',
-      flex: 2,
-      minWidth: 240,
-      valueGetter: (_v, row) => row.details || row.notes || '',
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ color: 'text.secondary', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-          {params.value}
-        </Typography>
-      ),
-    },
-  ], [])
+      {
+        field: 'customerName',
+        headerName: customerLabel,
+        flex: 1.2,
+        minWidth: 160,
+        valueGetter: (_v, row) => row.customerName || row.customer_name || '',
+        renderCell: (params) => (
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {params.value}
+          </Typography>
+        ),
+      },
+      {
+        field: 'contactNumber',
+        headerName: 'Phone Number',
+        flex: 1,
+        minWidth: 130,
+        valueGetter: (_v, row) => row.contactNumber || row.contact_no || ''
+      },
+      {
+        field: 'createdBy',
+        headerName: agentLabel,
+        flex: 1,
+        minWidth: 140,
+        valueGetter: (_v, row) => row.createdBy || row.created_by || '',
+        renderCell: (params) => (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
+            <SupportAgentIcon sx={{ fontSize: '1.05rem', color: 'text.secondary' }} />
+            <Typography variant="body2">{params.value}</Typography>
+          </Stack>
+        ),
+      },
+      {
+        field: 'organization_name',
+        headerName: 'Organization Name',
+        flex: 1.2,
+        minWidth: 150,
+      },
+      {
+        field: 'stage',
+        headerName: 'Status',
+        width: 120,
+        valueGetter: (_v, row) => row.stage || row.status || '',
+        renderCell: (params) => <StatusBadge value={params.value} />,
+      },
+      {
+        field: 'duration',
+        headerName: 'Duration',
+        width: 100,
+        valueGetter: (_v, row) => {
+          const d = Number(row.duration) || 0
+          if (d === 0) return '0s'
+          const mins = Math.floor(d / 60)
+          const secs = d % 60
+          return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+        }
+      },
+      {
+        field: 'created_at',
+        headerName: 'Date & Time',
+        flex: 1.2,
+        minWidth: 140,
+        valueGetter: (_v, row) => {
+          const dateStr = row.created_at || row.createdAt
+          return dateStr ? new Date(dateStr).toLocaleString() : ''
+        }
+      },
+      {
+        field: 'details',
+        headerName: 'Call Summary/Notes',
+        flex: 2,
+        minWidth: 240,
+        valueGetter: (_v, row) => row.details || row.notes || '',
+        renderCell: (params) => (
+          <Typography variant="body2" sx={{ color: 'text.secondary', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+            {params.value}
+          </Typography>
+        ),
+      },
+    ]
+  }, [logs, selectedIndustry])
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto' }}>
