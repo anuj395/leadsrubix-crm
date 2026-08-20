@@ -38,8 +38,88 @@ import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminSer
 import { api } from '@/services/api'
 import { useAuth } from '@/hooks/useAuth'
 import { compressImage } from '@/utils/imageCompressor'
-const getFieldTooltip = (key: string, label: string) => {
+const getFieldTooltip = (key: string, label: string, indCode?: string) => {
   const normalizedKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+  const ind = String(indCode || '').toLowerCase().trim()
+  
+  if (ind === 'temp0003') { // Healthcare
+    const hcMap: Record<string, string> = {
+      customerName: 'Patient Name:\nFull name of the patient.',
+      projectName: 'Clinical Specialty:\nAttending department/specialty.',
+      budget: 'Treatment Budget:\nEstimated budget limit for treatments.',
+      propertyType: 'Clinical Wing:\nMedical clinic wing/ward classification.',
+      propertyStage: 'Clinical Wing Stage:\nTriage or clinical stage.',
+      propertySubType: 'Specialty Sub Type:\nClinical sub-specialty classification.',
+      leadSource: 'Patient Source:\nReferral channel or marketing source.',
+      emailId: 'Email Address:\nPrimary patient contact email.',
+      mobileNumber: 'Phone Number:\nPatient mobile contact number.',
+      contactOwnerEmail: 'Attending Doctor Email:\nEmail of assigned chief/attending doctor.'
+    }
+    if (hcMap[normalizedKey]) return hcMap[normalizedKey];
+  } else if (ind === 'temp0004') { // Education
+    const eduMap: Record<string, string> = {
+      customerName: 'Student Name:\nFull name of the applicant.',
+      projectName: 'Course / Program:\nSelected program or course.',
+      budget: 'Fee Budget:\nEstimated academic fees budget.',
+      propertyType: 'Program Category:\nAcademic category classification.',
+      propertyStage: 'Academic Semester:\nAdmission stage/semester.',
+      propertySubType: 'Program Sub Category:\nSelected stream/sub-category.',
+      leadSource: 'Inquiry Source:\nMarketing/lead inquiry source.',
+      emailId: 'Email Address:\nPrimary student contact email.',
+      mobileNumber: 'Phone Number:\nStudent mobile contact number.',
+      contactOwnerEmail: 'Counselor Email:\nEmail of assigned academic counselor.'
+    }
+    if (eduMap[normalizedKey]) return eduMap[normalizedKey];
+  } else if (ind === 'temp0002') { // E-Commerce
+    const ecoMap: Record<string, string> = {
+      customerName: 'Customer Name:\nFull name of the customer.',
+      projectName: 'Product Catalog:\nProduct or category name.',
+      budget: 'Order Budget:\nOrder value or shopping limit.',
+      propertyType: 'Product Class:\nProduct category class.',
+      propertyStage: 'Availability Stage:\nInventory/cart status.',
+      propertySubType: 'Product Sub Category:\nSub-category classification.',
+      leadSource: 'Inquiry Source:\nMarketing/ad channel source.',
+      contactOwnerEmail: 'Agent Email:\nEmail of assigned handling agent.'
+    }
+    if (ecoMap[normalizedKey]) return ecoMap[normalizedKey];
+  } else if (ind === 'temp0005') { // Finance
+    const finMap: Record<string, string> = {
+      customerName: 'Client Name:\nFull name of the client.',
+      projectName: 'Portfolio Name:\nSelected portfolio category.',
+      budget: 'Investment Budget:\nEstimated investment budget.',
+      propertyType: 'Asset Class:\nFinancial asset classification.',
+      propertyStage: 'Risk Profile:\nClient risk stage classification.',
+      propertySubType: 'Asset Sub Class:\nPortfolio sub-category.',
+      leadSource: 'Lead Source:\nReferral or inquiry channel.',
+      contactOwnerEmail: 'Advisor Email:\nEmail of assigned advisor.'
+    }
+    if (finMap[normalizedKey]) return finMap[normalizedKey];
+  } else if (ind === 'temp0006') { // IT Services
+    const itMap: Record<string, string> = {
+      customerName: 'Lead Name:\nFull name of the prospect.',
+      projectName: 'Service Name:\nSelected service or tech stack.',
+      budget: 'Deal Value:\nEstimated contract value.',
+      propertyType: 'Tech Stack:\nService category classification.',
+      propertyStage: 'Project Phase:\nSales lifecycle stage.',
+      propertySubType: 'Technology Branch:\nSelected tech sub-category.',
+      leadSource: 'Lead Source:\nInbound channel/prospect source.',
+      contactOwnerEmail: 'Tech Lead Email:\nEmail of assigned tech lead.'
+    }
+    if (itMap[normalizedKey]) return itMap[normalizedKey];
+  } else if (ind === 'temp0007') { // Manufacturing
+    const mfgMap: Record<string, string> = {
+      customerName: 'Distributor Name:\nFull name of the distributor.',
+      projectName: 'Product Category:\nSelected product line/run.',
+      budget: 'Distributor Value:\nEstimated commercial order value.',
+      propertyType: 'Production Line:\nManufacturing line category.',
+      propertyStage: 'Process Stage:\nProcessing/fulfillment stage.',
+      propertySubType: 'Production Batch:\nProduct batch subclass.',
+      leadSource: 'Lead Source:\nDistributor inquiry channel.',
+      contactOwnerEmail: 'Manager Email:\nEmail of assigned plant manager.'
+    }
+    if (mfgMap[normalizedKey]) return mfgMap[normalizedKey];
+  }
+
   const map: Record<string, string> = {
     customerName: 'Full Name:\nFull name of the customer\nor lead contact.',
     emailId: 'Email Address:\nPrimary email address\nfor communication.',
@@ -535,10 +615,11 @@ export function DynamicForm({
           }
           const value = values[f.key]
           const err = errors[f.key] || ''
+          const activeIndustry = industryCode || industry_code || (user as any)?.industryId || (user as any)?.industry_id
           const labelWithRequired = (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <span>{f.required ? `${f.label} *` : f.label}</span>
-              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{getFieldTooltip(f.key, f.label)}</Box>} placement="top">
+              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{getFieldTooltip(f.key, f.label, activeIndustry)}</Box>} placement="top">
                 <InfoOutlinedIcon sx={{ fontSize: '0.85rem', color: 'text.disabled', opacity: 0.6, cursor: 'help' }} />
               </Tooltip>
             </Box>

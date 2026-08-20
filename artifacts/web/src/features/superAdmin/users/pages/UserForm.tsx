@@ -283,26 +283,26 @@ export default function UserFormPage() {
 
   const indCode = String(core.industryId || authedUser?.industryId || '').toLowerCase().trim();
 
-  let configWarning = 'Please go to Settings and configure Team, Branch, and Designation before adding users.';
+  let configWarning = 'Please go to Settings and configure Team (e.g. Team A, Team B), Branch (e.g. Noida, Delhi), and Designation (e.g. Lead Manager, Team Lead, Sales Associate) before adding users.';
   let formSubtitle = 'Manage login credentials, user roles, hierarchy and custom attributes.';
 
   if (indCode === 'temp0002') {
-    configWarning = 'Please go to Settings and configure Department, Warehouse / Branch, and Designation before adding users.';
+    configWarning = 'Please go to Settings and configure Department (e.g. Sales, Support), Warehouse / Branch (e.g. Noida Warehouse, Delhi Depot), and Designation (e.g. Order Manager, Store Associate) before adding users.';
     formSubtitle = 'Manage e-commerce staff credentials, roles, warehouses, and hierarchy.';
   } else if (indCode === 'temp0003') {
-    configWarning = 'Please go to Settings and configure Medical Department, Hospital / Clinic, and Medical Designation before adding users.';
+    configWarning = 'Please go to Settings and configure Medical Department (e.g. Cardiology, OPD), Hospital / Clinic (e.g. Noida Hospital, Delhi Clinic), and Medical Designation (e.g. Attending Doctor, Staff Nurse, Medical Director) before adding users.';
     formSubtitle = 'Manage hospital staff credentials, medical designations, departments, and clinic info.';
   } else if (indCode === 'temp0004') {
-    configWarning = 'Please go to Settings and configure Academic Department, Campus / Branch, and Faculty Designation before adding users.';
+    configWarning = 'Please go to Settings and configure Academic Department (e.g. Science, Arts), Campus / Branch (e.g. Noida Campus, Delhi Campus), and Faculty Designation (e.g. Senior Professor, Academic Counselor, Head of Department) before adding users.';
     formSubtitle = 'Manage faculty credentials, academic roles, campuses, and department hierarchy.';
   } else if (indCode === 'temp0005') {
-    configWarning = 'Please go to Settings and configure Advisory Team, Office / Branch, and Advisor Designation before adding users.';
+    configWarning = 'Please go to Settings and configure Advisory Team (e.g. Wealth Management, Equity Advisory), Office / Branch (e.g. Noida Branch, Delhi Office), and Advisor Designation (e.g. Portfolio Manager, Financial Advisor, Relationship Manager) before adding users.';
     formSubtitle = 'Manage client advisor credentials, portfolio permissions, and hierarchy.';
   } else if (indCode === 'temp0006') {
-    configWarning = 'Please go to Settings and configure Project Team, Office / Location, and Technical Role before adding users.';
+    configWarning = 'Please go to Settings and configure Project Team (e.g. Backend Dev, QA Team), Office / Location (e.g. Noida SEZ, Delhi Head Office), and Technical Role (e.g. Tech Lead, Software Engineer, Quality Analyst) before adding users.';
     formSubtitle = 'Manage IT team credentials, technical roles, delivery centers, and hierarchy.';
   } else if (indCode === 'temp0007') {
-    configWarning = 'Please go to Settings and configure Production Team, Factory / Plant, and Plant Role before adding users.';
+    configWarning = 'Please go to Settings and configure Production Team (e.g. Assembly Line, Quality Control), Factory / Plant (e.g. Noida Factory, Gurugram Plant), and Plant Role (e.g. Plant Manager, Line Supervisor, Quality Auditor) before adding users.';
     formSubtitle = 'Manage manufacturing staff credentials, plant roles, factories, and hierarchy.';
   }
 
