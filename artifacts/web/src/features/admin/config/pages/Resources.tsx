@@ -86,6 +86,45 @@ export default function ResourcesPage() {
     sev: 'success',
   })
 
+  const RESOURCE_SCREEN_TRANSLATIONS: Record<string, Record<string, string>> = {
+    temp0002: { // E-Commerce
+      resourceCarousel: 'Carousel Banners',
+      resourceLocations: 'Warehouses & Hubs',
+      resourceLeadSources: 'Customer Channels',
+      resourceTransferReasons: 'Return Reasons',
+    },
+    temp0003: { // Healthcare
+      resourceCarousel: 'Hospital Banners',
+      resourceLocations: 'Clinics & Centers',
+      resourceLeadSources: 'Patient Sources',
+      resourceTransferReasons: 'Transfer Reasons',
+    },
+    temp0004: { // Education
+      resourceCarousel: 'Campus Banners',
+      resourceLocations: 'Campuses & Branches',
+      resourceLeadSources: 'Student Channels',
+      resourceTransferReasons: 'Course Transfer Reasons',
+    },
+    temp0005: { // Finance
+      resourceCarousel: 'Promo Banners',
+      resourceLocations: 'Branch Offices',
+      resourceLeadSources: 'Client Sources',
+      resourceTransferReasons: 'Advisor Reassign Reasons',
+    },
+    temp0006: { // IT Services
+      resourceCarousel: 'Case Study Banners',
+      resourceLocations: 'Delivery Centers',
+      resourceLeadSources: 'Lead Channels',
+      resourceTransferReasons: 'Project Transfer Reasons',
+    },
+    temp0007: { // Manufacturing
+      resourceCarousel: 'Product Banners',
+      resourceLocations: 'Manufacturing Plants',
+      resourceLeadSources: 'Dealer Channels',
+      resourceTransferReasons: 'Order Reassign Reasons',
+    }
+  }
+
   // Load screens on mount
   useEffect(() => {
     void (async () => {
@@ -94,7 +133,29 @@ export default function ResourcesPage() {
         const scrs = await getScreens()
         
         // Filter screens starting with resource
-        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive !== false)
+        let filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive !== false)
+        
+        // Filter out Real Estate specific resource screens for non-RE industries
+        const indCode = String(userIndustryCode || '').toLowerCase().trim();
+        if (indCode !== 'temp0001') {
+          const reSpecific = new Set([
+            'resourceBudgets',
+            'resourcePropertyStages',
+            'resourcePropertyTypes',
+            'resourcePropertySubTypes'
+          ])
+          filtered = filtered.filter((s) => !reSpecific.has(s.key))
+        }
+
+        // Apply dynamic translations to screen names
+        const translated = filtered.map((s) => {
+          const industryMap = RESOURCE_SCREEN_TRANSLATIONS[indCode] || {}
+          return {
+            ...s,
+            name: industryMap[s.key] || s.name
+          }
+        })
+
         const orderMap: Record<string, number> = {
           'resourceCarousel': 10,
           'resourceLocations': 20,
@@ -105,7 +166,7 @@ export default function ResourcesPage() {
           'resourcePropertyTypes': 70,
           'resourcePropertySubTypes': 80,
         }
-        const sorted = [...filtered].sort((a, b) => (orderMap[a.key] || 999) - (orderMap[b.key] || 999))
+        const sorted = [...translated].sort((a, b) => (orderMap[a.key] || 999) - (orderMap[b.key] || 999))
         setResourceScreens(sorted)
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screens', sev: 'error' })
@@ -113,7 +174,7 @@ export default function ResourcesPage() {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [userIndustryCode])
 
   // Load configuration and data for selected screen
   const activeScreen = resourceScreens[activeTab]
@@ -831,13 +892,37 @@ export default function ResourcesPage() {
     )
   }
 
+  const indCode = String(userIndustryCode || '').toLowerCase().trim();
+
+  let pageTitle = 'Resources';
+  let pageSubtitle = 'Manage system lookup values and banners.';
+  if (indCode === 'temp0003') {
+    pageTitle = 'Doctors & Staff';
+    pageSubtitle = 'Manage clinical lookup values, hospitals list, and banners.';
+  } else if (indCode === 'temp0002') {
+    pageTitle = 'E-Commerce Resources';
+    pageSubtitle = 'Manage product attributes, catalog categories, and promotional banners.';
+  } else if (indCode === 'temp0004') {
+    pageTitle = 'Academic Resources';
+    pageSubtitle = 'Manage academy categories, campuses, and academic banners.';
+  } else if (indCode === 'temp0005') {
+    pageTitle = 'Advisory Resources';
+    pageSubtitle = 'Manage advisor lookup values, offices list, and banners.';
+  } else if (indCode === 'temp0006') {
+    pageTitle = 'Project Resources';
+    pageSubtitle = 'Manage project categories, SLA rules, and banner resources.';
+  } else if (indCode === 'temp0007') {
+    pageTitle = 'Manufacturing Catalog';
+    pageSubtitle = 'Manage plant catalogs, distributor groups, and media resources.';
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
       
       {/* Header */}
       <Box>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>Resources</Typography>
-        <Typography variant="body2" color="text.secondary">Manage system lookup values and banners.</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>{pageTitle}</Typography>
+        <Typography variant="body2" color="text.secondary">{pageSubtitle}</Typography>
       </Box>
 
       {resourceScreens.length === 0 ? (

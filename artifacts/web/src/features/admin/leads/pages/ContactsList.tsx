@@ -188,6 +188,65 @@ export default function ContactsListPage() {
     return [sNoCol, ...dataCols, actionsCol]
   }, [dbColumns, items])
 
+  const indCode = String(industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') {
+      return {
+        contact: 'Customer',
+        contacts: 'Customers',
+        lead: 'customer',
+        leads: 'customers',
+      };
+    }
+    if (indCode === 'temp0003') {
+      return {
+        contact: 'Patient',
+        contacts: 'Patients',
+        lead: 'patient',
+        leads: 'patients',
+      };
+    }
+    if (indCode === 'temp0004') {
+      return {
+        contact: 'Student',
+        contacts: 'Students',
+        lead: 'student',
+        leads: 'students',
+      };
+    }
+    if (indCode === 'temp0005') {
+      return {
+        contact: 'Client',
+        contacts: 'Clients',
+        lead: 'client',
+        leads: 'clients',
+      };
+    }
+    if (indCode === 'temp0006') {
+      return {
+        contact: 'Lead',
+        contacts: 'Leads',
+        lead: 'lead',
+        leads: 'leads',
+      };
+    }
+    if (indCode === 'temp0007') {
+      return {
+        contact: 'Distributor',
+        contacts: 'Distributors',
+        lead: 'distributor',
+        leads: 'distributors',
+      };
+    }
+    return {
+      contact: 'Contact',
+      contacts: 'Contacts',
+      lead: 'lead',
+      leads: 'leads',
+    };
+  }, [indCode]);
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {configError && (
@@ -202,13 +261,13 @@ export default function ContactsListPage() {
       )}
 
       <AppCard
-        title={screenName || 'Contacts'}
-        subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
+        title={screenName || labels.contacts}
+        subtitle={`${labels.contact} profiles and custom attributes. The columns and Add form are driven by the Screen Configuration system.`}
         action={
           <Stack direction="row" spacing={1.5}>
             {selectedIds.length > 0 && (
               <>
-                <Tooltip title="Reassign selected leads to a different team member">
+                <Tooltip title={`Reassign selected ${labels.leads} to a different team member`}>
                   <Button
                     variant="outlined"
                     startIcon={<SwapHorizIcon />}
@@ -217,7 +276,7 @@ export default function ContactsListPage() {
                     Change Owner ({selectedIds.length})
                   </Button>
                 </Tooltip>
-                <Tooltip title="Permanently delete the selected lead contacts">
+                <Tooltip title={`Permanently delete the selected ${labels.lead} profiles`}>
                   <Button
                     variant="contained"
                     color="error"
@@ -229,9 +288,9 @@ export default function ContactsListPage() {
                 </Tooltip>
               </>
             )}
-            <Tooltip title="Add a new lead contact to the database">
+            <Tooltip title={`Add a new ${labels.lead} profile to the database`}>
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
-                Add Contact
+                Add {labels.contact}
               </Button>
             </Tooltip>
           </Stack>
@@ -264,7 +323,7 @@ export default function ContactsListPage() {
         onClose={() => setOpenOwnerModal(false)}
         selectedIds={selectedIds}
         onSuccess={() => {
-          setToast({ open: true, msg: 'Lead owner updated successfully', sev: 'success' })
+          setToast({ open: true, msg: `${labels.contact} owner updated successfully`, sev: 'success' })
           setSelectedIds([])
           void refresh()
         }}
@@ -274,7 +333,7 @@ export default function ContactsListPage() {
         open={openImportModal}
         onClose={() => setOpenImportModal(false)}
         onSuccess={() => {
-          setToast({ open: true, msg: 'Contacts imported successfully', sev: 'success' })
+          setToast({ open: true, msg: `${labels.contacts} imported successfully`, sev: 'success' })
           void refresh()
         }}
       />

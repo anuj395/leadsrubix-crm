@@ -7,7 +7,11 @@ exports.list = async (req, res, next) => {
     const organizationId = isSuperAdmin
       ? (req.query.organizationId || req.query.organization_id || undefined)
       : (req.user?.organizationId || null);
-    const items = await service.list({ activeOnly: req.query.active === 'true', organizationId });
+    const items = await service.list({
+      activeOnly: req.query.active === 'true',
+      organizationId,
+      industryCode: req.user?.industryId || req.user?.industry_id,
+    });
     res.json({ items });
   } catch (err) {
     next(err);
@@ -16,7 +20,7 @@ exports.list = async (req, res, next) => {
 
 exports.get = async (req, res, next) => {
   try {
-    const item = await service.get(req.params.id);
+    const item = await service.get(req.params.id, req.user);
     res.json(item);
   } catch (err) {
     next(err);

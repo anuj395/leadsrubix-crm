@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -17,8 +17,11 @@ import Grid from '@mui/material/Grid'
 import { api } from '@/services/api'
 import { AppCard } from '@/components/ui/AppCard'
 
+import { useAppSelector } from '@/store/hooks'
+
 export default function WebsitePage() {
   const navigate = useNavigate()
+  const user = useAppSelector((s) => s.auth.user)
   const [loading, setLoading] = useState(false)
   const [apiKey, setApiKey] = useState('')
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -61,6 +64,39 @@ export default function WebsitePage() {
   useEffect(() => {
     void loadData()
   }, [])
+
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0003') {
+      return {
+        title: 'Website Integration',
+        header: 'Receive New Patients from Website in Your Leads Rubix Account',
+        subtitle: 'Configure automatic patient capturing from your own business website contact forms.',
+        instructions: 'To integrate your Website patients with Leads Rubix, please copy and forward the integration details below to your Web Developer:',
+        request: '"Please configure my Website forms to send all incoming patient registrations directly to my CRM via Webhook."',
+        info: 'Once the Web Developer maps your contact form submission actions to the Webhook URL, patients will immediately begin streaming into your dynamic Leads Rubix panel.',
+      };
+    }
+    if (indCode === 'temp0002') {
+      return {
+        title: 'Website Integration',
+        header: 'Receive New Customers from Website in Your Leads Rubix Account',
+        subtitle: 'Configure automatic order capturing from your own business website contact forms.',
+        instructions: 'To integrate your Website customers with Leads Rubix, please copy and forward the integration details below to your Web Developer:',
+        request: '"Please configure my Website forms to send all incoming inquiries directly to my CRM via Webhook."',
+        info: 'Once the Web Developer maps your contact form submission actions to the Webhook URL, orders will immediately begin streaming into your dynamic Leads Rubix panel.',
+      };
+    }
+    return {
+      title: 'Website Integration',
+      header: 'Receive New Leads from Website in Your Leads Rubix Account',
+      subtitle: 'Configure automatic lead capturing from your own business website contact forms.',
+      instructions: 'To integrate your Website leads with Leads Rubix, please copy and forward the integration details below to your Web Developer:',
+      request: '"Please configure my Website forms to send all incoming leads directly to my CRM via Webhook."',
+      info: 'Once the Web Developer maps your contact form submission actions to the Webhook URL, leads will immediately begin streaming into your dynamic Leads Rubix panel.',
+    };
+  }, [indCode]);
 
   const webhookUrl = 'https://api.leadsrubix.com/api/v1/webhooks/website'
 
@@ -130,13 +166,13 @@ export default function WebsitePage() {
 
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
-      <AppCard title="Website Integration" subtitle="Configure automatic lead capturing from your own business website contact forms." fullHeight>
+      <AppCard title={labels.title} subtitle={labels.subtitle} fullHeight>
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', mt: 2, pr: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '1.25rem' }}>
-            Receive New Leads from Website in Your Leads Rubix Account
+            {labels.header}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4, lineHeight: 1.6 }}>
-            To integrate your Website leads with Leads Rubix, please copy and forward the integration details below to your Web Developer:
+            {labels.instructions}
           </Typography>
 
           <Grid container spacing={4}>
@@ -151,7 +187,7 @@ export default function WebsitePage() {
                     Integration Request
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
-                    "Please configure my Website forms to send all incoming leads directly to my CRM via Webhook."
+                    {labels.request}
                   </Typography>
                 </Box>
 
@@ -229,7 +265,7 @@ export default function WebsitePage() {
                   Integration Processing Info
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
-                  Once the Web Developer maps your contact form submission actions to the Webhook URL, leads will immediately begin streaming into your dynamic Leads Rubix panel.
+                  {labels.info}
                 </Typography>
               </Paper>
             </Grid>

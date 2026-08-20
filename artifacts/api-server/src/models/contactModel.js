@@ -28,6 +28,7 @@ const contactSchema = new mongoose.Schema(
     adset: { type: String },
     campaign: { type: String },
     notes: { type: String },
+    account_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Account', default: null, alias: 'accountId' },
   },
   { 
     timestamps: true, 

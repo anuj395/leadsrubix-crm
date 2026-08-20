@@ -50,6 +50,79 @@ export default function ProjectsListPage() {
     sev: 'success',
   })
 
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') {
+      return {
+        subtitle: 'Manage product catalog, suppliers, and details.',
+        addBtn: 'Add Product',
+        deleteMsg: 'Are you sure you want to delete this product?',
+        deletedToast: 'Product deleted successfully',
+        failLoadToast: 'Failed to load products catalog',
+        failDeleteToast: 'Failed to delete product'
+      };
+    }
+    if (indCode === 'temp0003') {
+      return {
+        subtitle: 'Manage medical specialties, departments, and credentials.',
+        addBtn: 'Add Specialty',
+        deleteMsg: 'Are you sure you want to delete this specialty?',
+        deletedToast: 'Specialty deleted successfully',
+        failLoadToast: 'Failed to load specialties catalog',
+        failDeleteToast: 'Failed to delete specialty'
+      };
+    }
+    if (indCode === 'temp0004') {
+      return {
+        subtitle: 'Manage courses, syllabus links, and program batches.',
+        addBtn: 'Add Course',
+        deleteMsg: 'Are you sure you want to delete this course?',
+        deletedToast: 'Course deleted successfully',
+        failLoadToast: 'Failed to load academic catalog',
+        failDeleteToast: 'Failed to delete course'
+      };
+    }
+    if (indCode === 'temp0005') {
+      return {
+        subtitle: 'Manage financial portfolios, advisor scopes, and asset classes.',
+        addBtn: 'Add Portfolio',
+        deleteMsg: 'Are you sure you want to delete this portfolio?',
+        deletedToast: 'Portfolio deleted successfully',
+        failLoadToast: 'Failed to load portfolios catalog',
+        failDeleteToast: 'Failed to delete portfolio'
+      };
+    }
+    if (indCode === 'temp0006') {
+      return {
+        subtitle: 'Manage IT services catalog, project scopes, and templates.',
+        addBtn: 'Add Service / Project',
+        deleteMsg: 'Are you sure you want to delete this service?',
+        deletedToast: 'Service deleted successfully',
+        failLoadToast: 'Failed to load projects catalog',
+        failDeleteToast: 'Failed to delete service'
+      };
+    }
+    if (indCode === 'temp0007') {
+      return {
+        subtitle: 'Manage product models, plant allocations, and dealer catalogs.',
+        addBtn: 'Add Category',
+        deleteMsg: 'Are you sure you want to delete this category?',
+        deletedToast: 'Category deleted successfully',
+        failLoadToast: 'Failed to load categories catalog',
+        failDeleteToast: 'Failed to delete category'
+      };
+    }
+    return {
+      subtitle: 'Manage standard product catalogs, services, and inventory details.',
+      addBtn: 'Add Product / Service',
+      deleteMsg: 'Are you sure you want to delete this item?',
+      deletedToast: 'Item deleted successfully',
+      failLoadToast: 'Failed to load catalog',
+      failDeleteToast: 'Failed to delete item'
+    };
+  }, [indCode]);
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -62,7 +135,7 @@ export default function ProjectsListPage() {
     } catch (e: any) {
       setToast({
         open: true,
-        msg: e?.response?.data?.message || 'Failed to load projects catalog',
+        msg: e?.response?.data?.message || labels.failLoadToast,
         sev: 'error',
       })
     } finally {
@@ -84,10 +157,10 @@ export default function ProjectsListPage() {
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/resources/resourceProjects/${id}`)
-      setToast({ open: true, msg: 'Project deleted successfully', sev: 'success' })
+      setToast({ open: true, msg: labels.deletedToast, sev: 'success' })
       loadData()
     } catch (e: any) {
-      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to delete project', sev: 'error' })
+      setToast({ open: true, msg: e?.response?.data?.message || labels.failDeleteToast, sev: 'error' })
     }
   }
 
@@ -178,10 +251,10 @@ export default function ProjectsListPage() {
     >
       <AppCard
         title={resolvedScreen?.screen?.name || 'Projects List'}
-        subtitle="Manage master project parameters, RERA configurations, and links."
+        subtitle={labels.subtitle}
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Add Project
+            {labels.addBtn}
           </Button>
         }
         fullHeight
@@ -199,7 +272,7 @@ export default function ProjectsListPage() {
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle sx={{ fontWeight: 600 }}>Confirm Delete</DialogTitle>
-        <DialogContent>Are you sure you want to delete this project?</DialogContent>
+        <DialogContent>{labels.deleteMsg}</DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button

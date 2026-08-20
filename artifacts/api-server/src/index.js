@@ -370,7 +370,7 @@ const migrateExistingWorkspaces = async () => {
       ws = await Workspace.create({
         workspace_id: workspaceId,
         organization_id: orgId,
-        industry_id: org.industryId || org.industry_id || 'temp0001',
+        industry_id: org.industryId || org.industry_id || 'basic_crm',
         status: 'ACTIVE',
         created_by: 'MIGRATION',
       });
@@ -381,7 +381,7 @@ const migrateExistingWorkspaces = async () => {
       ).exec();
 
       try {
-        await cloneWorkspace(orgId, workspaceId, org.industryId || org.industry_id || 'temp0001');
+        await cloneWorkspace(orgId, workspaceId, org.industryId || org.industry_id || 'basic_crm');
         console.log(`[migration] Successfully cloned workspace templates for: ${orgId}`);
       } catch (err) {
         console.error(`[migration] Failed to clone workspace templates for org: ${orgId}:`, err.message);
@@ -391,7 +391,7 @@ const migrateExistingWorkspaces = async () => {
       if (roleCount === 0) {
         console.log(`[migration] Self-healing workspace configuration for: ${orgId}`);
         try {
-          await cloneWorkspace(orgId, ws.workspace_id, org.industryId || org.industry_id || 'temp0001');
+          await cloneWorkspace(orgId, ws.workspace_id, org.industryId || org.industry_id || 'basic_crm');
           console.log(`[migration] Successfully self-healed workspace templates for: ${orgId}`);
         } catch (err) {
           console.error(`[migration] Failed to clone workspace templates for org: ${orgId}:`, err.message);

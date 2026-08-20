@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -18,6 +18,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { useAppSelector } from '@/store/hooks'
 
 export interface ApiEndpoint {
   id: string
@@ -29,47 +30,142 @@ export interface ApiEndpoint {
   description: string
 }
 
-const INITIAL_APIS: ApiEndpoint[] = [
-  {
-    id: 'a1',
-    name: 'Facebook Lead Ads Webhook',
-    url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
-    method: 'POST',
-    status: 'Active',
-    type: 'Incoming Webhook',
-    description: 'Receives real-time lead submissions from Facebook Ad campaigns.',
-  },
-  {
-    id: 'a2',
-    name: 'Google Sheets Exporter',
-    url: 'https://script.google.com/macros/s/AKfycbz.../exec',
-    method: 'POST',
-    status: 'Active',
-    type: 'Outgoing Webhook',
-    description: 'Pushes qualified lead records to external spreadsheet catalog.',
-  },
-  {
-    id: 'a3',
-    name: 'SendGrid Email Status Webhook',
-    url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
-    method: 'POST',
-    status: 'Active',
-    type: 'Incoming Webhook',
-    description: 'Tracks delivery, bounce, and open status of outbound emails.',
-  },
-  {
-    id: 'a4',
-    name: 'Internal ERP Sync API',
-    url: 'https://erp.internal.company.com/api/leads',
-    method: 'PUT',
-    status: 'Inactive',
-    type: 'Rest API',
-    description: 'Synchronizes completed sales records with internal ERP systems.',
-  },
-]
-
 export default function IntegrationsApiPage() {
-  const [items, setItems] = useState<ApiEndpoint[]>(INITIAL_APIS)
+  const user = useAppSelector((s) => s.auth.user)
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const initialApis = useMemo<ApiEndpoint[]>(() => {
+    if (indCode === 'temp0003') {
+      return [
+        {
+          id: 'a1',
+          name: 'Facebook Patient Webhook',
+          url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+          method: 'POST',
+          status: 'Active',
+          type: 'Incoming Webhook',
+          description: 'Receives real-time patient registrations from Facebook campaigns.',
+        },
+        {
+          id: 'a2',
+          name: 'Google Sheets Patient Exporter',
+          url: 'https://script.google.com/macros/s/AKfycbz.../exec',
+          method: 'POST',
+          status: 'Active',
+          type: 'Outgoing Webhook',
+          description: 'Pushes patient records to external spreadsheet catalog.',
+        },
+        {
+          id: 'a3',
+          name: 'SendGrid Email Status Webhook',
+          url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
+          method: 'POST',
+          status: 'Active',
+          type: 'Incoming Webhook',
+          description: 'Tracks delivery, bounce, and open status of outbound emails.',
+        },
+        {
+          id: 'a4',
+          name: 'Internal Hospital ERP Sync API',
+          url: 'https://erp.internal.company.com/api/patients',
+          method: 'PUT',
+          status: 'Inactive',
+          type: 'Rest API',
+          description: 'Synchronizes patient records with internal healthcare ERP systems.',
+        },
+      ];
+    }
+    if (indCode === 'temp0002') {
+      return [
+        {
+          id: 'a1',
+          name: 'Facebook Lead Ads Webhook',
+          url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+          method: 'POST',
+          status: 'Active',
+          type: 'Incoming Webhook',
+          description: 'Receives real-time customer submissions from Facebook Ad campaigns.',
+        },
+        {
+          id: 'a2',
+          name: 'Google Sheets Exporter',
+          url: 'https://script.google.com/macros/s/AKfycbz.../exec',
+          method: 'POST',
+          status: 'Active',
+          type: 'Outgoing Webhook',
+          description: 'Pushes qualified order records to external spreadsheet catalog.',
+        },
+        {
+          id: 'a3',
+          name: 'SendGrid Email Status Webhook',
+          url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
+          method: 'POST',
+          status: 'Active',
+          type: 'Incoming Webhook',
+          description: 'Tracks delivery, bounce, and open status of outbound emails.',
+        },
+        {
+          id: 'a4',
+          name: 'Internal Store ERP Sync API',
+          url: 'https://erp.internal.company.com/api/orders',
+          method: 'PUT',
+          status: 'Inactive',
+          type: 'Rest API',
+          description: 'Synchronizes completed sales records with internal ERP systems.',
+        },
+      ];
+    }
+    return [
+      {
+        id: 'a1',
+        name: 'Facebook Lead Ads Webhook',
+        url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+        method: 'POST',
+        status: 'Active',
+        type: 'Incoming Webhook',
+        description: 'Receives real-time lead submissions from Facebook Ad campaigns.',
+      },
+      {
+        id: 'a2',
+        name: 'Google Sheets Exporter',
+        url: 'https://script.google.com/macros/s/AKfycbz.../exec',
+        method: 'POST',
+        status: 'Active',
+        type: 'Outgoing Webhook',
+        description: 'Pushes qualified lead records to external spreadsheet catalog.',
+      },
+      {
+        id: 'a3',
+        name: 'SendGrid Email Status Webhook',
+        url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
+        method: 'POST',
+        status: 'Active',
+        type: 'Incoming Webhook',
+        description: 'Tracks delivery, bounce, and open status of outbound emails.',
+      },
+      {
+        id: 'a4',
+        name: 'Internal ERP Sync API',
+        url: 'https://erp.internal.company.com/api/leads',
+        method: 'PUT',
+        status: 'Inactive',
+        type: 'Rest API',
+        description: 'Synchronizes completed sales records with internal ERP systems.',
+      },
+    ];
+  }, [indCode]);
+
+  const subtitle = useMemo(() => {
+    if (indCode === 'temp0003') return 'Configure incoming patient triage webhooks and outgoing data sync API integrations.'
+    if (indCode === 'temp0002') return 'Configure incoming customer webhooks and outgoing data sync API integrations.'
+    return 'Configure incoming lead capture webhooks and outgoing data sync API integrations.'
+  }, [indCode])
+
+  const [items, setItems] = useState<ApiEndpoint[]>([])
+  useEffect(() => {
+    setItems(initialApis)
+  }, [initialApis])
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ApiEndpoint | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -245,7 +341,7 @@ export default function IntegrationsApiPage() {
     >
       <AppCard
         title="API Endpoints Catalog"
-        subtitle="Configure incoming lead capture webhooks and outgoing data sync API integrations."
+        subtitle={subtitle}
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog}>
             Add API

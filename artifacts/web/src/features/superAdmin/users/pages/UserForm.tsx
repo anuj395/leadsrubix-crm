@@ -281,11 +281,36 @@ export default function UserFormPage() {
     )
   }
 
+  const indCode = String(core.industryId || authedUser?.industryId || '').toLowerCase().trim();
+
+  let configWarning = 'Please go to Settings and configure Team, Branch, and Designation before adding users.';
+  let formSubtitle = 'Manage login credentials, user roles, hierarchy and custom attributes.';
+
+  if (indCode === 'temp0002') {
+    configWarning = 'Please go to Settings and configure Department, Warehouse / Branch, and Designation before adding users.';
+    formSubtitle = 'Manage e-commerce staff credentials, roles, warehouses, and hierarchy.';
+  } else if (indCode === 'temp0003') {
+    configWarning = 'Please go to Settings and configure Medical Department, Hospital / Clinic, and Medical Designation before adding users.';
+    formSubtitle = 'Manage hospital staff credentials, medical designations, departments, and clinic info.';
+  } else if (indCode === 'temp0004') {
+    configWarning = 'Please go to Settings and configure Academic Department, Campus / Branch, and Faculty Designation before adding users.';
+    formSubtitle = 'Manage faculty credentials, academic roles, campuses, and department hierarchy.';
+  } else if (indCode === 'temp0005') {
+    configWarning = 'Please go to Settings and configure Advisory Team, Office / Branch, and Advisor Designation before adding users.';
+    formSubtitle = 'Manage client advisor credentials, portfolio permissions, and hierarchy.';
+  } else if (indCode === 'temp0006') {
+    configWarning = 'Please go to Settings and configure Project Team, Office / Location, and Technical Role before adding users.';
+    formSubtitle = 'Manage IT team credentials, technical roles, delivery centers, and hierarchy.';
+  } else if (indCode === 'temp0007') {
+    configWarning = 'Please go to Settings and configure Production Team, Factory / Plant, and Plant Role before adding users.';
+    formSubtitle = 'Manage manufacturing staff credentials, plant roles, factories, and hierarchy.';
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
       <AppCard
         title={id ? 'Edit User' : 'Add User'}
-        subtitle="Manage login credentials, user roles, hierarchy and custom attributes."
+        subtitle={formSubtitle}
         action={
           <Button
             variant="text"
@@ -334,7 +359,7 @@ export default function UserFormPage() {
               </Typography>
 
               <Typography variant="body1" sx={{ color: '#718096', mb: 4, lineHeight: 1.6, maxWidth: 460 }}>
-                Please go to Settings and configure Team, Branch, and Designation before adding users.
+                {configWarning}
               </Typography>
 
               {!isSuperAdmin && (

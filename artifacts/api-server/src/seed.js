@@ -868,8 +868,8 @@ async function seedScreens() {
   const roles = await Role.find({ is_active: true }).lean().exec();
 
   const RE_FIELDS = new Set(['project_name', 'property_type', 'property_stage', 'budget', 'property_sub_type']);
-  const ECOM_FIELDS = new Set(['order_id', 'order_value', 'cart_items_count', 'coupon_code', 'shipping_method', 'order_status']);
-  const HEALTH_FIELDS = new Set(['patient_id', 'specialty', 'attending_doctor', 'appointment_date', 'insurance_provider']);
+  const ECOM_FIELDS = new Set(['order_i_d', 'order_value', 'cart_items_count', 'coupon_code', 'shipping_method', 'order_status']);
+  const HEALTH_FIELDS = new Set(['patient_i_d', 'specialty', 'attending_doctor', 'appointment_date', 'insurance_provider']);
   const EDU_FIELDS = new Set(['program_course', 'academic_year', 'entrance_score', 'counselor_assigned']);
   const FIN_FIELDS = new Set(['product_type', 'requested_amount', 'annual_income', 'credit_score']);
   const IT_FIELDS = new Set(['service_line', 'rfp_deadline', 'estimated_budget', 'tech_stack']);
@@ -1454,22 +1454,17 @@ async function seedDropdownOptions() {
     );
   }
 
-  const count = await DropdownOption.estimatedDocumentCount();
-  if (count <= 4) {
-    console.log('[seed] seeding database-driven dropdown options...');
-    for (const [key, options] of Object.entries(DROPDOWN_OPTION_DEFAULTS)) {
-      for (const opt of options) {
-        await DropdownOption.updateOne(
-          { key, value: opt.value },
-          { $set: { label: opt.label } },
-          { upsert: true }
-        );
-      }
+  console.log('[seed] seeding database-driven dropdown options...');
+  for (const [key, options] of Object.entries(DROPDOWN_OPTION_DEFAULTS)) {
+    for (const opt of options) {
+      await DropdownOption.updateOne(
+        { key, value: opt.value },
+        { $set: { label: opt.label } },
+        { upsert: true }
+      );
     }
-    console.log('[seed] finished seeding dropdown options.');
-  } else {
-    console.log('[seed] dropdown_options already populated — skipping seed');
   }
+  console.log('[seed] finished seeding dropdown options.');
 }
 
 async function seedAnalyticsConfig() {

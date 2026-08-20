@@ -27,7 +27,7 @@ exports.signup = async (payload) => {
       email: payload.email,
       firstName: payload.name || 'Admin',
       organizationName: payload.name || 'Organization',
-      industryId: payload.industryId || 'temp0001',
+      industryId: payload.industryId || 'basic_crm',
     };
   }
 

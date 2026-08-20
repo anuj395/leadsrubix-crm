@@ -2,9 +2,13 @@ const svc = require('../services/roleActionPermissionService');
 
 exports.list = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'superAdmin';
+    const finalIndustryId = isSuperAdmin
+      ? req.query.industryId
+      : (req.user?.industryId || req.user?.industry_id || null);
     const items = await svc.list({
       roleId: req.query.roleId,
-      industryId: req.query.industryId,
+      industryId: finalIndustryId,
       screenId: req.query.screenId,
     }, req.user);
     res.json({ items });

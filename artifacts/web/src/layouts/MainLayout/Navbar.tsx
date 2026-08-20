@@ -123,6 +123,17 @@ function formatRelativeTime(dateString: string): string {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+const INDUSTRY_NAMES: Record<string, string> = {
+    temp0001: 'Real Estate',
+    temp0002: 'E-commerce',
+    temp0003: 'Healthcare',
+    temp0004: 'Education',
+    temp0005: 'Financial Services',
+    temp0006: 'IT & Tech Services',
+    temp0007: 'Manufacturing',
+    basic_crm: 'Universal Basic CRM'
+}
+
 interface NavbarProps {
     onMobileMenuOpen?: () => void
 }
@@ -675,7 +686,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                             textOverflow: 'ellipsis',
                                         }}
                                     >
-                                        {user ? roleConfig[user.role].label : 'Guest'}
+                                        {user ? `${roleConfig[user.role].label} - ${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code] || ''}` : 'Guest'}
                                     </Typography>
                                 </Box>
 
@@ -759,7 +770,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                     fontWeight: 400,
                                 }}
                             >
-                                {user ? roleConfig[user.role].label : 'Guest'}
+                                {user ? `${roleConfig[user.role].label} (${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code] || ''})` : 'Guest'}
                             </Typography>
                         </Box>
                     </Stack>

@@ -59,15 +59,81 @@ export default function LeadDistributionListPage() {
     void loadData()
   }, [])
 
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') {
+      return {
+        title: 'Order Routing',
+        subtitle: 'Manage order routing rules and assignees.',
+        addLogic: 'Add Routing Rule',
+        deleteMsg: 'Are you sure you want to delete this Routing Logic?',
+        deletedToast: 'Order Routing Deleted!!'
+      };
+    }
+    if (indCode === 'temp0003') {
+      return {
+        title: 'Patient Triaging (Triage Rules)',
+        subtitle: 'Manage patient triage rules and attending doctors / staff assignment.',
+        addLogic: 'Add Triage Rule',
+        deleteMsg: 'Are you sure you want to delete this Patient Triage Logic?',
+        deletedToast: 'Triage Logic Deleted!!'
+      };
+    }
+    if (indCode === 'temp0004') {
+      return {
+        title: 'Admissions Routing',
+        subtitle: 'Manage admissions routing rules and counselor assignment.',
+        addLogic: 'Add Routing Rule',
+        deleteMsg: 'Are you sure you want to delete this Admissions Routing Logic?',
+        deletedToast: 'Admissions Routing Deleted!!'
+      };
+    }
+    if (indCode === 'temp0005') {
+      return {
+        title: 'Client Matching',
+        subtitle: 'Manage client matching rules and advisor assignment.',
+        addLogic: 'Add Matching Rule',
+        deleteMsg: 'Are you sure you want to delete this Client Matching Logic?',
+        deletedToast: 'Client Matching Deleted!!'
+      };
+    }
+    if (indCode === 'temp0006') {
+      return {
+        title: 'Ticket Routing',
+        subtitle: 'Manage ticket routing rules and tech support assignment.',
+        addLogic: 'Add Routing Rule',
+        deleteMsg: 'Are you sure you want to delete this Ticket Routing Logic?',
+        deletedToast: 'Ticket Routing Deleted!!'
+      };
+    }
+    if (indCode === 'temp0007') {
+      return {
+        title: 'Dealer Allocations',
+        subtitle: 'Manage dealer allocation rules and manager assignment.',
+        addLogic: 'Add Allocation Rule',
+        deleteMsg: 'Are you sure you want to delete this Dealer Allocation Logic?',
+        deletedToast: 'Dealer Allocation Deleted!!'
+      };
+    }
+    return {
+      title: 'Lead Distribution',
+      subtitle: 'Manage lead distribution rules and assignees.',
+      addLogic: 'Add Logic',
+      deleteMsg: 'Are you sure you want to delete this Lead Distribution Logic?',
+      deletedToast: 'Lead Distribution Deleted!!'
+    };
+  }, [indCode]);
+
   const handleDelete = (id: string) => {
     confirmDelete({
       title: 'Confirm Deletion',
-      message: 'Are you sure you want to delete this Lead Distribution Logic?',
+      message: labels.deleteMsg,
       onConfirm: async () => {
         try {
           setLoading(true)
           await deleteDistributionRule(id)
-          setToast({ open: true, msg: 'Lead Distribution Deleted!!', sev: 'success' })
+          setToast({ open: true, msg: labels.deletedToast, sev: 'success' })
           void loadData()
         } catch (e: any) {
           setToast({ open: true, msg: 'Failed to delete distribution logic', sev: 'error' })
@@ -129,17 +195,17 @@ export default function LeadDistributionListPage() {
     })
 
     return mappedCols
-  }, [dynamicHeaders])
+  }, [dynamicHeaders, labels])
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppCard
-        title="Lead Distribution"
-        subtitle="Manage lead distribution rules and assignees."
+        title={labels.title}
+        subtitle={labels.subtitle}
         sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/lead-distribution/logic')}>
-            Add Logic
+            {labels.addLogic}
           </Button>
         }
       >

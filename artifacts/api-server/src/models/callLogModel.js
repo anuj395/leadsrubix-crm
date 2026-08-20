@@ -4,6 +4,8 @@ const { withDualCase, mapWithDualCase } = require('../utils/caseConverter');
 const callLogSchema = new mongoose.Schema(
   {
     contact_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null, index: true, alias: 'contactId' },
+    related_to_type: { type: String, enum: ['Lead', 'Account', 'Contact', 'Deal'], alias: 'relatedToType' },
+    related_to_id:   { type: mongoose.Schema.Types.ObjectId, alias: 'relatedToId' },
     lead_id:         { type: String, default: '', index: true, alias: 'leadId' },
     organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
     industry_id:     { type: String, default: null, index: true, alias: 'industryId' },

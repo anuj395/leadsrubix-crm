@@ -203,7 +203,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const bypassPermissions = isSuperAdmin || isGuestSignup;
 
   if (!industryCode && bypassPermissions) {
-    industryCode = 'temp0001';
+    industryCode = 'basic_crm';
   }
 
   if (!bypassPermissions && !industryCode) {
@@ -319,36 +319,320 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     allowed = allowed.filter((f) => f.field_key !== 'organizationId' && f.field_key !== 'organization_id');
   }
 
+  const PROJECT_TRANSLATIONS = {
+    temp0002: { // E-Commerce
+      projectName: 'Product Name',
+      developerName: 'Supplier Name',
+      propertyType: 'Product Category',
+      propertyStage: 'Availability Stage',
+      projectStatus: 'Status',
+      address: 'Warehouse Address',
+      reraLink: 'Catalog URL',
+      walkthroughLink: 'Product Video Link'
+    },
+    temp0003: { // Healthcare
+      projectName: 'Specialty Name',
+      developerName: 'Attending Doctors',
+      propertyType: 'Department',
+      propertyStage: 'Clinical Wing',
+      projectStatus: 'Status',
+      address: 'Hospital Wing Address',
+      reraLink: 'Accreditation Code',
+      walkthroughLink: 'Brochure Link'
+    },
+    temp0004: { // Education
+      projectName: 'Course Name',
+      developerName: 'Faculty Head',
+      propertyType: 'Program Category',
+      propertyStage: 'Intake Batch',
+      projectStatus: 'Status',
+      address: 'Campus Address',
+      reraLink: 'Syllabus Link',
+      walkthroughLink: 'Virtual Tour Link'
+    },
+    temp0005: { // Finance
+      projectName: 'Portfolio Name',
+      developerName: 'Fund Manager',
+      propertyType: 'Asset Class',
+      propertyStage: 'Risk Profile',
+      projectStatus: 'Status',
+      address: 'Office Address',
+      reraLink: 'KFS Document Link',
+      walkthroughLink: 'Advisory Video Link'
+    },
+    temp0006: { // IT Services
+      projectName: 'Service Line Name',
+      developerName: 'Technical Lead',
+      propertyType: 'Domain',
+      propertyStage: 'Implementation Stage',
+      projectStatus: 'Status',
+      address: 'Delivery Center Address',
+      reraLink: 'SLA Document Link',
+      walkthroughLink: 'Case Study Link'
+    },
+    temp0007: { // Manufacturing
+      projectName: 'Product Category',
+      developerName: 'Plant Manager',
+      propertyType: 'Material Class',
+      propertyStage: 'Production Phase',
+      projectStatus: 'Status',
+      address: 'Factory Address',
+      reraLink: 'ISO Certificate Link',
+      walkthroughLink: 'Factory Tour Link'
+    }
+  };
+
+  const USER_TRANSLATIONS = {
+    temp0002: { // E-Commerce
+      designation: 'Designation',
+      team: 'Department',
+      branch: 'Warehouse / Branch',
+      reportingTo: 'Reporting Manager'
+    },
+    temp0003: { // Healthcare
+      designation: 'Medical Designation',
+      team: 'Medical Department',
+      branch: 'Hospital / Clinic',
+      reportingTo: 'Attending Head'
+    },
+    temp0004: { // Education
+      designation: 'Faculty Designation',
+      team: 'Academic Department',
+      branch: 'Campus / Branch',
+      reportingTo: 'Department Head'
+    },
+    temp0005: { // Finance
+      designation: 'Advisor Designation',
+      team: 'Advisory Team',
+      branch: 'Office / Branch',
+      reportingTo: 'Reporting Head'
+    },
+    temp0006: { // IT Services
+      designation: 'Technical Role',
+      team: 'Project Team',
+      branch: 'Office / Location',
+      reportingTo: 'Project Manager'
+    },
+    temp0007: { // Manufacturing
+      designation: 'Plant Role',
+      team: 'Production Team',
+      branch: 'Factory / Plant',
+      reportingTo: 'Plant Manager'
+    }
+  };
+
+  const DISTRIBUTION_TRANSLATIONS = {
+    temp0002: { // E-Commerce
+      source: 'Inquiry Source',
+      project: 'Product Catalog',
+      location: 'Warehouse / Region',
+      budget: 'Order Budget',
+      propertyType: 'Product Category',
+      distributionType: 'Routing Type',
+      users: 'Assigned Agents'
+    },
+    temp0003: { // Healthcare
+      source: 'Patient Source',
+      project: 'Specialty',
+      location: 'Clinic / Center',
+      budget: 'Treatment Budget',
+      propertyType: 'Clinical Wing',
+      distributionType: 'Triage Type',
+      users: 'Assigned Doctors / Staff'
+    },
+    temp0004: { // Education
+      source: 'Lead Source',
+      project: 'Course / Program',
+      location: 'Campus / Branch',
+      budget: 'Fee Budget',
+      propertyType: 'Program Category',
+      distributionType: 'Routing Type',
+      users: 'Assigned Counselors'
+    },
+    temp0005: { // Finance
+      source: 'Lead Source',
+      project: 'Portfolio',
+      location: 'Office / Region',
+      budget: 'Investment Budget',
+      propertyType: 'Asset Class',
+      distributionType: 'Matching Type',
+      users: 'Assigned Advisors'
+    },
+    temp0006: { // IT Services
+      source: 'Lead Source',
+      project: 'Service / Catalog',
+      location: 'Delivery Center',
+      budget: 'Deal Value',
+      propertyType: 'Technology Stack',
+      distributionType: 'Routing Type',
+      users: 'Assigned Tech Leads'
+    },
+    temp0007: { // Manufacturing
+      source: 'Lead Source',
+      project: 'Product Category',
+      location: 'Factory / Plant',
+      budget: 'Distributor Value',
+      propertyType: 'Production Line',
+      distributionType: 'Allocation Type',
+      users: 'Assigned Managers'
+    }
+  };
+
+  const ROTATION_TRANSLATIONS = {
+    temp0002: {
+      source: 'Inquiry Source',
+      project: 'Product Catalog',
+      rotationTime: 'Routing Delay (mins)',
+      users: 'Assigned Agents'
+    },
+    temp0003: {
+      source: 'Patient Source',
+      project: 'Specialty',
+      rotationTime: 'Transfer Timeout (mins)',
+      users: 'Assigned Doctors / Staff'
+    },
+    temp0004: {
+      source: 'Lead Source',
+      project: 'Course / Program',
+      rotationTime: 'Transfer Timeout (mins)',
+      users: 'Assigned Counselors'
+    },
+    temp0005: {
+      source: 'Lead Source',
+      project: 'Portfolio',
+      rotationTime: 'Matching Delay (mins)',
+      users: 'Assigned Advisors'
+    },
+    temp0006: {
+      source: 'Lead Source',
+      project: 'Service / Catalog',
+      rotationTime: 'SLA Delay (mins)',
+      users: 'Assigned Tech Leads'
+    },
+    temp0007: {
+      source: 'Lead Source',
+      project: 'Product Category',
+      rotationTime: 'Reallocation Time (mins)',
+      users: 'Assigned Managers'
+    }
+  };
+
+  const CONTACTS_TRANSLATIONS = {
+    temp0002: {
+      customerName: 'Customer Name',
+      contactNo: 'Contact Number',
+      email: 'Email ID',
+      project: 'Product Catalog',
+      budget: 'Order Budget',
+      propertyType: 'Product Category',
+      leadSource: 'Inquiry Source',
+      contactOwnerEmail: 'Agent Email',
+    },
+    temp0003: {
+      customerName: 'Patient Name',
+      contactNo: 'Phone Number',
+      email: 'Email ID',
+      project: 'Specialty',
+      budget: 'Treatment Budget',
+      propertyType: 'Clinical Wing',
+      leadSource: 'Patient Source',
+      contactOwnerEmail: 'Attending Doctor Email',
+    },
+    temp0004: {
+      customerName: 'Student Name',
+      contactNo: 'Phone Number',
+      email: 'Email ID',
+      project: 'Course / Program',
+      budget: 'Fee Budget',
+      propertyType: 'Program Category',
+      leadSource: 'Lead Source',
+      contactOwnerEmail: 'Counselor Email',
+    },
+    temp0005: {
+      customerName: 'Client Name',
+      contactNo: 'Phone Number',
+      email: 'Email ID',
+      project: 'Portfolio',
+      budget: 'Investment Budget',
+      propertyType: 'Asset Class',
+      leadSource: 'Lead Source',
+      contactOwnerEmail: 'Advisor Email',
+    },
+    temp0006: {
+      customerName: 'Lead Name',
+      contactNo: 'Phone Number',
+      email: 'Email ID',
+      project: 'Service / Catalog',
+      budget: 'Deal Value',
+      propertyType: 'Technology Stack',
+      leadSource: 'Lead Source',
+      contactOwnerEmail: 'Tech Lead Email',
+    },
+    temp0007: {
+      customerName: 'Distributor Name',
+      contactNo: 'Phone Number',
+      email: 'Email ID',
+      project: 'Product Category',
+      budget: 'Distributor Value',
+      propertyType: 'Production Line',
+      leadSource: 'Lead Source',
+      contactOwnerEmail: 'Manager Email',
+    }
+  };
+
+  const indCode = String(industry?.code || '').toLowerCase().trim();
+  const translations = (finalScreenKey === 'configProjects' && PROJECT_TRANSLATIONS[indCode]) || 
+                       (finalScreenKey === 'users' && USER_TRANSLATIONS[indCode]) || 
+                       (finalScreenKey === 'leadDistribution' && DISTRIBUTION_TRANSLATIONS[indCode]) ||
+                       (finalScreenKey === 'leadRotation' && ROTATION_TRANSLATIONS[indCode]) || 
+                       (finalScreenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || {};
+
+  let resolvedScreenName = screen.name;
+  if (finalScreenKey === 'configProjects') {
+    if (indCode === 'temp0002') resolvedScreenName = 'Products Catalog';
+    else if (indCode === 'temp0003') resolvedScreenName = 'Clinical Specialties';
+    else if (indCode === 'temp0004') resolvedScreenName = 'Academic Programs';
+    else if (indCode === 'temp0005') resolvedScreenName = 'Financial Portfolios';
+    else if (indCode === 'temp0006') resolvedScreenName = 'Project Catalog';
+    else if (indCode === 'temp0007') resolvedScreenName = 'Product Categories';
+  }
+
   const tableHeaders = allowed
     .sort((a, b) => a.order - b.order)
-    .map((f) => ({
-      key: f.field_key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase()),
-      label: f.label,
-      type: f.type,
-      sortable: f.sortable,
-      order: f.order,
-      options: f.options || [],
-      visible: f.is_table_visible,
-    }));
+    .map((f) => {
+      const fieldKeyCamel = f.field_key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+      return {
+        key: fieldKeyCamel,
+        label: translations[fieldKeyCamel] || f.label,
+        type: f.type,
+        sortable: f.sortable,
+        order: f.order,
+        options: f.options || [],
+        visible: f.is_table_visible,
+      };
+    });
 
   const formFields = allowed
     .filter((f) => f.is_form_visible)
     .sort((a, b) => a.order - b.order)
-    .map((f) => ({
-      key: f.field_key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase()),
-      label: f.label,
-      type: f.type,
-      required: f.is_required,
-      options: f.options || [],
-      dropdownSource: f.dropdown_source || 'none',
-      dropdownApi: f.dropdown_api || '',
-      dropdown_source: f.dropdown_source || 'none',
-      dropdown_api: f.dropdown_api || '',
-      order: f.order,
-    }));
+    .map((f) => {
+      const fieldKeyCamel = f.field_key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+      return {
+        key: fieldKeyCamel,
+        label: translations[fieldKeyCamel] || f.label,
+        type: f.type,
+        required: f.is_required,
+        options: f.options || [],
+        dropdownSource: f.dropdown_source || 'none',
+        dropdownApi: f.dropdown_api || '',
+        dropdown_source: f.dropdown_source || 'none',
+        dropdown_api: f.dropdown_api || '',
+        order: f.order,
+      };
+    });
 
   return {
-    screen: { _id: screen._id, key: screen.key, name: screen.name },
+    screen: { _id: screen._id, key: screen.key, name: resolvedScreenName },
     industryId: industry ? industry._id : null,
     roleId: role ? role._id : null,
     tableHeaders,

@@ -87,18 +87,36 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
   if (authedUser.role === 'superAdmin' || authedUser.role === 'admin') return true;
   if (!authedUser.industryId) return false;
 
-  const screen = await screenModel.findByKey(screen_key);
-  if (!screen || !screen.isActive) return false;
-  const role = await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role);
-  if (!role) return false;
+  const orgId = authedUser.organizationId || authedUser.organization_id || null;
 
-  const row = await model.findFor({
-    roleId: role._id,
-    industryId: authedUser.industryId,
-    screenId: screen._id,
-  });
-  if (!row) return false;
-  return !!row[`can_${action}`];
+  // 1. Try resolving with organization-scoped role & screen
+  const screen = await screenModel.findByKey(screen_key, orgId);
+  if (screen && screen.isActive) {
+    const role = await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role, orgId);
+    if (role) {
+      const row = await model.findFor({
+        roleId: role._id,
+        industryId: authedUser.industryId,
+        screenId: screen._id,
+      });
+      if (row) return !!row[`can_${action}`];
+    }
+  }
+
+  // 2. Fallback to global template role & screen
+  const globalScreen = await screenModel.findByKey(screen_key, null);
+  if (!globalScreen || !globalScreen.isActive) return false;
+  const globalRole = await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role, null);
+  if (globalRole) {
+    const globalRow = await model.findFor({
+      roleId: globalRole._id,
+      industryId: authedUser.industryId,
+      screenId: globalScreen._id,
+    });
+    if (globalRow) return !!globalRow[`can_${action}`];
+  }
+
+  return false;
 };
 
 exports.getEffectiveForScreen = async ({ authedUser, screen_key }) => {

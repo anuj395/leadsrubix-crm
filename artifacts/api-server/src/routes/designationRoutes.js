@@ -17,7 +17,10 @@ router.get('/', authenticate, async (req, res) => {
     if (industryId) query.industry_id = industryId;
     if (organizationId) query.organization_id = organizationId;
 
-    const doc = await Designation.findOne(query).exec();
+    let doc = await Designation.findOne(query).exec();
+    if (!doc && organizationId) {
+      doc = await Designation.findOne({ industry_id: industryId, organization_id: null }).exec();
+    }
     const items = doc ? doc.designations.map(d => ({ ...d.toObject(), id: d._id })) : [];
     res.json({ items, total: items.length });
   } catch (err) {

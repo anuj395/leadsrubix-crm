@@ -8,6 +8,10 @@ import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
 import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
 
 import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
+import LeadsListPage from '@/features/admin/leads/pages/LeadsList'
+import AccountsListPage from '@/features/admin/leads/pages/AccountsList'
+import DealsListPage from '@/features/admin/leads/pages/DealsList'
+import QuotesListPage from '@/features/admin/leads/pages/QuotesList'
 import TasksListPage from '@/features/admin/leads/pages/TasksList'
 import CallLogsListPage from '@/features/admin/leads/pages/CallLogsList'
 import BookingsListPage from '@/features/admin/leads/pages/BookingsList'
@@ -74,6 +78,10 @@ export const routeComponentMap: Record<string, any> = {
   "/users/roles": RolesAndPermissionsPage,
   "/access-control/roles": RolesAndPermissionsPage,
 
+  "/leads/leads-list": LeadsListPage,
+  "/leads/accounts-list": AccountsListPage,
+  "/leads/deals-list": DealsListPage,
+  "/leads/quotes-list": QuotesListPage,
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,
