@@ -45,7 +45,7 @@ import { getResources, createResource, updateResource, deleteResource } from '@/
 import { api } from '@/services/api'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { compressImage } from '@/utils/imageCompressor'
-
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export default function ResourcesPage() {
   const user = useAppSelector((s) => s.auth.user)
@@ -54,6 +54,9 @@ export default function ResourcesPage() {
   const [resourceScreens, setResourceScreens] = useState<Screen[]>([])
   const [activeTab, setActiveTab] = useState(0)
   const [selectedRowIds, setSelectedRowIds] = useState<any[]>([])
+
+  const activeScreenKey = resourceScreens[activeTab]?.key || ''
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission(activeScreenKey)
 
   // Resolved configurations for active tab
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
@@ -736,30 +739,36 @@ export default function ResourcesPage() {
     })
 
     // Action column placed at the end
-    cols.push({
-      field: 'actions',
-      headerName: 'Actions',
-      width: 100,
-      sortable: false,
-      disableExport: true,
-      renderCell: (p: any) => (
-        <Stack direction="row" spacing={0.5}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => openEdit(p.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDeleteItem(p.id as string)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      )
-    })
+    if (can_edit || can_delete) {
+      cols.push({
+        field: 'actions',
+        headerName: 'Actions',
+        width: 100,
+        sortable: false,
+        disableExport: true,
+        renderCell: (p: any) => (
+          <Stack direction="row" spacing={0.5}>
+            {can_edit && (
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => openEdit(p.row)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDeleteItem(p.id as string)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        )
+      })
+    }
 
     return cols
-  }, [resolvedScreen, rows])
+  }, [resolvedScreen, rows, can_edit, can_delete])
 
   const renderField = (field: ResolvedFormField) => {
     if (field.key === 'url' || field.key === 'image' || field.type === 'avatar') {
@@ -960,7 +969,7 @@ export default function ResourcesPage() {
                     <GridToolbarFilterButton />
                     <GridToolbarDensitySelector />
                     {activeScreen?.key !== 'resourceCarousel' && <GridToolbarExport />}
-                    {activeScreen?.key !== 'resourceCarousel' && (
+                    {activeScreen?.key !== 'resourceCarousel' && can_add && (
                       <Button
                         color="primary"
                         size="small"
@@ -1015,13 +1024,23 @@ export default function ResourcesPage() {
                 </GridToolbarContainer>
               )
 
+              if (!permsLoading && !can_view) {
+                return (
+                  <Box sx={{ p: 2 }}>
+                    <Alert severity="error">
+                      Access Denied: You do not have permission to view {resolvedScreen.screen.name}.
+                    </Alert>
+                  </Box>
+                )
+              }
+
               return (
                 <AppCard 
                   title={resolvedScreen.screen.name} 
                   subtitle={activeScreen.description || `Manage ${resolvedScreen.screen.name} lookup items.`}
                   action={
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      {selectedRowIds.length > 0 && (
+                      {can_delete && selectedRowIds.length > 0 && (
                         <Button
                           variant="outlined"
                           color="error"
@@ -1031,7 +1050,9 @@ export default function ResourcesPage() {
                           Delete Selected ({selectedRowIds.length})
                         </Button>
                       )}
-                      <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Add</Button>
+                      {can_add && (
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Add</Button>
+                      )}
                     </Box>
                   }
                   fullHeight
@@ -1047,7 +1068,7 @@ export default function ResourcesPage() {
                       rows={rows} 
                       columns={gridColumns} 
                       getRowId={(r) => r.id}
-                      checkboxSelection
+                      checkboxSelection={can_delete}
                       rowSelectionModel={selectedRowIds}
                       onRowSelectionModelChange={(newSelection) => setSelectedRowIds([...newSelection])}
                       slots={{ toolbar: CustomToolbar }}

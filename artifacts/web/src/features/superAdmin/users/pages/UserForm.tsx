@@ -36,6 +36,7 @@ import {
 } from '@/services/organizationsService'
 
 import { api } from '@/services/api'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 const ROLES_WITH_MANAGER = new Set(['sales', 'teamLead', 'leadManager', 'admin'])
 
@@ -48,6 +49,7 @@ export default function UserFormPage() {
   const { id } = useParams<{ id?: string }>()
   const authedUser = useAppSelector((s) => s.auth.user)
   const isSuperAdmin = authedUser?.role === 'superAdmin'
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('users')
 
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(true)
@@ -307,6 +309,27 @@ export default function UserFormPage() {
   } else if (indCode === 'temp0007') {
     configWarning = 'Please go to Settings and configure Production Team (e.g. Assembly Line, Quality Control), Factory / Plant (e.g. Noida Factory, Gurugram Plant), and Plant Role (e.g. Plant Manager, Line Supervisor, Quality Auditor) before adding users.';
     formSubtitle = 'Manage manufacturing staff credentials, plant roles, factories, and hierarchy.';
+  }
+
+  if (!permsLoading && !isSuperAdmin) {
+    if (id && !can_edit && String(authedUser?.id || (authedUser as any)?._id) !== String(id)) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to edit users.
+          </Alert>
+        </Box>
+      )
+    }
+    if (!id && !can_add) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to add users.
+          </Alert>
+        </Box>
+      )
+    }
   }
 
   return (

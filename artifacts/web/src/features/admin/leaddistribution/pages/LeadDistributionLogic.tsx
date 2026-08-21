@@ -11,9 +11,11 @@ import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { listUsers, type AdminUser } from '@/services/usersAdminService'
 import { createDistributionRule } from '@/services/leadDistributionService'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export default function LeadDistributionLogicPage() {
   const navigate = useNavigate()
+  const { can_add, loading: permsLoading } = useActionPermission('leadDistribution')
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'Normal' | 'Roundrobin'>('Normal')
   const [allUsers, setAllUsers] = useState<AdminUser[]>([])
@@ -69,6 +71,16 @@ export default function LeadDistributionLogicPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!permsLoading && !can_add) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to add lead distribution rules.
+        </Alert>
+      </Box>
+    )
   }
 
   return (

@@ -20,6 +20,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { api } from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
 import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export interface Project {
   id: string
@@ -39,6 +40,7 @@ export interface Project {
 export default function ProjectsListPage() {
   const user = useAppSelector((s) => s.auth.user)
   const navigate = useNavigate()
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('configProjects')
   const [items, setItems] = useState<Project[]>([])
   const [loading, setLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -212,30 +214,46 @@ export default function ProjectsListPage() {
       ...baseCols
     ]
 
-    cols.push({
-      field: '__actions' as any,
-      headerName: 'Actions',
-      width: 100,
-      sortable: false,
-      filterable: false,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id}/edit`)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDeleteClick(p.row.id)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    })
+    if (can_edit || can_delete) {
+      cols.push({
+        field: '__actions' as any,
+        headerName: 'Actions',
+        width: 100,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => (
+          <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+            {can_edit && (
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id}/edit`)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDeleteClick(p.row.id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        ),
+      })
+    }
 
     return cols
-  }, [resolvedScreen, items, navigate])
+  }, [resolvedScreen, items, navigate, can_edit, can_delete])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view {resolvedScreen?.screen?.name || 'Projects'}.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box
@@ -253,9 +271,11 @@ export default function ProjectsListPage() {
         title={resolvedScreen?.screen?.name || 'Projects List'}
         subtitle={labels.subtitle}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            {labels.addBtn}
-          </Button>
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+              {labels.addBtn}
+            </Button>
+          ) : undefined
         }
         fullHeight
       >

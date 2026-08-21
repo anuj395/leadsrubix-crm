@@ -17,6 +17,7 @@ import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { selectAuth } from '@/features/auth'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import { ChangeOwnerModal } from '../components/ChangeOwnerModal'
 import { ImportContactModal } from '../components/ImportContactModal'
 
@@ -24,6 +25,8 @@ export default function ContactsListPage() {
   const { user } = useAppSelector(selectAuth)
   const industryId = user?.industryId
   const navigate = useNavigate()
+
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('contacts')
 
   const [items, setItems] = useState<Contact[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -160,33 +163,40 @@ export default function ContactsListPage() {
       }
     }
 
-    const actionsCol: GridColDef<Contact> = {
-      field: '__actions__',
-      headerName: 'Actions',
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      align: 'right',
-      headerAlign: 'right',
-      width: 120,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/leads/contacts/${p.row._id}/edit`); }}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(p.row); }}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    }
+    const showActions = can_edit || can_delete
+    const actionsCol: GridColDef<Contact> | null = showActions
+      ? {
+          field: '__actions__',
+          headerName: 'Actions',
+          sortable: false,
+          filterable: false,
+          disableColumnMenu: true,
+          align: 'right',
+          headerAlign: 'right',
+          width: 120,
+          renderCell: (p) => (
+            <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+              {can_edit && (
+                <Tooltip title="Edit">
+                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/leads/contacts/${p.row._id}/edit`); }}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {can_delete && (
+                <Tooltip title="Delete">
+                  <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete(p.row); }}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
+          ),
+        }
+      : null
 
-    return [sNoCol, ...dataCols, actionsCol]
-  }, [dbColumns, items])
+    return [sNoCol, ...dataCols, ...(actionsCol ? [actionsCol] : [])]
+  }, [dbColumns, items, can_edit, can_delete])
 
   const indCode = String(industryId || '').toLowerCase().trim();
 
@@ -247,6 +257,16 @@ export default function ContactsListPage() {
     };
   }, [indCode]);
 
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view {labels.contacts}.
+        </Alert>
+      </Box>
+    )
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {configError && (
@@ -267,32 +287,38 @@ export default function ContactsListPage() {
           <Stack direction="row" spacing={1.5}>
             {selectedIds.length > 0 && (
               <>
-                <Tooltip title={`Reassign selected ${labels.leads} to a different team member`}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<SwapHorizIcon />}
-                    onClick={() => setOpenOwnerModal(true)}
-                  >
-                    Change Owner ({selectedIds.length})
-                  </Button>
-                </Tooltip>
-                <Tooltip title={`Permanently delete the selected ${labels.lead} profiles`}>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={handleBulkDelete}
-                  >
-                    Delete ({selectedIds.length})
-                  </Button>
-                </Tooltip>
+                {can_edit && (
+                  <Tooltip title={`Reassign selected ${labels.leads} to a different team member`}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<SwapHorizIcon />}
+                      onClick={() => setOpenOwnerModal(true)}
+                    >
+                      Change Owner ({selectedIds.length})
+                    </Button>
+                  </Tooltip>
+                )}
+                {can_delete && (
+                  <Tooltip title={`Permanently delete the selected ${labels.lead} profiles`}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={handleBulkDelete}
+                    >
+                      Delete ({selectedIds.length})
+                    </Button>
+                  </Tooltip>
+                )}
               </>
             )}
-            <Tooltip title={`Add a new ${labels.lead} profile to the database`}>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
-                Add {labels.contact}
-              </Button>
-            </Tooltip>
+            {can_add && (
+              <Tooltip title={`Add a new ${labels.lead} profile to the database`}>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
+                  Add {labels.contact}
+                </Button>
+              </Tooltip>
+            )}
           </Stack>
         }
         fullHeight
@@ -304,15 +330,18 @@ export default function ContactsListPage() {
           loading={loading || configLoading}
           getRowId={(r) => r._id}
           onReload={refresh}
-          onImport={handleImport}
-          onRowClick={(params) => navigate(`/leads/contacts/${params.row._id}`)}
-          checkboxSelection
+          onImport={can_add ? handleImport : undefined}
+          onRowClick={can_edit ? (params) => navigate(`/leads/contacts/${params.row._id}`) : undefined}
+          checkboxSelection={can_edit || can_delete}
           rowSelectionModel={selectedIds}
           onRowSelectionModelChange={(newModel) => setSelectedIds(newModel as string[])}
           sx={{
-            cursor: 'pointer',
+            cursor: can_edit ? 'pointer' : 'default',
+            '& .MuiDataGrid-row': {
+              cursor: can_edit ? 'pointer' : 'default'
+            },
             '& .MuiDataGrid-row:hover': {
-              cursor: 'pointer'
+              cursor: can_edit ? 'pointer' : 'default'
             }
           }}
         />

@@ -344,6 +344,16 @@ export default function UserListPage() {
     }
   }
 
+  if (!perms.can_view && !isSuperAdmin) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view Users.
+        </Alert>
+      </Box>
+    )
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppCard

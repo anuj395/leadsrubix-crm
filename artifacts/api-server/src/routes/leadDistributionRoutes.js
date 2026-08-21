@@ -1,11 +1,12 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
+const { requireScreenAction } = require('../middlewares/screenAction');
 
 const router = express.Router();
 
 // Get list of distribution rules
-router.get('/rules', authenticate, async (req, res) => {
+router.get('/rules', authenticate, requireScreenAction('leadDistribution', 'view'), async (req, res) => {
   try {
     const LeadDistributionRule = mongoose.model('LeadDistributionRule');
     const orgId = req.user.organizationId || req.user.organization_id;
@@ -20,7 +21,7 @@ router.get('/rules', authenticate, async (req, res) => {
 });
 
 // Create distribution rule
-router.post('/rules', authenticate, async (req, res) => {
+router.post('/rules', authenticate, requireScreenAction('leadDistribution', 'add'), async (req, res) => {
   try {
     const LeadDistributionRule = mongoose.model('LeadDistributionRule');
     const orgId = req.user.organizationId || req.user.organization_id;
@@ -51,7 +52,7 @@ router.post('/rules', authenticate, async (req, res) => {
 });
 
 // Update distribution rule
-router.put('/rules/:id', authenticate, async (req, res) => {
+router.put('/rules/:id', authenticate, requireScreenAction('leadDistribution', 'edit'), async (req, res) => {
   try {
     const LeadDistributionRule = mongoose.model('LeadDistributionRule');
     const orgId = req.user.organizationId || req.user.organization_id;
@@ -80,7 +81,7 @@ router.put('/rules/:id', authenticate, async (req, res) => {
 });
 
 // Delete distribution rule
-router.delete('/rules/:id', authenticate, async (req, res) => {
+router.delete('/rules/:id', authenticate, requireScreenAction('leadDistribution', 'delete'), async (req, res) => {
   try {
     const LeadDistributionRule = mongoose.model('LeadDistributionRule');
     const orgId = req.user.organizationId || req.user.organization_id;
@@ -96,7 +97,7 @@ router.delete('/rules/:id', authenticate, async (req, res) => {
 });
 
 // Get list of rotation rules
-router.get('/rotation-rules', authenticate, async (req, res) => {
+router.get('/rotation-rules', authenticate, requireScreenAction('leadRotation', 'view'), async (req, res) => {
   try {
     const LeadRotationRule = mongoose.model('LeadRotationRule');
     const orgId = req.user.organizationId || req.user.organization_id;
@@ -111,7 +112,7 @@ router.get('/rotation-rules', authenticate, async (req, res) => {
 });
 
 // Create rotation rule
-router.post('/rotation-rules', authenticate, async (req, res) => {
+router.post('/rotation-rules', authenticate, requireScreenAction('leadRotation', 'add'), async (req, res) => {
   try {
     const LeadRotationRule = mongoose.model('LeadRotationRule');
     const orgId = req.user.organizationId || req.user.organization_id;
@@ -139,7 +140,7 @@ router.post('/rotation-rules', authenticate, async (req, res) => {
 });
 
 // Delete rotation rule
-router.delete('/rotation-rules/:id', authenticate, async (req, res) => {
+router.delete('/rotation-rules/:id', authenticate, requireScreenAction('leadRotation', 'delete'), async (req, res) => {
   try {
     const LeadRotationRule = mongoose.model('LeadRotationRule');
     const orgId = req.user.organizationId || req.user.organization_id;

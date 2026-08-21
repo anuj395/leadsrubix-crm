@@ -360,14 +360,24 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
   return { list, getOne, create, update, remove };
 }
 
-function buildRouter(controller, { authenticate }) {
+function buildRouter(controller, { authenticate, screenKey }) {
   const express = require('express');
   const router = express.Router();
-  router.get('/', authenticate, controller.list);
-  router.get('/:id', authenticate, controller.getOne);
-  router.post('/', authenticate, controller.create);
-  router.put('/:id', authenticate, controller.update);
-  router.delete('/:id', authenticate, controller.remove);
+  const { requireScreenAction } = require('../middlewares/screenAction');
+
+  if (screenKey) {
+    router.get('/', authenticate, requireScreenAction(screenKey, 'view'), controller.list);
+    router.get('/:id', authenticate, requireScreenAction(screenKey, 'view'), controller.getOne);
+    router.post('/', authenticate, requireScreenAction(screenKey, 'add'), controller.create);
+    router.put('/:id', authenticate, requireScreenAction(screenKey, 'edit'), controller.update);
+    router.delete('/:id', authenticate, requireScreenAction(screenKey, 'delete'), controller.remove);
+  } else {
+    router.get('/', authenticate, controller.list);
+    router.get('/:id', authenticate, controller.getOne);
+    router.post('/', authenticate, controller.create);
+    router.put('/:id', authenticate, controller.update);
+    router.delete('/:id', authenticate, controller.remove);
+  }
   return router;
 }
 

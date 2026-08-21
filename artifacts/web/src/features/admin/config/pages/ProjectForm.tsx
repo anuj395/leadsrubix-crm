@@ -10,12 +10,14 @@ import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import type { Project } from './ProjectsList'
 
 export default function ProjectFormPage() {
   const user = useAppSelector((s) => s.auth.user)
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('configProjects')
   const [loading, setLoading] = useState(false)
   const [editingItem, setEditingItem] = useState<Project | null>(null)
   const [initializing, setInitializing] = useState(!!id)
@@ -104,6 +106,27 @@ export default function ProjectFormPage() {
     formTitle = id ? 'Edit Product Category' : 'Create Product Category';
     formSubtitle = 'Manage product categories, plant details, status, and ISO info.';
     successMsg = id ? 'Product Category updated successfully' : 'Product Category created successfully';
+  }
+
+  if (!permsLoading) {
+    if (id && !can_edit) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to edit projects.
+          </Alert>
+        </Box>
+      )
+    }
+    if (!id && !can_add) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to add projects.
+          </Alert>
+        </Box>
+      )
+    }
   }
 
   return (

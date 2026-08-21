@@ -19,10 +19,12 @@ import {
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { resolveScreen } from '@/services/screenAdminService'
 import { useAuth } from '@/hooks/useAuth'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export default function ReassignListPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { can_view, can_add, can_delete, loading: permsLoading } = useActionPermission('leadRotation')
   const [items, setItems] = useState<LeadRotationRule[]>([])
   const [dynamicHeaders, setDynamicHeaders] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -178,24 +180,36 @@ export default function ReassignListPage() {
     })
 
     // Append actions column at the end
-    mappedCols.push({
-      field: '__actions',
-      headerName: 'Actions',
-      width: 80,
-      sortable: false,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    })
+    if (can_delete) {
+      mappedCols.push({
+        field: '__actions',
+        headerName: 'Actions',
+        width: 80,
+        sortable: false,
+        renderCell: (p) => (
+          <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        ),
+      })
+    }
 
     return mappedCols
-  }, [dynamicHeaders, labels])
+  }, [dynamicHeaders, labels, can_delete])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view {labels.title}.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -204,9 +218,11 @@ export default function ReassignListPage() {
         subtitle={labels.subtitle}
         sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/reassign/logic')}>
-            {labels.addLogic}
-          </Button>
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/reassign/logic')}>
+              {labels.addLogic}
+            </Button>
+          ) : undefined
         }
       >
         <Box sx={{ flex: 1, minHeight: 400 }}>

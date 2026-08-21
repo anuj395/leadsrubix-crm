@@ -10,6 +10,8 @@ import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { createContact, updateContact, listContacts, type Contact } from '@/services/contactsService'
 
+import { useActionPermission } from '@/hooks/useActionPermission'
+
 function toFormValues(row: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
   for (const [k, v] of Object.entries(row)) {
@@ -27,6 +29,8 @@ const AddContactPage = () => {
   const [searchParams] = useSearchParams()
   const industryCode = searchParams.get('industry') || undefined
   const organizationId = searchParams.get('organization') || undefined
+
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('contacts')
 
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [initializing, setInitializing] = useState(!!id)
@@ -81,10 +85,36 @@ const AddContactPage = () => {
     }
   }
 
-  if (initializing) {
+  if (initializing || permsLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (id && !can_edit) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to edit contacts.
+        </Alert>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate('/leads/contacts')}>
+          Back to Contacts
+        </Button>
+      </Box>
+    )
+  }
+
+  if (!id && !can_add) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to add new contacts.
+        </Alert>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate('/leads/contacts')}>
+          Back to Contacts
+        </Button>
       </Box>
     )
   }

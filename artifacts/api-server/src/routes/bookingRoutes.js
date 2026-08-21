@@ -9,4 +9,4 @@ const controller = buildController({
   allowedSort: ['createdAt', 'updatedAt', 'project', 'location'],
 });
 
-module.exports = buildRouter(controller, { authenticate });
+module.exports = buildRouter(controller, { authenticate, screenKey: 'bookings' });

@@ -38,6 +38,7 @@ import { listContacts, updateContact, type Contact } from '@/services/contactsSe
 import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import { api } from '@/services/api'
 import CallbackModal from '../components/CallbackModal'
 import NotInterestedModal from '../components/NotInterestedModal'
@@ -63,6 +64,7 @@ export default function ContactDetailsPage() {
 
   const [contact, setContact] = useState<Contact | null>(null)
   const [booking, setBooking] = useState<Booking | null>(null)
+  const { can_edit, can_add } = useActionPermission('contacts')
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
@@ -222,35 +224,37 @@ export default function ContactDetailsPage() {
             </Button>
             
             {/* Stage Action Buttons */}
-            {currentStage === 'FRESH' && (
+            {can_edit && currentStage === 'FRESH' && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
                 <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Call Back</Button>
                 <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
-            {(currentStage === 'CALLBACK' || currentStage === 'CALL BACK') && (
+            {can_edit && (currentStage === 'CALLBACK' || currentStage === 'CALL BACK') && (
               <>
                 <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Interested</Button>
                 <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Re-Call Back</Button>
                 <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Not Interested</Button>
               </>
             )}
-            {currentStage === 'INTERESTED' && (
+            {can_edit && currentStage === 'INTERESTED' && (
               <>
                 <Button variant="contained" color="error" size="small" onClick={() => setLostOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Lost</Button>
                 <Button variant="contained" color="warning" size="small" onClick={() => setRescheduleOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold', color: '#fff' }}>Re-Schedule</Button>
                 <Button variant="contained" color="secondary" size="small" onClick={() => setTaskOpen(true)} sx={{ textTransform: 'none', fontWeight: 'bold' }}>Create</Button>
               </>
             )}
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => navigate(`/leads/contacts/${contact._id}/edit`)}
-              sx={{ textTransform: 'none' }}
-            >
-              Edit Details
-            </Button>
+            {can_edit && (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => navigate(`/leads/contacts/${contact._id}/edit`)}
+                sx={{ textTransform: 'none' }}
+              >
+                Edit Details
+              </Button>
+            )}
           </Stack>
         }
       >

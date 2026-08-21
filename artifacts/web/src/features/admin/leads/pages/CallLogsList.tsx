@@ -14,7 +14,9 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { useTableConfig } from '@/hooks/useTableConfig'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import api from '@/services/axiosInstance'
+import Alert from '@mui/material/Alert'
 
 interface CallLog {
   _id: string
@@ -39,6 +41,7 @@ interface CallLog {
 export default function CallLogsListPage() {
   const { user } = useAppSelector(selectAuth)
   const { screenName } = useTableConfig('calls', user?.industryId)
+  const { can_view, loading: permsLoading } = useActionPermission('callback')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [logs, setLogs] = useState<CallLog[]>([])
@@ -194,6 +197,16 @@ export default function CallLogsListPage() {
       },
     ]
   }, [logs, user?.industryId])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view Call Logs.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto' }}>

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
+const { requireScreenAction } = require('../middlewares/screenAction');
 
 const DEFAULT_DAYS = [
   { day: 'Monday', closed: false, opensAt: '09:00', closesAt: '18:00', notes: 'Standard business hours' },
@@ -13,7 +14,7 @@ const DEFAULT_DAYS = [
   { day: 'Sunday', closed: true, opensAt: '', closesAt: '', notes: 'Off-duty' },
 ];
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requireScreenAction('workingDays', 'view'), async (req, res) => {
   try {
     const WorkingDay = mongoose.model('WorkingDay');
     let doc = await WorkingDay.findOne({ organization_id: req.user.organizationId }).exec();
@@ -45,7 +46,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, requireScreenAction('workingDays', 'edit'), async (req, res) => {
   try {
     const { closed, opensAt, closesAt, notes } = req.body;
     const WorkingDay = mongoose.model('WorkingDay');

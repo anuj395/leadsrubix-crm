@@ -20,6 +20,7 @@ import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { selectAuth } from '@/features/auth'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 
 export interface Task {
@@ -44,6 +45,8 @@ export default function TasksListPage() {
   const navigate = useNavigate()
   const { user } = useAppSelector(selectAuth)
   const industryId = user?.industryId
+
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('tasks')
 
   const [items, setItems] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
@@ -141,33 +144,40 @@ export default function TasksListPage() {
       },
     }))
 
-    const actionsCol: GridColDef<Task> = {
-      field: '__actions__',
-      headerName: 'Actions',
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      align: 'right',
-      headerAlign: 'right',
-      width: 120,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => setEditingTask(p.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    }
+    const showActions = can_edit || can_delete
+    const actionsCol: GridColDef<Task> | null = showActions
+      ? {
+          field: '__actions__',
+          headerName: 'Actions',
+          sortable: false,
+          filterable: false,
+          disableColumnMenu: true,
+          align: 'right',
+          headerAlign: 'right',
+          width: 120,
+          renderCell: (p) => (
+            <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+              {can_edit && (
+                <Tooltip title="Edit">
+                  <IconButton size="small" onClick={() => setEditingTask(p.row)}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {can_delete && (
+                <Tooltip title="Delete">
+                  <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
+          ),
+        }
+      : null
 
-    return [sNoCol, ...dataCols, actionsCol]
-  }, [dbColumns])
+    return [sNoCol, ...dataCols, ...(actionsCol ? [actionsCol] : [])]
+  }, [dbColumns, items, can_edit, can_delete])
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<Record<string, boolean>>({})
 
@@ -180,6 +190,16 @@ export default function TasksListPage() {
       setColumnVisibilityModel(model)
     }
   }, [dbColumns])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view Tasks.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -197,6 +217,13 @@ export default function TasksListPage() {
       <AppCard
         title={screenName || 'Tasks'}
         subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
+        action={
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+              Add Task
+            </Button>
+          ) : undefined
+        }
         fullHeight
       >
         <AppDataGrid
@@ -208,12 +235,21 @@ export default function TasksListPage() {
           loading={loading || configLoading}
           getRowId={(r) => r._id}
           onReload={refresh}
-          onRowClick={(params) => {
+          onRowClick={can_edit ? (params) => {
             const stage = String(params.row.stage || '').toUpperCase()
             if (stage === 'INTERESTED' || stage === 'CALLBACK' || stage === 'CALL BACK') {
               if (params.row.contactId) {
                 navigate(`/leads/contacts/${params.row.contactId}`)
               }
+            }
+          } : undefined}
+          sx={{
+            cursor: can_edit ? 'pointer' : 'default',
+            '& .MuiDataGrid-row': {
+              cursor: can_edit ? 'pointer' : 'default'
+            },
+            '& .MuiDataGrid-row:hover': {
+              cursor: can_edit ? 'pointer' : 'default'
             }
           }}
         />

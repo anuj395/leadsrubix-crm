@@ -104,49 +104,29 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
   if (!authedUser) return false;
   if (!ACTIONS.includes(action)) return false;
   if (authedUser.role === 'superAdmin' || authedUser.role === 'admin') return true;
-  if (!authedUser.industryId) return false;
 
   const orgId = authedUser.organizationId || authedUser.organization_id || null;
-  const wsId = authedUser.workspaceId || authedUser.workspace_id || null;
+  const wsId = authedUser.workspaceId || authedUser.workspace_id || (orgId ? 'ws_' + orgId : null);
+  const targetIndustryId = (await resolveIndustryId(authedUser.industryId || authedUser.industry_id)) || authedUser.industryId;
 
-  // Find screen
-  const screen = await screenModel.findByKey(screen_key, orgId) || await screenModel.findByKey(screen_key, null);
-  if (!screen || !screen.isActive) return false;
-
-  const role = await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role, orgId) || await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role, null);
-  if (!role) return false;
-
-  // 1. Try resolving with workspace-scoped permissions
-  if (orgId && wsId) {
-    const wsRow = await model.findFor({
-      roleId: role._id,
-      industryId: authedUser.industryId,
-      screenId: screen._id,
-      organizationId: orgId,
-      workspaceId: wsId,
-    });
-    if (wsRow) return !!wsRow[`can_${action}`];
-  }
-
-  // 2. Try resolving with organization-scoped permissions
+  // 1. Try resolving with organization-scoped permissions
   if (orgId) {
     const orgRow = await model.findFor({
-      roleId: role._id,
-      industryId: authedUser.industryId,
-      screenId: screen._id,
+      screen_key,
+      role_key: authedUser.role,
+      industryId: targetIndustryId,
       organizationId: orgId,
-      workspaceId: null,
+      workspaceId: wsId,
     });
     if (orgRow) return !!orgRow[`can_${action}`];
   }
 
-  // 3. Fallback to industry-level template permissions
+  // 2. Fallback to industry-level template permissions
   const globalRow = await model.findFor({
-    roleId: role._id,
-    industryId: authedUser.industryId,
-    screenId: screen._id,
+    screen_key,
+    role_key: authedUser.role,
+    industryId: targetIndustryId,
     organizationId: null,
-    workspaceId: null,
   });
   if (globalRow) return !!globalRow[`can_${action}`];
 

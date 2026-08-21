@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
+const { requireScreenAction } = require('../middlewares/screenAction');
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requireScreenAction('holidays', 'view'), async (req, res) => {
   try {
     const Holiday = mongoose.model('Holiday');
     const doc = await Holiday.findOne({ organization_id: req.user.organizationId }).lean().exec();
@@ -15,7 +16,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requireScreenAction('holidays', 'add'), async (req, res) => {
   try {
     const { name, date, type, description } = req.body;
     if (!name || !date) return res.status(400).json({ message: 'Name and Date are required' });
@@ -49,7 +50,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, requireScreenAction('holidays', 'edit'), async (req, res) => {
   try {
     const { name, date, type, description } = req.body;
     if (!name || !date) return res.status(400).json({ message: 'Name and Date are required' });
@@ -60,16 +61,16 @@ router.put('/:id', authenticate, async (req, res) => {
       query.organization_id = req.user?.organizationId;
     }
     const doc = await Holiday.findOne(query);
-    if (!doc) return res.status(404).json({ message: 'Holiday config not found' });
+    if (!doc) return res.status(404).json({ message: 'Holiday not found' });
 
     const subDoc = doc.holidays.id(req.params.id);
-    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    if (!subDoc) return res.status(404).json({ message: 'Holiday not found' });
 
     subDoc.name = name;
     subDoc.date = date;
-    subDoc.dayOfWeek = dayName;
-    subDoc.type = type || 'Company Holiday';
-    subDoc.description = description || '';
+    subDoc.dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    if (type) subDoc.type = type;
+    if (description !== undefined) subDoc.description = description;
 
     await doc.save();
     res.json({ ...subDoc.toObject(), id: subDoc._id });
@@ -78,7 +79,7 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, requireScreenAction('holidays', 'delete'), async (req, res) => {
   try {
     const Holiday = mongoose.model('Holiday');
     const query = { 'holidays._id': req.params.id };

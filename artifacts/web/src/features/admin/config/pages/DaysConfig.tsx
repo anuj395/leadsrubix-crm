@@ -19,6 +19,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { api } from '@/services/api'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export interface WorkingDay {
   id: string
@@ -30,6 +31,7 @@ export interface WorkingDay {
 }
 
 export default function DaysConfigPage() {
+  const { can_view, can_edit, loading: permsLoading } = useActionPermission('workingDays')
   const [items, setItems] = useState<WorkingDay[]>([])
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -91,8 +93,8 @@ export default function DaysConfigPage() {
     }
   }
 
-  const columns = useMemo<GridColDef<WorkingDay>[]>(
-    () => [
+  const columns = useMemo<GridColDef<WorkingDay>[]>(() => {
+    const cols: GridColDef<WorkingDay>[] = [
       {
         field: 'day',
         headerName: 'Day of Week',
@@ -119,7 +121,10 @@ export default function DaysConfigPage() {
         },
       },
       { field: 'notes', headerName: 'Notes / Remarks', flex: 1.5, minWidth: 200 },
-      {
+    ]
+
+    if (can_edit) {
+      cols.push({
         field: '__actions',
         headerName: 'Actions',
         width: 100,
@@ -134,10 +139,21 @@ export default function DaysConfigPage() {
             </Tooltip>
           </Stack>
         ),
-      },
-    ],
-    [],
-  )
+      })
+    }
+
+    return cols
+  }, [can_edit])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view Weekly Working Days.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box
