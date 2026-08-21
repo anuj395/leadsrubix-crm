@@ -52,16 +52,29 @@ exports.ScreenField = ScreenField;
 exports.FIELD_TYPES = FIELD_TYPES;
 exports.DROPDOWN_SOURCES = DROPDOWN_SOURCES;
 
-exports.list = async ({ screenId, activeOnly = false, organizationId, organization_id } = {}) => {
+exports.list = async ({ screenId, activeOnly = false, organizationId, organization_id, workspaceId, workspace_id } = {}) => {
   const q = {};
   if (screenId) q.screen_id = screenId;
   if (activeOnly) q.is_active = true;
 
   const orgId = organizationId !== undefined ? organizationId : organization_id;
+  const wsId = workspaceId !== undefined ? workspaceId : workspace_id;
+
   if (orgId !== undefined && orgId !== null && orgId !== 'all' && orgId !== '') {
-    q.$or = [{ organization_id: orgId }, { organization_id: null }, { organization_id: { $exists: false } }];
+    if (wsId !== undefined && wsId !== null && wsId !== 'all' && wsId !== '') {
+      q.$or = [
+        { organization_id: orgId, workspace_id: wsId },
+        { organization_id: orgId },
+        { organization_id: null }
+      ];
+    } else {
+      q.$or = [
+        { organization_id: orgId },
+        { organization_id: null }
+      ];
+    }
   } else {
-    q.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
+    q.$or = [{ organization_id: null }];
   }
 
   const rawList = await ScreenField.find(q).sort({ order: 1, label: 1 }).exec();
@@ -96,6 +109,8 @@ exports.list = async ({ screenId, activeOnly = false, organizationId, organizati
       default_value: o.defaultValue !== undefined ? o.defaultValue : (o.default_value !== undefined ? o.default_value : null),
       organizationId: o.organizationId || o.organization_id || null,
       organization_id: o.organizationId || o.organization_id || null,
+      workspaceId: o.workspaceId || o.workspace_id || null,
+      workspace_id: o.workspaceId || o.workspace_id || null,
     };
   }
 
@@ -106,8 +121,23 @@ exports.list = async ({ screenId, activeOnly = false, organizationId, organizati
     const existing = fieldMap.get(key);
     if (!existing) {
       fieldMap.set(key, shaped);
-    } else if (orgId && (f.organization_id === orgId || f.organizationId === orgId)) {
-      fieldMap.set(key, shaped);
+    } else {
+      const existingOrg = existing.organization_id;
+      const existingWs = existing.workspace_id;
+      const currentOrg = f.organization_id || f.organizationId;
+      const currentWs = f.workspace_id || f.workspaceId;
+
+      const isCurrentWsMatch = wsId && currentWs === wsId;
+      const isCurrentOrgMatch = orgId && currentOrg === orgId;
+
+      const isExistingWsMatch = wsId && existingWs === wsId;
+      const isExistingOrgMatch = orgId && existingOrg === orgId;
+
+      if (isCurrentWsMatch && !isExistingWsMatch) {
+        fieldMap.set(key, shaped);
+      } else if (isCurrentOrgMatch && !isCurrentWsMatch && !isExistingWsMatch && !isExistingOrgMatch) {
+        fieldMap.set(key, shaped);
+      }
     }
   }
 

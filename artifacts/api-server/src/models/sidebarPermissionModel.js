@@ -18,12 +18,12 @@ const sidebarPermissionSchema = new mongoose.Schema(
 );
 
 sidebarPermissionSchema.index(
-  { organization_id: 1, role_id: 1, industry_id: 1, menu_id: 1 },
-  { unique: true, name: 'idx_perm_org_unique' },
+  { organization_id: 1, workspace_id: 1, role_id: 1, industry_id: 1, menu_id: 1 },
+  { unique: true, name: 'idx_sidebar_perm_scoped_unique' },
 );
 sidebarPermissionSchema.index(
-  { organization_id: 1, role_id: 1, industry_id: 1, is_visible: 1 },
-  { name: 'idx_perm_org_lookup' },
+  { organization_id: 1, workspace_id: 1, role_id: 1, industry_id: 1, is_visible: 1 },
+  { name: 'idx_sidebar_perm_scoped_lookup' },
 );
 
 const SidebarPermission = mongoose.model(

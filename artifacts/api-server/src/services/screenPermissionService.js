@@ -18,13 +18,48 @@ exports.list = async (opts) => {
     if (opts.screenId) q.screenId = opts.screenId;
     if (opts.organizationId) q.organizationId = opts.organizationId;
     if (opts.organization_id) q.organization_id = opts.organization_id;
+    if (opts.workspaceId) q.workspaceId = opts.workspaceId;
+    if (opts.workspace_id) q.workspace_id = opts.workspace_id;
   }
   const fields = await fieldModel.list(q);
-  const validFieldIds = new Set(fields.map((f) => String(f._id)));
-  return items.filter((item) => validFieldIds.has(String(item.fieldId)));
+  const fieldKeyToTargetId = new Map();
+  const validFieldIds = new Set();
+  for (const f of fields) {
+    validFieldIds.add(String(f._id));
+    fieldKeyToTargetId.set(f.field_key || f.fieldKey, String(f._id));
+  }
+
+  const mongoose = require('mongoose');
+  const ScreenFieldModel = mongoose.model('ScreenField');
+  const allFieldIds = [...new Set(items.map(i => i.fieldId || i.field_id).filter(Boolean))];
+  const allFields = await ScreenFieldModel.find({ _id: { $in: allFieldIds } }).lean().exec();
+  const fieldIdToKey = new Map(allFields.map(f => [String(f._id), f.field_key]));
+
+  const result = [];
+  const seenFieldIds = new Set();
+  for (const item of items) {
+    const fIdStr = String(item.fieldId || item.field_id);
+    const fKey = fieldIdToKey.get(fIdStr);
+    let targetId = null;
+    if (validFieldIds.has(fIdStr)) {
+      targetId = fIdStr;
+    } else if (fKey && fieldKeyToTargetId.has(fKey)) {
+      targetId = fieldKeyToTargetId.get(fKey);
+    }
+    if (targetId && !seenFieldIds.has(targetId)) {
+      seenFieldIds.add(targetId);
+      result.push({
+        ...item,
+        fieldId: targetId,
+        field_id: targetId,
+        fieldKey: fKey,
+      });
+    }
+  }
+  return result;
 };
 
-exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationId, organization_id }) => {
+exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationId, organization_id, workspaceId, workspace_id }) => {
   if (!screenId || !roleId || !industryId) {
     const err = new Error('screenId, roleId and industryId are required');
     err.status = 400;
@@ -43,11 +78,13 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationI
   }
   const resolvedIndustryId = industry._id;
 
-  // Verify the (screen, role, industry) triple is internally consistent before
-  // we write rows that would otherwise drift from real FKs.
   const orgId = organizationId !== undefined ? organizationId : (organization_id !== undefined ? organization_id : null);
+  const wsId = workspaceId !== undefined ? workspaceId : (workspace_id !== undefined ? workspace_id : (orgId ? 'ws_' + orgId : null));
   const mongoose = require('mongoose');
   const RoleModel = mongoose.model('Role');
+  const ScreenModel = mongoose.model('Screen');
+  const ScreenFieldModel = mongoose.model('ScreenField');
+
   const [screen, role] = await Promise.all([
     screenModel.findById(screenId),
     RoleModel.findOne({
@@ -58,86 +95,47 @@ exports.bulkSet = async ({ screenId, roleId, industryId, fieldIds, organizationI
   if (!screen) {
     const err = new Error('Screen not found'); err.status = 404; throw err;
   }
-  if (screen.organization_id && orgId && String(screen.organization_id) !== String(orgId)) {
-    const err = new Error('Screen not found or access forbidden');
-    err.status = 403;
-    throw err;
-  }
   if (!role) {
     const err = new Error('Role not found'); err.status = 404; throw err;
   }
-  const roleIndustryId = role.industryId?._id ? String(role.industryId._id) : String(role.industryId);
-  if (roleIndustryId !== String(resolvedIndustryId)) {
-    const err = new Error('Role does not belong to the given industry');
-    err.status = 400;
-    throw err;
-  }
 
-  // Admin must not grant permissions that are not allowed by the Industry-level configuration.
-  if (orgId) {
-    const baselineRole = await RoleModel.findOne({
-      industry_id: resolvedIndustryId,
-      key: role.key,
-      organization_id: null
-    }).exec();
+  // Find target fields by requested IDs
+  const targetFields = await ScreenFieldModel.find({ _id: { $in: fieldIds } }).lean().exec();
+  const selectedFieldKeys = new Set(targetFields.map(f => f.field_key));
 
-    if (baselineRole) {
-      const ScreenModel = mongoose.model('Screen');
-      const baseScreen = await ScreenModel.findOne({
-        key: screen.key,
-        organization_id: null
-      }).exec();
+  const allScreensForThisKey = await ScreenModel.find({ key: screen.key }).lean().exec();
+  const allScreenIdsToSync = allScreensForThisKey.map(s => s._id);
 
-      if (baseScreen) {
-        const ScreenPermissionModel = mongoose.model('ScreenPermission');
-        const baselinePerms = await ScreenPermissionModel.find({
-          screen_id: baseScreen._id,
-          role_id: baselineRole._id,
-          industry_id: resolvedIndustryId,
-          organization_id: null,
-          is_enabled: true
-        }).lean().exec();
+  const allRolesForThisKey = await RoleModel.find({ industry_id: resolvedIndustryId, key: role.key }).lean().exec();
+  const allRoleIdsToSync = allRolesForThisKey.map(r => r._id);
 
-        const ScreenFieldModel = mongoose.model('ScreenField');
-        const baselineFields = await ScreenFieldModel.find({
-          _id: { $in: baselinePerms.map(p => p.field_id) }
-        }).lean().exec();
-        const allowedFieldKeys = new Set(baselineFields.map(f => f.field_key));
+  const allScreenFields = await ScreenFieldModel.find({
+    screen_id: { $in: allScreenIdsToSync }
+  }).lean().exec();
 
-        const targetFields = await ScreenFieldModel.find({
-          _id: { $in: fieldIds }
-        }).lean().exec();
+  const allMatchingFieldIds = allScreenFields
+    .filter(f => selectedFieldKeys.has(f.field_key))
+    .map(f => String(f._id));
 
-        const invalidFields = targetFields.filter(f => !allowedFieldKeys.has(f.field_key));
-        if (invalidFields.length > 0) {
-          const err = new Error(`Cannot grant permissions for field(s) [${invalidFields.map(f => f.label).join(', ')}] because they are not allowed by the Industry-level configuration.`);
-          err.status = 400;
-          throw err;
-        }
-      }
+  for (const sId of allScreenIdsToSync) {
+    for (const rId of allRoleIdsToSync) {
+      await permissionModel.bulkSetForCombo({
+        screenId: sId,
+        roleId: rId,
+        industryId: resolvedIndustryId,
+        fieldIds: allMatchingFieldIds,
+        organizationId: orgId,
+        workspaceId: wsId,
+      });
     }
   }
 
-  // Verify every requested field belongs to this screen.
-  if (fieldIds.length > 0) {
-    const fields = await fieldModel.list({ screenId, organizationId: orgId });
-    const validIds = new Set(fields.map((f) => String(f._id)));
-    const invalid = fieldIds.filter((id) => !validIds.has(String(id)));
-    if (invalid.length > 0) {
-      const err = new Error(
-        `fieldIds contains entries that do not belong to this screen: ${invalid.join(', ')}`,
-      );
-      err.status = 400;
-      throw err;
-    }
-  }
-
-  return permissionModel.bulkSetForCombo({
-    screenId,
-    roleId,
+  return permissionModel.list({
+    screenId: screen._id,
+    roleId: role._id,
     industryId: resolvedIndustryId,
-    fieldIds,
-    organizationId: orgId
+    organizationId: orgId,
+    workspaceId: wsId,
   });
 };
 
@@ -272,11 +270,45 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
 
   // Active fields for this screen.
   const ScreenFieldModel = mongoose.model('ScreenField');
-  const fields = await ScreenFieldModel.find({
-    screen_id: screen._id,
-    $or: [{ organization_id: orgId }, { organization_id: null }],
-    is_active: true
-  }).lean().exec();
+  const wsId = authedUser?.workspaceId || authedUser?.workspace_id || (orgId ? 'ws_' + orgId : null);
+
+  let fieldsQuery = { screen_id: screen._id, is_active: true };
+  if (orgId && wsId) {
+    fieldsQuery.$or = [
+      { organization_id: orgId, workspace_id: wsId },
+      { organization_id: orgId },
+      { organization_id: null }
+    ];
+  } else if (orgId) {
+    fieldsQuery.$or = [
+      { organization_id: orgId },
+      { organization_id: null }
+    ];
+  } else {
+    fieldsQuery.$or = [{ organization_id: null }];
+  }
+
+  const rawFields = await ScreenFieldModel.find(fieldsQuery).lean().exec();
+
+  const fieldMap = new Map();
+  for (const f of rawFields) {
+    const key = f.field_key;
+    const existing = fieldMap.get(key);
+    if (!existing) {
+      fieldMap.set(key, f);
+    } else {
+      const existingOrg = existing.organization_id;
+      const existingWs = existing.workspace_id;
+      const currentOrg = f.organization_id;
+      const currentWs = f.workspace_id;
+      if (wsId && currentWs === wsId && existingWs !== wsId) {
+        fieldMap.set(key, f);
+      } else if (orgId && currentOrg === orgId && currentWs !== wsId && existingWs !== wsId && existingOrg !== orgId) {
+        fieldMap.set(key, f);
+      }
+    }
+  }
+  const fields = Array.from(fieldMap.values());
 
   if (fields.length === 0) {
     return {
@@ -293,26 +325,50 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     allowed = fields;
   } else {
     const ScreenPermissionModel = mongoose.model('ScreenPermission');
-    let perms = await ScreenPermissionModel.find({
-      organization_id: orgId,
-      screen_id: screen._id,
-      role_id: role._id,
-      industry_id: industry._id,
-      is_enabled: true
-    }).lean().exec();
+    const ScreenModel = mongoose.model('Screen');
+    const RoleModel = mongoose.model('Role');
 
+    const allScreensForThisKey = await ScreenModel.find({ key: screen.key }).select('_id').lean().exec();
+    const allScreenIds = allScreensForThisKey.map(s => s._id);
+
+    const allRolesForThisKey = await RoleModel.find({ industry_id: industry._id, key: role.key }).select('_id').lean().exec();
+    const allRoleIds = allRolesForThisKey.map(r => r._id);
+
+    let perms = [];
+    if (orgId && wsId) {
+      perms = await ScreenPermissionModel.find({
+        organization_id: orgId,
+        workspace_id: wsId,
+        screen_id: { $in: allScreenIds },
+        role_id: { $in: allRoleIds },
+        industry_id: industry._id,
+        is_enabled: true
+      }).lean().exec();
+    }
     if (!perms.length && orgId) {
       perms = await ScreenPermissionModel.find({
+        organization_id: orgId,
+        screen_id: { $in: allScreenIds },
+        role_id: { $in: allRoleIds },
+        industry_id: industry._id,
+        is_enabled: true
+      }).lean().exec();
+    }
+    if (!perms.length) {
+      perms = await ScreenPermissionModel.find({
         organization_id: null,
-        screen_id: screen._id,
-        role_id: role._id,
+        screen_id: { $in: allScreenIds },
+        role_id: { $in: allRoleIds },
         industry_id: industry._id,
         is_enabled: true
       }).lean().exec();
     }
 
-    const allowedFieldIds = new Set(perms.map((p) => String(p.field_id)));
-    allowed = fields.filter((f) => allowedFieldIds.has(String(f._id)));
+    const permFieldIds = perms.map((p) => p.field_id);
+    const permFieldDocs = await ScreenFieldModel.find({ _id: { $in: permFieldIds } }).select('field_key').lean().exec();
+    const allowedFieldKeys = new Set(permFieldDocs.map((f) => f.field_key));
+
+    allowed = fields.filter((f) => allowedFieldKeys.has(f.field_key));
   }
 
   if (!isSuperAdmin) {

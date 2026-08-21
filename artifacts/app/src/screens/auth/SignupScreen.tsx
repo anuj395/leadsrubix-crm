@@ -257,7 +257,7 @@ export const SignupScreen = ({ navigation }: any) => {
     { key: 'city', label: 'City', type: 'text', isRequired: true },
     { key: 'pincode', label: 'Pincode', type: 'text', isRequired: true },
     { key: 'industryId', label: 'Industry ID', type: 'text', isRequired: true, readOnly: true, defaultValue: industryName },
-    { key: 'numberOfEmployees', label: 'Number of Employees', type: 'select', isRequired: true, options: EMPLOYEE_COUNT_OPTIONS },
+    { key: 'numberOfEmployees', label: 'Number of Employees(Licenses)', type: 'select', isRequired: true, options: EMPLOYEE_COUNT_OPTIONS },
     { key: 'address', label: 'Address', type: 'textarea', isRequired: true },
     { key: 'password', label: 'Password', type: 'password', isRequired: true },
   ];

@@ -543,8 +543,8 @@ export function DynamicForm({
       if (screen === 'organization') {
         const numEmployees = Number(values.numEmployees || values.num_employees || 0)
         if (numEmployees > trialPeriodLicenses) {
-          next.numEmployees = `Number of Employees (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
-          next.num_employees = `Number of Employees (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
+          next.numEmployees = `Number of Employees(Licenses) (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
+          next.num_employees = `Number of Employees(Licenses) (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
         }
       }
       if (values.notIntReason === 'Other' && !String(values.otherNotIntReason || '').trim()) {

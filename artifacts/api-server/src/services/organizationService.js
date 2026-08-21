@@ -304,7 +304,7 @@ exports.create = async ({ payload, authedUser }) => {
   // Validate that Number of Employees does not exceed trialPeriodLicenses
   const numEmployeesVal = Number(cleaned.numEmployees || cleaned.num_employees || payload.fields?.numEmployees || payload.fields?.num_employees || payload.numEmployees || 0);
   if (numEmployeesVal > trialPeriodLicenses) {
-    const err = new Error(`Number of Employees (${numEmployeesVal}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`);
+    const err = new Error(`Number of Employees(Licenses) (${numEmployeesVal}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`);
     err.status = 400;
     throw err;
   }
@@ -541,7 +541,6 @@ exports.create = async ({ payload, authedUser }) => {
         'carousel',
         'leadSources',
         'locations',
-        'projects',
         'propertyStatuses'
       ];
 

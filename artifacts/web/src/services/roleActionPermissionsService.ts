@@ -24,11 +24,15 @@ export async function listRoleActionPermissions(params: {
   roleId?: string
   industryId?: string
   screenId?: string
+  organizationId?: string
+  workspaceId?: string
 } = {}): Promise<RoleActionPermission[]> {
   const search = new URLSearchParams()
-  if (params.roleId)     search.set('roleId', params.roleId)
-  if (params.industryId) search.set('industryId', params.industryId)
-  if (params.screenId)   search.set('screenId', params.screenId)
+  if (params.roleId)         search.set('roleId', params.roleId)
+  if (params.industryId)     search.set('industryId', params.industryId)
+  if (params.screenId)       search.set('screenId', params.screenId)
+  if (params.organizationId) search.set('organizationId', params.organizationId)
+  if (params.workspaceId)    search.set('workspaceId', params.workspaceId)
   const qs = search.toString()
   const res = await api.get(qs ? `role-action-permissions?${qs}` : 'role-action-permissions')
   return (res.data?.items ?? []) as RoleActionPermission[]
@@ -38,6 +42,8 @@ export async function upsertRoleActionPermission(input: {
   roleId: string
   industryId: string
   screenId: string
+  organizationId?: string
+  workspaceId?: string
   can_view?: boolean
   can_add?: boolean
   can_edit?: boolean

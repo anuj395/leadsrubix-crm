@@ -585,7 +585,7 @@ const SCREEN_DEFAULTS = [
         field_key: 'industryId', label: 'Industry ID', type: 'select', is_required: true, order: 10,
         dropdown_source: 'api', dropdown_api: '/api/options/industries?launchedOnly=true'
       },
-      { field_key: 'numEmployees', label: 'Number of Employees', type: 'number', is_required: true, order: 11 },
+      { field_key: 'numEmployees', label: 'Number of Employees(Licenses)', type: 'number', is_required: true, order: 11 },
       { field_key: 'address', label: 'Address', type: 'textarea', is_required: true, order: 12 },
       { field_key: 'costPerLicense', label: 'License Cost', type: 'number', is_required: true, order: 20 },
       { field_key: 'validTill', label: 'Valid Till', type: 'date', is_required: true, order: 21 },

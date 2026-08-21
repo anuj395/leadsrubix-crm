@@ -1142,3 +1142,48 @@ Organization: Leads Rubix Edit Test
 Username / Email: sales@gmail.com
 Temp Password: 9Y1RbP7o
 ========================================
+
+========================================
+Timestamp: 2026-08-21T05:58:16.353Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: CznsDQGz
+========================================
+
+========================================
+Timestamp: 2026-08-21T06:03:57.565Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lead@gmail.com
+Temp Password: t30jIWtK
+========================================
+
+========================================
+Timestamp: 2026-08-21T06:32:57.564Z
+To: onboarding_test_1787293976584@rubix.dev
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Fresh Onboarding Org
+Username / Email: onboarding_test_1787293976584@rubix.dev
+Temp Password: Password@123
+========================================
+
+========================================
+Timestamp: 2026-08-21T06:48:55.261Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: hHXzo2pi
+========================================
+
+========================================
+Timestamp: 2026-08-21T06:54:22.331Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lead@gmail.com
+Temp Password: zWT1Tzjb
+========================================

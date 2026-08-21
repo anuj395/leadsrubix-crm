@@ -153,11 +153,12 @@ export async function deleteScreen(id: string): Promise<void> {
   await api.delete(`screens/${id}`)
 }
 
-export async function getScreenFields(screenId?: string, organizationId?: string, industryId?: string): Promise<ScreenField[]> {
+export async function getScreenFields(screenId?: string, organizationId?: string, industryId?: string, workspaceId?: string): Promise<ScreenField[]> {
   const parts: string[] = []
   if (screenId) parts.push(`screenId=${encodeURIComponent(screenId)}`)
   if (organizationId) parts.push(`organizationId=${encodeURIComponent(organizationId)}`)
   if (industryId) parts.push(`industryId=${encodeURIComponent(industryId)}`)
+  if (workspaceId) parts.push(`workspaceId=${encodeURIComponent(workspaceId)}`)
   const qs = parts.length ? `?${parts.join('&')}` : ''
   return safeList<ScreenField>(`screen-fields${qs}`)
 }
@@ -183,6 +184,7 @@ export async function getScreenPermissions(params: {
   industryId?: string
   enabledOnly?: boolean
   organizationId?: string
+  workspaceId?: string
 } = {}): Promise<ScreenPermission[]> {
   const search = new URLSearchParams()
   if (params.screenId) search.set('screenId', params.screenId)
@@ -190,6 +192,7 @@ export async function getScreenPermissions(params: {
   if (params.industryId) search.set('industryId', params.industryId)
   if (params.enabledOnly) search.set('enabled', 'true')
   if (params.organizationId) search.set('organizationId', params.organizationId)
+  if (params.workspaceId) search.set('workspaceId', params.workspaceId)
   const qs = search.toString()
   return safeList<ScreenPermission>(qs ? `screen-permissions?${qs}` : 'screen-permissions')
 }
@@ -200,6 +203,7 @@ export async function bulkSetScreenPermissions(input: {
   industryId: string
   fieldIds: string[]
   organizationId?: string
+  workspaceId?: string
 }): Promise<ScreenPermission[]> {
   const payload = {
     screenId: input.screenId,
@@ -207,6 +211,7 @@ export async function bulkSetScreenPermissions(input: {
     industryId: input.industryId,
     fieldIds: input.fieldIds,
     organizationId: input.organizationId,
+    workspaceId: input.workspaceId,
   }
   const res = await api.post('screen-permissions/bulk', payload)
   return (res.data?.items ?? []) as ScreenPermission[]
