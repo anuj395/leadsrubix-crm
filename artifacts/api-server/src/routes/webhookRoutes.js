@@ -193,14 +193,33 @@ router.post('/createContacts', async (req, res, next) => {
       tokenData.countryCode || tokenData.country_code || '+91'
     );
 
+    // Extract normalized Organization ID from tokenData
+    const orgId = tokenData.organizationId || tokenData.organization_id || null;
+
     // Duplicate check
-    const organizationData = await Organization.findOne({ organizationId: tokenData.organizationId }).exec();
+    const organizationData = await Organization.findOne({
+      $or: [
+        { organizationId: orgId },
+        { organization_id: orgId },
+        { _id: mongoose.Types.ObjectId.isValid(orgId) ? orgId : undefined }
+      ].filter(Boolean)
+    }).exec();
+
     if (organizationData && organizationData.allowDuplicateLeads === false) {
       const existing = await Contact.findOne({
-        organizationId: tokenData.organizationId,
         $or: [
-          { contactNumber: phoneResult.contactNumber },
-          { alternateNo: phoneResult.contactNumber }
+          { organizationId: orgId },
+          { organization_id: orgId }
+        ],
+        $and: [
+          {
+            $or: [
+              { contactNumber: phoneResult.contactNumber },
+              { alternateNo: phoneResult.contactNumber },
+              { contact_number: phoneResult.contactNumber },
+              { alternate_no: phoneResult.contactNumber }
+            ]
+          }
         ]
       }).exec();
 
@@ -217,7 +236,10 @@ router.post('/createContacts', async (req, res, next) => {
     const ownerEmail = reqData.ownerEmail || reqData.owner_email || reqData.contact_owner_email;
     if (ownerEmail) {
       const userDoc = await User.findOne({
-        organizationId: tokenData.organizationId,
+        $or: [
+          { organizationId: orgId },
+          { organization_id: orgId }
+        ],
         email: String(ownerEmail).toLowerCase()
       }).exec();
       if (userDoc) {
@@ -232,8 +254,15 @@ router.post('/createContacts', async (req, res, next) => {
     const associateContact = reqData.associateContact || reqData.associate_contact;
     if (!uid && associateContact) {
       const userDoc = await User.findOne({
-        organizationId: tokenData.organizationId,
-        contactNumber: associateContact
+        $or: [
+          { organizationId: orgId },
+          { organization_id: orgId }
+        ],
+        $or: [
+          { contactNumber: associateContact },
+          { contact_number: associateContact },
+          { phone: associateContact }
+        ]
       }).exec();
       if (userDoc) {
         uid = String(userDoc._id);
@@ -245,7 +274,10 @@ router.post('/createContacts', async (req, res, next) => {
     // Lead distribution logic fallback
     if (!uid) {
       const adminUser = await User.findOne({
-        organizationId: tokenData.organizationId,
+        $or: [
+          { organizationId: orgId },
+          { organization_id: orgId }
+        ],
         role: 'admin'
       }).exec();
       if (adminUser) {
@@ -261,7 +293,8 @@ router.post('/createContacts', async (req, res, next) => {
       customerName,
       contactNumber: phoneResult.contactNumber,
       countryCode: phoneResult.countryCode,
-      organizationId: tokenData.organizationId || tokenData.organization_id || null,
+      organizationId: orgId,
+      organization_id: orgId,
       industryId: tokenData.industryId || tokenData.industry_id || (ownerUser ? (ownerUser.industryId || ownerUser.industry_id) : null),
       workspaceId: tokenData.workspaceId || tokenData.workspace_id || (ownerUser ? (ownerUser.workspaceId || ownerUser.workspace_id) : null),
       uid: uid || null,

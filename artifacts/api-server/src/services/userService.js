@@ -338,9 +338,15 @@ exports.create = async ({ payload, authedUser }) => {
     const Designation = mongoose.model('Designation');
 
     const [hasTeam, hasBranch, hasDesignation] = await Promise.all([
-      Team.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.teams && doc.teams.some(t => t.isActive !== false))),
-      Branch.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.branches && doc.branches.some(b => b.isActive !== false))),
-      Designation.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
+      Team.findOne({
+        $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }]
+      }).then(doc => !!(doc && doc.teams && doc.teams.some(t => t.isActive !== false))),
+      Branch.findOne({
+        $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }]
+      }).then(doc => !!(doc && doc.branches && doc.branches.some(b => b.isActive !== false))),
+      Designation.findOne({
+        $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }]
+      }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
     ]);
 
     if (!hasTeam || !hasBranch || !hasDesignation) {
@@ -373,7 +379,10 @@ exports.create = async ({ payload, authedUser }) => {
     const limit = limitVal !== null ? Number(limitVal) : null;
     if (limit !== null && limit !== undefined && !isNaN(limit)) {
       const activeCount = await userModel.User.countDocuments({
-        organizationId: targetOrgId,
+        $or: [
+          { organizationId: targetOrgId },
+          { organization_id: targetOrgId }
+        ],
         isActive: true
       });
       if (activeCount >= limit) {

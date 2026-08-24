@@ -65,13 +65,40 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
 
     setLoadingScope(true)
     axiosInstance
-      .get('/analytics/dashboard?groupBy=team')
+      .get('/organizations?pageSize=1000')
       .then((res) => {
         if (cancelled) return
-        const list = res.data?.organizationsList || []
-        setOrganizations(list)
+        const rawList = res.data?.items || res.data || []
+        const list: ScopeOrg[] = rawList.map((org: any) => ({
+          code: org.organization_id || org.organizationId || org._id,
+          name: org.organization_name || org.organizationName || org.name || 'Organization',
+          industryId: org.industry_id || org.industryId || org.industryCode || org.industry_code || '',
+        }))
+        if (list.length > 0) {
+          setOrganizations(list)
+        } else {
+          // Fallback to analytics if items empty
+          axiosInstance
+            .get('/analytics/dashboard?groupBy=team')
+            .then((dashRes) => {
+              if (cancelled) return
+              const fallbackList = dashRes.data?.organizationsList || []
+              setOrganizations(fallbackList)
+            })
+            .catch(() => {})
+        }
       })
-      .catch((err) => console.error('Failed to fetch organizations list', err))
+      .catch((err) => {
+        console.error('Failed to fetch organizations list', err)
+        axiosInstance
+          .get('/analytics/dashboard?groupBy=team')
+          .then((dashRes) => {
+            if (cancelled) return
+            const fallbackList = dashRes.data?.organizationsList || []
+            setOrganizations(fallbackList)
+          })
+          .catch(() => {})
+      })
       .finally(() => {
         if (!cancelled) setLoadingScope(false)
       })

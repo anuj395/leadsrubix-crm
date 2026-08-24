@@ -16,6 +16,7 @@ exports.login = async (req, res, next) => {
     const result = await authService.login(email, password);
     res.json(result);
   } catch (err) {
+    console.error('[authController.login error]:', err);
     next(err);
   }
 };

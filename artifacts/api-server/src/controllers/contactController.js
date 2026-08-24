@@ -265,12 +265,40 @@ exports.masterSortSearch = async (req, res, next) => {
     // --- Multi-Tenant Scope Filtering ---
     if (req.user?.role === 'superAdmin') {
       if (requestedOrganization && requestedOrganization !== 'all') {
-        filter["$or"] = [{ organization_id: requestedOrganization }, { organizationId: requestedOrganization }];
+        filter["$or"] = [
+          { organization_id: requestedOrganization },
+          { organizationId: requestedOrganization }
+        ];
       } else if (requestedIndustry && requestedIndustry !== 'all') {
         const Organization = mongoose.model('Organization');
-        const orgs = await Organization.find({ industry_code: requestedIndustry }).lean().exec();
-        const orgIds = orgs.map(o => o.organization_id || String(o._id));
-        filter["$or"] = [{ organization_id: { $in: orgIds } }, { organizationId: { $in: orgIds } }];
+        const Industry = mongoose.model('Industry');
+        let indDoc = null;
+        if (mongoose.Types.ObjectId.isValid(requestedIndustry)) {
+          indDoc = await Industry.findById(requestedIndustry).lean().exec();
+        } else {
+          indDoc = await Industry.findOne({ code: requestedIndustry }).lean().exec();
+        }
+        const indIdStr = indDoc ? String(indDoc._id) : requestedIndustry;
+        const indCode = indDoc ? indDoc.code : requestedIndustry;
+        const orgs = await Organization.find({
+          $or: [
+            { industryId: indIdStr },
+            { industry_id: indIdStr },
+            { industryId: indCode },
+            { industry_id: indCode },
+            { industryCode: indCode },
+            { industry_code: indCode }
+          ]
+        }).lean().exec();
+        const orgIds = orgs.map(o => o.organization_id || o.organizationId || String(o._id)).filter(Boolean);
+        filter["$or"] = [
+          { organization_id: { $in: orgIds } },
+          { organizationId: { $in: orgIds } },
+          { industry_id: indIdStr },
+          { industryId: indIdStr },
+          { industry_id: indCode },
+          { industryId: indCode }
+        ];
       }
     } else {
       if (req.user?.organizationId) {

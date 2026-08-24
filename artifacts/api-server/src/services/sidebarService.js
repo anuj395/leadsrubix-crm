@@ -199,9 +199,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
       const order =
         typeof orderOverride === 'number'
           ? orderOverride
-          : typeof m.order === 'number'
-            ? m.order
-            : 0;
+          : (typeof m.order === 'number' ? m.order : 999);
       return {
         _id: String(m._id),
         key: m.key,
@@ -233,14 +231,30 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     }
   }
 
-  let items = Array.from(itemsMap.values());
+  let items = Array.from(itemsMap.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
 
   if (key === 'superAdmin') {
     const usersParent = items.find((it) => it.key === 'users');
     if (usersParent) {
       usersParent.route = '/users';
     }
-    items = items.filter((it) => it.key !== 'users.list');
+  }
+
+  // Ensure child items have exact matching parent_id of the parent menu in the same response
+  const parentByKey = new Map();
+  for (const item of items) {
+    if (!item.key.includes('.')) {
+      parentByKey.set(item.key, item._id);
+    }
+  }
+  for (const item of items) {
+    if (item.key.includes('.')) {
+      const parentKey = item.key.split('.')[0];
+      if (parentByKey.has(parentKey)) {
+        item.parent_id = parentByKey.get(parentKey);
+        item.parentId = parentByKey.get(parentKey);
+      }
+    }
   }
 
   return {

@@ -10,8 +10,8 @@ exports.listPipelines = async (req, res, next) => {
     const indId = req.query.industryId || req.user.industry_id || req.user.industryId || req.headers['x-industry-id'] || null;
 
     const filter = {};
-    if (orgId) {
-      filter.organization_id = orgId;
+    if (orgId && orgId !== 'all') {
+      filter.$or = [{ organization_id: orgId }, { organizationId: orgId }];
     } else if (!isSuperAdmin) {
       filter.organization_id = 'default';
     }
@@ -22,7 +22,7 @@ exports.listPipelines = async (req, res, next) => {
       const defaultStages = pipelineModel.getDefaultStagesForIndustry(indId);
       const defaultPipeline = await pipelineModel.Pipeline.create({
         name: 'Standard Pipeline',
-        organization_id: orgId || null,
+        organization_id: (orgId && orgId !== 'all') ? orgId : null,
         workspace_id: wsId,
         industry_id: indId,
         is_default: true,
@@ -63,8 +63,8 @@ exports.list = async (req, res, next) => {
     const orgId = req.query.organizationId || req.headers['x-organization-id'] || req.user.organization_id || req.user.organizationId;
     const filter = {};
 
-    if (orgId) {
-      filter.organization_id = orgId;
+    if (orgId && orgId !== 'all') {
+      filter.$or = [{ organization_id: orgId }, { organizationId: orgId }];
     } else if (!isSuperAdmin) {
       filter.organization_id = 'non_existent_scope';
     }

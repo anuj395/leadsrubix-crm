@@ -262,24 +262,63 @@ function buildController({
     return authedUser?.role === 'superAdmin';
   }
 
-  function resolveTenantFilter(authedUser, requestedIndustry, requestedOrganization) {
+  async function resolveTenantFilter(authedUser, requestedIndustry, requestedOrganization) {
     const filter = {};
     if (isSuperAdmin(authedUser)) {
       if (requestedOrganization && requestedOrganization !== 'all') {
-        filter.organization_id = requestedOrganization;
+        filter.$or = [
+          { organization_id: requestedOrganization },
+          { organizationId: requestedOrganization },
+          ...(mongoose.Types.ObjectId.isValid(requestedOrganization) ? [{ _id: requestedOrganization }] : [])
+        ];
       } else if (requestedIndustry && requestedIndustry !== 'all') {
-        filter.industry_id = requestedIndustry;
+        const Organization = mongoose.model('Organization');
+        const Industry = mongoose.model('Industry');
+        let industryDoc = null;
+        if (mongoose.Types.ObjectId.isValid(requestedIndustry)) {
+          industryDoc = await Industry.findById(requestedIndustry).lean().exec();
+        } else {
+          industryDoc = await Industry.findOne({ code: requestedIndustry }).lean().exec();
+        }
+
+        if (industryDoc) {
+          const indIdStr = String(industryDoc._id);
+          const indCode = industryDoc.code;
+          const orgDocs = await Organization.find({
+            $or: [
+              { industryId: indIdStr },
+              { industry_id: indIdStr },
+              { industryId: indCode },
+              { industry_id: indCode },
+              { industryCode: indCode },
+              { industry_code: indCode }
+            ]
+          }).lean().exec();
+          const orgIds = orgDocs.map(o => o.organizationId || o.organization_id || String(o._id)).filter(Boolean);
+          filter.$or = [
+            { organization_id: { $in: orgIds } },
+            { organizationId: { $in: orgIds } },
+            { industry_id: indIdStr },
+            { industryId: indIdStr },
+            { industry_id: indCode },
+            { industryId: indCode }
+          ];
+        }
       }
     } else {
-      if (authedUser?.industryId) filter.industry_id = authedUser.industryId;
-      if (authedUser?.organizationId) filter.organization_id = authedUser.organizationId;
+      if (authedUser?.organizationId) {
+        filter.$or = [
+          { organization_id: authedUser.organizationId },
+          { organizationId: authedUser.organizationId }
+        ];
+      }
     }
     return filter;
   }
 
   async function list(req, res, next) {
     try {
-      const filter = resolveTenantFilter(req.user, req.query.industryId, req.query.organizationId);
+      const filter = await resolveTenantFilter(req.user, req.query.industryId, req.query.organizationId);
       Object.keys(req.query).forEach((key) => {
         if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId', 'organizationId'].includes(key)) return;
         let targetKey = key;

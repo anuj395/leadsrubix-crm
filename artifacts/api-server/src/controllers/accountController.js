@@ -7,7 +7,7 @@ exports.list = async (req, res, next) => {
     const orgId = req.query.organizationId || req.headers['x-organization-id'] || req.user.organization_id || req.user.organizationId;
     const filter = {};
     if (orgId && orgId !== 'all') {
-      filter.organization_id = orgId;
+      filter.$or = [{ organization_id: orgId }, { organizationId: orgId }];
     } else if (!isSuperAdmin) {
       filter.organization_id = 'non_existent_scope';
     }

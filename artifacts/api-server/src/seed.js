@@ -171,21 +171,21 @@ async function seedUsers() {
 
 async function ensureDevAdmin() {
   const User = mongoose.model('User');
+  const bcrypt = require('bcryptjs');
 
   // Delete legacy dev superAdmin if exists
   await User.deleteOne({ email: 'dev@rubixcrm.dev' });
 
   const email = 'info@leadsrubix.com';
   const existing = await User.findOne({ email }).exec();
+  const hashedPassword = bcrypt.hashSync('lead@1221', 10);
 
   // Hash password using bcrypt if updating directly, or save new user
   if (existing) {
     existing.name = 'Gourav Chopra';
-    existing.password = 'lead@1221';
+    existing.password = hashedPassword;
     existing.role = 'superAdmin';
     existing.industryId = undefined;
-    existing.industryId = undefined;
-    existing.isActive = undefined;
     existing.isActive = undefined;
     existing.reportingTo = undefined;
     existing.reporting_to = undefined;
@@ -200,7 +200,7 @@ async function ensureDevAdmin() {
     firstName: 'Gourav',
     lastName: 'Chopra',
     email,
-    password: 'lead@1221',
+    password: hashedPassword,
     role: 'superAdmin',
   });
   await dev.save();
@@ -1187,25 +1187,29 @@ async function seedLeadDistributionSidebar() {
   await SidebarMenu.updateOne({ key: 'organization' }, { $set: { order: 2 } });
   await SidebarMenu.updateOne({ key: 'users' }, { $set: { order: 3 } });
   await SidebarMenu.updateOne({ key: 'leads' }, { $set: { order: 4 } });
-  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 6 } });
-  await SidebarMenu.updateMany({ key: { $in: ['leadDistribution', 'leaddistribution'] } }, { $set: { order: 5 } });
-  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 11 } });
-  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 12 } });
-  await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 7 } });
-  await SidebarMenu.updateOne({ key: 'tool' }, { $set: { order: 13 } });
+  await SidebarMenu.updateOne({ key: 'deals' }, { $set: { order: 5 } });
+  await SidebarMenu.updateMany({ key: { $in: ['leadDistribution', 'leaddistribution'] } }, { $set: { order: 6 } });
+  await SidebarMenu.updateOne({ key: 'configuration' }, { $set: { order: 7 } });
+  await SidebarMenu.updateOne({ key: 'integrations' }, { $set: { order: 8 } });
+  await SidebarMenu.updateOne({ key: 'uiNavigation' }, { $set: { order: 9 } });
+  await SidebarMenu.updateOne({ key: 'accessControl' }, { $set: { order: 10 } });
+  await SidebarMenu.updateOne({ key: 'invoices' }, { $set: { order: 11 } });
+  await SidebarMenu.updateOne({ key: 'support' }, { $set: { order: 12 } });
+  await SidebarMenu.updateOne({ key: 'account' }, { $set: { order: 13 } });
+  await SidebarMenu.updateOne({ key: 'tool' }, { $set: { order: 14 } });
 
   // 3. Upsert parent menu: leadDistribution
   const parentMenu = await SidebarMenu.findOneAndUpdate(
     { key: 'leadDistribution', organization_id: null },
     {
       $set: {
-        name: 'Lead Distribution',
+        name: 'Distribution',
         icon: 'leadDistribution',
         module: 'leadDistribution',
         parent_id: null,
         route: '',
         is_active: true,
-        order: 5,
+        order: 6,
         organization_id: null,
       }
     },
@@ -2073,12 +2077,6 @@ async function seedAdminAnalyticsSidebarPermissions() {
   // Build canonical menu documents map by key
   const menuDocMap = new Map();
   for (const item of CANONICAL_MENUS) {
-    let parentId = null;
-    if (item.parentKey) {
-      const parentDoc = menuDocMap.get(item.parentKey);
-      if (parentDoc) parentId = parentDoc._id;
-    }
-
     let existingDoc = await SidebarMenu.findOne({ key: item.key, organization_id: null });
     if (!existingDoc) {
       existingDoc = await SidebarMenu.create({
@@ -2087,33 +2085,38 @@ async function seedAdminAnalyticsSidebarPermissions() {
         route: item.route,
         icon: item.icon,
         module: item.parentKey || item.key,
-        parent_id: parentId,
+        parent_id: null,
         order: item.order,
         organization_id: null,
         industry_id: null,
         is_active: true,
       });
-    } else {
-      await SidebarMenu.updateOne(
-        { _id: existingDoc._id },
-        {
-          $set: {
-            name: item.name,
-            route: item.route,
-            icon: item.icon,
-            module: item.parentKey || item.key,
-            parent_id: parentId,
-            order: item.order,
-            organization_id: null,
-            industry_id: null,
-            is_active: true,
-          },
-        }
-      );
-      existingDoc = await SidebarMenu.findOne({ _id: existingDoc._id });
     }
     menuDocMap.set(item.key, existingDoc);
+  }
+
+  // Second pass: Link exact parent_id from canonical parent docs
+  for (const item of CANONICAL_MENUS) {
+    let parentId = null;
+    if (item.parentKey) {
+      const parentDoc = menuDocMap.get(item.parentKey);
+      if (parentDoc) parentId = parentDoc._id;
     }
+    await SidebarMenu.updateMany(
+      { key: item.key },
+      {
+        $set: {
+          name: item.name,
+          route: item.route,
+          icon: item.icon,
+          module: item.parentKey || item.key,
+          parent_id: parentId,
+          order: item.order,
+          is_active: true,
+        },
+      }
+    );
+  }
 
     // 1b. Seed Industry-specific Sidebar Menu overrides
     const INDUSTRY_MENU_OVERRIDES = {
@@ -2295,7 +2298,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
       temp0001Ind = await Industry.create({ code: 'temp0001', name: 'Real Estate', is_active: true, status: 'Launched' });
     }
 
-  // 2. Grant FULL sidebar permissions to all superAdmin template roles (excluding Domain Settings)
+  // 2. Grant standard platform sidebar permissions to all superAdmin template roles
   const superAdminAllowedKeys = new Set([
     'analytics',
     'organization',
@@ -2368,6 +2371,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
               is_visible: isVisible,
               role_key: 'superAdmin',
               menu_key: menu.key,
+              order_override: menu.order,
             },
           },
           { upsert: true }

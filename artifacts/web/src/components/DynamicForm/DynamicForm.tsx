@@ -241,7 +241,8 @@ const MULTIPLE_FIELDS = new Set(['project', 'location', 'budget', 'propertyType'
 
 
 interface Props {
-  screen: string
+  screen?: string
+  screenKey?: string
   /** Optional override; only honored server-side for superAdmin callers. */
   industryCode?: string
   roleKey?: string
@@ -267,6 +268,7 @@ interface Props {
 
 export function DynamicForm({
   screen,
+  screenKey,
   industryCode,
   roleKey,
   industry_code,
@@ -316,9 +318,11 @@ export function DynamicForm({
     }
   }, [initialValues])
 
+  const activeScreenKey = screenKey || screen || ''
+
   useEffect(() => {
     let cancelled = false
-    if (screen === 'organization') {
+    if (activeScreenKey === 'organization') {
       void api.get('pricing-plans')
         .then((res) => {
           if (cancelled) return
@@ -335,7 +339,7 @@ export function DynamicForm({
     return () => {
       cancelled = true
     }
-  }, [screen])
+  }, [activeScreenKey])
 
   // Per-field async dropdown state. Keyed by `dropdown_api` URL so two fields
   // pointing at the same source share results.
@@ -355,7 +359,7 @@ export function DynamicForm({
         const finalRoleKey = roleKey || role_key
         const finalOrgId = organizationId || organization_id
         const data = await resolveScreen({
-          screenKey: screen,
+          screenKey: activeScreenKey,
           industryCode: finalIndustryCode,
           roleKey: finalRoleKey,
           organizationId: finalOrgId,

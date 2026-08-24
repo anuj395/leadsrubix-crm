@@ -82,7 +82,7 @@ export default function SuperAdminCallLogsListPage() {
   }
 
   useEffect(() => {
-    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
+    if (isSuperAdmin && !selectedIndustry) return
     fetchLogs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndustry, selectedOrg, isSuperAdmin])

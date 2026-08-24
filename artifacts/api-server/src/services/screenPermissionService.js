@@ -196,7 +196,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     if (!resolvedRoleKey) resolvedRoleKey = u?.role || authedUser?.role;
   }
 
-  const isSuperAdmin = resolvedRoleKey === 'superAdmin';
+  const isSuperAdmin = resolvedRoleKey === 'superAdmin' || authedUser?.role === 'superAdmin';
   const isGuestSignup = !authedUser && screen.key === 'organization';
   const bypassPermissions = isSuperAdmin || isGuestSignup;
 
@@ -320,9 +320,61 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     };
   }
 
+  const indCode = String(industry?.code || industryCode || '').toLowerCase().trim();
+
+  const RE_FIELDS = new Set([
+    'project_name', 'property_type', 'property_stage', 'budget', 'property_sub_type', 'location',
+    'projectName', 'propertyType', 'propertyStage', 'propertySubType'
+  ]);
+  const ECOM_FIELDS = new Set([
+    'order_i_d', 'order_value', 'cart_items_count', 'coupon_code', 'shipping_method', 'order_status',
+    'order_id', 'orderID', 'orderValue', 'cartItemsCount', 'couponCode', 'shippingMethod', 'orderStatus'
+  ]);
+  const HEALTH_FIELDS = new Set([
+    'patient_i_d', 'specialty', 'attending_doctor', 'appointment_date', 'insurance_provider',
+    'patient_id', 'patientID', 'attendingDoctor', 'appointmentDate', 'insuranceProvider'
+  ]);
+  const EDU_FIELDS = new Set([
+    'program_course', 'academic_year', 'entrance_score', 'counselor_assigned',
+    'programCourse', 'academicYear', 'entranceScore', 'counselorAssigned'
+  ]);
+  const FIN_FIELDS = new Set([
+    'product_type', 'requested_amount', 'annual_income', 'credit_score',
+    'productType', 'requestedAmount', 'annualIncome', 'creditScore'
+  ]);
+  const IT_FIELDS = new Set([
+    'service_line', 'rfp_deadline', 'estimated_budget', 'tech_stack',
+    'serviceLine', 'rfpDeadline', 'estimatedBudget', 'techStack'
+  ]);
+  const MFG_FIELDS = new Set([
+    'product_category', 'order_quantity', 'delivery_location', 'dealer_code',
+    'productCategory', 'orderQuantity', 'deliveryLocation', 'dealerCode'
+  ]);
+
+  const ALL_CUSTOM_FIELDS = new Set([
+    ...RE_FIELDS, ...ECOM_FIELDS, ...HEALTH_FIELDS, ...EDU_FIELDS, ...FIN_FIELDS, ...IT_FIELDS, ...MFG_FIELDS
+  ]);
+
+  function isFieldApplicableToIndustry(field, ind) {
+    if (!field) return false;
+    if (finalScreenKey !== 'contacts' && finalScreenKey !== 'leads.contact' && finalScreenKey !== 'leads') {
+      return true;
+    }
+    const cleanKey = String(typeof field === 'string' ? field : (field.field_key || field.fieldKey || field.key || '')).trim();
+    if (!ALL_CUSTOM_FIELDS.has(cleanKey)) return true;
+    if (ind === 'temp0001') return RE_FIELDS.has(cleanKey);
+    if (ind === 'temp0002') return ECOM_FIELDS.has(cleanKey);
+    if (ind === 'temp0003') return HEALTH_FIELDS.has(cleanKey);
+    if (ind === 'temp0004') return EDU_FIELDS.has(cleanKey);
+    if (ind === 'temp0005') return FIN_FIELDS.has(cleanKey);
+    if (ind === 'temp0006') return IT_FIELDS.has(cleanKey);
+    if (ind === 'temp0007') return MFG_FIELDS.has(cleanKey);
+    return RE_FIELDS.has(cleanKey);
+  }
+
   let allowed;
-  if (bypassPermissions || finalScreenKey === 'users') {
-    allowed = fields;
+  if (bypassPermissions || finalScreenKey === 'users' || finalScreenKey === 'organization') {
+    allowed = fields.filter(f => isFieldApplicableToIndustry(f, indCode));
   } else {
     const ScreenPermissionModel = mongoose.model('ScreenPermission');
     const ScreenModel = mongoose.model('Screen');
@@ -368,7 +420,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     const permFieldDocs = await ScreenFieldModel.find({ _id: { $in: permFieldIds } }).select('field_key').lean().exec();
     const allowedFieldKeys = new Set(permFieldDocs.map((f) => f.field_key));
 
-    allowed = fields.filter((f) => allowedFieldKeys.has(f.field_key));
+    allowed = fields.filter((f) => allowedFieldKeys.has(f.field_key) && isFieldApplicableToIndustry(f, indCode));
   }
 
   if (!isSuperAdmin) {
@@ -760,31 +812,30 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     }
   };
 
-  const indCode = String(industry?.code || '').toLowerCase().trim();
-  const translations = (finalScreenKey === 'configProjects' && PROJECT_TRANSLATIONS[indCode]) || 
+  const translations = ((finalScreenKey === 'configProjects' || finalScreenKey === 'projects' || finalScreenKey === 'configuration.projects') && PROJECT_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'users' && USER_TRANSLATIONS[indCode]) || 
-                       (finalScreenKey === 'leadDistribution' && DISTRIBUTION_TRANSLATIONS[indCode]) ||
-                       (finalScreenKey === 'leadRotation' && ROTATION_TRANSLATIONS[indCode]) || 
-                       (finalScreenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || 
-                       (finalScreenKey === 'tasks' && TASKS_TRANSLATIONS[indCode]) || 
-                       (finalScreenKey === 'deals' && DEALS_TRANSLATIONS[indCode]) || {};
+                       ((finalScreenKey === 'leadDistribution' || finalScreenKey === 'leaddistribution') && DISTRIBUTION_TRANSLATIONS[indCode]) ||
+                       ((finalScreenKey === 'leadRotation' || finalScreenKey === 'leadrotation') && ROTATION_TRANSLATIONS[indCode]) || 
+                       ((finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact' || finalScreenKey === 'leads' || finalScreenKey === 'sorted' || finalScreenKey === 'leads.sorted') && CONTACTS_TRANSLATIONS[indCode]) || 
+                       ((finalScreenKey === 'tasks' || finalScreenKey === 'leads.tasks') && TASKS_TRANSLATIONS[indCode]) || 
+                       ((finalScreenKey === 'deals' || finalScreenKey === 'leads.deals') && DEALS_TRANSLATIONS[indCode]) || {};
 
   let resolvedScreenName = screen.name;
-  if (finalScreenKey === 'configProjects') {
+  if (finalScreenKey === 'configProjects' || finalScreenKey === 'projects' || finalScreenKey === 'configuration.projects') {
     if (indCode === 'temp0002') resolvedScreenName = 'Products Catalog';
     else if (indCode === 'temp0003') resolvedScreenName = 'Clinical Specialties';
     else if (indCode === 'temp0004') resolvedScreenName = 'Academic Programs';
     else if (indCode === 'temp0005') resolvedScreenName = 'Financial Portfolios';
     else if (indCode === 'temp0006') resolvedScreenName = 'Project Catalog';
     else if (indCode === 'temp0007') resolvedScreenName = 'Product Categories';
-  } else if (finalScreenKey === 'deals') {
+  } else if (finalScreenKey === 'deals' || finalScreenKey === 'leads.deals') {
     if (indCode === 'temp0002') resolvedScreenName = 'Orders & Pipeline';
     else if (indCode === 'temp0003') resolvedScreenName = 'Treatment Cases & Triage';
     else if (indCode === 'temp0004') resolvedScreenName = 'Admissions & Pipeline';
     else if (indCode === 'temp0005') resolvedScreenName = 'Investment Deals & Mandates';
     else if (indCode === 'temp0006') resolvedScreenName = 'Contracts & SOW Pipeline';
     else if (indCode === 'temp0007') resolvedScreenName = 'Commercial Orders & Deals';
-  } else if (finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact') {
+  } else if (finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact' || finalScreenKey === 'leads' || finalScreenKey === 'sorted' || finalScreenKey === 'leads.sorted') {
     if (indCode === 'temp0002') resolvedScreenName = 'Customer Inquiries & Leads';
     else if (indCode === 'temp0003') resolvedScreenName = 'Patient Inquiries & Leads';
     else if (indCode === 'temp0004') resolvedScreenName = 'Student Inquiries & Leads';
@@ -792,6 +843,14 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     else if (indCode === 'temp0006') resolvedScreenName = 'Client Inquiries & Leads';
     else if (indCode === 'temp0007') resolvedScreenName = 'Distributor Inquiries & Leads';
     else resolvedScreenName = 'Inquiries & Leads';
+  } else if (finalScreenKey === 'tasks' || finalScreenKey === 'leads.tasks') {
+    if (indCode === 'temp0002') resolvedScreenName = 'Customer Follow-ups';
+    else if (indCode === 'temp0003') resolvedScreenName = 'Consultations';
+    else if (indCode === 'temp0004') resolvedScreenName = 'Counseling Tasks';
+    else if (indCode === 'temp0005') resolvedScreenName = 'KYC & Advisory Tasks';
+    else if (indCode === 'temp0006') resolvedScreenName = 'Service Desk Tasks';
+    else if (indCode === 'temp0007') resolvedScreenName = 'Quality Checks';
+    else resolvedScreenName = 'Tasks List';
   }
 
   const tableHeaders = allowed

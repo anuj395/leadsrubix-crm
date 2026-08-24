@@ -197,7 +197,7 @@ export default function DealsListPage() {
   }
 
   useEffect(() => {
-    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
+    if (isSuperAdmin && !selectedIndustry) return
     void loadInitialData()
   }, [selectedIndustry, selectedOrg, isSuperAdmin])
 

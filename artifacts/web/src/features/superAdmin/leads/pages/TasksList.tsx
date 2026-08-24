@@ -81,7 +81,7 @@ export default function TasksListPage() {
         resolveScreen({
           screenKey: 'tasks',
           industryCode: isSuperAdmin ? activeIndustry || 'temp0001' : undefined,
-          roleKey: isSuperAdmin ? 'admin' : undefined,
+          roleKey: isSuperAdmin ? 'superAdmin' : undefined,
           organizationId: isSuperAdmin ? activeOrg || undefined : undefined,
         }),
       ])
@@ -105,10 +105,21 @@ export default function TasksListPage() {
   }
 
   useEffect(() => {
-    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
+    if (isSuperAdmin && !selectedIndustry) return
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndustry, selectedOrg, isSuperAdmin])
+
+  const dynamicTitle = useMemo(() => {
+    const indCode = String(selectedIndustry || '').toLowerCase().trim()
+    if (indCode === 'temp0002') return 'Customer Follow-ups'
+    if (indCode === 'temp0003') return 'Consultations'
+    if (indCode === 'temp0004') return 'Counseling Tasks'
+    if (indCode === 'temp0005') return 'KYC & Advisory Tasks'
+    if (indCode === 'temp0006') return 'Service Desk Tasks'
+    if (indCode === 'temp0007') return 'Quality Checks'
+    return 'Tasks List'
+  }, [selectedIndustry])
 
   const gridColumns = useMemo<GridColDef<Task>[]>(() => {
     const sNoCol: GridColDef<Task> = {
@@ -217,8 +228,8 @@ export default function TasksListPage() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppCard
-        title="Tasks List"
-        subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
+        title={dynamicTitle}
+        subtitle="Dynamic follow-up tasks list driven by the Screen Configuration system per Industry."
         fullHeight
       >
         <SuperAdminScopeSelector

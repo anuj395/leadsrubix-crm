@@ -43,8 +43,15 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], _roleKey?: stri
 
   raw.forEach(item => {
     const parentId = item.parent_id || item.parentId
-    if (parentId && itemMap.has(String(parentId))) {
-      const pIdStr = String(parentId)
+    let parentDoc = parentId && itemMap.has(String(parentId)) ? itemMap.get(String(parentId)) : null
+
+    if (!parentDoc && item.key && item.key.includes('.')) {
+      const parentKey = item.key.split('.')[0]
+      parentDoc = Array.from(itemMap.values()).find(m => m.key === parentKey)
+    }
+
+    if (parentDoc && String(parentDoc._id) !== String(item._id)) {
+      const pIdStr = String(parentDoc._id)
       if (!childrenMap.has(pIdStr)) {
         childrenMap.set(pIdStr, [])
       }

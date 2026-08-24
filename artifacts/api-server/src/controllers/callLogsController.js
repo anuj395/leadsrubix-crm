@@ -28,7 +28,10 @@ async function applyCallLogTenantFilter(user, filter, industryId, organizationId
   const isSuperAdmin = user?.role === 'superAdmin';
   if (isSuperAdmin) {
     if (organizationId && organizationId !== 'all') {
-      filter.organizationId = organizationId;
+      filter.$or = [
+        { organizationId: organizationId },
+        { organization_id: organizationId }
+      ];
     } else if (industryId && industryId !== 'all') {
       const Industry = mongoose.model('Industry');
       const Organization = mongoose.model('Organization');
@@ -39,20 +42,36 @@ async function applyCallLogTenantFilter(user, filter, industryId, organizationId
         industryDoc = await Industry.findOne({ code: industryId }).lean().exec();
       }
       if (industryDoc) {
+        const indIdStr = String(industryDoc._id);
+        const indCode = industryDoc.code;
         const orgDocs = await Organization.find({
           $or: [
-            { industryId: String(industryDoc._id) },
-            { industry_id: industryDoc._id },
-            { industryId: industryDoc.code },
-            { industry_code: industryDoc.code }
+            { industryId: indIdStr },
+            { industry_id: indIdStr },
+            { industryId: indCode },
+            { industry_id: indCode },
+            { industryCode: indCode },
+            { industry_code: indCode }
           ]
         }).lean().exec();
-        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id).filter(Boolean);
-        filter.organizationId = { $in: orgIds };
+        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id || String(o._id)).filter(Boolean);
+        filter.$or = [
+          { organizationId: { $in: orgIds } },
+          { organization_id: { $in: orgIds } },
+          { industryId: indIdStr },
+          { industry_id: indIdStr },
+          { industryId: indCode },
+          { industry_id: indCode }
+        ];
       }
     }
   } else {
-    filter.organizationId = user?.organizationId;
+    if (user?.organizationId) {
+      filter.$or = [
+        { organizationId: user.organizationId },
+        { organization_id: user.organizationId }
+      ];
+    }
   }
 }
 
@@ -227,7 +246,8 @@ callLogController.Update = async (req, res) => {
     const leadId = req.body.leadId;
     const query = { lead_id: leadId };
     if (req.user?.role !== 'superAdmin') {
-      query.organization_id = req.user?.organizationId;
+      const uOrg = req.user?.organizationId || req.user?.organization_id;
+      query.$or = [{ organization_id: uOrg }, { organizationId: uOrg }];
     }
     await CallLog.updateMany(query, { $set: translateFilterKeys(req.body) }).exec();
     res.status(200).send('Updation DONE!');
@@ -242,7 +262,8 @@ callLogController.DeleteCallLogs = async (req, res) => {
     const leadId = req.body.leadId;
     const query = { lead_id: leadId };
     if (req.user?.role !== 'superAdmin') {
-      query.organization_id = req.user?.organizationId;
+      const uOrg = req.user?.organizationId || req.user?.organization_id;
+      query.$or = [{ organization_id: uOrg }, { organizationId: uOrg }];
     }
     await CallLog.findOneAndDelete(query).exec();
     res.status(200).send("Deletion DONE!");

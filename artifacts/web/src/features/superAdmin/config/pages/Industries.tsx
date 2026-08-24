@@ -9,6 +9,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
+import MenuItem from '@mui/material/MenuItem'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -151,14 +152,13 @@ export default function IndustriesPage() {
             <TextField
               select
               label="Status"
-              value={form.status}
+              value={form.status || 'Launched'}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
               fullWidth
-              SelectProps={{ native: true }}
             >
-              <option value="Launched">Launched</option>
-              <option value="Pre-Launched">Pre-Launched</option>
-              <option value="Pending">Pending</option>
+              <MenuItem value="Launched">Launched</MenuItem>
+              <MenuItem value="Pre-Launched">Pre-Launched</MenuItem>
+              <MenuItem value="Pending">Pending</MenuItem>
             </TextField>
             <FormControlLabel
               control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}

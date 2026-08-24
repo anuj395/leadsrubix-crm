@@ -149,7 +149,10 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
   const filter = {};
   if (isSuperAdmin) {
     if (organizationIdQuery && organizationIdQuery !== 'all') {
-      filter.organization_id = organizationIdQuery;
+      filter.$or = [
+        { organization_id: organizationIdQuery },
+        { organizationId: organizationIdQuery }
+      ];
     } else if (industryIdQuery && industryIdQuery !== 'all') {
       const Organization = organizationModel.Organization || mongoose.model('Organization');
       const Industry = industryModel.Industry || mongoose.model('Industry');
@@ -161,20 +164,34 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
       }
 
       if (industryDoc) {
+        const indIdStr = String(industryDoc._id);
+        const indCode = industryDoc.code;
         const orgDocs = await Organization.find({
           $or: [
-            { industryId: String(industryDoc._id) },
-            { industry_id: industryDoc._id },
-            { industryId: industryDoc.code },
-            { industry_code: industryDoc.code }
+            { industryId: indIdStr },
+            { industry_id: indIdStr },
+            { industryId: indCode },
+            { industry_id: indCode },
+            { industryCode: indCode },
+            { industry_code: indCode }
           ]
         }).lean().exec();
-        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id).filter(Boolean);
-        filter.organization_id = { $in: orgIds };
+        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id || String(o._id)).filter(Boolean);
+        filter.$or = [
+          { organization_id: { $in: orgIds } },
+          { organizationId: { $in: orgIds } },
+          { industry_id: indIdStr },
+          { industryId: indIdStr },
+          { industry_id: indCode },
+          { industryId: indCode }
+        ];
       }
     }
   } else {
-    filter.organization_id = user.organizationId;
+    filter.$or = [
+      { organization_id: user.organizationId },
+      { organizationId: user.organizationId }
+    ];
   }
 
   const visibleIds = await getVisibleUserIds({
@@ -379,6 +396,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
   const org = await Organization.findOne({
     $or: [
       { organization_id: targetOrgId },
+      { organizationId: targetOrgId },
       ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
     ]
   }).lean().exec();
@@ -394,18 +412,27 @@ exports.createForUser = async ({ payload, authedUser }) => {
       const orConditions = [];
       if (parsedMain.contactNumber) {
         orConditions.push({ contactNumber: parsedMain.contactNumber });
+        orConditions.push({ contact_number: parsedMain.contactNumber });
         orConditions.push({ alternateNo: parsedMain.contactNumber });
+        orConditions.push({ alternate_no: parsedMain.contactNumber });
       }
       if (parsedAlt && parsedAlt.contactNumber) {
         orConditions.push({ contactNumber: parsedAlt.contactNumber });
+        orConditions.push({ contact_number: parsedAlt.contactNumber });
         orConditions.push({ alternateNo: parsedAlt.contactNumber });
+        orConditions.push({ alternate_no: parsedAlt.contactNumber });
       }
       
       if (orConditions.length > 0) {
         const Contact = mongoose.model('Contact');
         const duplicate = await Contact.findOne({
-          organization_id: targetOrgId,
-          $or: orConditions
+          $or: [
+            { organization_id: targetOrgId },
+            { organizationId: targetOrgId }
+          ],
+          $and: [
+            { $or: orConditions }
+          ]
         }).lean().exec();
         
         if (duplicate) {
@@ -416,13 +443,20 @@ exports.createForUser = async ({ payload, authedUser }) => {
       }
     }
 
-    if (cleaned.email) {
-      const cleanEmail = String(cleaned.email).trim().toLowerCase();
+    if (cleaned.email || cleaned.emailId) {
+      const cleanEmail = String(cleaned.email || cleaned.emailId).trim().toLowerCase();
       if (cleanEmail) {
         const Contact = mongoose.model('Contact');
         const duplicateEmail = await Contact.findOne({
-          organization_id: targetOrgId,
-          email: cleanEmail
+          $or: [
+            { organization_id: targetOrgId },
+            { organizationId: targetOrgId }
+          ],
+          $or: [
+            { email: cleanEmail },
+            { emailId: cleanEmail },
+            { email_id: cleanEmail }
+          ]
         }).lean().exec();
         
         if (duplicateEmail) {
