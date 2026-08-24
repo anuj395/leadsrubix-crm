@@ -49,12 +49,15 @@ const breadcrumbMap: Record<string, string[]> = {
     '/organization/new': ['Home', 'Organizations', 'Add Organization'],
     '/users': ['Home', 'Users'],
     '/users/new': ['Home', 'Users', 'Add User'],
+    '/leads/deals': ['Home', 'Leads', 'Deals & Pipeline'],
     '/leads/deals-list': ['Home', 'Leads', 'Deals & Pipeline'],
     '/leads/contacts': ['Home', 'Leads', 'Inquiries & Leads'],
     '/leads/contacts/new': ['Home', 'Leads', 'Inquiries & Leads', 'Add Inquiry'],
     '/leads/tasks': ['Home', 'Leads', 'Task List'],
+    '/leads/tasks-list': ['Home', 'Leads', 'Task List'],
     '/leads/tasks/new': ['Home', 'Leads', "Task List", 'Add Task'],
     '/leads/call-logs': ['Home', 'Leads', 'Call Logs'],
+    '/leads/call-logs-list': ['Home', 'Leads', 'Call Logs'],
     '/leads/bookings': ['Home', 'Leads', 'Bookings'],
     '/configuration/projects': ['Home', 'Configuration', 'Projects'],
     '/configuration/projects/new': ['Home', 'Configuration', 'Projects', 'Create Project'],
@@ -104,6 +107,39 @@ const breadcrumbMap: Record<string, string[]> = {
     '/lead-distribution/logic': ['Home', 'Lead Distribution', 'Lead Distribution Logic'],
     '/reassign/list': ['Home', 'Lead Distribution', 'Reassign List'],
     '/reassign/logic': ['Home', 'Lead Distribution', 'Reassign Logic'],
+}
+
+function getBreadcrumbPath(crumb: string): string | null {
+    const c = crumb.toLowerCase().trim()
+    if (c === 'home') return '/'
+    if (c === 'analytics' || c === 'overview') return '/analytics'
+    if (c === 'leads') return '/leads/contacts'
+    if (c === 'inquiries & leads' || c === 'inquiries') return '/leads/contacts'
+    if (c === 'deals & pipeline' || c === 'deals') return '/leads/deals-list'
+    if (c === 'task list' || c === 'tasks') return '/leads/tasks-list'
+    if (c === 'call logs' || c === 'call-logs') return '/leads/call-logs-list'
+    if (c === 'bookings') return '/leads/bookings'
+    if (c === 'users') return '/users'
+    if (c === 'organizations' || c === 'organization') return '/organization/list'
+    if (c === 'configuration') return '/configuration/projects'
+    if (c === 'projects') return '/configuration/projects'
+    if (c === 'holiday config') return '/configuration/holiday-config'
+    if (c === 'days config') return '/configuration/days-config'
+    if (c === 'domain setting' || c === 'domain settings') return '/configuration/domain-settings'
+    if (c === 'ui & navigation') return '/ui-navigation/screens'
+    if (c === 'screens') return '/ui-navigation/screens'
+    if (c === 'screen fields') return '/ui-navigation/screen-fields'
+    if (c === 'sidebar menus') return '/ui-navigation/menus'
+    if (c === 'analytics layout builder') return '/ui-navigation/analytics-config'
+    if (c === 'access control' || c === 'roles & permissions') return '/users/roles'
+    if (c === 'support') return '/support/news'
+    if (c === 'news') return '/support/news'
+    if (c === 'faq') return '/support/faq'
+    if (c === 'account' || c === 'subscription details') return '/account/subscription-details'
+    if (c === 'invoices' || c === 'payment invoice logs') return '/invoices/payment-invoices'
+    if (c === 'integrations') return '/integrations'
+    if (c === 'lead distribution') return '/lead-distribution/list'
+    return null
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -338,39 +374,54 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                             flex: '1 1 auto',
                         }}
                     >
-                        {breadcrumbs.map((crumb, index) => (
-                            <Stack
-                                key={crumb}
-                                direction="row"
-                                alignItems="center"
-                                spacing={0.5}
-                                sx={{
-                                    minWidth: 0,
-                                    flexShrink: index === breadcrumbs.length - 1 ? 1 : 0,
-                                }}
-                            >
-                                <Typography
+                        {breadcrumbs.map((crumb, index) => {
+                            const isLast = index === breadcrumbs.length - 1
+                            const targetPath = !isLast ? getBreadcrumbPath(crumb) : null
+
+                            return (
+                                <Stack
+                                    key={`${crumb}-${index}`}
+                                    direction="row"
+                                    alignItems="center"
+                                    spacing={0.5}
                                     sx={{
-                                        fontWeight: index === breadcrumbs.length - 1 ? 500 : 400,
-                                        fontSize: 'clamp(0.75rem, 1.8vw, 0.8125rem)',
-                                        color:
-                                            index === breadcrumbs.length - 1
-                                                ? theme.palette.text.primary
-                                                : theme.palette.text.secondary,
-                                        whiteSpace: 'nowrap',
-                                        overflow: index === breadcrumbs.length - 1 ? 'hidden' : 'visible',
-                                        textOverflow: 'ellipsis',
+                                        minWidth: 0,
+                                        flexShrink: isLast ? 1 : 0,
                                     }}
                                 >
-                                    {crumb}
-                                </Typography>
-                                {index < breadcrumbs.length - 1 ? (
-                                    <ChevronRightRoundedIcon
-                                        sx={{ color: theme.palette.text.secondary, fontSize: 15, flexShrink: 0 }}
-                                    />
-                                ) : null}
-                            </Stack>
-                        ))}
+                                    <Typography
+                                        onClick={targetPath ? () => navigate(targetPath) : undefined}
+                                        role={targetPath ? 'button' : undefined}
+                                        tabIndex={targetPath ? 0 : undefined}
+                                        sx={{
+                                            fontWeight: isLast ? 600 : 400,
+                                            fontSize: 'clamp(0.75rem, 1.8vw, 0.8125rem)',
+                                            color: isLast
+                                                ? theme.palette.text.primary
+                                                : theme.palette.text.secondary,
+                                            whiteSpace: 'nowrap',
+                                            overflow: isLast ? 'hidden' : 'visible',
+                                            textOverflow: 'ellipsis',
+                                            cursor: targetPath ? 'pointer' : 'default',
+                                            transition: 'color 150ms ease, opacity 150ms ease',
+                                            ...(targetPath && {
+                                                '&:hover': {
+                                                    color: theme.palette.primary.main,
+                                                    textDecoration: 'underline',
+                                                },
+                                            }),
+                                        }}
+                                    >
+                                        {crumb}
+                                    </Typography>
+                                    {!isLast ? (
+                                        <ChevronRightRoundedIcon
+                                            sx={{ color: theme.palette.text.secondary, fontSize: 15, flexShrink: 0 }}
+                                        />
+                                    ) : null}
+                                </Stack>
+                            )
+                        })}
                     </Stack>
 
                     {/* Mobile: show current page title */}
