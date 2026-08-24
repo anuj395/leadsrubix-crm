@@ -876,6 +876,62 @@ exports.remove = async ({ id, authedUser }) => {
   const deleteContactsRes = await Contact.deleteMany(contactFilter);
   console.log(`[organizationService] 3/27 Cascade deleted ${deleteContactsRes.deletedCount} contacts`);
 
+  // 4a. Cascade delete Accounts
+  try {
+    const accountModel = require('../models/accountModel');
+    const Account = accountModel.Account || mongoose.model('Account');
+    if (Account) {
+      const deleteAccountsRes = await Account.deleteMany(orgFilter);
+      console.log(`[organizationService] Cascade deleted ${deleteAccountsRes.deletedCount} accounts`);
+    }
+  } catch (err) {
+    console.warn('[organizationService] Accounts cascade delete error:', err.message);
+  }
+
+  // 4b. Cascade delete Pipelines
+  try {
+    const pipelineModel = require('../models/pipelineModel');
+    const Pipeline = pipelineModel.Pipeline || mongoose.model('Pipeline');
+    if (Pipeline) {
+      const deletePipelinesRes = await Pipeline.deleteMany(orgFilter);
+      console.log(`[organizationService] Cascade deleted ${deletePipelinesRes.deletedCount} pipelines`);
+    }
+  } catch (err) {
+    console.warn('[organizationService] Pipelines cascade delete error:', err.message);
+  }
+
+  // 4c. Cascade delete Deals
+  try {
+    const dealModel = require('../models/dealModel');
+    const Deal = dealModel.Deal || mongoose.model('Deal');
+    if (Deal) {
+      const dealFilter = {
+        $or: [
+          ...orgFilter.$or,
+          { created_by: { $in: userIds } },
+          { createdBy: { $in: userIds } },
+          { owner_id: { $in: userIds } },
+          { ownerId: { $in: userIds } }
+        ]
+      };
+      const deleteDealsRes = await Deal.deleteMany(dealFilter);
+      console.log(`[organizationService] Cascade deleted ${deleteDealsRes.deletedCount} deals`);
+    }
+  } catch (err) {
+    console.warn('[organizationService] Deals cascade delete error:', err.message);
+  }
+
+  // 4d. Cascade delete Quotes
+  try {
+    const Quote = mongoose.model('Quote');
+    if (Quote) {
+      const deleteQuotesRes = await Quote.deleteMany(orgFilter);
+      console.log(`[organizationService] Cascade deleted ${deleteQuotesRes.deletedCount} quotes`);
+    }
+  } catch (err) {
+    console.warn('[organizationService] Quotes cascade delete error:', err.message);
+  }
+
   // 5. Cascade delete Tasks
   const Task = mongoose.model('Task');
   const taskFilter = {
