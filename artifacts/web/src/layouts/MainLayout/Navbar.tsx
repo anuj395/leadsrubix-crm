@@ -49,8 +49,9 @@ const breadcrumbMap: Record<string, string[]> = {
     '/organization/new': ['Home', 'Organizations', 'Add Organization'],
     '/users': ['Home', 'Users'],
     '/users/new': ['Home', 'Users', 'Add User'],
-    '/leads/contacts': ['Home', 'Leads', 'Contact List'],
-    '/leads/contacts/new': ['Home', 'Leads', "Contacts List", 'Add Contact'],
+    '/leads/deals-list': ['Home', 'Leads', 'Deals & Pipeline'],
+    '/leads/contacts': ['Home', 'Leads', 'Inquiries & Leads'],
+    '/leads/contacts/new': ['Home', 'Leads', 'Inquiries & Leads', 'Add Inquiry'],
     '/leads/tasks': ['Home', 'Leads', 'Task List'],
     '/leads/tasks/new': ['Home', 'Leads', "Task List", 'Add Task'],
     '/leads/call-logs': ['Home', 'Leads', 'Call Logs'],
@@ -214,7 +215,9 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
     let resolvedBreadcrumbs = breadcrumbMap[location.pathname]
     if (!resolvedBreadcrumbs) {
         if (location.pathname.startsWith('/leads/contacts/') && location.pathname.endsWith('/edit')) {
-            resolvedBreadcrumbs = ['Home', 'Leads', 'Contact List', 'Edit Contact']
+            resolvedBreadcrumbs = ['Home', 'Leads', 'Inquiries & Leads', 'Edit Inquiry']
+        } else if (location.pathname.startsWith('/leads/contacts/')) {
+            resolvedBreadcrumbs = ['Home', 'Leads', 'Inquiries & Leads', 'Inquiry Details']
         } else if (location.pathname.startsWith('/configuration/holiday-config/') && location.pathname.endsWith('/edit')) {
             resolvedBreadcrumbs = ['Home', 'Configuration', 'Holiday Config', 'Edit Holiday']
         } else if (location.pathname.startsWith('/users/') && location.pathname.endsWith('/edit')) {

@@ -80,6 +80,7 @@ export const routeComponentMap: Record<string, any> = {
 
   "/leads/leads-list": LeadsListPage,
   "/leads/accounts-list": AccountsListPage,
+  "/leads/deals": DealsListPage,
   "/leads/deals-list": DealsListPage,
   "/leads/quotes-list": QuotesListPage,
   "/leads/contacts": ContactsListPage,
@@ -89,7 +90,9 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/contacts/:id/edit": AddContactPage,
 
   "/leads/tasks": TasksListPage,
+  "/leads/tasks-list": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
+  "/leads/call-logs-list": CallLogsListPage,
   // "/leads/bookings": BookingsListPage,
 
   "/configuration/projects": ProjectsListPage,

@@ -69,10 +69,10 @@ exports.resolve = async (req, res, next) => {
 
     const out = await permissionService.resolve({
       screenKey: finalScreenKey,
-      industryCode: (isSuperAdmin || isGuestSignup) ? finalIndustryCode : req.user?.industryId,
-      roleKey: (isSuperAdmin || isAdmin || isGuestSignup) ? (finalRoleKey || 'admin') : undefined,
+      industryCode: finalIndustryCode || req.user?.industryId || req.user?.industry_id || 'temp0001',
+      roleKey: finalRoleKey || req.user?.role || 'admin',
       authedUser: req.user,
-      organizationId: isSuperAdmin ? (organizationId || organization_id) : undefined,
+      organizationId: organizationId || organization_id || req.user?.organizationId || req.user?.organization_id,
     });
     res.json(out);
   } catch (err) {

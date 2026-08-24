@@ -262,6 +262,7 @@ interface Props {
   onChange?: (values: Record<string, Value>) => void
   singleColumn?: boolean
   disabledFields?: string[]
+  customOptions?: Record<string, (DropdownOption | string)[]>
 }
 
 export function DynamicForm({
@@ -283,6 +284,7 @@ export function DynamicForm({
   onChange,
   singleColumn = false,
   disabledFields = [],
+  customOptions,
 }: Props) {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -295,6 +297,14 @@ export function DynamicForm({
   const [trialPeriodLicenses, setTrialPeriodLicenses] = useState<number>(10)
 
   const isFieldDisabled = (fieldKey: string) => readOnly || disabledFields.includes(fieldKey)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     onChange?.(values)
@@ -422,9 +432,8 @@ export function DynamicForm({
 
   // 2) Lazy-load API dropdowns once we know which fields need them.
   useEffect(() => {
-    let cancelled = false
     const apiFields = fields.filter(
-      (f) => f.type === 'select' && f.dropdown_source === 'api' && f.dropdown_api,
+      (f) => f.type === 'select' && (f.dropdown_source === 'api' || (f as any).dropdownSource === 'api') && (f.dropdown_api || (f as any).dropdownApi),
     )
     for (const f of apiFields) {
       const url = getDropdownUrl(f)
@@ -439,40 +448,39 @@ export function DynamicForm({
       const path = isAbsolute
         ? urlWithCb
         : urlWithCb.replace(/^\/+/, '').replace(/^api\//, '')
-      setDropdownLoading((prev) => ({ ...prev, [url]: true }))
+      setDropdownLoading((prev) => ({ ...prev, [f.key]: true, [url]: true }))
       void api
         .get(path)
         .then((res) => {
-          if (cancelled) return
+          if (!isMountedRef.current) return
           const rawItems = Array.isArray(res.data) ? res.data : (res.data?.items ?? [])
-          setRawDropdowns((prev) => ({ ...prev, [url]: rawItems }))
+          setRawDropdowns((prev) => ({ ...prev, [f.key]: rawItems, [url]: rawItems }))
           const opts = normalizeOptions(res.data)
-          setDropdowns((prev) => ({ ...prev, [url]: opts }))
+          setDropdowns((prev) => ({ ...prev, [f.key]: opts, [url]: opts }))
           setErrors((prev) => {
             const next = { ...prev }
             delete next[`__dropdown__${url}`]
+            delete next[`__dropdown__${f.key}`]
             return next
           })
         })
         .catch((err) => {
-          if (cancelled) return
+          if (!isMountedRef.current) return
+          console.error('[DynamicForm] error loading', f.key, err)
           // Surface a soft error inline next to the field.
           setErrors((prev) => ({
             ...prev,
-            [`__dropdown__${url}`]:
+            [`__dropdown__${f.key}`]:
               err?.response?.data?.message ?? `Failed to load options from ${url}`,
           }))
         })
         .finally(() => {
-          if (!cancelled) {
-            setDropdownLoading((prev) => ({ ...prev, [url]: false }))
+          if (isMountedRef.current) {
+            setDropdownLoading((prev) => ({ ...prev, [f.key]: false, [url]: false }))
           }
         })
     }
-    return () => {
-      cancelled = true
-    }
-  }, [fields, values.country, industry_code, values.organizationId, values.organizationId, values.role])
+  }, [fields, values.country, industry_code, values.organizationId, values.role])
 
   const setValue = (key: string, value: Value) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -518,7 +526,17 @@ export function DynamicForm({
             }
           }
 
-          if (f.type === 'phone' || f.key.toLowerCase().includes('phone') || f.key.toLowerCase().includes('contact')) {
+          const isPhoneField = f.type === 'phone' ||
+            f.key.toLowerCase().includes('phone') ||
+            f.key.toLowerCase().includes('mobile') ||
+            f.key.toLowerCase().includes('contactnumber') ||
+            f.key.toLowerCase().includes('contact_number') ||
+            f.key.toLowerCase().includes('alternateno') ||
+            f.key.toLowerCase().includes('alternate_no') ||
+            f.key.toLowerCase().includes('alternatenumber') ||
+            f.key.toLowerCase().includes('alternate_number')
+
+          if (isPhoneField && !f.key.toLowerCase().includes('email')) {
             const rawDigits = String(v).replace(/\D/g, '')
             if (rawDigits.length < 7 || rawDigits.length > 15) {
               next[f.key] = `Invalid Contact Number. Must be between 7 and 15 digits.`
@@ -628,7 +646,9 @@ export function DynamicForm({
           if (f.type === 'select') {
             const apiUrl = getDropdownUrl(f)
             let opts: DropdownOption[] = []
-            if (f.dropdown_source === 'api' && apiUrl) {
+            if (customOptions && customOptions[f.key] && customOptions[f.key].length > 0) {
+              opts = normalizeOptions(customOptions[f.key])
+            } else if ((f.dropdown_source === 'api' || (f as any).dropdownSource === 'api') && (apiUrl || dropdowns[f.key])) {
               const orgId = String((user as any)?.organizationId || (user as any)?.organization_id || '').toLowerCase()
               if (f.key === 'leadManagerUsers') {
                 const rawUsers = rawDropdowns[apiUrl] || []
@@ -692,9 +712,9 @@ export function DynamicForm({
                   opts = normalizeOptions(potentialAssociates)
                 }
               } else {
-                opts = dropdowns[apiUrl] ?? []
+                opts = (dropdowns[f.key] || (apiUrl ? dropdowns[apiUrl] : undefined)) ?? []
               }
-            } else if (f.dropdown_source === 'static') {
+            } else if (f.dropdown_source === 'static' || (f as any).dropdownSource === 'static') {
               opts = (f.options || []).map((o) => ({ value: o, label: o }))
             } else {
               opts = (f.options || []).map((o) => ({ value: o, label: o }))
@@ -706,9 +726,9 @@ export function DynamicForm({
                 { value: 'INACTIVE', label: 'Inactive' }
               ];
             }
-            const isLoading = f.dropdown_source === 'api' && !!apiUrl && dropdownLoading[apiUrl]
-            const dropdownErr =
-              f.dropdown_source === 'api' && apiUrl ? errors[`__dropdown__${apiUrl}`] : ''
+            const isApiSource = f.dropdown_source === 'api' || (f as any).dropdownSource === 'api'
+            const isLoading = isApiSource && (dropdownLoading[f.key] || (apiUrl ? dropdownLoading[apiUrl] : false))
+            const dropdownErr = isApiSource ? (errors[`__dropdown__${f.key}`] || (apiUrl ? errors[`__dropdown__${apiUrl}`] : '')) : ''
 
             const isMultiple = MULTIPLE_FIELDS.has(f.key) && screen !== 'configProjects' && screen !== 'interested' && screen !== 'contacts'
             if (isMultiple) {
@@ -748,13 +768,31 @@ export function DynamicForm({
                 />
               )
             }
+            let currentValue = (value as string) ?? ''
+            if (currentValue && opts.length > 0) {
+              const exactMatch = opts.find((o) => o.value === currentValue)
+              if (!exactMatch) {
+                const fuzzyMatch = opts.find(
+                  (o) =>
+                    o.value.toLowerCase() === currentValue.toLowerCase() ||
+                    o.value.replace(/_/g, ' ').toLowerCase() === currentValue.replace(/_/g, ' ').toLowerCase() ||
+                    o.label.toLowerCase().startsWith(currentValue.replace(/_/g, ' ').toLowerCase())
+                )
+                if (fuzzyMatch) {
+                  currentValue = fuzzyMatch.value
+                }
+              }
+            } else if (!currentValue && opts.length > 0 && f.required && (f.key === 'stage' || f.key === 'status')) {
+              currentValue = opts[0].value
+            }
+
             return (
               <TextField
                 key={f.key}
                 select
                 size="small"
                 label={labelWithRequired}
-                value={(value as string) ?? ''}
+                value={currentValue}
                 onChange={(e) => setValue(f.key, e.target.value)}
                 error={!!err || !!dropdownErr}
                 helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}

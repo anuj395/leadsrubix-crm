@@ -19,6 +19,7 @@
 // factory itself.
 
 const mongoose = require('mongoose');
+const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -76,57 +77,141 @@ function normalizePayload(payload) {
 }
 
 async function enrichTasks(Model, items) {
-  if (Model.modelName !== 'Task' || !items || items.length === 0) return;
+  if (!items || items.length === 0) return;
+  const isTaskModel = Model?.modelName === 'Task' || Model?.tableName === 'tasks' || Model?.collection?.name === 'tasks';
+  if (!isTaskModel) return;
   const mongoose = require('mongoose');
   const User = mongoose.model('User');
-  const Contact = mongoose.model('Contact');
+  let Contact = null;
+  try {
+    Contact = mongoose.model('Contact');
+  } catch {
+    const contactModel = require('../models/contactModel');
+    Contact = contactModel.Contact;
+  }
 
-  const keys = [...new Set(items.map(item => item.assignedTo).filter(Boolean))];
+  const rawKeys = items.flatMap(item => [
+    item.assignedTo, item.assigned_to,
+    item.createdBy, item.created_by,
+    item.contactOwnerEmail, item.contact_owner_email,
+    item.uid
+  ]).filter(Boolean);
+
+  const keys = [...new Set(rawKeys.map(String))];
   const userMap = {};
   if (keys.length > 0) {
     const users = await User.find({
       $or: [
-        { _id: { $in: keys.filter(k => mongoose.Types.ObjectId.isValid(k)) } },
+        { _id: { $in: keys } },
         { email: { $in: keys } },
         { uid: { $in: keys } }
       ]
     }).lean().exec();
 
     users.forEach(u => {
-      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || u.email;
       userMap[String(u._id)] = fullName;
-      if (u.email) userMap[String(u.email).toLowerCase()] = fullName;
+      if (u.email) {
+        userMap[String(u.email).toLowerCase()] = fullName;
+        userMap[String(u.email)] = fullName;
+      }
       if (u.uid) userMap[String(u.uid)] = fullName;
     });
   }
 
-  const contactIds = [...new Set(items.map(item => item.contact_id || item.contactId).filter(Boolean))];
+  const contactIds = [...new Set(items.map(item => item.contact_id || item.contactId).filter(Boolean).map(String))];
   const contactMap = {};
-  if (contactIds.length > 0) {
+  if (contactIds.length > 0 && Contact) {
     const contacts = await Contact.find({
-      _id: { $in: contactIds.filter(id => mongoose.Types.ObjectId.isValid(id)) }
+      _id: { $in: contactIds }
     }).lean().exec();
 
     contacts.forEach(c => {
-      contactMap[String(c._id)] = c.contact_number || c.contactNumber || '';
+      contactMap[String(c._id)] = c;
     });
   }
 
   items.forEach(item => {
-    if (item.assignedTo) {
-      const lookupKey = String(item.assignedTo).toLowerCase();
-      if (userMap[lookupKey]) {
-        item.assignedTo = userMap[lookupKey];
-      } else if (userMap[String(item.assignedTo)]) {
-        item.assignedTo = userMap[String(item.assignedTo)];
+    // 1. Resolve Assigned To
+    const aKey = item.assignedTo || item.assigned_to;
+    if (aKey) {
+      const match = userMap[String(aKey).toLowerCase()] || userMap[String(aKey)];
+      if (match) {
+        item.assignedTo = match;
+        item.assigned_to = match;
+        item.assignedToName = match;
       }
     }
-    const cId = item.contact_id || item.contactId;
-    if (cId) {
-      const lookupContactId = String(cId);
-      if (contactMap[lookupContactId]) {
-        item.contact_number = contactMap[lookupContactId];
+    // 2. Resolve Created By
+    const cKey = item.createdBy || item.created_by;
+    if (cKey) {
+      const match = userMap[String(cKey).toLowerCase()] || userMap[String(cKey)];
+      if (match) {
+        item.createdBy = match;
+        item.created_by = match;
+        item.createdByName = match;
       }
+    }
+    // 3. Fallback: if createdBy is still a hex ID and assignedTo has a readable name, use assignedTo
+    if (item.createdBy && item.createdBy.length === 24 && /^[0-9a-fA-F]+$/.test(item.createdBy) && item.assignedTo && !/^[0-9a-fA-F]{24}$/.test(item.assignedTo)) {
+      item.createdBy = item.assignedTo;
+      item.created_by = item.assignedTo;
+    }
+
+    // 4. Enrich from Linked Contact
+    const cId = item.contact_id || item.contactId;
+    const contact = cId ? contactMap[String(cId)] : null;
+    if (contact) {
+      const phone = contact.contact_number || contact.contactNumber || contact.phone || '';
+      if (!item.contact_number && !item.contactNumber) {
+        item.contact_number = phone;
+        item.contactNumber = phone;
+      }
+      if (!item.customer_name && !item.customerName) {
+        const cName = contact.customer_name || contact.customerName || '';
+        item.customer_name = cName;
+        item.customerName = cName;
+      }
+      if (!item.project_name && !item.projectName) {
+        const pName = contact.project_name || contact.projectName || '';
+        item.project_name = pName;
+        item.projectName = pName;
+      }
+      if (!item.location) {
+        item.location = contact.location || '';
+      }
+      if (!item.stage) {
+        item.stage = contact.stage || '';
+      }
+      if (!item.source) {
+        item.source = contact.source || contact.lead_source || '';
+      }
+      if (!item.budget) {
+        item.budget = contact.budget || '';
+      }
+      if (!item.contact_owner_email && !item.contactOwnerEmail) {
+        const oEmail = contact.contact_owner_email || contact.contactOwnerEmail || '';
+        item.contact_owner_email = oEmail;
+        item.contactOwnerEmail = oEmail;
+      }
+    }
+
+    // 5. Dual-case aliases for Task Type & Dates & Contact Number
+    const tType = item.task_type || item.taskType || item.type || '';
+    item.task_type = tType;
+    item.taskType = tType;
+    item.type = tType;
+
+    const phone = item.contact_number || item.contactNumber || '';
+    item.contact_number = phone;
+    item.contactNumber = phone;
+
+    const dDate = item.due_date || item.dueDate || item.next_follow_up || item.nextFollowUp;
+    if (dDate) {
+      item.due_date = dDate;
+      item.dueDate = dDate;
+      item.next_follow_up = dDate;
+      item.nextFollowUp = dDate;
     }
   });
 }
@@ -230,7 +315,6 @@ function buildController({
           .exec(),
         Model.countDocuments(filter).exec(),
       ]);
-const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
 
       await enrichTasks(Model, items);
       await enrichOrganizationNames(Model, items);
@@ -266,7 +350,9 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
       } else {
         payload.industry_id = req.user?.industryId;
       }
-      payload.created_by = req.user?.id;
+      if (!payload.created_by) {
+        payload.created_by = req.user?.name || req.user?.email || req.user?.id;
+      }
       if (req.user?.organizationId) {
         payload.organization_id = String(req.user.organizationId);
       }
@@ -322,6 +408,9 @@ const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
         }
       }
       const patch = normalizePayload({ ...(req.body || {}) });
+      delete patch._id;
+      delete patch.id;
+      delete patch.__v;
       if (!isSuperAdmin(req.user)) {
         delete patch.industry_id;
         delete patch.industryId;

@@ -3,8 +3,14 @@ const { mapWithDualCase } = require('../utils/caseConverter');
 
 exports.list = async (req, res, next) => {
   try {
-    const orgId = req.user.organization_id || req.user.organizationId;
-    const filter = { organization_id: orgId };
+    const isSuperAdmin = req.user.role === 'superAdmin';
+    const orgId = req.query.organizationId || req.headers['x-organization-id'] || req.user.organization_id || req.user.organizationId;
+    const filter = {};
+    if (orgId && orgId !== 'all') {
+      filter.organization_id = orgId;
+    } else if (!isSuperAdmin) {
+      filter.organization_id = 'non_existent_scope';
+    }
     const items = await accountModel.list({ filter });
     res.json({ items });
   } catch (err) {

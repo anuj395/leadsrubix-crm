@@ -162,6 +162,12 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
       industryId: resolvedIndustryId,
       resource_key,
       data: {
+        createdBy: req.user?.name || req.user?.email || 'Admin',
+        created_by: req.user?.name || req.user?.email || 'Admin',
+        userName: req.user?.name || req.user?.email || 'Admin',
+        user_name: req.user?.name || req.user?.email || 'Admin',
+        userEmail: req.user?.email || '',
+        user_email: req.user?.email || '',
         ...normalizePayload(payloadData),
         workspaceId: resolvedWorkspaceId,
         workspace_id: resolvedWorkspaceId,

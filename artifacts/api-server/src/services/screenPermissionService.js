@@ -177,7 +177,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   if (!screen) {
     screen = await ScreenModel.findOne({
       key: finalScreenKey,
-      organization_id: null
+      $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }]
     }).exec();
   }
 
@@ -200,8 +200,8 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
   const isGuestSignup = !authedUser && screen.key === 'organization';
   const bypassPermissions = isSuperAdmin || isGuestSignup;
 
-  if (!industryCode && bypassPermissions) {
-    industryCode = 'basic_crm';
+  if (!industryCode) {
+    industryCode = authedUser?.industryId || authedUser?.industry_id || 'temp0001';
   }
 
   if (!bypassPermissions && !industryCode) {
@@ -680,13 +680,94 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     }
   };
 
+  const DEALS_TRANSLATIONS = {
+    temp0001: {
+      title: 'Opportunity Name',
+      name: 'Opportunity Name',
+      amount: 'Deal Value (₹)',
+      stage: 'Pipeline Stage',
+      probability: 'Probability %',
+      expectedCloseDate: 'Expected Close Date',
+      contactName: 'Client Name',
+      ownerName: 'Sales Consultant',
+      notes: 'Requirements & Strategy Notes',
+    },
+    temp0002: {
+      title: 'Order Opportunity',
+      name: 'Order Opportunity',
+      amount: 'Order Value (₹)',
+      stage: 'Fulfillment Stage',
+      probability: 'Conversion Probability %',
+      expectedCloseDate: 'Target Delivery Date',
+      contactName: 'Customer Name',
+      ownerName: 'Account Manager',
+      notes: 'Order Specifications & Notes',
+    },
+    temp0003: {
+      title: 'Treatment Case',
+      name: 'Treatment Case',
+      amount: 'Treatment Cost (₹)',
+      stage: 'Clinical Stage',
+      probability: 'Procedure Probability %',
+      expectedCloseDate: 'Admission / Surgery Date',
+      contactName: 'Patient Name',
+      ownerName: 'Attending Doctor / Coordinator',
+      notes: 'Clinical Requirements & Notes',
+    },
+    temp0004: {
+      title: 'Admission Opportunity',
+      name: 'Admission Opportunity',
+      amount: 'Program Fee / Tuition (₹)',
+      stage: 'Admission Stage',
+      probability: 'Enrollment Probability %',
+      expectedCloseDate: 'Enrollment Deadline',
+      contactName: 'Student Name',
+      ownerName: 'Academic Counselor',
+      notes: 'Academic Profile & Notes',
+    },
+    temp0005: {
+      title: 'Investment Deal',
+      name: 'Investment Deal',
+      amount: 'Investment Amount (₹)',
+      stage: 'Advisory Stage',
+      probability: 'Closing Probability %',
+      expectedCloseDate: 'Target Funding Date',
+      contactName: 'Investor / Client Name',
+      ownerName: 'Wealth Advisor',
+      notes: 'Portfolio Mandate & Notes',
+    },
+    temp0006: {
+      title: 'Contract / SOW Opportunity',
+      name: 'Contract / SOW Opportunity',
+      amount: 'Contract Value (₹)',
+      stage: 'Sales / SOW Stage',
+      probability: 'Win Probability %',
+      expectedCloseDate: 'Target Kickoff Date',
+      contactName: 'Client Stakeholder Name',
+      ownerName: 'Tech Lead / Account Executive',
+      notes: 'Tech Stack & Scope Notes',
+    },
+    temp0007: {
+      title: 'Commercial Batch Order',
+      name: 'Commercial Batch Order',
+      amount: 'Order Value (₹)',
+      stage: 'Production / Deal Stage',
+      probability: 'Fulfillment Probability %',
+      expectedCloseDate: 'Dispatch Date',
+      contactName: 'Distributor Name',
+      ownerName: 'Commercial Manager',
+      notes: 'Batch Specifications & Notes',
+    }
+  };
+
   const indCode = String(industry?.code || '').toLowerCase().trim();
   const translations = (finalScreenKey === 'configProjects' && PROJECT_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'users' && USER_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'leadDistribution' && DISTRIBUTION_TRANSLATIONS[indCode]) ||
                        (finalScreenKey === 'leadRotation' && ROTATION_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || 
-                       (finalScreenKey === 'tasks' && TASKS_TRANSLATIONS[indCode]) || {};
+                       (finalScreenKey === 'tasks' && TASKS_TRANSLATIONS[indCode]) || 
+                       (finalScreenKey === 'deals' && DEALS_TRANSLATIONS[indCode]) || {};
 
   let resolvedScreenName = screen.name;
   if (finalScreenKey === 'configProjects') {
@@ -696,6 +777,21 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     else if (indCode === 'temp0005') resolvedScreenName = 'Financial Portfolios';
     else if (indCode === 'temp0006') resolvedScreenName = 'Project Catalog';
     else if (indCode === 'temp0007') resolvedScreenName = 'Product Categories';
+  } else if (finalScreenKey === 'deals') {
+    if (indCode === 'temp0002') resolvedScreenName = 'Orders & Pipeline';
+    else if (indCode === 'temp0003') resolvedScreenName = 'Treatment Cases & Triage';
+    else if (indCode === 'temp0004') resolvedScreenName = 'Admissions & Pipeline';
+    else if (indCode === 'temp0005') resolvedScreenName = 'Investment Deals & Mandates';
+    else if (indCode === 'temp0006') resolvedScreenName = 'Contracts & SOW Pipeline';
+    else if (indCode === 'temp0007') resolvedScreenName = 'Commercial Orders & Deals';
+  } else if (finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact') {
+    if (indCode === 'temp0002') resolvedScreenName = 'Customer Inquiries & Leads';
+    else if (indCode === 'temp0003') resolvedScreenName = 'Patient Inquiries & Leads';
+    else if (indCode === 'temp0004') resolvedScreenName = 'Student Inquiries & Leads';
+    else if (indCode === 'temp0005') resolvedScreenName = 'Investor Inquiries & Leads';
+    else if (indCode === 'temp0006') resolvedScreenName = 'Client Inquiries & Leads';
+    else if (indCode === 'temp0007') resolvedScreenName = 'Distributor Inquiries & Leads';
+    else resolvedScreenName = 'Inquiries & Leads';
   }
 
   const tableHeaders = allowed

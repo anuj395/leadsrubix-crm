@@ -62,6 +62,86 @@ exports.list = async (opts) => {
     temp0007: { customerName: 'Distributor Name', contactNo: 'Phone Number', contactNumber: 'Phone Number', email: 'Email ID', project: 'Product Category', projectName: 'Product Category', budget: 'Distributor Value', propertyType: 'Production Line', propertyStage: 'Process Stage', propertySubType: 'Production Batch', leadSource: 'Lead Source', source: 'Lead Source', contactOwnerEmail: 'Manager Email' }
   };
 
+  const DEALS_TRANSLATIONS = {
+    temp0001: {
+      title: 'Opportunity Name',
+      name: 'Opportunity Name',
+      amount: 'Deal Value (₹)',
+      stage: 'Pipeline Stage',
+      probability: 'Probability %',
+      expectedCloseDate: 'Expected Close Date',
+      contactName: 'Client Name',
+      ownerName: 'Sales Consultant',
+      notes: 'Requirements & Strategy Notes',
+    },
+    temp0002: {
+      title: 'Order Opportunity',
+      name: 'Order Opportunity',
+      amount: 'Order Value (₹)',
+      stage: 'Fulfillment Stage',
+      probability: 'Conversion Probability %',
+      expectedCloseDate: 'Target Delivery Date',
+      contactName: 'Customer Name',
+      ownerName: 'Account Manager',
+      notes: 'Order Specifications & Notes',
+    },
+    temp0003: {
+      title: 'Treatment Case',
+      name: 'Treatment Case',
+      amount: 'Treatment Cost (₹)',
+      stage: 'Clinical Stage',
+      probability: 'Procedure Probability %',
+      expectedCloseDate: 'Admission / Surgery Date',
+      contactName: 'Patient Name',
+      ownerName: 'Attending Doctor / Coordinator',
+      notes: 'Clinical Requirements & Notes',
+    },
+    temp0004: {
+      title: 'Admission Opportunity',
+      name: 'Admission Opportunity',
+      amount: 'Program Fee / Tuition (₹)',
+      stage: 'Admission Stage',
+      probability: 'Enrollment Probability %',
+      expectedCloseDate: 'Enrollment Deadline',
+      contactName: 'Student Name',
+      ownerName: 'Academic Counselor',
+      notes: 'Academic Profile & Notes',
+    },
+    temp0005: {
+      title: 'Investment Deal',
+      name: 'Investment Deal',
+      amount: 'Investment Amount (₹)',
+      stage: 'Advisory Stage',
+      probability: 'Closing Probability %',
+      expectedCloseDate: 'Target Funding Date',
+      contactName: 'Investor / Client Name',
+      ownerName: 'Wealth Advisor',
+      notes: 'Portfolio Mandate & Notes',
+    },
+    temp0006: {
+      title: 'Contract / SOW Opportunity',
+      name: 'Contract / SOW Opportunity',
+      amount: 'Contract Value (₹)',
+      stage: 'Sales / SOW Stage',
+      probability: 'Win Probability %',
+      expectedCloseDate: 'Target Kickoff Date',
+      contactName: 'Client Stakeholder Name',
+      ownerName: 'Tech Lead / Account Executive',
+      notes: 'Tech Stack & Scope Notes',
+    },
+    temp0007: {
+      title: 'Commercial Batch Order',
+      name: 'Commercial Batch Order',
+      amount: 'Order Value (₹)',
+      stage: 'Production / Deal Stage',
+      probability: 'Fulfillment Probability %',
+      expectedCloseDate: 'Dispatch Date',
+      contactName: 'Distributor Name',
+      ownerName: 'Commercial Manager',
+      notes: 'Batch Specifications & Notes',
+    }
+  };
+
   const Screen = mongoose.model('Screen');
   const screen = await Screen.findById(opts.screenId).lean().exec();
   const screenKey = screen?.key;
@@ -70,7 +150,8 @@ exports.list = async (opts) => {
                        (screenKey === 'users' && USER_TRANSLATIONS[indCode]) || 
                        (screenKey === 'leadDistribution' && DISTRIBUTION_TRANSLATIONS[indCode]) ||
                        (screenKey === 'leadRotation' && ROTATION_TRANSLATIONS[indCode]) || 
-                       (screenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || {};
+                       (screenKey === 'contacts' && CONTACTS_TRANSLATIONS[indCode]) || 
+                       (screenKey === 'deals' && DEALS_TRANSLATIONS[indCode]) || {};
 
   const ALL_INDUSTRY_FIELDS = {
     temp0002: ['orderID', 'orderValue', 'cartItemsCount', 'couponCode', 'shippingMethod', 'orderStatus', 'cart_items_count'],

@@ -21,7 +21,7 @@ function getFieldName(resourceKey) {
 const organizationResourcesSchema = new mongoose.Schema(
   {
     organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
-    industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', default: null, index: true, alias: 'industryId' },
+    industry_id: { type: mongoose.Schema.Types.Mixed, default: null, index: true, alias: 'industryId' },
     property_stages: { type: Array, default: [], alias: 'propertyStages' },
     property_sub_types: { type: Array, default: [], alias: 'propertySubTypes' },
     property_types: { type: Array, default: [], alias: 'propertyTypes' },

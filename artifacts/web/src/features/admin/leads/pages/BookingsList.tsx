@@ -200,6 +200,8 @@ export default function BookingsListPage() {
         <DialogContent dividers>
           <DynamicForm
             screen="bookings"
+            industryCode={String(user?.industryId || 'temp0001')}
+            organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
             onCancel={() => setDialogOpen(false)}
             submitLabel="Create"
             onSubmit={async (values) => {
@@ -227,6 +229,8 @@ export default function BookingsListPage() {
           {editingBooking && (
             <DynamicForm
               screen="bookings"
+              industryCode={String(user?.industryId || 'temp0001')}
+              organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={toFormValues(editingBooking)}
               onCancel={() => setEditingBooking(null)}
               submitLabel="Save Changes"

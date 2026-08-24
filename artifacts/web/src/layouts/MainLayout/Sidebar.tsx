@@ -31,6 +31,7 @@ import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import ContactsOutlinedIcon from '@mui/icons-material/ContactsOutlined'
 import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined'
 
 import Button from '@mui/material/Button'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
@@ -66,6 +67,7 @@ const iconMap: Partial<Record<MenuIconKey, typeof AppsOutlinedIcon>> = {
   coupon: Inventory2OutlinedIcon,
   dashboard: AppsOutlinedIcon,
   data: DataObjectOutlinedIcon,
+  deals: HandshakeOutlinedIcon,
   faq: HelpOutlineRoundedIcon,
   headers: ArticleOutlinedIcon,
   leads: Groups2OutlinedIcon,

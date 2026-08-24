@@ -1205,3 +1205,21 @@ Organization: Test Real State
 Username / Email: rtest@gmail.com
 Temp Password: pIyi1PwK
 ========================================
+
+========================================
+Timestamp: 2026-08-21T09:09:26.916Z
+To: aarav.realestate101@apexrealty.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Apex Realty Infra
+Username / Email: aarav.realestate101@apexrealty.com
+Temp Password: OXktAmXW
+========================================
+
+========================================
+Timestamp: 2026-08-21T09:17:57.205Z
+To: rohan.admin@royalpalms.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Royal Palms Realty
+Username / Email: rohan.admin@royalpalms.com
+Temp Password: i8F7LrrQ
+========================================

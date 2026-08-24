@@ -119,7 +119,9 @@ export interface ResolvedFormField {
 }
 
 export interface ResolvedScreen {
-  screen: { _id: string; key: string; name: string }
+  name?: string
+  description?: string
+  screen: { _id: string; key: string; name: string; description?: string }
   industryId: string
   roleId: string
   tableHeaders: ResolvedTableHeader[]

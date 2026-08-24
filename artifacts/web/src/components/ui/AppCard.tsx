@@ -10,8 +10,8 @@ import type { ReactNode } from 'react'
 interface AppCardProps {
   action?: ReactNode
   children: ReactNode
-  subtitle?: string
-  title: string
+  subtitle?: string | ReactNode
+  title: string | ReactNode
   sx?: SxProps<Theme>
   fullHeight?: boolean
 }
@@ -45,31 +45,36 @@ export function AppCard({ action, children, subtitle, title, sx, fullHeight = fa
           spacing={{ xs: 1.5, sm: 2 }}
           sx={{ mb: 2, minWidth: 0, flexWrap: 'wrap', flexShrink: 0 }}
         >
-          {/* <Stack sx={{ minWidth: 0, flex: '1 1 12rem' }}> */}
           <Stack sx={{ minWidth: 0, flex: { xs: '1 1 4rem', sm: '1 1 12rem' } }}>
-            <Typography
-              variant="overline"
-              sx={{
-                color: theme.palette.secondary.main,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                lineHeight: 1.4,
-                mb: subtitle ? 0.5 : 0,
-              }}
-            >
-              {title}
-            </Typography>
-            {subtitle && (
+            {typeof title === 'string' ? (
+              <Typography
+                variant="overline"
+                sx={{
+                  color: theme.palette.secondary.main,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  lineHeight: 1.4,
+                  mb: subtitle ? 0.5 : 0,
+                }}
+              >
+                {title}
+              </Typography>
+            ) : (
+              title
+            )}
+            {subtitle && (typeof subtitle === 'string' ? (
               <Typography
                 variant="body2"
                 sx={{
                   color: theme.palette.text.secondary,
-                  lineHeight: 1.55,
+                  fontWeight: 400,
                 }}
               >
                 {subtitle}
               </Typography>
-            )}
+            ) : (
+              subtitle
+            ))}
           </Stack>
 
           {action && (

@@ -64,6 +64,7 @@ import InterestedDetailsPage from '@/features/admin/leads/components/InterestedD
 import ContactDrilldownPage from '@/features/admin/pages/drilldown/ContactDrilldown'
 import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
 import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
+import DealsListPage from '@/features/admin/leads/pages/DealsList'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
@@ -76,6 +77,8 @@ export const routeComponentMap: Record<string, any> = {
   "/users/roles": RolesAndPermissionsPage,
   "/access-control/roles": RolesAndPermissionsPage,
 
+  "/leads/deals": DealsListPage,
+  "/leads/deals-list": DealsListPage,
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,

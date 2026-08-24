@@ -41,6 +41,39 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
   return out
 }
 
+function getTaskFieldValue(row: Record<string, any>, key: string): any {
+  if (!row || !key) return undefined
+  if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key]
+
+  const camelKey = key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+  if (row[camelKey] !== undefined && row[camelKey] !== null && row[camelKey] !== '') return row[camelKey]
+
+  const snakeKey = key.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`)
+  if (row[snakeKey] !== undefined && row[snakeKey] !== null && row[snakeKey] !== '') return row[snakeKey]
+
+  // Dynamic Aliases across screens & industries
+  const norm = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (norm.includes('type')) {
+    return row.task_type || row.taskType || row.type
+  }
+  if (norm.includes('contactnumber') || norm.includes('phone') || norm.includes('mobile')) {
+    return row.contact_number || row.contactNumber || row.phone || row.mobile
+  }
+  if (norm.includes('customername') || norm.includes('clientname') || norm.includes('name')) {
+    return row.customer_name || row.customerName || row.name || row.clientName
+  }
+  if (norm.includes('owner') || norm.includes('assigned') || norm.includes('email')) {
+    return row.contact_owner_email || row.contactOwnerEmail || row.owner_email || row.ownerEmail || row.assignedTo || row.assigned_to || row.createdBy
+  }
+  if (norm.includes('due') || norm.includes('followup')) {
+    return row.due_date || row.dueDate || row.next_follow_up || row.nextFollowUp
+  }
+  if (norm.includes('project')) {
+    return row.project_name || row.projectName
+  }
+  return undefined
+}
+
 export default function TasksListPage() {
   const navigate = useNavigate()
   const { user } = useAppSelector(selectAuth)
@@ -125,7 +158,7 @@ export default function TasksListPage() {
       flex: 1,
       minWidth: 140,
       sortable: col.sortable !== false,
-      valueGetter: (_v: unknown, row: Task) => (row as Record<string, unknown>)[col.key],
+      valueGetter: (_v: unknown, row: Task) => getTaskFieldValue(row as Record<string, any>, col.key),
       renderCell: (p) => {
         const v = p.value
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
@@ -217,13 +250,6 @@ export default function TasksListPage() {
       <AppCard
         title={screenName || 'Tasks'}
         subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
-        action={
-          can_add ? (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-              Add Task
-            </Button>
-          ) : undefined
-        }
         fullHeight
       >
         <AppDataGrid
@@ -260,6 +286,8 @@ export default function TasksListPage() {
         <DialogContent dividers>
           <DynamicForm
             screen="tasks"
+            industryCode={String(user?.industryId || 'temp0001')}
+            organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
             onCancel={() => setDialogOpen(false)}
             submitLabel="Create"
             onSubmit={async (values) => {
@@ -283,6 +311,8 @@ export default function TasksListPage() {
           {editingTask && (
             <DynamicForm
               screen="tasks"
+              industryCode={String(user?.industryId || 'temp0001')}
+              organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={toFormValues(editingTask)}
               onCancel={() => setEditingTask(null)}
               submitLabel="Save Changes"

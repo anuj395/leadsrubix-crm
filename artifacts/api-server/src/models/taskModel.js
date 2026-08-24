@@ -3,9 +3,9 @@ const { withDualCase, mapWithDualCase } = require('../utils/caseConverter');
 
 const taskSchema = new mongoose.Schema(
   {
-    contact_id:          { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: false, index: true, alias: 'contactId' },
-    related_to_type:     { type: String, enum: ['Lead', 'Account', 'Contact', 'Deal'], alias: 'relatedToType' },
-    related_to_id:       { type: mongoose.Schema.Types.ObjectId, alias: 'relatedToId' },
+    contact_id:          { type: mongoose.Schema.Types.Mixed, default: null, index: true, alias: 'contactId' },
+    related_to_type:     { type: String, alias: 'relatedToType' },
+    related_to_id:       { type: mongoose.Schema.Types.Mixed, default: null, alias: 'relatedToId' },
     organization_id:     { type: String, default: null, index: true, alias: 'organizationId' },
     workspace_id:        { type: String, default: null, index: true, alias: 'workspaceId' },
     uid:                { type: String, default: null, index: true },

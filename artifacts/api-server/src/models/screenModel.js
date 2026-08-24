@@ -75,7 +75,10 @@ exports.findByKey = async (key, organizationId) => {
     const doc = await Screen.findOne({ key: q.key, organization_id: organizationId }).exec();
     if (doc) return doc;
   }
-  return Screen.findOne({ key: q.key, organization_id: null }).exec();
+  return Screen.findOne({
+    key: q.key,
+    $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }]
+  }).exec();
 };
 
 exports.create = async ({ key, name, description, order, isActive, organizationId, organization_id, workspaceId, workspace_id, industryId, industry_id }) => {

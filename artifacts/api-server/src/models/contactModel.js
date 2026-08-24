@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { mapWithDualCase } = require('../utils/caseConverter');
+const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
 
 /**
  * Contacts use a freeform schema (`strict: false`) because the available
@@ -28,7 +28,7 @@ const contactSchema = new mongoose.Schema(
     adset: { type: String },
     campaign: { type: String },
     notes: { type: String },
-    account_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Account', default: null, alias: 'accountId' },
+    account_id: { type: mongoose.Schema.Types.Mixed, default: null, alias: 'accountId' },
   },
   { 
     timestamps: true, 
@@ -64,10 +64,13 @@ function normalizePayload(payload) {
 
 exports.create = async (payload) => {
   const doc = await Contact.create(normalizePayload(payload));
-  return doc.toObject();
+  return withDualCase(doc.toObject());
 };
 
-exports.findById = async (id) => Contact.findById(id).lean().exec();
+exports.findById = async (id) => {
+  const doc = await Contact.findById(id).lean().exec();
+  return doc ? withDualCase(doc) : null;
+};
 
 exports.findByIdAndUpdate = async (id, update, options = {}) => {
   const normalizedUpdate = {};
@@ -75,10 +78,12 @@ exports.findByIdAndUpdate = async (id, update, options = {}) => {
     if (op.startsWith('$')) {
       normalizedUpdate[op] = normalizePayload(val);
     } else {
-      normalizedUpdate[op] = val;
+      const dbKey = op.includes('_') ? op : camelToSnakeCase(op);
+      normalizedUpdate[dbKey] = val;
     }
   }
-  return Contact.findByIdAndUpdate(id, normalizedUpdate, options).lean().exec();
+  const doc = await Contact.findByIdAndUpdate(id, normalizedUpdate, { new: true, ...options }).lean().exec();
+  return doc ? withDualCase(doc) : null;
 };
 
 exports.remove = async (id) => Contact.findByIdAndDelete(id).lean().exec();

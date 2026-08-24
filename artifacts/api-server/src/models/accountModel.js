@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { mapWithDualCase } = require('../utils/caseConverter');
+const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
 
 const accountSchema = new mongoose.Schema(
   {
@@ -48,10 +48,13 @@ function normalizePayload(payload) {
 
 exports.create = async (payload) => {
   const doc = await Account.create(normalizePayload(payload));
-  return doc.toObject();
+  return withDualCase(doc.toObject());
 };
 
-exports.findById = async (id) => Account.findById(id).lean().exec();
+exports.findById = async (id) => {
+  const doc = await Account.findById(id).lean().exec();
+  return doc ? withDualCase(doc) : null;
+};
 
 exports.findByIdAndUpdate = async (id, update, options = {}) => {
   const normalizedUpdate = {};
@@ -59,10 +62,12 @@ exports.findByIdAndUpdate = async (id, update, options = {}) => {
     if (op.startsWith('$')) {
       normalizedUpdate[op] = normalizePayload(val);
     } else {
-      normalizedUpdate[op] = val;
+      const dbKey = op.includes('_') ? op : camelToSnakeCase(op);
+      normalizedUpdate[dbKey] = val;
     }
   }
-  return Account.findByIdAndUpdate(id, normalizedUpdate, options).lean().exec();
+  const doc = await Account.findByIdAndUpdate(id, normalizedUpdate, { new: true, ...options }).lean().exec();
+  return doc ? withDualCase(doc) : null;
 };
 
 exports.remove = async (id) => Account.findByIdAndDelete(id).lean().exec();
