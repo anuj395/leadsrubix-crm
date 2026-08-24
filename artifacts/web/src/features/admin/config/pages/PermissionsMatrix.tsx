@@ -88,18 +88,70 @@ export default function AdminPermissionsMatrixPage() {
 
   const menuById = useMemo(() => new Map(menus.map((m) => [m._id, m])), [menus])
 
-  const sortedMenus = useMemo(() => {
-    const roots = menus.filter((m) => !m.parent_id).sort((a, b) => a.order - b.order)
-    const childrenOf = (id: string) =>
-      menus.filter((m) => m.parent_id === id).sort((a, b) => a.order - b.order)
-    const result: SidebarMenuRecord[] = []
-    roots.forEach((r) => {
-      result.push(r)
-      result.push(...childrenOf(r._id))
+  const getParent = useMemo(() => {
+    const parentMap = new Map<string, SidebarMenuRecord>()
+    menus.forEach((m) => {
+      if (!m.key.includes('.')) {
+        parentMap.set(m.key, m)
+      }
     })
-    menus.filter((m) => m.parent_id && !menuById.has(m.parent_id)).forEach((m) => result.push(m))
+
+    return (item: SidebarMenuRecord): SidebarMenuRecord | null => {
+      const pId = item.parent_id || (item as any).parentId
+      if (pId) {
+        const found = menus.find((m) => m._id === pId)
+        if (found && found._id !== item._id) return found
+      }
+      if (item.key && item.key.includes('.')) {
+        const parentKey = item.key.split('.')[0]
+        const found = parentMap.get(parentKey) || menus.find((m) => m.key === parentKey)
+        if (found && found._id !== item._id) return found
+      }
+      return null
+    }
+  }, [menus])
+
+  const sortedMenus = useMemo(() => {
+    const roots = menus.filter((m) => !getParent(m)).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    const childrenByParentId = new Map<string, SidebarMenuRecord[]>()
+
+    menus.forEach((m) => {
+      const parent = getParent(m)
+      if (parent) {
+        const pId = parent._id
+        if (!childrenByParentId.has(pId)) {
+          childrenByParentId.set(pId, [])
+        }
+        childrenByParentId.get(pId)!.push(m)
+      }
+    })
+
+    const result: SidebarMenuRecord[] = []
+    const seen = new Set<string>()
+
+    roots.forEach((r) => {
+      if (!seen.has(r._id)) {
+        result.push(r)
+        seen.add(r._id)
+      }
+      const children = (childrenByParentId.get(r._id) || []).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+      children.forEach((c) => {
+        if (!seen.has(c._id)) {
+          result.push(c)
+          seen.add(c._id)
+        }
+      })
+    })
+
+    menus.forEach((m) => {
+      if (!seen.has(m._id)) {
+        result.push(m)
+        seen.add(m._id)
+      }
+    })
+
     return result
-  }, [menus, menuById])
+  }, [menus, getParent])
 
   const toggle = (menuId: string) => {
     setEnabled((prev) => {
@@ -108,9 +160,12 @@ export default function AdminPermissionsMatrixPage() {
         next.delete(menuId)
       } else {
         next.add(menuId)
-        const current = menuById.get(menuId)
-        if (current?.parent_id) {
-          next.add(current.parent_id)
+        const current = menus.find((m) => m._id === menuId)
+        if (current) {
+          const parent = getParent(current)
+          if (parent) {
+            next.add(parent._id)
+          }
         }
       }
       return next
@@ -149,9 +204,8 @@ export default function AdminPermissionsMatrixPage() {
         headerName: 'Parent Menu',
         flex: 1,
         valueGetter: (_, row) => {
-          if (!row.parent_id) return '— (Root)'
-          const parent = menuById.get(row.parent_id)
-          return parent ? `${parent.name}` : '—'
+          const parent = getParent(row)
+          return parent ? `${parent.name}` : '— (Root)'
         },
       },
       {
@@ -160,9 +214,10 @@ export default function AdminPermissionsMatrixPage() {
         flex: 1.2,
         renderCell: (p) => {
           const m = p.row
-          const isRoot = !m.parent_id
+          const parent = getParent(m)
+          const isRoot = !parent
           return (
-            <span style={{ fontWeight: isRoot ? 600 : 400, paddingLeft: isRoot ? 0 : 16 }}>
+            <span style={{ fontWeight: isRoot ? 600 : 400, paddingLeft: isRoot ? 0 : 20 }}>
               {!isRoot ? '↳ ' : ''}{m.name}
             </span>
           )

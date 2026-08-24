@@ -126,37 +126,79 @@ export default function PermissionsMatrixPage() {
     }
   }, [industryId, orgId, roleId])
 
-  // Group menus by parent for flat ordering.
-  const groupedMenus = useMemo(() => {
-    const roots = menus.filter((m) => !m.parent_id).sort((a, b) => a.order - b.order)
-    return roots.map((root) => ({
-      root,
-      children: menus
-        .filter((m) => m.parent_id === root._id)
-        .sort((a, b) => a.order - b.order),
-    }))
+  // Helper to resolve parent menu record
+  const getParent = useMemo(() => {
+    const parentMap = new Map<string, SidebarMenuRecord>()
+    menus.forEach((m) => {
+      if (!m.key.includes('.')) {
+        parentMap.set(m.key, m)
+      }
+    })
+
+    return (item: SidebarMenuRecord): SidebarMenuRecord | null => {
+      const pId = item.parent_id || (item as any).parentId
+      if (pId) {
+        const found = menus.find((m) => m._id === pId)
+        if (found && found._id !== item._id) return found
+      }
+      if (item.key && item.key.includes('.')) {
+        const parentKey = item.key.split('.')[0]
+        const found = parentMap.get(parentKey) || menus.find((m) => m.key === parentKey)
+        if (found && found._id !== item._id) return found
+      }
+      return null
+    }
   }, [menus])
 
-  const orphanMenus = useMemo(() => {
-    const byId = new Map(menus.map((m) => [m._id, m]))
-    return menus.filter((m) => m.parent_id && !byId.has(m.parent_id))
-  }, [menus])
+  // Group menus by parent for flat hierarchical ordering
+  const groupedMenus = useMemo(() => {
+    const roots = menus.filter((m) => !getParent(m)).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    const childrenByParentId = new Map<string, SidebarMenuRecord[]>()
+
+    menus.forEach((m) => {
+      const parent = getParent(m)
+      if (parent) {
+        const pId = parent._id
+        if (!childrenByParentId.has(pId)) {
+          childrenByParentId.set(pId, [])
+        }
+        childrenByParentId.get(pId)!.push(m)
+      }
+    })
+
+    return roots.map((root) => ({
+      root,
+      children: (childrenByParentId.get(root._id) || []).sort((a, b) => (a.order ?? 999) - (b.order ?? 999)),
+    }))
+  }, [menus, getParent])
 
   const flatMenus = useMemo(() => {
     const list: SidebarMenuRecord[] = []
+    const seen = new Set<string>()
+
     groupedMenus.forEach(({ root, children }) => {
-      list.push(root)
+      if (!seen.has(root._id)) {
+        list.push(root)
+        seen.add(root._id)
+      }
       children.forEach((c) => {
-        list.push(c)
+        if (!seen.has(c._id)) {
+          list.push(c)
+          seen.add(c._id)
+        }
       })
     })
-    orphanMenus.forEach((o) => {
-      if (!list.some((existing) => existing._id === o._id)) {
-        list.push(o)
+
+    // Append any remaining menus
+    menus.forEach((m) => {
+      if (!seen.has(m._id)) {
+        list.push(m)
+        seen.add(m._id)
       }
     })
+
     return list
-  }, [groupedMenus, orphanMenus])
+  }, [groupedMenus, menus])
 
   const toggle = (id: string) => {
     setEnabled((prev) => {
@@ -165,12 +207,18 @@ export default function PermissionsMatrixPage() {
       if (isChecking) {
         next.add(id)
         menus
-          .filter((m) => m.parent_id === id)
+          .filter((m) => {
+            const p = getParent(m)
+            return p?._id === id
+          })
           .forEach((c) => next.add(c._id))
       } else {
         next.delete(id)
         menus
-          .filter((m) => m.parent_id === id)
+          .filter((m) => {
+            const p = getParent(m)
+            return p?._id === id
+          })
           .forEach((c) => next.delete(c._id))
       }
       return next
@@ -202,9 +250,8 @@ export default function PermissionsMatrixPage() {
         headerName: 'Parent Menu',
         flex: 1,
         valueGetter: (_, row) => {
-          if (!row.parent_id) return '— (Root)'
-          const parent = menus.find((m) => m._id === row.parent_id)
-          return parent ? `${parent.name}` : '—'
+          const parent = getParent(row)
+          return parent ? `${parent.name}` : '— (Root)'
         },
       },
       {
@@ -213,9 +260,10 @@ export default function PermissionsMatrixPage() {
         flex: 1.2,
         renderCell: (p) => {
           const m = p.row
-          const isRoot = !m.parent_id
+          const parent = getParent(m)
+          const isRoot = !parent
           return (
-            <span style={{ fontWeight: isRoot ? 600 : 400, paddingLeft: isRoot ? 0 : 16 }}>
+            <span style={{ fontWeight: isRoot ? 600 : 400, paddingLeft: isRoot ? 0 : 20 }}>
               {!isRoot ? '↳ ' : ''}{m.name}
             </span>
           )
@@ -253,7 +301,7 @@ export default function PermissionsMatrixPage() {
         },
       },
     ],
-    [menus, enabled],
+    [menus, enabled, getParent],
   )
 
   return (
