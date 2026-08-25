@@ -23,4 +23,9 @@ jobs:
             git reset --hard origin/prod
             pnpm install --no-frozen-lockfile
             PORT=3000 pnpm run build
-            pm2 restart api-server
+            mkdir -p build dist/public
+            cp -r artifacts/web/dist/public/* build/ 2>/dev/null || true
+            cp -r artifacts/web/dist/public/* dist/public/ 2>/dev/null || true
+            pm2 restart api-server || pm2 start artifacts/api-server/src/index.js --name "api-server"
+            sudo systemctl reload nginx 2>/dev/null || true
+

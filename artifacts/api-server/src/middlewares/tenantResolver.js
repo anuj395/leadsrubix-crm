@@ -8,8 +8,9 @@ module.exports = async function tenantResolver(req, res, next) {
   try {
     const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
     const host = String(rawHost).split(':')[0].toLowerCase().trim();
+    const isIp = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
 
-    if (!host || host === 'localhost' || host === '127.0.0.1') {
+    if (!host || host === 'localhost' || host === '127.0.0.1' || isIp) {
       return next();
     }
 
