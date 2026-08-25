@@ -1,6 +1,7 @@
 import { useState, useEffect, type MouseEvent } from 'react'
 import CircularProgress from '@mui/material/CircularProgress'
 import NotificationsOffOutlinedIcon from '@mui/icons-material/NotificationsOffOutlined'
+import { APP_BUILD_INFO } from '@/config/version'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import {
     loadNotifications,
@@ -885,6 +886,16 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                             </Typography>
                             <InputOutlinedIcon sx={{ fontSize: '1rem', color: 'inherit' }} />
                         </ButtonBase>
+
+                        {/* Build & Version info footer */}
+                        <Box sx={{ pt: 1.5, pb: 0.5, textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: 'text.disabled', display: 'block', lineHeight: 1.3 }}>
+                                Leads Rubix CRM • v{APP_BUILD_INFO.version} ({APP_BUILD_INFO.buildHash})
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontSize: '0.625rem', color: 'text.disabled', opacity: 0.8, display: 'block' }}>
+                                Built: {APP_BUILD_INFO.buildDate}
+                            </Typography>
+                        </Box>
                     </Stack>
                 </Stack>
             </Popover>
