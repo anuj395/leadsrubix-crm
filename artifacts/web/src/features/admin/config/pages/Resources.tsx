@@ -50,6 +50,7 @@ import { useActionPermission } from '@/hooks/useActionPermission'
 export default function ResourcesPage() {
   const user = useAppSelector((s) => s.auth.user)
   const userIndustryCode = user?.industryId
+  const userOrganizationId = (user as any)?.organizationId || (user as any)?.organization_id || ''
 
   const [resourceScreens, setResourceScreens] = useState<Screen[]>([])
   const [activeTab, setActiveTab] = useState(0)

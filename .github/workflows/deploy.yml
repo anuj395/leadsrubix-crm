@@ -6,14 +6,33 @@ on:
       - prod
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH and deploy to AWS EC2
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Web Application
+        run: pnpm --filter @workspace/web build
+
+      - name: Pull Latest Code on EC2 & Restart API Server
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '65.0.124.51' }}
+          host: ${{ (secrets.EC2_HOST != '' && secrets.EC2_HOST != '65.0.124.51' && secrets.EC2_HOST) || '3.110.156.220' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
@@ -22,9 +41,30 @@ jobs:
             git fetch origin prod
             git checkout prod
             git reset --hard origin/prod
-            pnpm install --no-frozen-lockfile
-            NODE_OPTIONS="--max-old-space-size=1536" PORT=3000 pnpm run build
             cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
             pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
             pm2 save
+
+      - name: Copy Built Frontend to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ (secrets.EC2_HOST != '' && secrets.EC2_HOST != '65.0.124.51' && secrets.EC2_HOST) || '3.110.156.220' }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "artifacts/web/dist/public/*"
+          target: "/home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist"
+          strip_components: 4
+
+      - name: Reload Nginx on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ (secrets.EC2_HOST != '' && secrets.EC2_HOST != '65.0.124.51' && secrets.EC2_HOST) || '3.110.156.220' }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            if [ -d "/home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public" ]; then
+              cp -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public/* /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/
+            fi
             sudo systemctl reload nginx 2>/dev/null || true
