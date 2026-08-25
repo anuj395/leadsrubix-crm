@@ -1,8 +1,47 @@
 const pg = require('pg');
+const path = require('path');
+const fs = require('fs');
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/leadsrubix_crm'
-});
+// Ensure environment is loaded
+if (!process.env.DATABASE_URL) {
+  const currentEnv = process.env.NODE_ENV || 'development';
+  const candidates = [
+    path.resolve(__dirname, `../../.env.${currentEnv}`),
+    path.resolve(__dirname, `../../.env`),
+    path.resolve(__dirname, `../../../.env.${currentEnv}`),
+    path.resolve(__dirname, `../../../.env`),
+  ];
+  for (const f of candidates) {
+    if (fs.existsSync(f)) {
+      require('dotenv').config({ path: f });
+      break;
+    }
+  }
+}
+
+function getPoolConfig() {
+  const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/leadsrubix_crm';
+  try {
+    const url = new URL(dbUrl);
+    return {
+      user: url.username || 'postgres',
+      password: url.password || 'postgres',
+      host: url.hostname || 'localhost',
+      port: parseInt(url.port || '5432', 10),
+      database: (url.pathname || '/leadsrubix_crm').replace(/^\//, '') || 'leadsrubix_crm',
+    };
+  } catch (e) {
+    return {
+      user: 'postgres',
+      password: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      database: 'leadsrubix_crm',
+    };
+  }
+}
+
+const pool = new pg.Pool(getPoolConfig());
 
 const models = {};
 
