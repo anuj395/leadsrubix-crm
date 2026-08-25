@@ -146,15 +146,16 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
       payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
     }
 
-    let resolvedWorkspaceId = null;
-    let resolvedIndustryId = null;
+    let resolvedWorkspaceId = req.query.workspaceId || req.body.workspaceId || null;
+    let resolvedIndustryId = await resolveIndustryId(req);
     if (req.user.role === 'superAdmin') {
-      const tenant = await resolveTenantFields(orgId);
-      resolvedIndustryId = tenant.industryId;
-      resolvedWorkspaceId = tenant.workspaceId;
+      if (orgId) {
+        const tenant = await resolveTenantFields(orgId);
+        resolvedIndustryId = tenant.industryId || resolvedIndustryId;
+        resolvedWorkspaceId = resolvedWorkspaceId || tenant.workspaceId;
+      }
     } else {
-      resolvedIndustryId = await resolveIndustryId(req);
-      resolvedWorkspaceId = req.user.workspaceId || req.user.workspace_id || null;
+      resolvedWorkspaceId = resolvedWorkspaceId || req.user.workspaceId || req.user.workspace_id || null;
     }
 
     const doc = await resourceItemModel.create({

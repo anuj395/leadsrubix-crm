@@ -204,11 +204,11 @@ export default function ResourcesPage() {
       return
     }
 
-    const cacheKey = `${activeScreen.key}_${selectedOrgId}`
+    const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
     const cachedScreen = resolvedScreensCache[cacheKey]
     const cachedRows = resourceDataCache[cacheKey]
 
-    if (cachedScreen && cachedRows) {
+    if (cachedScreen && cachedRows && cachedRows.length > 0) {
       setResolvedScreen(cachedScreen)
       setRows(cachedRows)
       
@@ -614,9 +614,9 @@ export default function ResourcesPage() {
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
-      valueGetter: (_v, row) => {
-        const idx = rows.findIndex((item) => item.id === row.id || (item as any)._id === (row as any)._id)
-        return idx !== -1 ? idx + 1 : ''
+      renderCell: (params) => {
+        const idx = rows.findIndex((item) => (item.id && item.id === params.row.id) || ((item as any)._id && (item as any)._id === (params.row as any)._id))
+        return <Box sx={{ my: 'auto', fontWeight: 500 }}>{idx !== -1 ? idx + 1 : ''}</Box>
       }
     }
 
