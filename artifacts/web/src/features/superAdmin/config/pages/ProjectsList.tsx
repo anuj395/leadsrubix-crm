@@ -102,7 +102,7 @@ export default function ProjectsListPage() {
   }
 
   useEffect(() => {
-    if (!selectedIndustry || !selectedOrg) return
+    if (!selectedIndustry) return
     void loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndustry, selectedOrg])
@@ -131,8 +131,6 @@ export default function ProjectsListPage() {
   }, [items, selectedIndustry, organizations])
 
   const columns = useMemo<GridColDef<Project>[]>(() => {
-    if (!resolvedScreen) return []
-
     const sNoCol: GridColDef<Project> = {
       field: 'sNo',
       headerName: 'S. No.',
@@ -140,13 +138,15 @@ export default function ProjectsListPage() {
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
-      valueGetter: (_v, row) => {
-        const idx = filteredItems.findIndex((item) => item.id === row.id || (item as any)._id === (row as any)._id)
-        return idx !== -1 ? idx + 1 : ''
+      renderCell: (params) => {
+        const idx = filteredItems.findIndex((item) => (item.id && item.id === params.row.id) || ((item as any)._id && (item as any)._id === (params.row as any)._id))
+        return <Box sx={{ my: 'auto', fontWeight: 500 }}>{idx !== -1 ? idx + 1 : ''}</Box>
       }
     }
 
-    const baseCols: GridColDef<Project>[] = resolvedScreen.table_headers.map((header) => {
+    const headersSource = resolvedScreen?.table_headers || (resolvedScreen as any)?.tableHeaders || []
+
+    const baseCols: GridColDef<Project>[] = headersSource.map((header: any) => {
       if (header.key === 'organizationId' || header.key === 'organizationName') return null
 
       const col: GridColDef<Project> = {
@@ -154,21 +154,25 @@ export default function ProjectsListPage() {
         headerName: header.label,
         flex: 1,
         minWidth: 140,
-        sortable: header.sortable,
+        sortable: header.sortable ?? true,
         valueGetter: (_v, row) => {
           const r = (row as unknown) as Record<string, unknown>
-          const camelKey = header.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
-          const snakeKey = header.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+          const camelKey = header.key.replace(/_([a-z])/g, (_: any, g: string) => g.toUpperCase())
+          const snakeKey = header.key.replace(/[A-Z]/g, (letter: string) => `_${letter.toLowerCase()}`)
           return r[header.key] ?? r[camelKey] ?? r[snakeKey]
         },
         renderCell: (p) => {
           const v = p.value
           if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
-          if (header.key === 'status') {
-            return <StatusBadge value={v === 'ACTIVE' ? 'Active' : 'Inactive'} />
+
+          if (header.type === 'badge' || header.type === 'status' || header.key === 'status' || header.key === 'projectStatus') {
+            return <StatusBadge value={String(v)} />
           }
-          if (header.key === 'created_at' || header.key === 'createdAt') {
+          if (header.type === 'date' || header.key === 'created_at' || header.key === 'createdAt') {
             return new Date(v as string).toLocaleString()
+          }
+          if (header.type === 'image') {
+            return <Box component="img" src={String(v)} sx={{ width: 48, height: 32, borderRadius: 1, objectFit: 'cover' }} />
           }
           return String(v)
         }
@@ -205,7 +209,7 @@ export default function ProjectsListPage() {
     })
 
     return cols
-  }, [resolvedScreen, filteredItems, navigate, selectedIndustry])
+  }, [resolvedScreen, filteredItems, navigate, selectedIndustry, selectedOrg])
 
   return (
     <Box
