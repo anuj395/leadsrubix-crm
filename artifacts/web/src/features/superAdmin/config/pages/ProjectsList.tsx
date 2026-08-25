@@ -70,7 +70,7 @@ export default function ProjectsListPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const activeIndustry = selectedIndustry || undefined
+      const activeIndustry = selectedIndustry || 'temp0001'
       const activeOrg = selectedOrg || undefined
 
       const params = new URLSearchParams()
@@ -102,7 +102,6 @@ export default function ProjectsListPage() {
   }
 
   useEffect(() => {
-    if (!selectedIndustry) return
     void loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndustry, selectedOrg])

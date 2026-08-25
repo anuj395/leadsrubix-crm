@@ -130,7 +130,7 @@ export default function ProjectsListPage() {
     try {
       const [resProjects, resolved] = await Promise.all([
         api.get('/resources/resourceProjects'),
-        resolveScreen({ screen_key: 'configProjects', industry_code: user?.industryId })
+        resolveScreen({ screen_key: 'configProjects', industry_code: user?.industryId || 'temp0001' })
       ])
       setItems(resProjects.data || [])
       setResolvedScreen(resolved)
@@ -201,7 +201,7 @@ export default function ProjectsListPage() {
           const v = p.value
           if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
 
-          if (header.type === 'badge' || header.type === 'status' || header.key === 'status' || header.key === 'projectStatus' || header.key === 'project_status') {
+          if ((header.type as string) === 'badge' || (header.type as string) === 'status' || header.key === 'status' || header.key === 'projectStatus' || header.key === 'project_status') {
             return <StatusBadge value={String(v)} />
           }
           if (header.type === 'date' || header.key === 'created_at' || header.key === 'createdAt') {
