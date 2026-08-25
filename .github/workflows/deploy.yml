@@ -23,7 +23,10 @@ jobs:
             git checkout prod
             git reset --hard origin/prod
             pnpm install --no-frozen-lockfile
-            NODE_OPTIONS="--max-old-space-size=1536" PORT=3000 pnpm run build
+            NODE_OPTIONS="--max-old-space-size=1536" pnpm --filter @workspace/web build
+            if [ -d "artifacts/web/dist/public" ]; then
+              cp -rf artifacts/web/dist/public/* artifacts/web/dist/
+            fi
             cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
             pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
             pm2 save
