@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSubscription } from '@/hooks/useSubscription'
+import { APP_BUILD_INFO } from '@/config/version'
 
 import ApiOutlinedIcon from '@mui/icons-material/ApiOutlined'
 import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined'
@@ -797,6 +798,76 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
           )}
         </Box>
       )}
+
+      {/* Version & Build Info Badge */}
+      <Box
+        sx={{
+          px: collapsed ? 0.5 : 1.75,
+          py: 1.1,
+          mt: 'auto',
+          borderTop: (t) => `1px solid ${t.palette.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          flexShrink: 0,
+          background: isDark ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.015)',
+        }}
+      >
+        {collapsed ? (
+          <Tooltip title={`Leads Rubix CRM v${APP_BUILD_INFO.version} | Build: #${APP_BUILD_INFO.buildHash} | Deployed: ${APP_BUILD_INFO.buildDate}`} arrow placement="right">
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: 'success.main',
+                cursor: 'pointer',
+                boxShadow: '0 0 6px rgba(46, 125, 50, 0.6)'
+              }}
+            />
+          </Tooltip>
+        ) : (
+          <>
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Box
+                sx={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  bgcolor: 'success.main',
+                  boxShadow: '0 0 5px rgba(46, 125, 50, 0.6)'
+                }}
+              />
+              <Typography variant="caption" sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'text.secondary' }}>
+                v{APP_BUILD_INFO.version}
+              </Typography>
+              <Tooltip title={`Build Commit: #${APP_BUILD_INFO.buildHash} • Deployed: ${APP_BUILD_INFO.buildDate}`} arrow placement="top">
+                <Typography variant="caption" sx={{ fontSize: '0.625rem', color: 'text.disabled', fontFamily: 'monospace', cursor: 'pointer' }}>
+                  #{APP_BUILD_INFO.buildHash}
+                </Typography>
+              </Tooltip>
+            </Stack>
+            <Tooltip title={`Deployed on: ${APP_BUILD_INFO.buildDate}`} arrow placement="top">
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: '0.625rem',
+                  color: 'text.secondary',
+                  cursor: 'pointer',
+                  bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                  px: 0.75,
+                  py: 0.2,
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {APP_BUILD_INFO.env.toUpperCase()}
+              </Typography>
+            </Tooltip>
+          </>
+        )}
+      </Box>
     </Box>
   )
 }
