@@ -48,3 +48,13 @@ Thumbs.db
 .cache/
 .local/
 scratch/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+artifacts/api-server/.env
+artifacts/web/.env
+artifacts/app/.env
+!*.env.example
+
