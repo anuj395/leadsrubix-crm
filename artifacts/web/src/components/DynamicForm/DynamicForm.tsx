@@ -418,14 +418,14 @@ export function DynamicForm({
     let url = f.dropdownApi || f.dropdown_api || ''
     if (!url) return ''
     if (url.includes('options/states') && values.country) {
-      url = `${url}?country=${encodeURIComponent(String(values.country))}`
+      url = `${url}${url.includes('?') ? '&' : '?'}country=${encodeURIComponent(String(values.country))}`
     }
     const finalIndustryCode = industryCode || industry_code
-    if (url.includes('options/organizations') && finalIndustryCode) {
-      url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(finalIndustryCode))}`
+    if (finalIndustryCode && !url.includes('industryId=') && !url.includes('industry_code=')) {
+      url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(finalIndustryCode))}&industry_code=${encodeURIComponent(String(finalIndustryCode))}`
     }
-    const activeOrg = values.organizationId || values.organizationId
-    if (activeOrg && !url.includes('options/organizations')) {
+    const activeOrg = values.organizationId || organizationId || organization_id
+    if (activeOrg && !url.includes('options/organizations') && !url.includes('organizationId=')) {
       url = `${url}${url.includes('?') ? '&' : '?'}organizationId=${encodeURIComponent(String(activeOrg))}`
     }
     if ((url.includes('/users/managers') || url.includes('users/managers')) && values.role) {

@@ -181,9 +181,13 @@ export default function ProjectsListPage() {
       return col
     }).filter(Boolean) as GridColDef<Project>[]
 
+    const nonStatusCols = baseCols.filter(c => c.field !== 'status' && c.field !== 'projectStatus' && (c as any).field !== 'project_status')
+    const statusCols = baseCols.filter(c => c.field === 'status' || c.field === 'projectStatus' || (c as any).field === 'project_status')
+
     const cols: GridColDef<Project>[] = [
       sNoCol,
-      ...baseCols
+      ...nonStatusCols,
+      ...statusCols
     ]
 
     cols.push({

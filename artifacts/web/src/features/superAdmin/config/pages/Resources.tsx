@@ -64,39 +64,67 @@ export default function ResourcesPage() {
   } = useSuperAdminScope(isSuperAdmin)
 
   const RESOURCE_SCREEN_TRANSLATIONS: Record<string, Record<string, string>> = {
+    temp0001: {
+      resourceCarousel: 'Carousel Banners',
+      resourceLocations: 'Locations',
+      resourcePropertyTypes: 'Property Types',
+      resourcePropertyStages: 'Property Stages',
+      resourcePropertySubTypes: 'Property Sub Types',
+      resourceBudgets: 'Budgets',
+      resourceLeadSources: 'Lead Sources',
+      resourceTransferReasons: 'Transfer Reasons',
+    },
     temp0002: {
       resourceCarousel: 'Carousel Banners',
       resourceLocations: 'Warehouses & Hubs',
+      resourcePropertyTypes: 'Product Categories',
+      resourcePropertyStages: 'Availability Stages',
+      resourceBudgets: 'Price Ranges',
       resourceLeadSources: 'Customer Channels',
       resourceTransferReasons: 'Return Reasons',
     },
     temp0003: {
       resourceCarousel: 'Hospital Banners',
       resourceLocations: 'Clinics & Centers',
+      resourcePropertyTypes: 'Departments',
+      resourcePropertyStages: 'Clinical Wings',
+      resourceBudgets: 'Treatment Budgets',
       resourceLeadSources: 'Patient Sources',
       resourceTransferReasons: 'Transfer Reasons',
     },
     temp0004: {
       resourceCarousel: 'Campus Banners',
       resourceLocations: 'Campuses & Branches',
+      resourcePropertyTypes: 'Program Categories',
+      resourcePropertyStages: 'Intake Batches',
+      resourceBudgets: 'Course Fee Ranges',
       resourceLeadSources: 'Student Channels',
       resourceTransferReasons: 'Course Transfer Reasons',
     },
     temp0005: {
       resourceCarousel: 'Promo Banners',
       resourceLocations: 'Branch Offices',
+      resourcePropertyTypes: 'Financial Products',
+      resourcePropertyStages: 'Risk Profiles',
+      resourceBudgets: 'Investment Amounts',
       resourceLeadSources: 'Client Sources',
       resourceTransferReasons: 'Advisor Reassign Reasons',
     },
     temp0006: {
       resourceCarousel: 'Case Study Banners',
       resourceLocations: 'Delivery Centers',
+      resourcePropertyTypes: 'Domains & Tech Stacks',
+      resourcePropertyStages: 'Implementation Stages',
+      resourceBudgets: 'Project Budgets',
       resourceLeadSources: 'Lead Channels',
       resourceTransferReasons: 'Project Transfer Reasons',
     },
     temp0007: {
       resourceCarousel: 'Product Banners',
       resourceLocations: 'Manufacturing Plants',
+      resourcePropertyTypes: 'Material Classes',
+      resourcePropertyStages: 'Production Phases',
+      resourceBudgets: 'Order Volumes',
       resourceLeadSources: 'Dealer Channels',
       resourceTransferReasons: 'Order Reassign Reasons',
     }
@@ -115,9 +143,6 @@ export default function ResourcesPage() {
     // Filter out Real Estate specific resource screens for non-RE industries
     if (indCode !== 'temp0001' && indCode !== '') {
       const reSpecific = new Set([
-        'resourceBudgets',
-        'resourcePropertyStages',
-        'resourcePropertyTypes',
         'resourcePropertySubTypes'
       ])
       filtered = filtered.filter((s) => !reSpecific.has(s.key))
@@ -135,11 +160,11 @@ export default function ResourcesPage() {
     const orderMap: Record<string, number> = {
       'resourceCarousel': 10,
       'resourceLocations': 20,
-      'resourceBudgets': 30,
-      'resourceLeadSources': 40,
-      'resourceTransferReasons': 50,
-      'resourcePropertyStages': 60,
-      'resourcePropertyTypes': 70,
+      'resourcePropertyTypes': 30,
+      'resourcePropertyStages': 40,
+      'resourceBudgets': 50,
+      'resourceLeadSources': 60,
+      'resourceTransferReasons': 70,
       'resourcePropertySubTypes': 80,
     }
     return [...translated].sort((a, b) => (orderMap[a.key] || 999) - (orderMap[b.key] || 999))
@@ -555,10 +580,11 @@ export default function ResourcesPage() {
       message: 'Are you sure you want to delete this item? This action cannot be undone.',
       onConfirm: async () => {
         try {
-          await deleteResource(activeScreen.key, id)
+          await deleteResource(activeScreen.key, id, selectedIndustry)
           const nextRows = rows.filter((r) => r.id !== id)
           setRows(nextRows)
-          setResourceDataCache((prev) => ({ ...prev, [`${activeScreen.key}_${selectedOrgId}`]: nextRows }))
+          const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
+          setResourceDataCache((prev) => ({ ...prev, [cacheKey]: nextRows }))
           setToast({ open: true, msg: 'Deleted successfully!', sev: 'success' })
           setSelectedRowIds((prev) => prev.filter((item) => item !== id))
         } catch (e: any) {
@@ -577,11 +603,12 @@ export default function ResourcesPage() {
         setLoading(true)
         try {
           for (const id of selectedRowIds) {
-            await deleteResource(activeScreen.key, String(id))
+            await deleteResource(activeScreen.key, String(id), selectedIndustry)
           }
           const nextRows = rows.filter((r) => !selectedRowIds.includes(r.id))
           setRows(nextRows)
-          setResourceDataCache((prev) => ({ ...prev, [`${activeScreen.key}_${selectedOrgId}`]: nextRows }))
+          const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
+          setResourceDataCache((prev) => ({ ...prev, [cacheKey]: nextRows }))
           setToast({ open: true, msg: 'Selected items deleted successfully!', sev: 'success' })
           setSelectedRowIds([])
         } catch (e: any) {
@@ -791,12 +818,13 @@ export default function ResourcesPage() {
                             void (async () => {
                               try {
                                 setLoading(true)
+                                const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
                                 const [resolved, items] = await Promise.all([
-                                  resolveScreen({ screen_key: activeScreen.key }),
-                                  getResources(activeScreen.key)
+                                  resolveScreen({ screen_key: activeScreen.key, industry_code: selectedIndustry }),
+                                  getResources(activeScreen.key, selectedOrgId, selectedIndustry)
                                 ])
-                                setResolvedScreensCache(prev => ({ ...prev, [activeScreen.key]: resolved }))
-                                setResourceDataCache(prev => ({ ...prev, [activeScreen.key]: items }))
+                                setResolvedScreensCache(prev => ({ ...prev, [cacheKey]: resolved }))
+                                setResourceDataCache(prev => ({ ...prev, [cacheKey]: items }))
                                 setResolvedScreen(resolved)
                                 setRows(items)
                               } catch (e) {
@@ -817,8 +845,8 @@ export default function ResourcesPage() {
 
               return (
                 <AppCard 
-                  title={resolvedScreen.screen.name} 
-                  subtitle={activeScreen.description || `Manage ${resolvedScreen.screen.name} lookup items.`}
+                  title={activeScreen.name || resolvedScreen.screen.name} 
+                  subtitle={activeScreen.description || `Manage ${activeScreen.name || resolvedScreen.screen.name} lookup items.`}
                   action={
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                       {selectedRowIds.length > 0 && (
@@ -874,7 +902,7 @@ export default function ResourcesPage() {
         }}
       >
         <DialogTitle>
-          {editingItem ? 'Edit' : 'Add'} {resolvedScreen?.screen.name}
+          {editingItem ? 'Edit' : 'Add'} {activeScreen?.name || resolvedScreen?.screen.name}
         </DialogTitle>
         <DialogContent dividers>
           {activeScreen && (
@@ -882,6 +910,7 @@ export default function ResourcesPage() {
               screen={activeScreen.key}
               industry_code={selectedIndustry}
               role_key="admin"
+              organization_id={selectedOrgId !== 'null' ? selectedOrgId : undefined}
               initialValues={editingItem ? editingItem : {}}
               onCancel={() => setDialogOpen(false)}
               submitLabel={editingItem ? 'Save' : 'Create'}
@@ -898,6 +927,8 @@ export default function ResourcesPage() {
                   setDialogOpen(false)
                   const items = await getResources(activeScreen.key, selectedOrgId, selectedIndustry)
                   setRows(items)
+                  const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
+                  setResourceDataCache(prev => ({ ...prev, [cacheKey]: items }))
                 } catch (e: any) {
                   setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save resource', sev: 'error' })
                 }

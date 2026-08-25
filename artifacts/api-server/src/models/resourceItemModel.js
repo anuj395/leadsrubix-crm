@@ -167,6 +167,19 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
     }
   });
 
+  if (items.length === 0 && targetOrgId !== null && targetOrgId !== '') {
+    let fallbackQuery = { organization_id: null };
+    if (indMatchConditions.length > 0) {
+      fallbackQuery.industry_id = { $in: indMatchConditions };
+    }
+    const fallbackDocs = await OrganizationResources.find(fallbackQuery).exec();
+    fallbackDocs.forEach(d => {
+      if (Array.isArray(d[fieldName])) {
+        items.push(...d[fieldName]);
+      }
+    });
+  }
+
   if (workspaceId) {
     items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
   }

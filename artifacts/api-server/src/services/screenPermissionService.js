@@ -812,13 +812,73 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     }
   };
 
+  const RESOURCE_FIELD_TRANSLATIONS = {
+    resourcePropertyTypes: {
+      temp0001: { propertyType: 'Property Type', property_type: 'Property Type', name: 'Property Type' },
+      temp0002: { propertyType: 'Product Category', property_type: 'Product Category', name: 'Product Category' },
+      temp0003: { propertyType: 'Department', property_type: 'Department', name: 'Department' },
+      temp0004: { propertyType: 'Program Category', property_type: 'Program Category', name: 'Program Category' },
+      temp0005: { propertyType: 'Financial Product', property_type: 'Financial Product', name: 'Financial Product' },
+      temp0006: { propertyType: 'Domain & Tech Stack', property_type: 'Domain & Tech Stack', name: 'Domain & Tech Stack' },
+      temp0007: { propertyType: 'Material Class', property_type: 'Material Class', name: 'Material Class' },
+    },
+    resourcePropertyStages: {
+      temp0001: { stage: 'Property Stage', propertyStage: 'Property Stage', name: 'Property Stage' },
+      temp0002: { stage: 'Availability Stage', propertyStage: 'Availability Stage', name: 'Availability Stage' },
+      temp0003: { stage: 'Clinical Wing', propertyStage: 'Clinical Wing', name: 'Clinical Wing' },
+      temp0004: { stage: 'Intake Batch', propertyStage: 'Intake Batch', name: 'Intake Batch' },
+      temp0005: { stage: 'Risk Profile', propertyStage: 'Risk Profile', name: 'Risk Profile' },
+      temp0006: { stage: 'Implementation Stage', propertyStage: 'Implementation Stage', name: 'Implementation Stage' },
+      temp0007: { stage: 'Production Phase', propertyStage: 'Production Phase', name: 'Production Phase' },
+    },
+    resourceBudgets: {
+      temp0001: { budget: 'Budget', budgetRange: 'Budget Range', name: 'Budget' },
+      temp0002: { budget: 'Price Range', budgetRange: 'Price Range', name: 'Price Range' },
+      temp0003: { budget: 'Treatment Budget', budgetRange: 'Treatment Budget', name: 'Treatment Budget' },
+      temp0004: { budget: 'Course Fee Range', budgetRange: 'Course Fee Range', name: 'Course Fee Range' },
+      temp0005: { budget: 'Investment Amount', budgetRange: 'Investment Amount', name: 'Investment Amount' },
+      temp0006: { budget: 'Project Budget', budgetRange: 'Project Budget', name: 'Project Budget' },
+      temp0007: { budget: 'Order Volume', budgetRange: 'Order Volume', name: 'Order Volume' },
+    },
+    resourceLocations: {
+      temp0001: { location: 'Location', locationName: 'Location', name: 'Location' },
+      temp0002: { location: 'Warehouse / Hub', locationName: 'Warehouse / Hub', name: 'Warehouse / Hub' },
+      temp0003: { location: 'Clinic / Center', locationName: 'Clinic / Center', name: 'Clinic / Center' },
+      temp0004: { location: 'Campus / Branch', locationName: 'Campus / Branch', name: 'Campus / Branch' },
+      temp0005: { location: 'Branch Office', locationName: 'Branch Office', name: 'Branch Office' },
+      temp0006: { location: 'Delivery Center', locationName: 'Delivery Center', name: 'Delivery Center' },
+      temp0007: { location: 'Manufacturing Plant', locationName: 'Manufacturing Plant', name: 'Manufacturing Plant' },
+    },
+    resourceLeadSources: {
+      temp0001: { leadSource: 'Lead Source', source: 'Lead Source', name: 'Lead Source' },
+      temp0002: { leadSource: 'Customer Channel', source: 'Customer Channel', name: 'Customer Channel' },
+      temp0003: { leadSource: 'Patient Source', source: 'Patient Source', name: 'Patient Source' },
+      temp0004: { leadSource: 'Student Channel', source: 'Student Channel', name: 'Student Channel' },
+      temp0005: { leadSource: 'Client Source', source: 'Client Source', name: 'Client Source' },
+      temp0006: { leadSource: 'Lead Channel', source: 'Lead Channel', name: 'Lead Channel' },
+      temp0007: { leadSource: 'Dealer Channel', source: 'Dealer Channel', name: 'Dealer Channel' },
+    },
+    resourceTransferReasons: {
+      temp0001: { reason: 'Transfer Reason', transferReason: 'Transfer Reason', name: 'Transfer Reason' },
+      temp0002: { reason: 'Return Reason', transferReason: 'Return Reason', name: 'Return Reason' },
+      temp0003: { reason: 'Transfer Reason', transferReason: 'Transfer Reason', name: 'Transfer Reason' },
+      temp0004: { reason: 'Course Transfer Reason', transferReason: 'Course Transfer Reason', name: 'Course Transfer Reason' },
+      temp0005: { reason: 'Advisor Reassign Reason', transferReason: 'Advisor Reassign Reason', name: 'Advisor Reassign Reason' },
+      temp0006: { reason: 'Project Transfer Reason', transferReason: 'Project Transfer Reason', name: 'Project Transfer Reason' },
+      temp0007: { reason: 'Order Reassign Reason', transferReason: 'Order Reassign Reason', name: 'Order Reassign Reason' },
+    }
+  };
+
+  const resTranslations = RESOURCE_FIELD_TRANSLATIONS[finalScreenKey] ? (RESOURCE_FIELD_TRANSLATIONS[finalScreenKey][indCode] || {}) : {};
+
   const translations = ((finalScreenKey === 'configProjects' || finalScreenKey === 'projects' || finalScreenKey === 'configuration.projects') && PROJECT_TRANSLATIONS[indCode]) || 
                        (finalScreenKey === 'users' && USER_TRANSLATIONS[indCode]) || 
                        ((finalScreenKey === 'leadDistribution' || finalScreenKey === 'leaddistribution') && DISTRIBUTION_TRANSLATIONS[indCode]) ||
                        ((finalScreenKey === 'leadRotation' || finalScreenKey === 'leadrotation') && ROTATION_TRANSLATIONS[indCode]) || 
                        ((finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact' || finalScreenKey === 'leads' || finalScreenKey === 'sorted' || finalScreenKey === 'leads.sorted') && CONTACTS_TRANSLATIONS[indCode]) || 
                        ((finalScreenKey === 'tasks' || finalScreenKey === 'leads.tasks') && TASKS_TRANSLATIONS[indCode]) || 
-                       ((finalScreenKey === 'deals' || finalScreenKey === 'leads.deals') && DEALS_TRANSLATIONS[indCode]) || {};
+                       ((finalScreenKey === 'deals' || finalScreenKey === 'leads.deals') && DEALS_TRANSLATIONS[indCode]) || 
+                       resTranslations || {};
 
   let resolvedScreenName = screen.name;
   if (finalScreenKey === 'configProjects' || finalScreenKey === 'projects' || finalScreenKey === 'configuration.projects') {

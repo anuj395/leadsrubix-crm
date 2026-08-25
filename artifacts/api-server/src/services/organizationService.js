@@ -514,21 +514,55 @@ exports.create = async ({ payload, authedUser }) => {
     console.error('[organizationService] Failed to copy global FAQs to the new organization:', err);
   }
 
-  // Automatically clone Super Admin resources (where organizationId is null or empty) for the new organization
+  // Automatically clone Super Admin resources for the specific industry for the new organization
   try {
     const OrganizationResources = mongoose.model('OrganizationResources');
-    const globalResDoc = await OrganizationResources.findOne({
+    const orgInd = String(orgDoc.industry_id || orgDoc.industryId || 'TEMP0001');
+    const Industry = mongoose.model('Industry');
+    let indDoc = await Industry.findOne({
       $or: [
-        { organizationId: null },
-        { organizationId: '' }
+        { code: orgInd.toLowerCase() },
+        { code: orgInd.toUpperCase() },
+        { _id: mongoose.Types.ObjectId.isValid(orgInd) ? orgInd : null }
+      ]
+    }).lean().exec();
+
+    const indCode = indDoc ? indDoc.code : orgInd;
+    const indIdStr = indDoc ? String(indDoc._id) : orgInd;
+
+    const globalResDoc = await OrganizationResources.findOne({
+      $and: [
+        { $or: [{ organizationId: null }, { organization_id: null }, { organizationId: '' }, { organization_id: '' }] },
+        {
+          $or: [
+            { industryId: indCode },
+            { industry_id: indCode },
+            { industryId: indCode.toUpperCase() },
+            { industry_id: indCode.toUpperCase() },
+            { industryId: indCode.toLowerCase() },
+            { industry_id: indCode.toLowerCase() },
+            { industryId: indIdStr },
+            { industry_id: indIdStr }
+          ]
+        }
       ]
     }).exec();
 
     if (globalResDoc) {
       // Find or create resources doc for the new organizationId
-      let orgResDoc = await OrganizationResources.findOne({ organizationId: orgId }).exec();
+      let orgResDoc = await OrganizationResources.findOne({
+        $or: [{ organizationId: orgId }, { organization_id: orgId }]
+      }).exec();
       if (!orgResDoc) {
-        orgResDoc = new OrganizationResources({ organizationId: orgId });
+        orgResDoc = new OrganizationResources({
+          organizationId: orgId,
+          organization_id: orgId,
+          industryId: indCode.toUpperCase(),
+          industry_id: indCode.toUpperCase()
+        });
+      } else {
+        orgResDoc.industryId = indCode.toUpperCase();
+        orgResDoc.industry_id = indCode.toUpperCase();
       }
 
       // Copy all arrays from the global document if they are not already populated
@@ -546,15 +580,7 @@ exports.create = async ({ payload, authedUser }) => {
 
       resourceFields.forEach(field => {
         if (globalResDoc[field] && Array.isArray(globalResDoc[field]) && globalResDoc[field].length > 0) {
-          const existingItems = orgResDoc[field] || [];
-          const existingKeys = new Set(existingItems.map(item => typeof item === 'object' && item ? JSON.stringify(item) : String(item)));
-          
-          globalResDoc[field].forEach(item => {
-            const itemKey = typeof item === 'object' && item ? JSON.stringify(item) : String(item);
-            if (!existingKeys.has(itemKey)) {
-              orgResDoc[field].push(item);
-            }
-          });
+          orgResDoc[field] = [...globalResDoc[field]];
         }
       });
 
