@@ -1205,6 +1205,7 @@ function createModel(modelName, schema) {
     }
   }
 
+  ModelClass.modelName = modelName;
   ModelClass.tableName = tableName;
   ModelClass.schema = schema;
 

@@ -19,10 +19,12 @@ import {
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { resolveScreen } from '@/services/screenAdminService'
 import { useAuth } from '@/hooks/useAuth'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export default function ReassignListPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { can_view, can_add, can_delete, loading: permsLoading } = useActionPermission('leadRotation')
   const [items, setItems] = useState<LeadRotationRule[]>([])
   const [dynamicHeaders, setDynamicHeaders] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -59,15 +61,81 @@ export default function ReassignListPage() {
     void loadData()
   }, [])
 
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') {
+      return {
+        title: 'Order Reassignments',
+        subtitle: 'Manage order rotation rules and reallocations.',
+        addLogic: 'Add Rotation Rule',
+        deleteMsg: 'Are you sure you want to delete this Rotation Logic?',
+        deletedToast: 'Order Rotation Deleted!!'
+      };
+    }
+    if (indCode === 'temp0003') {
+      return {
+        title: 'Patient Transfers (Reassignments)',
+        subtitle: 'Manage patient transfer logic and timeout reassignments.',
+        addLogic: 'Add Transfer Rule',
+        deleteMsg: 'Are you sure you want to delete this Patient Transfer Logic?',
+        deletedToast: 'Patient Transfer Logic Deleted!!'
+      };
+    }
+    if (indCode === 'temp0004') {
+      return {
+        title: 'Counselor Transfers',
+        subtitle: 'Manage student rotation parameters and counselor reassignments.',
+        addLogic: 'Add Rotation Rule',
+        deleteMsg: 'Are you sure you want to delete this Student Rotation Logic?',
+        deletedToast: 'Counselor Transfer Logic Deleted!!'
+      };
+    }
+    if (indCode === 'temp0005') {
+      return {
+        title: 'Advisor Reassignments',
+        subtitle: 'Manage client rotation parameters and advisor reassignments.',
+        addLogic: 'Add Rotation Rule',
+        deleteMsg: 'Are you sure you want to delete this Advisor Rotation Logic?',
+        deletedToast: 'Advisor Reassignment Logic Deleted!!'
+      };
+    }
+    if (indCode === 'temp0006') {
+      return {
+        title: 'Ticket Reassignments',
+        subtitle: 'Manage ticket rotation parameters and SLA reassignments.',
+        addLogic: 'Add Rotation Rule',
+        deleteMsg: 'Are you sure you want to delete this Ticket Rotation Logic?',
+        deletedToast: 'Ticket Reassignment Logic Deleted!!'
+      };
+    }
+    if (indCode === 'temp0007') {
+      return {
+        title: 'Dealer Reallocations',
+        subtitle: 'Manage dealer rotation parameters and allocation transfers.',
+        addLogic: 'Add Allocation Transfer Rule',
+        deleteMsg: 'Are you sure you want to delete this Allocation Rotation Logic?',
+        deletedToast: 'Dealer Reallocation Logic Deleted!!'
+      };
+    }
+    return {
+      title: 'Lead Distribution',
+      subtitle: 'Manage lead rotation parameters and unattended reassignment logs.',
+      addLogic: 'Add Logic',
+      deleteMsg: 'Are you sure you want to delete this Lead Rotation Logic?',
+      deletedToast: 'Lead Rotation Deleted!!'
+    };
+  }, [indCode]);
+
   const handleDelete = (id: string) => {
     confirmDelete({
       title: 'Confirm Deletion',
-      message: 'Are you sure you want to delete this Lead Rotation Logic?',
+      message: labels.deleteMsg,
       onConfirm: async () => {
         try {
           setLoading(true)
           await deleteRotationRule(id)
-          setToast({ open: true, msg: 'Lead Rotation Deleted!!', sev: 'success' })
+          setToast({ open: true, msg: labels.deletedToast, sev: 'success' })
           void loadData()
         } catch (e: any) {
           setToast({ open: true, msg: 'Failed to delete rotation logic', sev: 'error' })
@@ -112,35 +180,49 @@ export default function ReassignListPage() {
     })
 
     // Append actions column at the end
-    mappedCols.push({
-      field: '__actions',
-      headerName: 'Actions',
-      width: 80,
-      sortable: false,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    })
+    if (can_delete) {
+      mappedCols.push({
+        field: '__actions',
+        headerName: 'Actions',
+        width: 80,
+        sortable: false,
+        renderCell: (p) => (
+          <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        ),
+      })
+    }
 
     return mappedCols
-  }, [dynamicHeaders])
+  }, [dynamicHeaders, labels, can_delete])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view {labels.title}.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppCard
-        title="Lead Distribution"
-        subtitle="Manage lead rotation parameters and unattended reassignment logs."
+        title={labels.title}
+        subtitle={labels.subtitle}
         sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/reassign/logic')}>
-            Add Logic
-          </Button>
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/reassign/logic')}>
+              {labels.addLogic}
+            </Button>
+          ) : undefined
         }
       >
         <Box sx={{ flex: 1, minHeight: 400 }}>

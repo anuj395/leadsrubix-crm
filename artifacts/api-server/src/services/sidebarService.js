@@ -13,8 +13,8 @@ const permModel = require('../models/sidebarPermissionModel');
  */
 async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, organizationId, workspaceId }) {
   const mongoose = require('mongoose');
-  const code = industryCode || industry_code;
   const key = roleKey || role_key;
+  const code = key === 'superAdmin' ? 'temp0001' : (industryCode || industry_code);
   if (!code || !key) {
     return { industryCode: code, roleKey: key, menus: [] };
   }
@@ -78,7 +78,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
   }
 
   // Map any global menu IDs in perms to organization's cloned menu IDs
-  if (targetOrgId && perms.length > 0) {
+  if (targetOrgId && key !== 'superAdmin' && perms.length > 0) {
     const allOrgMenus = await SidebarMenuModel.find({
       $or: [
         { organization_id: targetOrgId },
@@ -199,9 +199,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
       const order =
         typeof orderOverride === 'number'
           ? orderOverride
-          : typeof m.order === 'number'
-            ? m.order
-            : 0;
+          : (typeof m.order === 'number' ? m.order : 999);
       return {
         _id: String(m._id),
         key: m.key,
@@ -228,19 +226,35 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     const existing = itemsMap.get(keyLower);
     if (!existing) {
       itemsMap.set(keyLower, item);
-    } else if (item.organization_id && !existing.organization_id) {
+    } else if (item.organization_id && !existing.organization_id && key !== 'superAdmin') {
       itemsMap.set(keyLower, item);
     }
   }
 
-  let items = Array.from(itemsMap.values());
+  let items = Array.from(itemsMap.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
 
   if (key === 'superAdmin') {
     const usersParent = items.find((it) => it.key === 'users');
     if (usersParent) {
       usersParent.route = '/users';
     }
-    items = items.filter((it) => it.key !== 'users.list');
+  }
+
+  // Ensure child items have exact matching parent_id of the parent menu in the same response
+  const parentByKey = new Map();
+  for (const item of items) {
+    if (!item.key.includes('.')) {
+      parentByKey.set(item.key, item._id);
+    }
+  }
+  for (const item of items) {
+    if (item.key.includes('.')) {
+      const parentKey = item.key.split('.')[0];
+      if (parentByKey.has(parentKey)) {
+        item.parent_id = parentByKey.get(parentKey);
+        item.parentId = parentByKey.get(parentKey);
+      }
+    }
   }
 
   return {

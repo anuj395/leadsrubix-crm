@@ -20,6 +20,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { api } from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
 import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export interface Project {
   id: string
@@ -39,6 +40,7 @@ export interface Project {
 export default function ProjectsListPage() {
   const user = useAppSelector((s) => s.auth.user)
   const navigate = useNavigate()
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('configProjects')
   const [items, setItems] = useState<Project[]>([])
   const [loading, setLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -49,6 +51,79 @@ export default function ProjectsListPage() {
     msg: '',
     sev: 'success',
   })
+
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') {
+      return {
+        subtitle: 'Manage product catalog, suppliers, and details.',
+        addBtn: 'Add Product',
+        deleteMsg: 'Are you sure you want to delete this product?',
+        deletedToast: 'Product deleted successfully',
+        failLoadToast: 'Failed to load products catalog',
+        failDeleteToast: 'Failed to delete product'
+      };
+    }
+    if (indCode === 'temp0003') {
+      return {
+        subtitle: 'Manage medical specialties, departments, and credentials.',
+        addBtn: 'Add Specialty',
+        deleteMsg: 'Are you sure you want to delete this specialty?',
+        deletedToast: 'Specialty deleted successfully',
+        failLoadToast: 'Failed to load specialties catalog',
+        failDeleteToast: 'Failed to delete specialty'
+      };
+    }
+    if (indCode === 'temp0004') {
+      return {
+        subtitle: 'Manage courses, syllabus links, and program batches.',
+        addBtn: 'Add Course',
+        deleteMsg: 'Are you sure you want to delete this course?',
+        deletedToast: 'Course deleted successfully',
+        failLoadToast: 'Failed to load academic catalog',
+        failDeleteToast: 'Failed to delete course'
+      };
+    }
+    if (indCode === 'temp0005') {
+      return {
+        subtitle: 'Manage financial portfolios, advisor scopes, and asset classes.',
+        addBtn: 'Add Portfolio',
+        deleteMsg: 'Are you sure you want to delete this portfolio?',
+        deletedToast: 'Portfolio deleted successfully',
+        failLoadToast: 'Failed to load portfolios catalog',
+        failDeleteToast: 'Failed to delete portfolio'
+      };
+    }
+    if (indCode === 'temp0006') {
+      return {
+        subtitle: 'Manage IT services catalog, project scopes, and templates.',
+        addBtn: 'Add Service / Project',
+        deleteMsg: 'Are you sure you want to delete this service?',
+        deletedToast: 'Service deleted successfully',
+        failLoadToast: 'Failed to load projects catalog',
+        failDeleteToast: 'Failed to delete service'
+      };
+    }
+    if (indCode === 'temp0007') {
+      return {
+        subtitle: 'Manage product models, plant allocations, and dealer catalogs.',
+        addBtn: 'Add Category',
+        deleteMsg: 'Are you sure you want to delete this category?',
+        deletedToast: 'Category deleted successfully',
+        failLoadToast: 'Failed to load categories catalog',
+        failDeleteToast: 'Failed to delete category'
+      };
+    }
+    return {
+      subtitle: 'Manage standard product catalogs, services, and inventory details.',
+      addBtn: 'Add Product / Service',
+      deleteMsg: 'Are you sure you want to delete this item?',
+      deletedToast: 'Item deleted successfully',
+      failLoadToast: 'Failed to load catalog',
+      failDeleteToast: 'Failed to delete item'
+    };
+  }, [indCode]);
 
   const loadData = async () => {
     setLoading(true)
@@ -62,7 +137,7 @@ export default function ProjectsListPage() {
     } catch (e: any) {
       setToast({
         open: true,
-        msg: e?.response?.data?.message || 'Failed to load projects catalog',
+        msg: e?.response?.data?.message || labels.failLoadToast,
         sev: 'error',
       })
     } finally {
@@ -84,10 +159,10 @@ export default function ProjectsListPage() {
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/resources/resourceProjects/${id}`)
-      setToast({ open: true, msg: 'Project deleted successfully', sev: 'success' })
+      setToast({ open: true, msg: labels.deletedToast, sev: 'success' })
       loadData()
     } catch (e: any) {
-      setToast({ open: true, msg: e?.response?.data?.message || 'Failed to delete project', sev: 'error' })
+      setToast({ open: true, msg: e?.response?.data?.message || labels.failDeleteToast, sev: 'error' })
     }
   }
 
@@ -139,30 +214,46 @@ export default function ProjectsListPage() {
       ...baseCols
     ]
 
-    cols.push({
-      field: '__actions' as any,
-      headerName: 'Actions',
-      width: 100,
-      sortable: false,
-      filterable: false,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id}/edit`)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDeleteClick(p.row.id)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    })
+    if (can_edit || can_delete) {
+      cols.push({
+        field: '__actions' as any,
+        headerName: 'Actions',
+        width: 100,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => (
+          <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+            {can_edit && (
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => navigate(`/configuration/projects/${p.row.id}/edit`)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDeleteClick(p.row.id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        ),
+      })
+    }
 
     return cols
-  }, [resolvedScreen, items, navigate])
+  }, [resolvedScreen, items, navigate, can_edit, can_delete])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view {resolvedScreen?.screen?.name || 'Projects'}.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box
@@ -177,12 +268,14 @@ export default function ProjectsListPage() {
       }}
     >
       <AppCard
-        title="Projects List"
-        subtitle="Manage master project parameters, RERA configurations, and links."
+        title={resolvedScreen?.screen?.name || 'Projects List'}
+        subtitle={labels.subtitle}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Add Project
-          </Button>
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/projects/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+              {labels.addBtn}
+            </Button>
+          ) : undefined
         }
         fullHeight
       >
@@ -199,7 +292,7 @@ export default function ProjectsListPage() {
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle sx={{ fontWeight: 600 }}>Confirm Delete</DialogTitle>
-        <DialogContent>Are you sure you want to delete this project?</DialogContent>
+        <DialogContent>{labels.deleteMsg}</DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button

@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
+const { requireScreenAction } = require('../middlewares/screenAction');
 
 const router = express.Router();
 
@@ -59,7 +60,7 @@ function formatApiToken(t, orgMap = {}) {
   };
 }
 
-router.get('/', authenticate, async (req, res, next) => {
+router.get('/', authenticate, requireScreenAction('configApi', 'view'), async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
@@ -191,14 +192,10 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, requireScreenAction('configApi', 'add'), async (req, res, next) => {
   try {
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
 
     let orgId = req.body.organizationId || req.body.organization_id || null;
 
@@ -337,15 +334,11 @@ router.put('/:id', authenticate, async (req, res, next) => {
   }
 });
 
-router.delete('/:id', authenticate, async (req, res, next) => {
+router.delete('/:id', authenticate, requireScreenAction('configApi', 'delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const ApiToken = mongoose.model('ApiToken');
     const Organization = mongoose.model('Organization');
-
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
 
     const doc = await ApiToken.findById(id).exec();
     if (!doc) {

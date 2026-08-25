@@ -35,8 +35,12 @@ export default function CalculatorPage() {
         // Safe evaluation of basic math strings only
         if (!calcInput) return
         const sanitized = calcInput.replace(/×/g, '*').replace(/÷/g, '/')
-        // eslint-disable-next-line no-eval
-        const res = eval(sanitized) as number
+        if (!/^[\d+\-*/. ()]+$/.test(sanitized)) {
+          setCalcInput('Error')
+          return
+        }
+        // eslint-disable-next-line @typescript-eslint/no-implied-eval
+        const res = new Function(`return (${sanitized})`)() as number
         setCalcHistory((prev) => [`${calcInput} = ${res}`, ...prev].slice(0, 10))
         setCalcInput(String(res))
       } catch {

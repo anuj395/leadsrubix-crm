@@ -22,6 +22,7 @@ import { getApiTokens, deleteApiToken, type ApiTokenConfig } from '@/services/ap
 import { getResources } from '@/services/resourcesService'
 import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 // Stale-while-revalidate frontend caches for instant loading
 const tokensCache = { data: [] as ApiTokenConfig[], initialized: false }
@@ -29,6 +30,7 @@ const leadSourcesCache = { data: [] as any[], initialized: false }
 
 export default function ApiListPage() {
   const navigate = useNavigate()
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('configApi')
   const [items, setItems] = useState<ApiTokenConfig[]>(tokensCache.data)
   const [leadSources, setLeadSources] = useState<any[]>(leadSourcesCache.data)
   const [loading, setLoading] = useState(false)
@@ -169,30 +171,46 @@ export default function ApiListPage() {
       ...baseCols
     ]
 
-    cols.push({
-      field: '__actions' as any,
-      headerName: 'Actions',
-      width: 100,
-      sortable: false,
-      filterable: false,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit`)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    })
+    if (can_edit || can_delete) {
+      cols.push({
+        field: '__actions' as any,
+        headerName: 'Actions',
+        width: 100,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => (
+          <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+            {can_edit && (
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit`)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        ),
+      })
+    }
 
     return cols
-  }, [resolvedScreen, items, navigate])
+  }, [resolvedScreen, items, navigate, can_edit, can_delete])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view API Integration Credentials.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box
@@ -208,11 +226,13 @@ export default function ApiListPage() {
     >
       <AppCard
         title="API Integration Credentials"
-        subtitle="Manage secure API connection credentials, country codes, and incoming webhook triggers."
+        subtitle="Manage external webhook sources and inbound API tokens."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/api/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Add API
-          </Button>
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/api/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+              Add API Token
+            </Button>
+          ) : undefined
         }
         fullHeight
       >

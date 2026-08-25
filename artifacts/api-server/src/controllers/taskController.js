@@ -28,7 +28,7 @@ const booleanField = ['associateStatus', 'sourceStatus', 'transferStatus'];
 
 const getBranchUsers = async (uid, organizationId, permission) => {
   const users = await User.find({
-    organizationId,
+    $or: [{ organizationId }, { organization_id: organizationId }],
     branch: { $in: permission },
   });
   let usersList = [uid];
@@ -37,7 +37,9 @@ const getBranchUsers = async (uid, organizationId, permission) => {
 };
 
 const getTeamUsers = async (uid, organizationId) => {
-  const users = await User.find({ organizationId });
+  const users = await User.find({
+    $or: [{ organizationId }, { organization_id: organizationId }]
+  });
   const user = users.filter((u) => u.uid === uid);
   if (user.length === 0) return [uid];
   let reportingToMap = {};

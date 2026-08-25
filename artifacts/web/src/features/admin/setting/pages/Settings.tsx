@@ -66,6 +66,42 @@ const NOTIFICATION_TYPES = [
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const indCode = String(user?.industryId || (user as any)?.industry_id || '').toLowerCase().trim();
+
+  const getEmptyStateMessage = (tabName: TabType) => {
+    if (tabName === 'teams') {
+      if (indCode === 'temp0003') return 'No medical departments found. Click Add to create one (e.g., Cardiology, OPD, Pediatrics, Orthopedics).';
+      if (indCode === 'temp0004') return 'No academic departments found. Click Add to create one (e.g., Science, Commerce, Humanities, Arts).';
+      if (indCode === 'temp0002') return 'No departments found. Click Add to create one (e.g., Sales, Customer Support, Logistics, Marketing).';
+      if (indCode === 'temp0005') return 'No advisory teams found. Click Add to create one (e.g., Wealth Management, Equity Advisory, Mutual Funds).';
+      if (indCode === 'temp0006') return 'No project teams found. Click Add to create one (e.g., Backend Dev, Frontend Dev, QA Team, DevOps).';
+      if (indCode === 'temp0007') return 'No production teams found. Click Add to create one (e.g., Assembly Line, Quality Control, Packaging, Maintenance).';
+      return 'No teams found. Click Add to create one (e.g., Team A, Team B, Team C, Team D).';
+    }
+    
+    if (tabName === 'branches') {
+      if (indCode === 'temp0003') return 'No hospitals / clinics found. Click Add to create one (e.g., Noida Hospital, Delhi Clinic, Gurugram Center).';
+      if (indCode === 'temp0004') return 'No campuses found. Click Add to create one (e.g., Noida Campus, Delhi Campus, Gurugram Campus).';
+      if (indCode === 'temp0002') return 'No warehouses found. Click Add to create one (e.g., Noida Warehouse, Delhi Depot, Gurugram Fulfillment Center).';
+      if (indCode === 'temp0005') return 'No offices found. Click Add to create one (e.g., Noida Branch, Delhi Office, Mumbai Corporate Office).';
+      if (indCode === 'temp0006') return 'No offices / locations found. Click Add to create one (e.g., Noida SEZ, Delhi Head Office, Bangalore Center).';
+      if (indCode === 'temp0007') return 'No factories / plants found. Click Add to create one (e.g., Noida Factory, Gurugram Plant, Faridabad Unit).';
+      return 'No branches found. Click Add to create one (e.g., Noida, Delhi, Mumbai, Bangalore).';
+    }
+
+    if (tabName === 'designations') {
+      if (indCode === 'temp0003') return 'No medical designations found. Click Add to create one (e.g., Attending Doctor, Staff Nurse, Medical Director, Consultant).';
+      if (indCode === 'temp0004') return 'No faculty designations found. Click Add to create one (e.g., Senior Professor, Academic Counselor, Head of Department, Lecturer).';
+      if (indCode === 'temp0002') return 'No designations found. Click Add to create one (e.g., Order Manager, Store Associate, Support Lead, Inventory Controller).';
+      if (indCode === 'temp0005') return 'No advisor designations found. Click Add to create one (e.g., Portfolio Manager, Financial Advisor, Relationship Manager, Wealth Planner).';
+      if (indCode === 'temp0006') return 'No technical roles found. Click Add to create one (e.g., Tech Lead, Software Engineer, Quality Analyst, System Architect).';
+      if (indCode === 'temp0007') return 'No plant roles found. Click Add to create one (e.g., Plant Manager, Line Supervisor, Quality Auditor, Machine Operator).';
+      return 'No designations found. Click Add to create one (e.g., Lead Manager, Team Lead, Sales Associate, Support Rep).';
+    }
+
+    return 'No items found. Click Add to create one.';
+  };
+
   const isSuperAdmin = user?.role === 'superAdmin'
   const [tab, setTab] = useState<TabType>(isSuperAdmin ? 'roles' : 'teams')
   const [items, setItems] = useState<SettingItem[]>([])
@@ -534,7 +570,7 @@ export default function SettingsPage() {
                 {items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={tab === 'roles' ? 5 : tab === 'designations' || tab === 'role-keys' ? 2 : 3} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                      No items found. Click Add to create one.
+                      {getEmptyStateMessage(tab)}
                     </TableCell>
                   </TableRow>
                 ) : (

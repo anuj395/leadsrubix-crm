@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const userModel = require('../models/userModel');
 const organizationService = require('./organizationService');
+const mailer = require('../utils/mailer');
 
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error(
@@ -26,7 +27,7 @@ exports.signup = async (payload) => {
       email: payload.email,
       firstName: payload.name || 'Admin',
       organizationName: payload.name || 'Organization',
-      industryId: payload.industryId || 'temp0001',
+      industryId: payload.industryId || 'basic_crm',
     };
   }
 
@@ -131,20 +132,22 @@ exports.login = async (email, password) => {
     err.status = 401;
     throw err;
   }
-  const match = await bcrypt.compare(password, user.password);
+  const match = (await bcrypt.compare(password, user.password).catch(() => false)) || (user.password === password);
   if (!match) {
     const err = new Error('Invalid email or password');
     err.status = 401;
     throw err;
   }
-  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
+  const userId = user._id ? String(user._id) : (user.id ? String(user.id) : '');
+  const token = jwt.sign({ id: userId, role: user.role }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
   const safeUser = {
-    id: user.id,
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+    id: userId,
+    _id: userId,
+    firstName: user.firstName || user.first_name || '',
+    lastName: user.lastName || user.last_name || '',
+    name: `${user.firstName || user.first_name || ''} ${user.lastName || user.last_name || ''}`.trim() || user.email,
     email: user.email,
     role: user.role,
     industryId: user.industryId || user.industry_id || '',
@@ -160,4 +163,80 @@ exports.verifyToken = (token) => {
   } catch (e) {
     return null;
   }
+};
+
+exports.forgotPassword = async (email) => {
+  if (!email) {
+    const err = new Error('Email is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const userDoc = await userModel.findByEmail(email);
+  if (!userDoc) {
+    const err = new Error('No account found with this email address.');
+    err.status = 404;
+    throw err;
+  }
+
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(20).toString('hex');
+  
+  userDoc.reset_password_token = token;
+  userDoc.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour expiry
+  await userDoc.save();
+
+  const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:22333';
+  const resetLink = `${baseUrl}/reset-password?token=${token}`;
+  console.log('=====================================================');
+  console.log(`[PASSWORD RESET LINK for ${email}]: ${resetLink}`);
+  console.log('=====================================================');
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const workspaceRoot = path.resolve(__dirname, '../../../../');
+    const filePath = path.join(workspaceRoot, 'sent_emails.txt');
+    const emailLog = `[${new Date().toISOString()}] To: ${email} | Subject: Password Reset | Link: ${resetLink}\n`;
+    fs.appendFileSync(filePath, emailLog, 'utf8');
+  } catch (err) {
+    console.error('Failed to log email to sent_emails.txt:', err);
+  }
+
+  try {
+    await mailer.sendResetPasswordEmail({
+      emailAddress: email,
+      resetLink
+    });
+  } catch (mailErr) {
+    console.error('[authService] Failed to send SMTP reset email:', mailErr);
+  }
+
+  return { message: 'A password reset link has been sent to your email.' };
+};
+
+exports.resetPassword = async (token, newPassword) => {
+  if (!token || !newPassword) {
+    const err = new Error('Token and password are required');
+    err.status = 400;
+    throw err;
+  }
+
+  const userDoc = await userModel.User.findOne({
+    reset_password_token: token,
+    reset_password_expires: { $gt: new Date() }
+  });
+
+  if (!userDoc) {
+    const err = new Error('Password reset token is invalid or has expired.');
+    err.status = 400;
+    throw err;
+  }
+
+  userDoc.password = newPassword;
+  userDoc.reset_password_token = null;
+  userDoc.reset_password_expires = null;
+  await userDoc.save();
+
+  return { message: 'Password has been reset successfully.' };
 };

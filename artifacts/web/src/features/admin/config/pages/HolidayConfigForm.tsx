@@ -12,6 +12,7 @@ import Paper from '@mui/material/Paper'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import type { Holiday } from './HolidayConfig'
 
 const inputSx = {
@@ -23,6 +24,7 @@ const HOLIDAY_TYPES = ['National', 'State', 'Company Holiday']
 export default function HolidayConfigFormPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('holidays')
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(!!id)
   
@@ -108,6 +110,27 @@ export default function HolidayConfigFormPage() {
         <CircularProgress />
       </Box>
     )
+  }
+
+  if (!permsLoading) {
+    if (id && !can_edit) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to edit holidays.
+          </Alert>
+        </Box>
+      )
+    }
+    if (!id && !can_add) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to add holidays.
+          </Alert>
+        </Box>
+      )
+    }
   }
 
   return (

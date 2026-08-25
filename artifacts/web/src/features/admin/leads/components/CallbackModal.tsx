@@ -121,10 +121,14 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
       await api.post('tasks', {
         contactId,
         type: 'Call Back',
+        taskType: 'Call Back',
+        task_type: 'Call Back',
         dueDate: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
         status: 'PENDING',
         callbackReason: values.callBackReason || '',
         customerName: contact.customerName || '',
+        contactNumber: contact.contactNumber || (contact as any).contact_number || '',
+        contact_number: contact.contactNumber || (contact as any).contact_number || '',
         createdBy: user?.email || 'System',
         latitude: lat,
         longitude: lng,
@@ -173,6 +177,8 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
           ) : (
             <DynamicForm
               screen="callback"
+              industryCode={String(contact?.industryId || contact?.industry_id || user?.industryId || 'temp0001')}
+              organizationId={String(contact?.organizationId || contact?.organization_id || (user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={initialValues}
               onSubmit={handleSubmit}
               onCancel={onClose}

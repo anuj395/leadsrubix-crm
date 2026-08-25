@@ -17,19 +17,21 @@ const {
   MaskMasterSearch
 } = callLogsController;
 
+const { requireScreenAction } = require('../middlewares/screenAction');
+
 // Apply authenticate middleware to all endpoints
 router.use(authenticate);
 
-router.post('/create', Create);
-router.post('/update', Update);
-router.post('/search', Search);
-router.post('/masterSearch', MasterSearch);
-router.post('/maskMasterSearch', MaskMasterSearch);
-router.post('/filterValues', FilterValues);
-router.post('/masterFilterValues', MasterFilterValues);
-router.post('/callLogCount', CallLogCount);
-router.post('/masterContactCount', MasterContactCount);
-router.post('/callingReport', CallingReport);
-router.delete('/deleteCallLogs', DeleteCallLogs);
+router.post('/create', requireScreenAction('callback', 'add'), Create);
+router.post('/update', requireScreenAction('callback', 'edit'), Update);
+router.post('/search', requireScreenAction('callback', 'view'), Search);
+router.post('/masterSearch', requireScreenAction('callback', 'view'), MasterSearch);
+router.post('/maskMasterSearch', requireScreenAction('callback', 'view'), MaskMasterSearch);
+router.post('/filterValues', requireScreenAction('callback', 'view'), FilterValues);
+router.post('/masterFilterValues', requireScreenAction('callback', 'view'), MasterFilterValues);
+router.post('/callLogCount', requireScreenAction('callback', 'view'), CallLogCount);
+router.post('/masterContactCount', requireScreenAction('callback', 'view'), MasterContactCount);
+router.post('/callingReport', requireScreenAction('callback', 'view'), CallingReport);
+router.delete('/deleteCallLogs', requireScreenAction('callback', 'delete'), DeleteCallLogs);
 
 module.exports = router;

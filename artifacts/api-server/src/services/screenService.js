@@ -2,14 +2,143 @@ const screenModel = require('../models/screenModel');
 const fieldModel = require('../models/screenFieldModel');
 const permissionModel = require('../models/screenPermissionModel');
 
-exports.list = (opts) => screenModel.list(opts);
+const SCREEN_TRANSLATIONS = {
+  temp0002: {
+    contacts: { name: 'Customers', description: 'Customer Contact List' },
+    interested: { name: 'Interested Buyer Details', description: 'Dynamic form fields shown when converting a customer to Interested' },
+    leadDistribution: { name: 'Order Routing', description: 'Dynamic table headers & form fields configuration for Order Distribution' },
+    leadRotation: { name: 'Order Reassignment', description: 'Dynamic table headers & form fields configuration for Order Reassignment' },
+    resourceLeadSources: { name: 'Sales Channels', description: 'Marketing source channels for customer inquiries' },
+    lost: { name: 'Abandoned Cart Details', description: 'Dynamic form fields shown when order is marked as Abandoned' },
+    notInterested: { name: 'Refused Buyer Details', description: 'Dynamic form fields shown when buyer is marked as Refused' },
+    configProjects: { name: 'Product Catalog', description: 'Catalog of product catalog items and details.' },
+    tasks: { name: 'Customer Follow-ups', description: 'Customer follow-up tasks' }
+  },
+  temp0003: {
+    contacts: { name: 'Patients', description: 'Patient Contact List' },
+    interested: { name: 'Interested Patient Details', description: 'Dynamic form fields shown when converting a patient to Interested' },
+    leadDistribution: { name: 'Patient Triaging', description: 'Dynamic table headers & form fields configuration for Patient Triaging' },
+    leadRotation: { name: 'Patient Transfers', description: 'Dynamic table headers & form fields configuration for Patient Transfers' },
+    resourceLeadSources: { name: 'Patient Sources', description: 'Marketing source channels for patient inquiries' },
+    lost: { name: 'Not Converted Patient Details', description: 'Dynamic form fields shown when patient status is set to Not Converted' },
+    notInterested: { name: 'Not Interested Patient Details', description: 'Dynamic form fields shown when patient is marked as Not Interested' },
+    configProjects: { name: 'Clinical Specialties', description: 'Catalog of medical and clinical specialties.' },
+    tasks: { name: 'Consultations', description: 'Patient consultation / follow-up tasks' }
+  },
+  temp0004: {
+    contacts: { name: 'Students', description: 'Student Contact List' },
+    interested: { name: 'Interested Applicant Details', description: 'Dynamic form fields shown when converting a lead to Interested' },
+    leadDistribution: { name: 'Applicant Distribution', description: 'Dynamic table headers & form fields configuration for Applicant Routing' },
+    leadRotation: { name: 'Applicant Transfers', description: 'Dynamic table headers & form fields configuration for Counselor Transfers' },
+    resourceLeadSources: { name: 'Inquiry Sources', description: 'Marketing source channels for student inquiries' },
+    lost: { name: 'Withdrawn Details', description: 'Dynamic form fields shown when applicant is marked as Withdrawn' },
+    notInterested: { name: 'Not Interested Student Details', description: 'Dynamic form fields shown when student is marked as Not Interested' },
+    configProjects: { name: 'Course Catalog', description: 'Catalog of academic courses and programs.' },
+    tasks: { name: 'Counseling Tasks', description: 'Student counseling / follow-up tasks' }
+  },
+  temp0005: {
+    contacts: { name: 'Investors', description: 'Investors List' },
+    interested: { name: 'Interested Investor Details', description: 'Dynamic form fields shown when converting a client to Interested' },
+    leadDistribution: { name: 'Client Matching', description: 'Dynamic table headers & form fields configuration for Client Matching' },
+    leadRotation: { name: 'Advisor Reassignments', description: 'Dynamic table headers & form fields configuration for Advisor Reassignments' },
+    resourceLeadSources: { name: 'Lead Sources', description: 'Marketing source channels for investor inquiries' },
+    lost: { name: 'Not Converted Investor Details', description: 'Dynamic form fields shown when client is marked as Not Converted' },
+    notInterested: { name: 'Not Interested Investor Details', description: 'Dynamic form fields shown when client is marked as Not Interested' },
+    configProjects: { name: 'Financial Portfolios', description: 'Catalog of financial portfolios and products.' },
+    tasks: { name: 'KYC & Advisory Tasks', description: 'KYC and advisory follow-up tasks' }
+  },
+  temp0006: {
+    contacts: { name: 'Accounts', description: 'Accounts List' },
+    interested: { name: 'Interested Account Details', description: 'Dynamic form fields shown when converting a lead to Interested' },
+    leadDistribution: { name: 'Ticket Routing', description: 'Dynamic table headers & form fields configuration for Ticket Routing' },
+    leadRotation: { name: 'Ticket Reassignments', description: 'Dynamic table headers & form fields configuration for Ticket Reassignments' },
+    resourceLeadSources: { name: 'Lead Sources', description: 'Marketing source channels for account inquiries' },
+    lost: { name: 'Not Converted Account Details', description: 'Dynamic form fields shown when account is marked as Not Converted' },
+    notInterested: { name: 'Not Interested Account Details', description: 'Dynamic form fields shown when account is marked as Not Interested' },
+    configProjects: { name: 'SOW Contracts', description: 'Catalog of SOW contracts and technical service lines.' },
+    tasks: { name: 'Service Desk Tasks', description: 'Service desk and support follow-up tasks' }
+  },
+  temp0007: {
+    contacts: { name: 'Dealers', description: 'Dealers List' },
+    interested: { name: 'Interested Dealer Details', description: 'Dynamic form fields shown when converting a lead to Interested' },
+    leadDistribution: { name: 'Dealer Allocations', description: 'Dynamic table headers & form fields configuration for Dealer Allocations' },
+    leadRotation: { name: 'Dealer Reallocations', description: 'Dynamic table headers & form fields configuration for Dealer Reallocations' },
+    resourceLeadSources: { name: 'Lead Sources', description: 'Marketing source channels for dealer inquiries' },
+    lost: { name: 'Not Converted Dealer Details', description: 'Dynamic form fields shown when dealer is marked as Not Converted' },
+    notInterested: { name: 'Not Interested Dealer Details', description: 'Dynamic form fields shown when dealer is marked as Not Interested' },
+    configProjects: { name: 'Production Runs', description: 'Catalog of production runs and categories.' },
+    tasks: { name: 'Quality Checks', description: 'Quality checks and logistics follow-up tasks' }
+  }
+};
 
-exports.get = async (id) => {
+exports.translateScreen = (s, indCode) => {
+  if (!s || !indCode) return s;
+  const sObj = s.toObject ? s.toObject() : s;
+  const sKey = sObj.key;
+  const dict = SCREEN_TRANSLATIONS[String(indCode).toLowerCase().trim()] || {};
+  if (dict[sKey]) {
+    return {
+      ...sObj,
+      name: dict[sKey].name,
+      description: dict[sKey].description
+    };
+  }
+  return sObj;
+};
+
+exports.list = async (opts) => {
+  const screens = await screenModel.list(opts);
+  if (!opts || !opts.industryCode) return screens;
+
+  const mongoose = require('mongoose');
+  const Industry = mongoose.model('Industry');
+  let industry = null;
+  const indCodeOrId = opts.industryCode;
+  if (mongoose.Types.ObjectId.isValid(indCodeOrId)) {
+    industry = await Industry.findById(indCodeOrId).lean().exec();
+  } else {
+    industry = await Industry.findOne({ code: indCodeOrId }).lean().exec();
+  }
+  const indCode = String(industry?.code || '').toLowerCase().trim();
+
+  const ALL_INDUSTRY_SCREENS = {
+    temp0001: ['resourcePropertyStages', 'resourcePropertySubTypes', 'resourcePropertyTypes', 'resourceBudgets']
+  };
+
+  const excludes = [];
+  Object.keys(ALL_INDUSTRY_SCREENS).forEach((key) => {
+    if (key !== indCode) {
+      excludes.push(...ALL_INDUSTRY_SCREENS[key]);
+    }
+  });
+
+  const filtered = screens.filter((s) => {
+    const sObj = s.toObject ? s.toObject() : s;
+    const sKey = sObj.key;
+    return !excludes.includes(sKey);
+  });
+
+  return filtered.map((s) => exports.translateScreen(s, indCode));
+};
+
+exports.get = async (id, authedUser) => {
   const doc = await screenModel.findById(id);
   if (!doc) {
     const err = new Error('Screen not found');
     err.status = 404;
     throw err;
+  }
+  if (authedUser) {
+    const mongoose = require('mongoose');
+    const Industry = mongoose.model('Industry');
+    const indId = authedUser.industryId || authedUser.industry_id;
+    let industry = null;
+    if (mongoose.Types.ObjectId.isValid(indId)) {
+      industry = await Industry.findById(indId).lean().exec();
+    } else {
+      industry = await Industry.findOne({ code: indId }).lean().exec();
+    }
+    return exports.translateScreen(doc, industry?.code);
   }
   return doc;
 };

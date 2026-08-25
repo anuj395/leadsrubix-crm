@@ -39,6 +39,8 @@ const userSchema = new mongoose.Schema(
     activated_at: { type: Date, default: null, alias: 'activatedAt' },
     deactivated_at: { type: Date, default: null, alias: 'deactivatedAt' },
     created_by: { type: String, default: null, alias: 'createdBy' },
+    reset_password_token: { type: String, default: null, alias: 'resetPasswordToken' },
+    reset_password_expires: { type: Date, default: null, alias: 'resetPasswordExpires' },
   },
   { 
     timestamps: true, 

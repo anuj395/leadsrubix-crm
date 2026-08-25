@@ -25,7 +25,10 @@ require('./models/screenPermissionModel');
 require('./models/roleActionPermissionModel');
 require('./models/contactModel');
 require('./models/organizationModel');
+require('./models/accountModel');
 require('./models/bookingModel');
+require('./models/dealModel');
+require('./models/quoteModel');
 require('./models/pricingPlanModel');
 require('./models/couponModel');
 require('./models/faqModel');
@@ -290,6 +293,74 @@ const migrateExistingWorkspaces = async () => {
     console.log(`[migration] Successfully self-healed ${routeHealedCount} sidebar menu routes to match correct module sections.`);
   }
 
+  // 6b. Self-heal cloned menus name overrides to match latest industry overrides
+  try {
+    const { INDUSTRY_MENU_OVERRIDES } = require('./seed');
+    const Industry = mongoose.model('Industry');
+    const allOrgs = await Organization.find({}).exec();
+    let nameUpdatedCount = 0;
+    for (const org of allOrgs) {
+      let indDoc = null;
+      const orgIndustryId = org.industry_id || org.industryId;
+      if (orgIndustryId) {
+        if (mongoose.Types.ObjectId.isValid(orgIndustryId)) {
+          indDoc = await Industry.findById(orgIndustryId).exec();
+        } else {
+          indDoc = await Industry.findOne({ code: orgIndustryId }).exec();
+        }
+      }
+      if (!indDoc) continue;
+      const overrides = INDUSTRY_MENU_OVERRIDES[indDoc.code];
+      if (!overrides) continue;
+
+      for (const [menuKey, overName] of Object.entries(overrides)) {
+        const res = await SidebarMenu.updateMany(
+          { organization_id: org.id || org._id, key: menuKey },
+          { $set: { name: overName } }
+        ).exec();
+        nameUpdatedCount += res.modifiedCount;
+      }
+    }
+    if (nameUpdatedCount > 0) {
+      console.log(`[migration] Successfully updated ${nameUpdatedCount} cloned sidebar menu names to match latest industry overrides.`);
+    }
+  } catch (e) {
+    console.error('[migration] Failed to self-heal cloned menu names:', e);
+  }
+
+  // 6c. Self-heal cloned menus parent_id hierarchy mapping in the database
+  try {
+    const allClonedMenus = await SidebarMenu.find({ organization_id: { $ne: null } }).exec();
+    let parentHealedCount = 0;
+    for (const m of allClonedMenus) {
+      if (m.key.includes('.')) {
+        const parts = m.key.split('.');
+        const parentKey = parts[0];
+        let parentMenu = await SidebarMenu.findOne({
+          organization_id: m.organization_id,
+          key: parentKey
+        }).exec();
+        if (!parentMenu) {
+          parentMenu = await SidebarMenu.findOne({
+            organization_id: null,
+            industry_id: null,
+            key: parentKey
+          }).exec();
+        }
+        if (parentMenu && String(m.parent_id) !== String(parentMenu._id)) {
+          m.parent_id = parentMenu._id;
+          await m.save();
+          parentHealedCount++;
+        }
+      }
+    }
+    if (parentHealedCount > 0) {
+      console.log(`[migration] Successfully self-healed ${parentHealedCount} cloned sidebar menu parent_id hierarchies.`);
+    }
+  } catch (e) {
+    console.error('[migration] Failed to self-heal cloned menu parent_ids:', e);
+  }
+
   const organizations = await Organization.find({}).exec();
   for (const org of organizations) {
     const orgId = org.organizationId || org.organization_id;
@@ -302,7 +373,7 @@ const migrateExistingWorkspaces = async () => {
       ws = await Workspace.create({
         workspace_id: workspaceId,
         organization_id: orgId,
-        industry_id: org.industryId || org.industry_id || 'temp0001',
+        industry_id: org.industryId || org.industry_id || 'basic_crm',
         status: 'ACTIVE',
         created_by: 'MIGRATION',
       });
@@ -313,7 +384,7 @@ const migrateExistingWorkspaces = async () => {
       ).exec();
 
       try {
-        await cloneWorkspace(orgId, workspaceId, org.industryId || org.industry_id || 'temp0001');
+        await cloneWorkspace(orgId, workspaceId, org.industryId || org.industry_id || 'basic_crm');
         console.log(`[migration] Successfully cloned workspace templates for: ${orgId}`);
       } catch (err) {
         console.error(`[migration] Failed to clone workspace templates for org: ${orgId}:`, err.message);
@@ -323,7 +394,7 @@ const migrateExistingWorkspaces = async () => {
       if (roleCount === 0) {
         console.log(`[migration] Self-healing workspace configuration for: ${orgId}`);
         try {
-          await cloneWorkspace(orgId, ws.workspace_id, org.industryId || org.industry_id || 'temp0001');
+          await cloneWorkspace(orgId, ws.workspace_id, org.industryId || org.industry_id || 'basic_crm');
           console.log(`[migration] Successfully self-healed workspace templates for: ${orgId}`);
         } catch (err) {
           console.error(`[migration] Failed to clone workspace templates for org: ${orgId}:`, err.message);

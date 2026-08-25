@@ -63,11 +63,87 @@ export default function ResourcesPage() {
     setSelectedOrg,
   } = useSuperAdminScope(isSuperAdmin)
 
+  const RESOURCE_SCREEN_TRANSLATIONS: Record<string, Record<string, string>> = {
+    temp0002: {
+      resourceCarousel: 'Carousel Banners',
+      resourceLocations: 'Warehouses & Hubs',
+      resourceLeadSources: 'Customer Channels',
+      resourceTransferReasons: 'Return Reasons',
+    },
+    temp0003: {
+      resourceCarousel: 'Hospital Banners',
+      resourceLocations: 'Clinics & Centers',
+      resourceLeadSources: 'Patient Sources',
+      resourceTransferReasons: 'Transfer Reasons',
+    },
+    temp0004: {
+      resourceCarousel: 'Campus Banners',
+      resourceLocations: 'Campuses & Branches',
+      resourceLeadSources: 'Student Channels',
+      resourceTransferReasons: 'Course Transfer Reasons',
+    },
+    temp0005: {
+      resourceCarousel: 'Promo Banners',
+      resourceLocations: 'Branch Offices',
+      resourceLeadSources: 'Client Sources',
+      resourceTransferReasons: 'Advisor Reassign Reasons',
+    },
+    temp0006: {
+      resourceCarousel: 'Case Study Banners',
+      resourceLocations: 'Delivery Centers',
+      resourceLeadSources: 'Lead Channels',
+      resourceTransferReasons: 'Project Transfer Reasons',
+    },
+    temp0007: {
+      resourceCarousel: 'Product Banners',
+      resourceLocations: 'Manufacturing Plants',
+      resourceLeadSources: 'Dealer Channels',
+      resourceTransferReasons: 'Order Reassign Reasons',
+    }
+  }
+
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const selectedOrgId = selectedOrg || 'null'
-  const [resourceScreens, setResourceScreens] = useState<Screen[]>([])
+  const [allResourceScreens, setAllResourceScreens] = useState<Screen[]>([])
   const [activeTab, setActiveTab] = useState(0)
   const [selectedRowIds, setSelectedRowIds] = useState<any[]>([])
+
+  const resourceScreens = useMemo(() => {
+    const indCode = String(selectedIndustry || '').toLowerCase().trim()
+    let filtered = allResourceScreens.filter((s) => s.key.startsWith('resource') && s.isActive !== false)
+
+    // Filter out Real Estate specific resource screens for non-RE industries
+    if (indCode !== 'temp0001' && indCode !== '') {
+      const reSpecific = new Set([
+        'resourceBudgets',
+        'resourcePropertyStages',
+        'resourcePropertyTypes',
+        'resourcePropertySubTypes'
+      ])
+      filtered = filtered.filter((s) => !reSpecific.has(s.key))
+    }
+
+    // Apply dynamic translations to screen names
+    const translated = filtered.map((s) => {
+      const industryMap = RESOURCE_SCREEN_TRANSLATIONS[indCode] || {}
+      return {
+        ...s,
+        name: industryMap[s.key] || s.name
+      }
+    })
+
+    const orderMap: Record<string, number> = {
+      'resourceCarousel': 10,
+      'resourceLocations': 20,
+      'resourceBudgets': 30,
+      'resourceLeadSources': 40,
+      'resourceTransferReasons': 50,
+      'resourcePropertyStages': 60,
+      'resourcePropertyTypes': 70,
+      'resourcePropertySubTypes': 80,
+    }
+    return [...translated].sort((a, b) => (orderMap[a.key] || 999) - (orderMap[b.key] || 999))
+  }, [allResourceScreens, selectedIndustry])
 
   // Resolved configurations for active tab
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
@@ -108,21 +184,7 @@ export default function ResourcesPage() {
           getScreens(),
         ])
         setOrganizations(orgsData.items)
-        
-        // Filter screens starting with resource_
-        const filtered = scrs.filter((s) => s.key.startsWith('resource') && s.isActive)
-        const orderMap: Record<string, number> = {
-          'resourceCarousel': 10,
-          'resourceLocations': 20,
-          'resourceBudgets': 30,
-          'resourceLeadSources': 40,
-          'resourceTransferReasons': 50,
-          'resourcePropertyStages': 60,
-          'resourcePropertyTypes': 70,
-          'resourcePropertySubTypes': 80,
-        }
-        const sorted = [...filtered].sort((a, b) => (orderMap[a.key] || 999) - (orderMap[b.key] || 999))
-        setResourceScreens(sorted)
+        setAllResourceScreens(scrs)
       } catch (e: any) {
         setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load initial data', sev: 'error' })
       } finally {

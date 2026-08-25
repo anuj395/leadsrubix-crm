@@ -121,7 +121,10 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
         await api.post('resources/resourceNotes', {
           contactId,
           note: noteContent,
-          userEmail: user?.email || 'System'
+          notes: noteContent,
+          userName: user?.name || user?.email || 'Admin',
+          userEmail: user?.email || '',
+          createdBy: user?.name || user?.email || 'Admin'
         })
       }
 
@@ -154,6 +157,8 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
           ) : (
             <DynamicForm
               screen="notInterested"
+              industryCode={String(contact?.industryId || contact?.industry_id || user?.industryId || 'temp0001')}
+              organizationId={String(contact?.organizationId || contact?.organization_id || (user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={initialValues}
               onSubmit={handleSubmit}
               onCancel={onClose}

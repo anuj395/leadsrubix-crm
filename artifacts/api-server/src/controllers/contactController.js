@@ -46,6 +46,17 @@ exports.create = async (req, res, next) => {
   }
 };
 
+exports.retrieve = async (req, res, next) => {
+  try {
+    const contactModel = require('../models/contactModel');
+    const item = await contactModel.findById(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Contact not found' });
+    res.json({ item: withDualCase(item) });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.update = async (req, res, next) => {
   try {
     const item = await service.updateForUser({
@@ -54,6 +65,19 @@ exports.update = async (req, res, next) => {
       authedUser: req.user,
     });
     res.json(convertKeysToCamelCase(item));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.convert = async (req, res, next) => {
+  try {
+    const result = await service.convertContact({
+      contactId: req.params.id,
+      payload: req.body,
+      authedUser: req.user,
+    });
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -147,7 +171,7 @@ exports.masterSortSearch = async (req, res, next) => {
 
     // --- Dynamic Column Resolution via Screen Permission Service ---
     const screenPermissionService = require('../services/screenPermissionService');
-    const targetIndustryCode = requestedIndustry || req.user?.industryId || 'temp0001';
+    const targetIndustryCode = requestedIndustry || req.user?.industry_id || req.user?.industryId || null;
     
     let columns = [{ header: 'Organization Name', key: 'organization_name', width: 25 }];
     
@@ -241,12 +265,40 @@ exports.masterSortSearch = async (req, res, next) => {
     // --- Multi-Tenant Scope Filtering ---
     if (req.user?.role === 'superAdmin') {
       if (requestedOrganization && requestedOrganization !== 'all') {
-        filter["$or"] = [{ organization_id: requestedOrganization }, { organizationId: requestedOrganization }];
+        filter["$or"] = [
+          { organization_id: requestedOrganization },
+          { organizationId: requestedOrganization }
+        ];
       } else if (requestedIndustry && requestedIndustry !== 'all') {
         const Organization = mongoose.model('Organization');
-        const orgs = await Organization.find({ industry_code: requestedIndustry }).lean().exec();
-        const orgIds = orgs.map(o => o.organization_id || String(o._id));
-        filter["$or"] = [{ organization_id: { $in: orgIds } }, { organizationId: { $in: orgIds } }];
+        const Industry = mongoose.model('Industry');
+        let indDoc = null;
+        if (mongoose.Types.ObjectId.isValid(requestedIndustry)) {
+          indDoc = await Industry.findById(requestedIndustry).lean().exec();
+        } else {
+          indDoc = await Industry.findOne({ code: requestedIndustry }).lean().exec();
+        }
+        const indIdStr = indDoc ? String(indDoc._id) : requestedIndustry;
+        const indCode = indDoc ? indDoc.code : requestedIndustry;
+        const orgs = await Organization.find({
+          $or: [
+            { industryId: indIdStr },
+            { industry_id: indIdStr },
+            { industryId: indCode },
+            { industry_id: indCode },
+            { industryCode: indCode },
+            { industry_code: indCode }
+          ]
+        }).lean().exec();
+        const orgIds = orgs.map(o => o.organization_id || o.organizationId || String(o._id)).filter(Boolean);
+        filter["$or"] = [
+          { organization_id: { $in: orgIds } },
+          { organizationId: { $in: orgIds } },
+          { industry_id: indIdStr },
+          { industryId: indIdStr },
+          { industry_id: indCode },
+          { industryId: indCode }
+        ];
       }
     } else {
       if (req.user?.organizationId) {

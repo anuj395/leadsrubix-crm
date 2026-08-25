@@ -6,6 +6,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
+import Tooltip from '@mui/material/Tooltip'
 import { Add as AddIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
@@ -50,7 +51,8 @@ export default function ContactsListPage() {
         resolveScreen({
           screenKey: 'contacts',
           industryCode: isSuperAdmin ? activeIndustry || 'temp0001' : undefined,
-          roleKey: isSuperAdmin ? 'admin' : undefined,
+          roleKey: isSuperAdmin ? 'superAdmin' : undefined,
+          organizationId: isSuperAdmin ? activeOrg || undefined : undefined,
         }),
       ])
       setItems(list)
@@ -64,10 +66,21 @@ export default function ContactsListPage() {
   }
 
   useEffect(() => {
-    if (isSuperAdmin && (!selectedIndustry || !selectedOrg)) return
+    if (isSuperAdmin && !selectedIndustry) return
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndustry, selectedOrg, isSuperAdmin])
+
+  const dynamicTitle = useMemo(() => {
+    const indCode = String(selectedIndustry || '').toLowerCase().trim()
+    if (indCode === 'temp0002') return 'Customer Inquiries & Leads'
+    if (indCode === 'temp0003') return 'Patient Inquiries & Leads'
+    if (indCode === 'temp0004') return 'Student Inquiries & Leads'
+    if (indCode === 'temp0005') return 'Investor Inquiries & Leads'
+    if (indCode === 'temp0006') return 'Client Inquiries & Leads'
+    if (indCode === 'temp0007') return 'Distributor Inquiries & Leads'
+    return 'Inquiries & Leads'
+  }, [selectedIndustry])
 
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
     const sNoCol: GridColDef<Contact> = {
@@ -120,12 +133,14 @@ export default function ContactsListPage() {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppCard
-        title="Contacts"
-        subtitle="Customer / lead contacts. The columns and Add form are driven by the Screen Configuration system."
+        title={dynamicTitle}
+        subtitle="Customer / lead contacts. The columns and Add form are driven dynamically by the Screen Configuration system per Industry."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/leads/contacts/new?industry=${selectedIndustry || ''}&organization=${selectedOrg || ''}`)}>
-            Add Contact
-          </Button>
+          <Tooltip title="Add a new lead contact to the database">
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/leads/contacts/new?industry=${selectedIndustry || ''}&organization=${selectedOrg || ''}`)}>
+              Add Contact
+            </Button>
+          </Tooltip>
         }
         fullHeight
       >

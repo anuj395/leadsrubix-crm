@@ -9,6 +9,13 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { createContact, updateContact, listContacts, type Contact } from '@/services/contactsService'
+import { api } from '@/services/api'
+
+import { useActionPermission } from '@/hooks/useActionPermission'
+
+import { useAppSelector } from '@/store/hooks'
+import { selectAuth } from '@/features/auth'
+import { useMemo } from 'react'
 
 function toFormValues(row: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {}
@@ -16,17 +23,38 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
     if (k.startsWith('_') || k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'industryId' || k === 'roleId') continue
     if (v === null || v === undefined) continue
     const t = typeof v
-    if (t === 'string' || t === 'number' || t === 'boolean') out[k] = v
+    if (t === 'string' || t === 'number' || t === 'boolean' || Array.isArray(v)) {
+      out[k] = v
+      const camelKey = k.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+      const snakeKey = k.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`)
+      out[camelKey] = v
+      out[snakeKey] = v
+    }
   }
   return out
 }
 
 const AddContactPage = () => {
   const navigate = useNavigate()
+  const { user } = useAppSelector(selectAuth)
   const { id } = useParams<{ id?: string }>()
   const [searchParams] = useSearchParams()
   const industryCode = searchParams.get('industry') || undefined
   const organizationId = searchParams.get('organization') || undefined
+
+  const indCode = String(industryCode || user?.industryId || '').toLowerCase().trim()
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') return { contact: 'Inquiry', contacts: 'Customer Inquiries' }
+    if (indCode === 'temp0003') return { contact: 'Patient Inquiry', contacts: 'Patient Inquiries' }
+    if (indCode === 'temp0004') return { contact: 'Student Inquiry', contacts: 'Student Inquiries' }
+    if (indCode === 'temp0005') return { contact: 'Investor Inquiry', contacts: 'Investor Inquiries' }
+    if (indCode === 'temp0006') return { contact: 'Client Inquiry', contacts: 'Client Inquiries' }
+    if (indCode === 'temp0007') return { contact: 'Distributor Inquiry', contacts: 'Distributor Inquiries' }
+    return { contact: 'Inquiry', contacts: 'Inquiries & Leads' }
+  }, [indCode])
+
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('contacts')
 
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [initializing, setInitializing] = useState(!!id)
@@ -41,6 +69,11 @@ const AddContactPage = () => {
     if (id) {
       const loadItem = async () => {
         try {
+          const res = await api.get(`contacts/${id}`).catch(() => null)
+          if (res?.data?.item || res?.data) {
+            setEditingContact(res.data.item || res.data)
+            return
+          }
           const list = await listContacts()
           const match = list.find((c) => c._id === id)
           if (match) {
@@ -71,9 +104,9 @@ const AddContactPage = () => {
           organization_id: organizationId || values.organization_id,
         }
         await createContact(payloadValues)
-        setToast({ open: true, msg: 'Contact created successfully', sev: 'success' })
+        setToast({ open: true, msg: 'Inquiry created successfully', sev: 'success' })
       }
-      setTimeout(() => navigate('/leads/contacts'), 1500)
+      setTimeout(() => navigate(id ? `/leads/contacts/${id}` : '/leads/contacts'), 1200)
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save contact', sev: 'error' })
     } finally {
@@ -81,7 +114,7 @@ const AddContactPage = () => {
     }
   }
 
-  if (initializing) {
+  if (initializing || permsLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <CircularProgress />
@@ -89,11 +122,37 @@ const AddContactPage = () => {
     )
   }
 
+  if (id && !can_edit) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to edit {labels.contacts}.
+        </Alert>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate('/leads/contacts')}>
+          Back to {labels.contacts}
+        </Button>
+      </Box>
+    )
+  }
+
+  if (!id && !can_add) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to add new {labels.contacts}.
+        </Alert>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate('/leads/contacts')}>
+          Back to {labels.contacts}
+        </Button>
+      </Box>
+    )
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: "100%", minWidth: 0 }}>
       <AppCard
-        title={id ? "Edit Contact" : "Add New Contact"}
-        subtitle="Manage client contacts. Fields and requirements are configured dynamically."
+        title={id ? `Edit ${labels.contact}` : `Add New ${labels.contact}`}
+        subtitle={`Manage client ${labels.contact.toLowerCase()} and profiles. Fields and requirements are configured dynamically.`}
         action={
           <Button
             variant="text"
@@ -116,7 +175,7 @@ const AddContactPage = () => {
             }}
             onSubmit={handleSubmit}
             onCancel={() => navigate('/leads/contacts')}
-            submitLabel={id ? "Save Changes" : "Create Contact"}
+            submitLabel={id ? "Save Changes" : `Create ${labels.contact}`}
           />
         </Box>
       </AppCard>

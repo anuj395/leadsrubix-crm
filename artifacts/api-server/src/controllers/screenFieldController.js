@@ -6,10 +6,18 @@ exports.list = async (req, res, next) => {
       ? req.query.organizationId
       : (req.user?.organizationId || null);
 
+    const wsId = req.user?.role === 'superAdmin'
+      ? (req.query.workspaceId || req.query.workspace_id)
+      : (req.user?.workspaceId || req.user?.workspace_id || null);
+
     const items = await service.list({
       screenId: req.query.screenId,
       activeOnly: req.query.active === 'true',
       organizationId: orgId,
+      workspaceId: wsId,
+      industryCode: req.user?.role === 'superAdmin'
+        ? (req.query.industryId || req.query.industryCode || req.query.industry_id || req.user?.industryId)
+        : (req.user?.industryId || null),
     });
     res.json({ items });
   } catch (err) {

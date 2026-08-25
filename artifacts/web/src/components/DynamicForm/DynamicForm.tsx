@@ -32,11 +32,122 @@ import Alert from '@mui/material/Alert'
 import Select from '@mui/material/Select'
 import InputAdornment from '@mui/material/InputAdornment'
 import Autocomplete from '@mui/material/Autocomplete'
+import Tooltip from '@mui/material/Tooltip'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
 import { api } from '@/services/api'
 import { useAuth } from '@/hooks/useAuth'
 import { compressImage } from '@/utils/imageCompressor'
+const getFieldTooltip = (key: string, label: string, indCode?: string) => {
+  const normalizedKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
+  const ind = String(indCode || '').toLowerCase().trim()
+  
+  if (ind === 'temp0003') { // Healthcare
+    const hcMap: Record<string, string> = {
+      customerName: 'Patient Name:\nFull name of the patient.',
+      projectName: 'Clinical Specialty:\nAttending department/specialty.',
+      budget: 'Treatment Budget:\nEstimated budget limit for treatments.',
+      propertyType: 'Clinical Wing:\nMedical clinic wing/ward classification.',
+      propertyStage: 'Clinical Wing Stage:\nTriage or clinical stage.',
+      propertySubType: 'Specialty Sub Type:\nClinical sub-specialty classification.',
+      leadSource: 'Patient Source:\nReferral channel or marketing source.',
+      emailId: 'Email Address:\nPrimary patient contact email.',
+      mobileNumber: 'Phone Number:\nPatient mobile contact number.',
+      contactOwnerEmail: 'Attending Doctor Email:\nEmail of assigned chief/attending doctor.'
+    }
+    if (hcMap[normalizedKey]) return hcMap[normalizedKey];
+  } else if (ind === 'temp0004') { // Education
+    const eduMap: Record<string, string> = {
+      customerName: 'Student Name:\nFull name of the applicant.',
+      projectName: 'Course / Program:\nSelected program or course.',
+      budget: 'Fee Budget:\nEstimated academic fees budget.',
+      propertyType: 'Program Category:\nAcademic category classification.',
+      propertyStage: 'Academic Semester:\nAdmission stage/semester.',
+      propertySubType: 'Program Sub Category:\nSelected stream/sub-category.',
+      leadSource: 'Inquiry Source:\nMarketing/lead inquiry source.',
+      emailId: 'Email Address:\nPrimary student contact email.',
+      mobileNumber: 'Phone Number:\nStudent mobile contact number.',
+      contactOwnerEmail: 'Counselor Email:\nEmail of assigned academic counselor.'
+    }
+    if (eduMap[normalizedKey]) return eduMap[normalizedKey];
+  } else if (ind === 'temp0002') { // E-Commerce
+    const ecoMap: Record<string, string> = {
+      customerName: 'Customer Name:\nFull name of the customer.',
+      projectName: 'Product Catalog:\nProduct or category name.',
+      budget: 'Order Budget:\nOrder value or shopping limit.',
+      propertyType: 'Product Class:\nProduct category class.',
+      propertyStage: 'Availability Stage:\nInventory/cart status.',
+      propertySubType: 'Product Sub Category:\nSub-category classification.',
+      leadSource: 'Inquiry Source:\nMarketing/ad channel source.',
+      contactOwnerEmail: 'Agent Email:\nEmail of assigned handling agent.'
+    }
+    if (ecoMap[normalizedKey]) return ecoMap[normalizedKey];
+  } else if (ind === 'temp0005') { // Finance
+    const finMap: Record<string, string> = {
+      customerName: 'Client Name:\nFull name of the client.',
+      projectName: 'Portfolio Name:\nSelected portfolio category.',
+      budget: 'Investment Budget:\nEstimated investment budget.',
+      propertyType: 'Asset Class:\nFinancial asset classification.',
+      propertyStage: 'Risk Profile:\nClient risk stage classification.',
+      propertySubType: 'Asset Sub Class:\nPortfolio sub-category.',
+      leadSource: 'Lead Source:\nReferral or inquiry channel.',
+      contactOwnerEmail: 'Advisor Email:\nEmail of assigned advisor.'
+    }
+    if (finMap[normalizedKey]) return finMap[normalizedKey];
+  } else if (ind === 'temp0006') { // IT Services
+    const itMap: Record<string, string> = {
+      customerName: 'Lead Name:\nFull name of the prospect.',
+      projectName: 'Service Name:\nSelected service or tech stack.',
+      budget: 'Deal Value:\nEstimated contract value.',
+      propertyType: 'Tech Stack:\nService category classification.',
+      propertyStage: 'Project Phase:\nSales lifecycle stage.',
+      propertySubType: 'Technology Branch:\nSelected tech sub-category.',
+      leadSource: 'Lead Source:\nInbound channel/prospect source.',
+      contactOwnerEmail: 'Tech Lead Email:\nEmail of assigned tech lead.'
+    }
+    if (itMap[normalizedKey]) return itMap[normalizedKey];
+  } else if (ind === 'temp0007') { // Manufacturing
+    const mfgMap: Record<string, string> = {
+      customerName: 'Distributor Name:\nFull name of the distributor.',
+      projectName: 'Product Category:\nSelected product line/run.',
+      budget: 'Distributor Value:\nEstimated commercial order value.',
+      propertyType: 'Production Line:\nManufacturing line category.',
+      propertyStage: 'Process Stage:\nProcessing/fulfillment stage.',
+      propertySubType: 'Production Batch:\nProduct batch subclass.',
+      leadSource: 'Lead Source:\nDistributor inquiry channel.',
+      contactOwnerEmail: 'Manager Email:\nEmail of assigned plant manager.'
+    }
+    if (mfgMap[normalizedKey]) return mfgMap[normalizedKey];
+  }
 
+  const map: Record<string, string> = {
+    customerName: 'Full Name:\nFull name of the customer\nor lead contact.',
+    emailId: 'Email Address:\nPrimary email address\nfor communication.',
+    mobileNumber: 'Mobile Number:\nMobile phone number with\ncountry dialing code.',
+    alternateMobileNumber: 'Alternate Number:\nSecondary contact number\nif primary is unreachable.',
+    projectName: 'Project:\nAssociated property\ndevelopment project name.',
+    stage: 'Lead Stage:\nCurrent status or progression\nstage of this lead.',
+    leadSource: 'Lead Source:\nMarketing or referral channel\nwhere the lead came from.',
+    leadType: 'Lead Type:\nCategorization based on\nlead source type.',
+    note: 'Notes:\nInternal notes about customer\ninteractions and status.',
+    remarks: 'Remarks:\nAdditional staff remarks or\nstatus updates.',
+    priority: 'Priority:\nPriority urgency level\nfor lead follow-ups.',
+    name: 'Name:\nDescriptive name for this\nitem or setting.',
+    description: 'Description:\nDetailed details explaining\nthis config entry.',
+    address: 'Address:\nPhysical address or\nlocation details.',
+    status: 'Status:\nToggle active or\ninactive state.',
+    industryId: 'Industry:\nIndustry category code\nfor organization.',
+    organizationId: 'Organization:\nThe organization this\nconfiguration belongs to.',
+    distributionType: 'Distribution Type:\nAlgorithm used to assign leads\n(e.g. Round Robin, Manual).',
+    leadManagerUsers: 'Lead Managers:\nSelect lead managers authorized\nto assign leads.',
+    users: 'Sales Associates:\nSelect sales associates\nassigned to this flow.',
+    apiKey: 'API Key:\nSecret API key used for\nexternal integrations.',
+    apiUrl: 'API URL:\nIntegration target endpoint URL\nfor lead payload data.',
+    webhookUrl: 'Webhook URL:\nTarget URL to post real-time\nevent payloads.',
+    integrationName: 'Integration Name:\nFriendly identifier name\nfor the integration.',
+  }
+  return map[normalizedKey] || map[key] || `Configure the\n${label} field.`
+}
 
 type Value = string | number | boolean | null | string[]
 
@@ -130,7 +241,8 @@ const MULTIPLE_FIELDS = new Set(['project', 'location', 'budget', 'propertyType'
 
 
 interface Props {
-  screen: string
+  screen?: string
+  screenKey?: string
   /** Optional override; only honored server-side for superAdmin callers. */
   industryCode?: string
   roleKey?: string
@@ -151,10 +263,12 @@ interface Props {
   onChange?: (values: Record<string, Value>) => void
   singleColumn?: boolean
   disabledFields?: string[]
+  customOptions?: Record<string, (DropdownOption | string)[]>
 }
 
 export function DynamicForm({
   screen,
+  screenKey,
   industryCode,
   roleKey,
   industry_code,
@@ -172,6 +286,7 @@ export function DynamicForm({
   onChange,
   singleColumn = false,
   disabledFields = [],
+  customOptions,
 }: Props) {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -184,6 +299,14 @@ export function DynamicForm({
   const [trialPeriodLicenses, setTrialPeriodLicenses] = useState<number>(10)
 
   const isFieldDisabled = (fieldKey: string) => readOnly || disabledFields.includes(fieldKey)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     onChange?.(values)
@@ -195,9 +318,11 @@ export function DynamicForm({
     }
   }, [initialValues])
 
+  const activeScreenKey = screenKey || screen || ''
+
   useEffect(() => {
     let cancelled = false
-    if (screen === 'organization') {
+    if (activeScreenKey === 'organization') {
       void api.get('pricing-plans')
         .then((res) => {
           if (cancelled) return
@@ -214,7 +339,7 @@ export function DynamicForm({
     return () => {
       cancelled = true
     }
-  }, [screen])
+  }, [activeScreenKey])
 
   // Per-field async dropdown state. Keyed by `dropdown_api` URL so two fields
   // pointing at the same source share results.
@@ -234,7 +359,7 @@ export function DynamicForm({
         const finalRoleKey = roleKey || role_key
         const finalOrgId = organizationId || organization_id
         const data = await resolveScreen({
-          screenKey: screen,
+          screenKey: activeScreenKey,
           industryCode: finalIndustryCode,
           roleKey: finalRoleKey,
           organizationId: finalOrgId,
@@ -311,9 +436,8 @@ export function DynamicForm({
 
   // 2) Lazy-load API dropdowns once we know which fields need them.
   useEffect(() => {
-    let cancelled = false
     const apiFields = fields.filter(
-      (f) => f.type === 'select' && f.dropdown_source === 'api' && f.dropdown_api,
+      (f) => f.type === 'select' && (f.dropdown_source === 'api' || (f as any).dropdownSource === 'api') && (f.dropdown_api || (f as any).dropdownApi),
     )
     for (const f of apiFields) {
       const url = getDropdownUrl(f)
@@ -328,40 +452,39 @@ export function DynamicForm({
       const path = isAbsolute
         ? urlWithCb
         : urlWithCb.replace(/^\/+/, '').replace(/^api\//, '')
-      setDropdownLoading((prev) => ({ ...prev, [url]: true }))
+      setDropdownLoading((prev) => ({ ...prev, [f.key]: true, [url]: true }))
       void api
         .get(path)
         .then((res) => {
-          if (cancelled) return
+          if (!isMountedRef.current) return
           const rawItems = Array.isArray(res.data) ? res.data : (res.data?.items ?? [])
-          setRawDropdowns((prev) => ({ ...prev, [url]: rawItems }))
+          setRawDropdowns((prev) => ({ ...prev, [f.key]: rawItems, [url]: rawItems }))
           const opts = normalizeOptions(res.data)
-          setDropdowns((prev) => ({ ...prev, [url]: opts }))
+          setDropdowns((prev) => ({ ...prev, [f.key]: opts, [url]: opts }))
           setErrors((prev) => {
             const next = { ...prev }
             delete next[`__dropdown__${url}`]
+            delete next[`__dropdown__${f.key}`]
             return next
           })
         })
         .catch((err) => {
-          if (cancelled) return
+          if (!isMountedRef.current) return
+          console.error('[DynamicForm] error loading', f.key, err)
           // Surface a soft error inline next to the field.
           setErrors((prev) => ({
             ...prev,
-            [`__dropdown__${url}`]:
+            [`__dropdown__${f.key}`]:
               err?.response?.data?.message ?? `Failed to load options from ${url}`,
           }))
         })
         .finally(() => {
-          if (!cancelled) {
-            setDropdownLoading((prev) => ({ ...prev, [url]: false }))
+          if (isMountedRef.current) {
+            setDropdownLoading((prev) => ({ ...prev, [f.key]: false, [url]: false }))
           }
         })
     }
-    return () => {
-      cancelled = true
-    }
-  }, [fields, values.country, industry_code, values.organizationId, values.organizationId, values.role])
+  }, [fields, values.country, industry_code, values.organizationId, values.role])
 
   const setValue = (key: string, value: Value) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -407,7 +530,17 @@ export function DynamicForm({
             }
           }
 
-          if (f.type === 'phone' || f.key.toLowerCase().includes('phone') || f.key.toLowerCase().includes('contact')) {
+          const isPhoneField = f.type === 'phone' ||
+            f.key.toLowerCase().includes('phone') ||
+            f.key.toLowerCase().includes('mobile') ||
+            f.key.toLowerCase().includes('contactnumber') ||
+            f.key.toLowerCase().includes('contact_number') ||
+            f.key.toLowerCase().includes('alternateno') ||
+            f.key.toLowerCase().includes('alternate_no') ||
+            f.key.toLowerCase().includes('alternatenumber') ||
+            f.key.toLowerCase().includes('alternate_number')
+
+          if (isPhoneField && !f.key.toLowerCase().includes('email')) {
             const rawDigits = String(v).replace(/\D/g, '')
             if (rawDigits.length < 7 || rawDigits.length > 15) {
               next[f.key] = `Invalid Contact Number. Must be between 7 and 15 digits.`
@@ -432,8 +565,8 @@ export function DynamicForm({
       if (screen === 'organization') {
         const numEmployees = Number(values.numEmployees || values.num_employees || 0)
         if (numEmployees > trialPeriodLicenses) {
-          next.numEmployees = `Number of Employees (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
-          next.num_employees = `Number of Employees (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
+          next.numEmployees = `Number of Employees(Licenses) (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
+          next.num_employees = `Number of Employees(Licenses) (${numEmployees}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`
         }
       }
       if (values.notIntReason === 'Other' && !String(values.otherNotIntReason || '').trim()) {
@@ -504,12 +637,22 @@ export function DynamicForm({
           }
           const value = values[f.key]
           const err = errors[f.key] || ''
-          const labelWithRequired = f.required ? `${f.label} *` : f.label
+          const activeIndustry = industryCode || industry_code || (user as any)?.industryId || (user as any)?.industry_id
+          const labelWithRequired = (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <span>{f.required ? `${f.label} *` : f.label}</span>
+              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{getFieldTooltip(f.key, f.label, activeIndustry)}</Box>} placement="top">
+                <InfoOutlinedIcon sx={{ fontSize: '0.85rem', color: 'text.disabled', opacity: 0.6, cursor: 'help' }} />
+              </Tooltip>
+            </Box>
+          )
 
           if (f.type === 'select') {
             const apiUrl = getDropdownUrl(f)
             let opts: DropdownOption[] = []
-            if (f.dropdown_source === 'api' && apiUrl) {
+            if (customOptions && customOptions[f.key] && customOptions[f.key].length > 0) {
+              opts = normalizeOptions(customOptions[f.key])
+            } else if ((f.dropdown_source === 'api' || (f as any).dropdownSource === 'api') && (apiUrl || dropdowns[f.key])) {
               const orgId = String((user as any)?.organizationId || (user as any)?.organization_id || '').toLowerCase()
               if (f.key === 'leadManagerUsers') {
                 const rawUsers = rawDropdowns[apiUrl] || []
@@ -573,9 +716,9 @@ export function DynamicForm({
                   opts = normalizeOptions(potentialAssociates)
                 }
               } else {
-                opts = dropdowns[apiUrl] ?? []
+                opts = (dropdowns[f.key] || (apiUrl ? dropdowns[apiUrl] : undefined)) ?? []
               }
-            } else if (f.dropdown_source === 'static') {
+            } else if (f.dropdown_source === 'static' || (f as any).dropdownSource === 'static') {
               opts = (f.options || []).map((o) => ({ value: o, label: o }))
             } else {
               opts = (f.options || []).map((o) => ({ value: o, label: o }))
@@ -587,9 +730,9 @@ export function DynamicForm({
                 { value: 'INACTIVE', label: 'Inactive' }
               ];
             }
-            const isLoading = f.dropdown_source === 'api' && !!apiUrl && dropdownLoading[apiUrl]
-            const dropdownErr =
-              f.dropdown_source === 'api' && apiUrl ? errors[`__dropdown__${apiUrl}`] : ''
+            const isApiSource = f.dropdown_source === 'api' || (f as any).dropdownSource === 'api'
+            const isLoading = isApiSource && (dropdownLoading[f.key] || (apiUrl ? dropdownLoading[apiUrl] : false))
+            const dropdownErr = isApiSource ? (errors[`__dropdown__${f.key}`] || (apiUrl ? errors[`__dropdown__${apiUrl}`] : '')) : ''
 
             const isMultiple = MULTIPLE_FIELDS.has(f.key) && screen !== 'configProjects' && screen !== 'interested' && screen !== 'contacts'
             if (isMultiple) {
@@ -629,13 +772,31 @@ export function DynamicForm({
                 />
               )
             }
+            let currentValue = (value as string) ?? ''
+            if (currentValue && opts.length > 0) {
+              const exactMatch = opts.find((o) => o.value === currentValue)
+              if (!exactMatch) {
+                const fuzzyMatch = opts.find(
+                  (o) =>
+                    o.value.toLowerCase() === currentValue.toLowerCase() ||
+                    o.value.replace(/_/g, ' ').toLowerCase() === currentValue.replace(/_/g, ' ').toLowerCase() ||
+                    o.label.toLowerCase().startsWith(currentValue.replace(/_/g, ' ').toLowerCase())
+                )
+                if (fuzzyMatch) {
+                  currentValue = fuzzyMatch.value
+                }
+              }
+            } else if (!currentValue && opts.length > 0 && f.required && (f.key === 'stage' || f.key === 'status')) {
+              currentValue = opts[0].value
+            }
+
             return (
               <TextField
                 key={f.key}
                 select
                 size="small"
                 label={labelWithRequired}
-                value={(value as string) ?? ''}
+                value={currentValue}
                 onChange={(e) => setValue(f.key, e.target.value)}
                 error={!!err || !!dropdownErr}
                 helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}

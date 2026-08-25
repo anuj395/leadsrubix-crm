@@ -414,6 +414,43 @@ router.get('/:key', (req, res, next) => {
     }
   }
 
+  if (key === 'dealStages') {
+    try {
+      const pipelineModel = require('../models/pipelineModel');
+      const targetIndustry = req.user?.industry_id || req.user?.industryId || req.query.industryId || 'temp0001';
+      const targetOrg = req.query.organizationId || req.user?.organization_id || req.user?.organizationId;
+      
+      const filter = {};
+      if (targetOrg) filter.organization_id = targetOrg;
+      
+      let pipelines = await pipelineModel.list({ filter });
+      if (!pipelines || pipelines.length === 0) {
+        const defaultStages = pipelineModel.getDefaultStagesForIndustry(targetIndustry);
+        return res.json({ items: defaultStages.map(s => ({ value: s.stageId || s.name, label: `${s.name} (${s.probability}%)` })) });
+      }
+      const defaultPipe = pipelines.find(p => p.is_default || p.isDefault) || pipelines[0];
+      const stages = defaultPipe?.stages || [];
+      return res.json({ items: stages.map(s => ({ value: s.stageId || s.stage_id || s.name, label: `${s.name} (${s.probability}%)` })) });
+    } catch (err) {
+      console.error('Failed to load deal stages', err);
+      return res.status(500).json({ message: 'Failed to load deal stages' });
+    }
+  }
+
+  if (key === 'dealPipelines') {
+    try {
+      const pipelineModel = require('../models/pipelineModel');
+      const targetOrg = req.query.organizationId || req.user?.organization_id || req.user?.organizationId;
+      const filter = {};
+      if (targetOrg) filter.organization_id = targetOrg;
+      const pipelines = await pipelineModel.list({ filter });
+      return res.json({ items: (pipelines || []).map(p => ({ value: String(p._id || p.id), label: p.name })) });
+    } catch (err) {
+      console.error('Failed to load deal pipelines', err);
+      return res.status(500).json({ message: 'Failed to load deal pipelines' });
+    }
+  }
+
   try {
     const DropdownOption = mongoose.model('DropdownOption');
     const list = await DropdownOption.find({ key }).lean().exec();

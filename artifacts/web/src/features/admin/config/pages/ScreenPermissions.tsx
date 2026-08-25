@@ -87,8 +87,12 @@ export default function AdminScreenPermissionsPage() {
     setLoading(true)
     void (async () => {
       try {
+        const userOrg = (user as any)?.organizationId || (user as any)?.organization_id
+        const userIndustry = (user as any)?.industryId || (user as any)?.industry_id
+        const userWs = (user as any)?.workspaceId || (user as any)?.workspace_id
+
         if (isUsersScreen) {
-          const fieldList = await getScreenFields(screenId)
+          const fieldList = await getScreenFields(screenId, userOrg, userIndustry, userWs)
           if (cancelled) return
           setFields(fieldList)
           const activeSet = new Set(
@@ -97,18 +101,50 @@ export default function AdminScreenPermissionsPage() {
           setEnabled(activeSet)
         } else {
           const [fieldList, permList] = await Promise.all([
-            getScreenFields(screenId),
+            getScreenFields(screenId, userOrg, userIndustry, userWs),
             getScreenPermissions({
               roleId,
               screenId,
-              industryId: (user as any)?.industryId || (user as any)?.industry_id,
+              industryId: userIndustry,
               enabledOnly: true,
+              organizationId: userOrg,
+              workspaceId: userWs,
             }),
           ])
           if (cancelled) return
           setFields(fieldList)
-          const activeSet = new Set(permList.map((p) => String(p.fieldId || (p as any).field_id)))
-          setEnabled(activeSet)
+          const toSnake = (s: string) => s.replace(/([A-Z])/g, '_$1').toLowerCase();
+          const toCamel = (s: string) => s.replace(/_([a-z0-9])/g, (_, l) => l.toUpperCase());
+
+          const allowedKeys = new Set<string>();
+          for (const p of permList) {
+            const k = (p as any).fieldKey || (p as any).field_key;
+            if (k) {
+              allowedKeys.add(k);
+              allowedKeys.add(toSnake(k));
+              allowedKeys.add(toCamel(k));
+            }
+            if (p.fieldId || (p as any).field_id) {
+              allowedKeys.add(String(p.fieldId || (p as any).field_id));
+            }
+          }
+
+          const activeSet = new Set<string>();
+          for (const f of fieldList) {
+            const rawKey = f.fieldKey || (f as any).field_key || '';
+            const snakeKey = toSnake(rawKey);
+            const camelKey = toCamel(rawKey);
+            const fId = String(f._id);
+            if (
+              allowedKeys.has(rawKey) ||
+              allowedKeys.has(snakeKey) ||
+              allowedKeys.has(camelKey) ||
+              allowedKeys.has(fId)
+            ) {
+              activeSet.add(fId);
+            }
+          }
+          setEnabled(activeSet);
         }
       } catch (e: any) {
         if (!cancelled) setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to load screen permissions', sev: 'error' })
@@ -156,6 +192,8 @@ export default function AdminScreenPermissionsPage() {
           roleId,
           industryId: (user as any)?.industryId || (user as any)?.industry_id || 'temp0001',
           fieldIds: Array.from(enabled),
+          organizationId: (user as any)?.organizationId || (user as any)?.organization_id,
+          workspaceId: (user as any)?.workspaceId || (user as any)?.workspace_id,
         })
         setToast({ open: true, msg: 'Screen field permissions saved successfully for organization', sev: 'success' })
       }

@@ -5,7 +5,18 @@ const resourceItemModel = require('../models/resourceItemModel');
 const s3Service = require('../services/s3Service');
 const { convertKeysToCamelCase, normalizePayload } = require('../services/crudFactory');
 
+const { requireScreenAction } = require('../middlewares/screenAction');
+
 const router = express.Router();
+
+function mapResourceKeyToScreenKey(resourceKey) {
+  if (!resourceKey) return '';
+  const k = String(resourceKey);
+  if (k === 'projects' || k === 'resourceProjects') return 'configProjects';
+  if (k === 'notes' || k === 'resourceNotes') return 'notes';
+  if (k.startsWith('resource')) return k;
+  return 'resource' + k.charAt(0).toUpperCase() + k.slice(1);
+}
 
 // Helper to resolve Organization ID
 async function resolveOrganizationId(req) {
@@ -58,7 +69,7 @@ async function resolveIndustryId(req) {
   return null;
 }
 
-router.get('/:resource_key', authenticate, async (req, res, next) => {
+router.get('/:resource_key', authenticate, requireScreenAction((req) => mapResourceKeyToScreenKey(req.params.resource_key), 'view'), async (req, res, next) => {
   try {
     const { resource_key } = req.params;
 
@@ -102,7 +113,7 @@ router.get('/:resource_key', authenticate, async (req, res, next) => {
   }
 });
 
-router.post('/:resource_key', authenticate, async (req, res, next) => {
+router.post('/:resource_key', authenticate, requireScreenAction((req) => mapResourceKeyToScreenKey(req.params.resource_key), 'add'), async (req, res, next) => {
   try {
     const { resource_key } = req.params;
 
@@ -151,6 +162,12 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
       industryId: resolvedIndustryId,
       resource_key,
       data: {
+        createdBy: req.user?.name || req.user?.email || 'Admin',
+        created_by: req.user?.name || req.user?.email || 'Admin',
+        userName: req.user?.name || req.user?.email || 'Admin',
+        user_name: req.user?.name || req.user?.email || 'Admin',
+        userEmail: req.user?.email || '',
+        user_email: req.user?.email || '',
         ...normalizePayload(payloadData),
         workspaceId: resolvedWorkspaceId,
         workspace_id: resolvedWorkspaceId,
@@ -175,13 +192,9 @@ router.post('/:resource_key', authenticate, async (req, res, next) => {
   }
 });
 
-router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
+router.put('/:resource_key/:id', authenticate, requireScreenAction((req) => mapResourceKeyToScreenKey(req.params.resource_key), 'edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
 
     const doc = await resourceItemModel.findById(id);
     if (!doc) {
@@ -258,13 +271,9 @@ router.put('/:resource_key/:id', authenticate, async (req, res, next) => {
   }
 });
 
-router.delete('/:resource_key/:id', authenticate, async (req, res, next) => {
+router.delete('/:resource_key/:id', authenticate, requireScreenAction((req) => mapResourceKeyToScreenKey(req.params.resource_key), 'delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
 
     const doc = await resourceItemModel.findById(id);
     if (!doc) {

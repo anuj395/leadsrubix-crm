@@ -22,23 +22,28 @@ async function resolveIndustryId(industryId) {
   return doc ? doc._id : null;
 }
 
-exports.list = async ({ roleId, industryId, screenId }, authedUser) => {
+exports.list = async ({ roleId, industryId, screenId, organizationId, organization_id, workspaceId, workspace_id }, authedUser) => {
   const targetIndustryId = (await resolveIndustryId(industryId)) || industryId;
   const isSuperAdmin = authedUser?.role === 'superAdmin';
+  
+  let orgId = organizationId !== undefined ? organizationId : organization_id;
+  let wsId = workspaceId !== undefined ? workspaceId : workspace_id;
+
   if (!isSuperAdmin && authedUser) {
+    orgId = authedUser.organizationId || authedUser.organization_id || null;
+    wsId = authedUser.workspaceId || authedUser.workspace_id || null;
     if (roleId) {
       const role = await roleModel.findById(roleId);
-      const orgId = authedUser.organizationId || authedUser.organization_id;
       const roleOrgId = role?.organization_id || role?.organizationId;
       if (orgId && roleOrgId && String(roleOrgId) !== String(orgId)) {
         const e = new Error('Forbidden: Access denied to role'); e.status = 403; throw e;
       }
     }
   }
-  return model.list({ roleId, industryId: targetIndustryId, screenId });
+  return model.list({ roleId, industryId: targetIndustryId, screenId, organizationId: orgId, workspaceId: wsId });
 };
 
-exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_edit, can_delete }, authedUser) => {
+exports.upsert = async ({ roleId, industryId, screenId, organizationId, organization_id, workspaceId, workspace_id, can_view, can_add, can_edit, can_delete }, authedUser) => {
   if (!roleId || !industryId || !screenId) {
     const e = new Error('roleId, industryId and screenId are required'); e.status = 400; throw e;
   }
@@ -58,8 +63,12 @@ exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_e
   if (!screen) { const e = new Error('Screen not found'); e.status = 404; throw e; }
 
   const isSuperAdmin = authedUser?.role === 'superAdmin';
-  const orgId = authedUser?.organizationId || authedUser?.organization_id || null;
+  let orgId = organizationId !== undefined ? organizationId : organization_id;
+  let wsId = workspaceId !== undefined ? workspaceId : workspace_id;
+
   if (!isSuperAdmin && authedUser) {
+    orgId = authedUser.organizationId || authedUser.organization_id || null;
+    wsId = authedUser.workspaceId || authedUser.workspace_id || null;
     const roleOrgId = role.organization_id || role.organizationId;
     if (!orgId || String(roleOrgId) !== String(orgId)) {
       const e = new Error('Forbidden: You can only edit permissions for roles belonging to your organization');
@@ -73,7 +82,17 @@ exports.upsert = async ({ roleId, industryId, screenId, can_view, can_add, can_e
     }
   }
 
-  return model.upsert({ roleId, industryId: targetIndustryId, screenId, can_view, can_add, can_edit, can_delete });
+  return model.upsert({
+    roleId,
+    industryId: targetIndustryId,
+    screenId,
+    organizationId: orgId,
+    workspaceId: wsId,
+    can_view,
+    can_add,
+    can_edit,
+    can_delete,
+  });
 };
 
 /**
@@ -85,20 +104,33 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
   if (!authedUser) return false;
   if (!ACTIONS.includes(action)) return false;
   if (authedUser.role === 'superAdmin' || authedUser.role === 'admin') return true;
-  if (!authedUser.industryId) return false;
 
-  const screen = await screenModel.findByKey(screen_key);
-  if (!screen || !screen.isActive) return false;
-  const role = await roleModel.findByIndustryAndKey(authedUser.industryId, authedUser.role);
-  if (!role) return false;
+  const orgId = authedUser.organizationId || authedUser.organization_id || null;
+  const wsId = authedUser.workspaceId || authedUser.workspace_id || (orgId ? 'ws_' + orgId : null);
+  const targetIndustryId = (await resolveIndustryId(authedUser.industryId || authedUser.industry_id)) || authedUser.industryId;
 
-  const row = await model.findFor({
-    roleId: role._id,
-    industryId: authedUser.industryId,
-    screenId: screen._id,
+  // 1. Try resolving with organization-scoped permissions
+  if (orgId) {
+    const orgRow = await model.findFor({
+      screen_key,
+      role_key: authedUser.role,
+      industryId: targetIndustryId,
+      organizationId: orgId,
+      workspaceId: wsId,
+    });
+    if (orgRow) return !!orgRow[`can_${action}`];
+  }
+
+  // 2. Fallback to industry-level template permissions
+  const globalRow = await model.findFor({
+    screen_key,
+    role_key: authedUser.role,
+    industryId: targetIndustryId,
+    organizationId: null,
   });
-  if (!row) return false;
-  return !!row[`can_${action}`];
+  if (globalRow) return !!globalRow[`can_${action}`];
+
+  return false;
 };
 
 exports.getEffectiveForScreen = async ({ authedUser, screen_key }) => {

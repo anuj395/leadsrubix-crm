@@ -10,11 +10,13 @@ import { AppCard } from '@/components/ui/AppCard'
 import { getApiTokens, createApiToken, updateApiToken, type ApiTokenConfig } from '@/services/apiTokensService'
 import { useAppSelector } from '@/store/hooks'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export default function ApiFormPage() {
   const user = useAppSelector((s) => s.auth.user)
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('configApi')
   const [loading, setLoading] = useState(false)
   const [editingItem, setEditingItem] = useState<ApiTokenConfig | null>(null)
   const [initializing, setInitializing] = useState(!!id)
@@ -70,6 +72,27 @@ export default function ApiFormPage() {
         <CircularProgress />
       </Box>
     )
+  }
+
+  if (!permsLoading) {
+    if (id && !can_edit) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to edit API connections.
+          </Alert>
+        </Box>
+      )
+    }
+    if (!id && !can_add) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to add API connections.
+          </Alert>
+        </Box>
+      )
+    }
   }
 
   return (

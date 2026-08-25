@@ -112,7 +112,9 @@ export default function InterestedDetailsPage() {
     contactFields.latitude = lat
     contactFields.longitude = lng
     contactFields.modifiedAt = new Date()
-    contactFields.stageChangeAt = new Date()
+    if (taskFields.notes) {
+      contactFields.notes = String(taskFields.notes).trim()
+    }
 
     try {
       // 1. Update Contact in DB
@@ -125,9 +127,13 @@ export default function InterestedDetailsPage() {
       await api.post('tasks', {
         contactId: id,
         type: taskFields.taskType || 'Call Back',
+        taskType: taskFields.taskType || 'Call Back',
+        task_type: taskFields.taskType || 'Call Back',
         dueDate: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
         status: 'PENDING',
         customerName: contactFields.customerName || contact.customerName || '',
+        contactNumber: contact.contactNumber || (contact as any).contact_number || '',
+        contact_number: contact.contactNumber || (contact as any).contact_number || '',
         createdBy: user?.email || 'System',
         latitude: lat,
         longitude: lng,
@@ -185,6 +191,8 @@ export default function InterestedDetailsPage() {
         <Box sx={{ mt: 2 }}>
           <DynamicForm
             screen="interested"
+            industryCode={String(contact?.industryId || contact?.industry_id || user?.industryId || 'temp0001')}
+            organizationId={String(contact?.organizationId || contact?.organization_id || (user as any)?.organizationId || (user as any)?.organization_id || '')}
             initialValues={initialValues}
             onSubmit={handleSubmit}
             onCancel={() => navigate(`/leads/contacts/${id}`)}

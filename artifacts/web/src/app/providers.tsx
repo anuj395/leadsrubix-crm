@@ -38,8 +38,6 @@ function getInitialThemeMode(initialMode?: ThemeMode): ThemeMode {
   const storedMode = globalThis.localStorage?.getItem(THEME_MODE_STORAGE_KEY)
   if (storedMode === 'light' || storedMode === 'dark') return storedMode
 
-  if (globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark'
-
   return DEFAULT_THEME_MODE
 }
 

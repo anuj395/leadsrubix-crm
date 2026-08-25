@@ -59,7 +59,26 @@ exports.list = async ({ activeOnly = false, parentId, parent_id, organizationId,
     }
   }
 
-  return Array.from(menuMap.values());
+  const items = Array.from(menuMap.values());
+
+  // Normalize parent_id of child items to match the exact _id of the parent menu in items
+  const parentByKey = new Map();
+  for (const item of items) {
+    if (!item.key.includes('.')) {
+      parentByKey.set(item.key, item._id);
+    }
+  }
+  for (const item of items) {
+    if (item.key.includes('.')) {
+      const parentKey = item.key.split('.')[0];
+      if (parentByKey.has(parentKey)) {
+        item.parent_id = parentByKey.get(parentKey);
+        item.parentId = parentByKey.get(parentKey);
+      }
+    }
+  }
+
+  return items;
 };
 
 exports.findChildren = async (parentId) =>

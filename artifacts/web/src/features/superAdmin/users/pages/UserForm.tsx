@@ -36,6 +36,7 @@ import {
 } from '@/services/organizationsService'
 
 import { api } from '@/services/api'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 const ROLES_WITH_MANAGER = new Set(['sales', 'teamLead', 'leadManager', 'admin'])
 
@@ -48,6 +49,7 @@ export default function UserFormPage() {
   const { id } = useParams<{ id?: string }>()
   const authedUser = useAppSelector((s) => s.auth.user)
   const isSuperAdmin = authedUser?.role === 'superAdmin'
+  const { can_add, can_edit, loading: permsLoading } = useActionPermission('users')
 
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(true)
@@ -228,10 +230,10 @@ export default function UserFormPage() {
       setFormError(null)
 
       const role = String(dynVals.role || '')
-      const email = String(dynVals.email || '')
-      const firstName = String(dynVals.firstName || '')
-      const lastName = String(dynVals.lastName || '')
-      const reportingTo = String(dynVals.reportingTo || '')
+      const email = String(dynVals.email_id || dynVals.email || '')
+      const firstName = String(dynVals.first_name || dynVals.firstName || '')
+      const lastName = String(dynVals.last_name || dynVals.lastName || '')
+      const reportingTo = String(dynVals.reporting_to || dynVals.reportingTo || '')
 
       const payload: any = {
         firstName: firstName.trim(),
@@ -245,7 +247,10 @@ export default function UserFormPage() {
           ...dynVals,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           reportingTo: reportingTo || undefined,
+          reporting_to: reportingTo || undefined,
         },
       }
 
@@ -281,11 +286,57 @@ export default function UserFormPage() {
     )
   }
 
+  const indCode = String(core.industryId || authedUser?.industryId || '').toLowerCase().trim();
+
+  let configWarning = 'Please go to Settings and configure Team (e.g. Team A, Team B), Branch (e.g. Noida, Delhi), and Designation (e.g. Lead Manager, Team Lead, Sales Associate) before adding users.';
+  let formSubtitle = 'Manage login credentials, user roles, hierarchy and custom attributes.';
+
+  if (indCode === 'temp0002') {
+    configWarning = 'Please go to Settings and configure Department (e.g. Sales, Support), Warehouse / Branch (e.g. Noida Warehouse, Delhi Depot), and Designation (e.g. Order Manager, Store Associate) before adding users.';
+    formSubtitle = 'Manage e-commerce staff credentials, roles, warehouses, and hierarchy.';
+  } else if (indCode === 'temp0003') {
+    configWarning = 'Please go to Settings and configure Medical Department (e.g. Cardiology, OPD), Hospital / Clinic (e.g. Noida Hospital, Delhi Clinic), and Medical Designation (e.g. Attending Doctor, Staff Nurse, Medical Director) before adding users.';
+    formSubtitle = 'Manage hospital staff credentials, medical designations, departments, and clinic info.';
+  } else if (indCode === 'temp0004') {
+    configWarning = 'Please go to Settings and configure Academic Department (e.g. Science, Arts), Campus / Branch (e.g. Noida Campus, Delhi Campus), and Faculty Designation (e.g. Senior Professor, Academic Counselor, Head of Department) before adding users.';
+    formSubtitle = 'Manage faculty credentials, academic roles, campuses, and department hierarchy.';
+  } else if (indCode === 'temp0005') {
+    configWarning = 'Please go to Settings and configure Advisory Team (e.g. Wealth Management, Equity Advisory), Office / Branch (e.g. Noida Branch, Delhi Office), and Advisor Designation (e.g. Portfolio Manager, Financial Advisor, Relationship Manager) before adding users.';
+    formSubtitle = 'Manage client advisor credentials, portfolio permissions, and hierarchy.';
+  } else if (indCode === 'temp0006') {
+    configWarning = 'Please go to Settings and configure Project Team (e.g. Backend Dev, QA Team), Office / Location (e.g. Noida SEZ, Delhi Head Office), and Technical Role (e.g. Tech Lead, Software Engineer, Quality Analyst) before adding users.';
+    formSubtitle = 'Manage IT team credentials, technical roles, delivery centers, and hierarchy.';
+  } else if (indCode === 'temp0007') {
+    configWarning = 'Please go to Settings and configure Production Team (e.g. Assembly Line, Quality Control), Factory / Plant (e.g. Noida Factory, Gurugram Plant), and Plant Role (e.g. Plant Manager, Line Supervisor, Quality Auditor) before adding users.';
+    formSubtitle = 'Manage manufacturing staff credentials, plant roles, factories, and hierarchy.';
+  }
+
+  if (!permsLoading && !isSuperAdmin) {
+    if (id && !can_edit && String(authedUser?.id || (authedUser as any)?._id) !== String(id)) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to edit users.
+          </Alert>
+        </Box>
+      )
+    }
+    if (!id && !can_add) {
+      return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Alert severity="error">
+            Access Denied: You do not have permission to add users.
+          </Alert>
+        </Box>
+      )
+    }
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
       <AppCard
         title={id ? 'Edit User' : 'Add User'}
-        subtitle="Manage login credentials, user roles, hierarchy and custom attributes."
+        subtitle={formSubtitle}
         action={
           <Button
             variant="text"
@@ -334,7 +385,7 @@ export default function UserFormPage() {
               </Typography>
 
               <Typography variant="body1" sx={{ color: '#718096', mb: 4, lineHeight: 1.6, maxWidth: 460 }}>
-                Please go to Settings and configure Team, Branch, and Designation before adding users.
+                {configWarning}
               </Typography>
 
               {!isSuperAdmin && (

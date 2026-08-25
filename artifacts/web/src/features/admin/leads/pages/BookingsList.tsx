@@ -54,7 +54,7 @@ export default function BookingsListPage() {
   })
 
   // Load screen config using useTableConfig
-  const { columns: dbColumns, loading: configLoading } =
+  const { columns: dbColumns, loading: configLoading, screenName } =
     useTableConfig('bookings', industryId)
 
   const refresh = async () => {
@@ -174,12 +174,14 @@ export default function BookingsListPage() {
       }}
     >
       <AppCard
-        title="Bookings List"
+        title={screenName || 'Bookings List'}
         subtitle="List of active customer bookings and sales commitments."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-            Add Booking
-          </Button>
+          <Tooltip title="Log a new customer booking/sale record">
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+              Add Booking
+            </Button>
+          </Tooltip>
         }
         fullHeight
       >
@@ -198,6 +200,8 @@ export default function BookingsListPage() {
         <DialogContent dividers>
           <DynamicForm
             screen="bookings"
+            industryCode={String(user?.industryId || 'temp0001')}
+            organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
             onCancel={() => setDialogOpen(false)}
             submitLabel="Create"
             onSubmit={async (values) => {
@@ -225,6 +229,8 @@ export default function BookingsListPage() {
           {editingBooking && (
             <DynamicForm
               screen="bookings"
+              industryCode={String(user?.industryId || 'temp0001')}
+              organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={toFormValues(editingBooking)}
               onCancel={() => setEditingBooking(null)}
               submitLabel="Save Changes"

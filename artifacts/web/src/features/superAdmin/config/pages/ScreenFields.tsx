@@ -96,12 +96,15 @@ export default function ScreenFieldsPage() {
     sev: 'success',
   })
 
-  // Reload screens whenever org changes
+  // Reload screens whenever org or industry changes
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
-        const list = await getScreens(isSuperAdmin ? (selectedOrg || undefined) : undefined)
+        const list = await getScreens(
+          isSuperAdmin ? (selectedOrg || undefined) : undefined,
+          isSuperAdmin ? (selectedIndustry || undefined) : undefined
+        )
         if (cancelled) return
         const filtered = list
         setScreens(filtered)
@@ -114,7 +117,7 @@ export default function ScreenFieldsPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedOrg])
+  }, [selectedOrg, selectedIndustry])
 
   // Load fields whenever the selected screen changes (race-safe).
   useEffect(() => {
@@ -126,7 +129,11 @@ export default function ScreenFieldsPage() {
     setLoading(true)
     void (async () => {
       try {
-        const list = await getScreenFields(screenId, selectedOrg || undefined)
+        const list = await getScreenFields(
+          screenId,
+          selectedOrg || undefined,
+          isSuperAdmin ? (selectedIndustry || undefined) : undefined
+        )
         if (!cancelled) setItems(list)
       } catch (e: any) {
         if (!cancelled) {
@@ -139,12 +146,16 @@ export default function ScreenFieldsPage() {
     return () => {
       cancelled = true
     }
-  }, [screenId, selectedOrg])
+  }, [screenId, selectedOrg, selectedIndustry])
 
   const refresh = async () => {
     if (!screenId) return
     try {
-      setItems(await getScreenFields(screenId, selectedOrg || undefined))
+      setItems(await getScreenFields(
+        screenId,
+        selectedOrg || undefined,
+        isSuperAdmin ? (selectedIndustry || undefined) : undefined
+      ))
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message ?? 'Failed to refresh', sev: 'error' })
     }

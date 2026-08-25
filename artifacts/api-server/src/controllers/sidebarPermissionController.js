@@ -8,9 +8,13 @@ exports.list = async (req, res, next) => {
       ? (organizationId !== undefined ? organizationId : null) 
       : (req.user?.organizationId || req.user?.organization_id);
 
+    const finalIndustryId = isSuperAdmin
+      ? (industryId || req.query.industry_id)
+      : (req.user?.industryId || req.user?.industry_id || null);
+
     const docs = await service.list({
       roleId,
-      industryId,
+      industryId: finalIndustryId,
       menu_id,
       visibleOnly: visible === 'true',
       organizationId: orgId,

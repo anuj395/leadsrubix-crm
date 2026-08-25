@@ -21,7 +21,7 @@ function getFieldName(resourceKey) {
 const organizationResourcesSchema = new mongoose.Schema(
   {
     organization_id: { type: String, default: null, index: true, alias: 'organizationId' },
-    industry_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Industry', default: null, index: true, alias: 'industryId' },
+    industry_id: { type: mongoose.Schema.Types.Mixed, default: null, index: true, alias: 'industryId' },
     property_stages: { type: Array, default: [], alias: 'propertyStages' },
     property_sub_types: { type: Array, default: [], alias: 'propertySubTypes' },
     property_types: { type: Array, default: [], alias: 'propertyTypes' },
@@ -46,9 +46,20 @@ const OrganizationResources = mongoose.model('OrganizationResources', organizati
 exports.ResourceItem = OrganizationResources;
 
 exports.list = async ({ organizationId, industryId, workspaceId, resource_key, all = false } = {}) => {
-  if ((resource_key === 'resource_projects' || resource_key === 'resourceProjects') && all) {
-    const docs = await OrganizationResources.find({}).exec();
-    const allProjects = [];
+  const isProjects = resource_key === 'resource_projects' || resource_key === 'resourceProjects';
+
+  let resolvedIndustryObjectId = null;
+  if (industryId) {
+    if (mongoose.Types.ObjectId.isValid(industryId)) {
+      resolvedIndustryObjectId = industryId;
+    } else {
+      const Industry = mongoose.model('Industry');
+      const ind = await Industry.findOne({ code: String(industryId).toLowerCase() }).exec();
+      if (ind) resolvedIndustryObjectId = ind._id;
+    }
+  }
+
+  if (isProjects) {
     const Organization = mongoose.model('Organization');
     const orgs = await Organization.find({}).exec();
     const orgMap = {};
@@ -57,50 +68,71 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
       orgMap[oid] = o.organization_name || o.name || o.organizationName || '';
     });
 
-    docs.forEach(doc => {
-      const orgId = doc.organization_id;
-      const orgName = orgMap[orgId] || '';
-      if (Array.isArray(doc.projects)) {
-        doc.projects.forEach(p => {
-          allProjects.push({
-            organizationId: orgId,
-            organizationName: orgName,
-            ...p,
-          });
-        });
-      }
-    });
+    const targetOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
 
-    return allProjects.sort((a, b) => {
+    if (!targetOrgId || all) {
+      const query = { organization_id: { $ne: null } };
+      if (resolvedIndustryObjectId) {
+        query.industry_id = resolvedIndustryObjectId;
+      }
+      const docs = await OrganizationResources.find(query).exec();
+      const allProjects = [];
+      docs.forEach(doc => {
+        const docOrgId = doc.organization_id;
+        const orgName = orgMap[docOrgId] || '';
+        if (Array.isArray(doc.projects)) {
+          doc.projects.forEach(p => {
+            if (p && (p.projectName || p.project_name || p.developerName || p.developer_name || p.id)) {
+              allProjects.push({
+                organizationId: docOrgId,
+                organizationName: orgName,
+                ...p,
+              });
+            }
+          });
+        }
+      });
+
+      return allProjects.sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return db - da;
+      });
+    }
+
+    // Specific organization requested - STRICT tenant isolation (NO global dummy fallback)
+    let query = { organization_id: targetOrgId };
+    let doc = await OrganizationResources.findOne(query).exec();
+    if (!doc) return [];
+    let items = (doc.projects || []).map(p => ({
+      organizationId: targetOrgId,
+      organizationName: orgMap[targetOrgId] || '',
+      ...p,
+    }));
+
+    if (workspaceId) {
+      items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
+    }
+
+    return [...items].sort((a, b) => {
       const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
       const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
       return db - da;
     });
   }
 
+  // Generic static options (stages, lead sources, types, etc.) with fallback to industry template
   const targetOrgId = (organizationId === 'null' || !organizationId) ? null : organizationId;
   let query = { organization_id: targetOrgId };
-  if (targetOrgId === null && industryId) {
-    if (mongoose.Types.ObjectId.isValid(industryId)) {
-      query.industry_id = industryId;
-    } else {
-      const Industry = mongoose.model('Industry');
-      const ind = await Industry.findOne({ code: industryId }).exec();
-      if (ind) query.industry_id = ind._id;
-    }
+  if (targetOrgId === null && resolvedIndustryObjectId) {
+    query.industry_id = resolvedIndustryObjectId;
   }
   let doc = await OrganizationResources.findOne(query).exec();
   // Fallback to global defaults if no custom organization resources document exists yet
   if (!doc && targetOrgId !== null && targetOrgId !== '') {
     let fallbackQuery = { organization_id: null };
-    if (industryId) {
-      if (mongoose.Types.ObjectId.isValid(industryId)) {
-        fallbackQuery.industry_id = industryId;
-      } else {
-        const Industry = mongoose.model('Industry');
-        const ind = await Industry.findOne({ code: industryId }).exec();
-        if (ind) fallbackQuery.industry_id = ind._id;
-      }
+    if (resolvedIndustryObjectId) {
+      fallbackQuery.industry_id = resolvedIndustryObjectId;
     }
     doc = await OrganizationResources.findOne(fallbackQuery).exec();
   }

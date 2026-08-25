@@ -20,6 +20,7 @@ import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { selectAuth } from '@/features/auth'
+import { useActionPermission } from '@/hooks/useActionPermission'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 
 export interface Task {
@@ -40,10 +41,45 @@ function toFormValues(row: Record<string, any>): Record<string, any> {
   return out
 }
 
+function getTaskFieldValue(row: Record<string, any>, key: string): any {
+  if (!row || !key) return undefined
+  if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key]
+
+  const camelKey = key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+  if (row[camelKey] !== undefined && row[camelKey] !== null && row[camelKey] !== '') return row[camelKey]
+
+  const snakeKey = key.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`)
+  if (row[snakeKey] !== undefined && row[snakeKey] !== null && row[snakeKey] !== '') return row[snakeKey]
+
+  // Dynamic Aliases across screens & industries
+  const norm = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (norm.includes('type')) {
+    return row.task_type || row.taskType || row.type
+  }
+  if (norm.includes('contactnumber') || norm.includes('phone') || norm.includes('mobile')) {
+    return row.contact_number || row.contactNumber || row.phone || row.mobile
+  }
+  if (norm.includes('customername') || norm.includes('clientname') || norm.includes('name')) {
+    return row.customer_name || row.customerName || row.name || row.clientName
+  }
+  if (norm.includes('owner') || norm.includes('assigned') || norm.includes('email')) {
+    return row.contact_owner_email || row.contactOwnerEmail || row.owner_email || row.ownerEmail || row.assignedTo || row.assigned_to || row.createdBy
+  }
+  if (norm.includes('due') || norm.includes('followup')) {
+    return row.due_date || row.dueDate || row.next_follow_up || row.nextFollowUp
+  }
+  if (norm.includes('project')) {
+    return row.project_name || row.projectName
+  }
+  return undefined
+}
+
 export default function TasksListPage() {
   const navigate = useNavigate()
   const { user } = useAppSelector(selectAuth)
   const industryId = user?.industryId
+
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('tasks')
 
   const [items, setItems] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,7 +90,7 @@ export default function TasksListPage() {
   })
 
   // Load screen config using useTableConfig
-  const { columns: dbColumns, loading: configLoading, error: configError } =
+  const { columns: dbColumns, loading: configLoading, error: configError, screenName } =
     useTableConfig('tasks', industryId)
 
   const refresh = async () => {
@@ -122,7 +158,7 @@ export default function TasksListPage() {
       flex: 1,
       minWidth: 140,
       sortable: col.sortable !== false,
-      valueGetter: (_v: unknown, row: Task) => (row as Record<string, unknown>)[col.key],
+      valueGetter: (_v: unknown, row: Task) => getTaskFieldValue(row as Record<string, any>, col.key),
       renderCell: (p) => {
         const v = p.value
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
@@ -141,33 +177,40 @@ export default function TasksListPage() {
       },
     }))
 
-    const actionsCol: GridColDef<Task> = {
-      field: '__actions__',
-      headerName: 'Actions',
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      align: 'right',
-      headerAlign: 'right',
-      width: 120,
-      renderCell: (p) => (
-        <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => setEditingTask(p.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    }
+    const showActions = can_edit || can_delete
+    const actionsCol: GridColDef<Task> | null = showActions
+      ? {
+          field: '__actions__',
+          headerName: 'Actions',
+          sortable: false,
+          filterable: false,
+          disableColumnMenu: true,
+          align: 'right',
+          headerAlign: 'right',
+          width: 120,
+          renderCell: (p) => (
+            <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+              {can_edit && (
+                <Tooltip title="Edit">
+                  <IconButton size="small" onClick={() => setEditingTask(p.row)}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {can_delete && (
+                <Tooltip title="Delete">
+                  <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
+          ),
+        }
+      : null
 
-    return [sNoCol, ...dataCols, actionsCol]
-  }, [dbColumns])
+    return [sNoCol, ...dataCols, ...(actionsCol ? [actionsCol] : [])]
+  }, [dbColumns, items, can_edit, can_delete])
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<Record<string, boolean>>({})
 
@@ -180,6 +223,16 @@ export default function TasksListPage() {
       setColumnVisibilityModel(model)
     }
   }, [dbColumns])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view Tasks.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -195,7 +248,7 @@ export default function TasksListPage() {
       )}
 
       <AppCard
-        title="Tasks"
+        title={screenName || 'Tasks'}
         subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
         fullHeight
       >
@@ -208,12 +261,21 @@ export default function TasksListPage() {
           loading={loading || configLoading}
           getRowId={(r) => r._id}
           onReload={refresh}
-          onRowClick={(params) => {
+          onRowClick={can_edit ? (params) => {
             const stage = String(params.row.stage || '').toUpperCase()
             if (stage === 'INTERESTED' || stage === 'CALLBACK' || stage === 'CALL BACK') {
               if (params.row.contactId) {
                 navigate(`/leads/contacts/${params.row.contactId}`)
               }
+            }
+          } : undefined}
+          sx={{
+            cursor: can_edit ? 'pointer' : 'default',
+            '& .MuiDataGrid-row': {
+              cursor: can_edit ? 'pointer' : 'default'
+            },
+            '& .MuiDataGrid-row:hover': {
+              cursor: can_edit ? 'pointer' : 'default'
             }
           }}
         />
@@ -224,6 +286,8 @@ export default function TasksListPage() {
         <DialogContent dividers>
           <DynamicForm
             screen="tasks"
+            industryCode={String(user?.industryId || 'temp0001')}
+            organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
             onCancel={() => setDialogOpen(false)}
             submitLabel="Create"
             onSubmit={async (values) => {
@@ -247,6 +311,8 @@ export default function TasksListPage() {
           {editingTask && (
             <DynamicForm
               screen="tasks"
+              industryCode={String(user?.industryId || 'temp0001')}
+              organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={toFormValues(editingTask)}
               onCancel={() => setEditingTask(null)}
               submitLabel="Save Changes"

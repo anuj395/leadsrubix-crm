@@ -10,9 +10,11 @@ import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { listUsers, type AdminUser } from '@/services/usersAdminService'
 import { createRotationRule } from '@/services/leadDistributionService'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export default function ReassignLogicPage() {
   const navigate = useNavigate()
+  const { can_add, loading: permsLoading } = useActionPermission('leadRotation')
   const [loading, setLoading] = useState(false)
   const [allUsers, setAllUsers] = useState<AdminUser[]>([])
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -64,6 +66,16 @@ export default function ReassignLogicPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!permsLoading && !can_add) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to add lead rotation rules.
+        </Alert>
+      </Box>
+    )
   }
 
   return (

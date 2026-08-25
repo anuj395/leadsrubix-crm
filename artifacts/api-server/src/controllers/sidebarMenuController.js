@@ -6,7 +6,10 @@ exports.list = async (req, res, next) => {
     const orgId = req.user?.role === 'superAdmin'
       ? organizationId
       : (req.user?.organizationId || null);
-    const docs = await service.list({ activeOnly: active === 'true', organizationId: orgId, industryId });
+    const indId = req.user?.role === 'superAdmin'
+      ? (industryId || req.query.industry_id)
+      : (req.user?.industryId || req.user?.industry_id || null);
+    const docs = await service.list({ activeOnly: active === 'true', organizationId: orgId, industryId: indId });
     res.json({ items: docs });
   } catch (err) {
     next(err);

@@ -81,10 +81,19 @@ export default function SortedListPage() {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       })
 
+      const indCode = String(selectedIndustry || '').toLowerCase().trim()
+      const leadsLabel = indCode === 'temp0003' ? 'Patients' : 
+                         indCode === 'temp0004' ? 'Students' : 
+                         indCode === 'temp0005' ? 'Clients' : 
+                         indCode === 'temp0006' ? 'Leads' : 
+                         indCode === 'temp0007' ? 'Distributors' : 
+                         indCode === 'temp0002' ? 'Customers' : 
+                         'Leads'
+
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
-      link.download = `Leads_${new Date().toISOString().split('T')[0]}.xlsx`
+      link.download = `${leadsLabel}_${new Date().toISOString().split('T')[0]}.xlsx`
 
       document.body.appendChild(link)
       link.click()
@@ -100,6 +109,15 @@ export default function SortedListPage() {
     }
   }
 
+  const indCode = String(selectedIndustry || '').toLowerCase().trim()
+  const leadsLabel = indCode === 'temp0003' ? 'Patients' : 
+                     indCode === 'temp0004' ? 'Students' : 
+                     indCode === 'temp0005' ? 'Clients' : 
+                     indCode === 'temp0006' ? 'Leads' : 
+                     indCode === 'temp0007' ? 'Distributors' : 
+                     indCode === 'temp0002' ? 'Customers' : 
+                     'Leads'
+
   return (
     <Box
       sx={{
@@ -113,8 +131,8 @@ export default function SortedListPage() {
       }}
     >
       <AppCard
-        title="Export Sorted Leads"
-        subtitle="Configure criteria and export your Leads database records directly into Excel spreadsheet workbooks."
+        title={`Export Sorted ${leadsLabel}`}
+        subtitle={`Configure criteria and export your ${leadsLabel} database records directly into Excel spreadsheet workbooks.`}
         fullHeight
       >
         <SuperAdminScopeSelector

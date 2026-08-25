@@ -8,6 +8,10 @@ import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
 import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
 
 import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
+import LeadsListPage from '@/features/admin/leads/pages/LeadsList'
+import AccountsListPage from '@/features/admin/leads/pages/AccountsList'
+import DealsListPage from '@/features/admin/leads/pages/DealsList'
+import QuotesListPage from '@/features/admin/leads/pages/QuotesList'
 import TasksListPage from '@/features/admin/leads/pages/TasksList'
 import CallLogsListPage from '@/features/admin/leads/pages/CallLogsList'
 import BookingsListPage from '@/features/admin/leads/pages/BookingsList'
@@ -74,6 +78,11 @@ export const routeComponentMap: Record<string, any> = {
   "/users/roles": RolesAndPermissionsPage,
   "/access-control/roles": RolesAndPermissionsPage,
 
+  "/leads/leads-list": LeadsListPage,
+  "/leads/accounts-list": AccountsListPage,
+  "/leads/deals": DealsListPage,
+  "/leads/deals-list": DealsListPage,
+  "/leads/quotes-list": QuotesListPage,
   "/leads/contacts": ContactsListPage,
   "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,
@@ -81,7 +90,9 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/contacts/:id/edit": AddContactPage,
 
   "/leads/tasks": TasksListPage,
+  "/leads/tasks-list": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
+  "/leads/call-logs-list": CallLogsListPage,
   // "/leads/bookings": BookingsListPage,
 
   "/configuration/projects": ProjectsListPage,
@@ -99,6 +110,14 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/holiday-config/:id/edit": HolidayConfigFormPage,
   "/configuration/days-config": DaysConfigPage,
   "/configuration/domain-settings": DomainSettingsPage,
+  "/configuration/screens": ScreensPage,
+  "/configuration/screen-fields": ScreenFieldsPage,
+  "/configuration/screen-permissions": ScreenPermissionsPage,
+  "/configuration/analytics-config": AnalyticsConfigPage,
+  "/ui-navigation/screens": ScreensPage,
+  "/ui-navigation/screen-fields": ScreenFieldsPage,
+  "/ui-navigation/analytics-config": AnalyticsConfigPage,
+  "/access-control/screen-permissions": ScreenPermissionsPage,
 
 
   "/integrations": IntegrationsPage,

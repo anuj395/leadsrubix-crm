@@ -29,6 +29,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { api } from '@/services/api'
 import { resolveScreen, type ResolvedScreen } from '@/services/screenAdminService'
+import { useAppSelector } from '@/store/hooks'
 
 export interface ApiLog {
   id: string
@@ -58,12 +59,93 @@ export interface ApiLog {
 }
 
 export default function IntegrationsApiDataPage() {
+  const user = useAppSelector((s) => s.auth.user)
   const [logs, setLogs] = useState<ApiLog[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [apiFilter, setApiFilter] = useState('7') // 7 days, 30 days, or all
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
+
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') {
+      return {
+        customerName: 'Customer Name',
+        project: 'Product Catalog',
+        budget: 'Order Budget',
+        propertyType: 'Product Category',
+        leadSource: 'Inquiry Source',
+        ownerEmail: 'Agent Email',
+        leadId: 'Order ID',
+      };
+    }
+    if (indCode === 'temp0003') {
+      return {
+        customerName: 'Patient Name',
+        project: 'Specialty',
+        budget: 'Treatment Budget',
+        propertyType: 'Clinical Wing',
+        leadSource: 'Patient Source',
+        ownerEmail: 'Attending Head Email',
+        leadId: 'Patient ID',
+      };
+    }
+    if (indCode === 'temp0004') {
+      return {
+        customerName: 'Student Name',
+        project: 'Course / Program',
+        budget: 'Fee Budget',
+        propertyType: 'Program Category',
+        leadSource: 'Lead Source',
+        ownerEmail: 'Counselor Email',
+        leadId: 'Student ID',
+      };
+    }
+    if (indCode === 'temp0005') {
+      return {
+        customerName: 'Client Name',
+        project: 'Portfolio',
+        budget: 'Investment Budget',
+        propertyType: 'Asset Class',
+        leadSource: 'Lead Source',
+        ownerEmail: 'Advisor Email',
+        leadId: 'Client ID',
+      };
+    }
+    if (indCode === 'temp0006') {
+      return {
+        customerName: 'Lead Name',
+        project: 'Service / Catalog',
+        budget: 'Deal Value',
+        propertyType: 'Technology Stack',
+        leadSource: 'Lead Source',
+        ownerEmail: 'Tech Lead Email',
+        leadId: 'Lead ID',
+      };
+    }
+    if (indCode === 'temp0007') {
+      return {
+        customerName: 'Distributor Name',
+        project: 'Product Category',
+        budget: 'Distributor Value',
+        propertyType: 'Production Line',
+        leadSource: 'Lead Source',
+        ownerEmail: 'Manager Email',
+        leadId: 'Distributor ID',
+      };
+    }
+    return {
+      customerName: 'Customer Name',
+      project: 'Project',
+      budget: 'Budget',
+      propertyType: 'Property Type',
+      leadSource: 'Lead Source',
+      ownerEmail: 'Owner Email',
+      leadId: 'Lead ID',
+    };
+  }, [indCode]);
   
   const [selectedLog, setSelectedLog] = useState<ApiLog | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -194,9 +276,34 @@ export default function IntegrationsApiDataPage() {
   const columns = useMemo<GridColDef<ApiLog>[]>(() => {
     const cols: GridColDef<ApiLog>[] = [
       {
+        field: 'customer_name',
+        headerName: labels.customerName,
+        width: 180,
+        renderCell: (p) => <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.value || 'N/A'}</Typography>,
+      },
+      {
+        field: 'contact_no',
+        headerName: labels.customerName === 'Patient Name' ? 'Phone Number' : 'Contact Number',
+        width: 160,
+        renderCell: (p) => p.value || 'N/A',
+      },
+      {
+        field: 'lead_source',
+        headerName: labels.leadSource,
+        width: 160,
+        renderCell: (p) => p.value || 'API Integration',
+      },
+      {
+        field: 'fail_reason',
+        headerName: 'Error Reason',
+        flex: 1.2,
+        minWidth: 200,
+        renderCell: (p) => p.value || <em style={{ color: '#aaa' }}>None</em>,
+      },
+      {
         field: 'created_at',
         headerName: 'Timestamp',
-        width: 170,
+        width: 180,
         renderCell: (p) => (
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
             {p.value ? new Date(p.value as string).toLocaleString() : ''}
@@ -210,34 +317,9 @@ export default function IntegrationsApiDataPage() {
         renderCell: (p) => <StatusBadge value={p.value} />,
       },
       {
-        field: 'customer_name',
-        headerName: 'Customer Name',
-        width: 150,
-        renderCell: (p) => <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.value || 'N/A'}</Typography>,
-      },
-      {
-        field: 'contact_no',
-        headerName: 'Contact Number',
-        width: 150,
-        renderCell: (p) => p.value || 'N/A',
-      },
-      {
-        field: 'lead_source',
-        headerName: 'Source',
-        width: 140,
-        renderCell: (p) => p.value || 'API Integration',
-      },
-      {
-        field: 'fail_reason',
-        headerName: 'Error Reason',
-        flex: 1.2,
-        minWidth: 180,
-        renderCell: (p) => p.value || <em style={{ color: '#aaa' }}>None</em>,
-      },
-      {
         field: '__actions',
         headerName: 'Actions',
-        width: 90,
+        width: 110,
         sortable: false,
         filterable: false,
         renderCell: (p) => (
@@ -324,7 +406,7 @@ export default function IntegrationsApiDataPage() {
           <Stack spacing={2}>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
               <Box>
-                <Typography variant="caption" color="text.secondary">Customer Name</Typography>
+                <Typography variant="caption" color="text.secondary">{labels.customerName}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.customer_name || 'N/A'}</Typography>
               </Box>
               <Box>
@@ -336,11 +418,11 @@ export default function IntegrationsApiDataPage() {
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.email || 'N/A'}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">Project</Typography>
+                <Typography variant="caption" color="text.secondary">{labels.project}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.project || 'N/A'}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">Budget</Typography>
+                <Typography variant="caption" color="text.secondary">{labels.budget}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.budget || 'N/A'}</Typography>
               </Box>
               <Box>
@@ -348,15 +430,15 @@ export default function IntegrationsApiDataPage() {
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.location || 'N/A'}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">Property Type</Typography>
+                <Typography variant="caption" color="text.secondary">{labels.propertyType}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.property_type || 'N/A'}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">Lead Source</Typography>
+                <Typography variant="caption" color="text.secondary">{labels.leadSource}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.lead_source || 'N/A'}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">Owner Email</Typography>
+                <Typography variant="caption" color="text.secondary">{labels.ownerEmail}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLog?.contact_owner_email || 'N/A'}</Typography>
               </Box>
             </Box>

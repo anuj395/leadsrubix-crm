@@ -9,7 +9,7 @@ const controller = buildController({
   allowedSort: ['createdAt', 'updatedAt', 'dueDate'],
 });
 
-const router = buildRouter(controller, { authenticate });
+const router = buildRouter(controller, { authenticate, screenKey: 'tasks' });
 
 router.post('/uniqueTaskTypeUpdate', authenticate, async (req, res, next) => {
   try {

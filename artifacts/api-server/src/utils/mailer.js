@@ -122,6 +122,63 @@ Temp Password: ${tempPassword}
   }
 }
 
+async function sendResetPasswordEmail({ emailAddress, resetLink }) {
+  const htmlContent = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e5e7eb;">
+        
+        <!-- Header / Logo Area -->
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h2 style="color: #272944; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.025em;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 4px; margin-bottom: 0;">Password Reset Request</p>
+        </div>
+
+        <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">Reset Your Password</h3>
+        
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 24px;">
+          Hello,<br/>
+          We received a request to reset the password for your account associated with <strong>${emailAddress}</strong>. Click the button below to reset your password. This link is valid for 1 hour.
+        </p>
+
+        <!-- Call to Action -->
+        <div style="text-align: center; margin-bottom: 32px;">
+          <a href="${resetLink}" style="display: inline-block; padding: 14px 30px; font-size: 15px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(39, 41, 68, 0.25);">
+            Reset Password
+          </a>
+        </div>
+
+        <p style="font-size: 13px; line-height: 20px; color: #4b5563; margin-bottom: 24px;">
+          If the button above does not work, copy and paste the following link into your web browser: <br/>
+          <a href="${resetLink}" style="color: #4F6AF5; word-break: break-all;">${resetLink}</a>
+        </p>
+
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0; line-height: 18px;">
+          If you did not request a password reset, please ignore this email. Your password will remain unchanged.
+        </p>
+
+      </div>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: `"Leads Rubix CRM" <${config.smtpUser}>`,
+    to: emailAddress,
+    subject: 'Leads Rubix CRM - Password Reset Link',
+    html: htmlContent,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`[mailer] Password reset email sent successfully to ${emailAddress}`);
+  } catch (error) {
+    console.error(`[mailer] Error sending password reset email to ${emailAddress}:`, error);
+    throw error;
+  }
+}
+
 module.exports = {
   sendCredentialsEmail,
+  sendResetPasswordEmail,
 };

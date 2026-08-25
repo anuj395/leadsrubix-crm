@@ -125,6 +125,108 @@ export default function AnalyticsPage() {
   const isSuperAdmin = user?.role === 'superAdmin'
   const isDark = theme.palette.mode === 'dark'
 
+  const indCode = String(user?.industryId || '').toLowerCase().trim();
+
+  const labels = useMemo(() => {
+    if (indCode === 'temp0002') { // E-Commerce
+      return {
+        completedVisits: 'Delivered Orders',
+        scheduledVisits: 'Scheduled Deliveries',
+        siteVisit: 'Delivery',
+        meeting: 'Demo Call',
+        visitsDesc: 'Deliveries',
+        completedVisitsTooltip: 'Delivered Orders:\nThe count of successfully delivered\ncustomer orders.',
+        scheduledVisitsTooltip: 'Scheduled Deliveries:\nCustomer deliveries scheduled\nfor the future.',
+        tasksAndMeetingsTab: 'Support Tickets & Deliveries',
+      };
+    }
+    if (indCode === 'temp0003') { // Healthcare
+      return {
+        completedVisits: 'Completed Consultations',
+        scheduledVisits: 'Scheduled Consultations',
+        siteVisit: 'Consultation',
+        meeting: 'Appointment',
+        visitsDesc: 'Consultations',
+        completedVisitsTooltip: 'Completed Consultations:\nThe count of successfully finished\npatient consultations.',
+        scheduledVisitsTooltip: 'Scheduled Consultations:\nPatient consultations scheduled\nfor the future.',
+        tasksAndMeetingsTab: 'Consultations & Appointments',
+      };
+    }
+    if (indCode === 'temp0004') { // Education
+      return {
+        completedVisits: 'Completed Interviews',
+        scheduledVisits: 'Scheduled Interviews',
+        siteVisit: 'Campus Tour',
+        meeting: 'Admissions Call',
+        visitsDesc: 'Interviews',
+        completedVisitsTooltip: 'Completed Interviews:\nThe count of successfully finished\nstudent admission interviews.',
+        scheduledVisitsTooltip: 'Scheduled Interviews:\nStudent interviews scheduled\nfor the future.',
+        tasksAndMeetingsTab: 'Admissions & Campus Tours',
+      };
+    }
+    if (indCode === 'temp0005') { // Finance
+      return {
+        completedVisits: 'Completed Audits',
+        scheduledVisits: 'Scheduled Meetings',
+        siteVisit: 'Office Visit',
+        meeting: 'Portfolio Review',
+        visitsDesc: 'Meetings',
+        completedVisitsTooltip: 'Completed Audits:\nThe count of successfully finished\nportfolio or client audits.',
+        scheduledVisitsTooltip: 'Scheduled Meetings:\nAdvisory meetings scheduled\nfor the future.',
+        tasksAndMeetingsTab: 'Advisory Tasks & Audits',
+      };
+    }
+    if (indCode === 'temp0006') { // IT Services
+      return {
+        completedVisits: 'Completed Demos',
+        scheduledVisits: 'Scheduled RFPs',
+        siteVisit: 'Client Meetup',
+        meeting: 'Technical Call',
+        visitsDesc: 'Demos',
+        completedVisitsTooltip: 'Completed Demos:\nThe count of successfully finished\nclient project demos.',
+        scheduledVisitsTooltip: 'Scheduled RFPs:\nProject proposal reviews scheduled\nfor the future.',
+        tasksAndMeetingsTab: 'SLA Tasks & Demos',
+      };
+    }
+    if (indCode === 'temp0007') { // Manufacturing
+      return {
+        completedVisits: 'Completed Shipments',
+        scheduledVisits: 'Scheduled Audits',
+        siteVisit: 'Plant Visit',
+        meeting: 'Dealer Call',
+        visitsDesc: 'Shipments',
+        completedVisitsTooltip: 'Completed Shipments:\nThe count of successfully finished\nproduct shipments.',
+        scheduledVisitsTooltip: 'Scheduled Audits:\nPlant inspections or audits scheduled\nfor the future.',
+        tasksAndMeetingsTab: 'Production & Shipments',
+      };
+    }
+    // Default (Real Estate / temp0001)
+    return {
+      completedVisits: 'Completed Visits',
+      scheduledVisits: 'Scheduled Visits',
+      siteVisit: 'Site Visit',
+      meeting: 'Meeting',
+      visitsDesc: 'Site Visits',
+      completedVisitsTooltip: 'Completed Visits:\nThe count of successfully finished\ncustomer property visits.',
+      scheduledVisitsTooltip: 'Scheduled Visits:\nProperty visits scheduled\nfor the future.',
+      tasksAndMeetingsTab: 'Tasks & Meetings',
+    };
+  }, [indCode]);
+
+  const metricDescriptions = useMemo<Record<string, string>>(() => {
+    return {
+      'Total Leads': 'Total Leads:\nThe sum of all leads collected\nin the system.',
+      'Fresh': 'Fresh Leads:\nNewly added leads that have\nnot yet been contacted.',
+      'Call Back': 'Call Back:\nLeads scheduled for\na follow-up call.',
+      'Interested': 'Interested Leads:\nLeads who have shown interest\nin your project or offer.',
+      'Closed Won': 'Closed Won:\nSuccessfully converted leads\nwho completed a deal.',
+      'Not Interested': 'Not Interested:\nLeads who have stated\nthey are not interested.',
+      'Closed Lost': 'Closed Lost:\nLeads that have been marked\nas lost or inactive.',
+      [labels.completedVisits]: labels.completedVisitsTooltip,
+      [labels.scheduledVisits]: labels.scheduledVisitsTooltip,
+    };
+  }, [labels]);
+
   const handleCardClick = (label: string) => {
     if (isSuperAdmin) return
     const userAny = user as any
@@ -147,9 +249,9 @@ export default function AnalyticsPage() {
       taskFilter.createdAt.endDate = endDate
     }
 
-    if (label === 'Completed Visits') {
+    if (label === labels.completedVisits) {
       taskFilter.status = ['COMPLETED', 'Completed']
-      taskFilter.taskType = ['Site Visit']
+      taskFilter.taskType = [labels.siteVisit]
       const taskDrilldownData = {
         uid: targetUid,
         organizationId: orgId,
@@ -159,9 +261,9 @@ export default function AnalyticsPage() {
         role: roleFlag
       }
       navigate('/task-drilldown-data', { state: { taskDrilldownData, ts: Date.now() } })
-    } else if (label === 'Scheduled Visits') {
+    } else if (label === labels.scheduledVisits) {
       taskFilter.status = ['PENDING', 'Pending']
-      taskFilter.taskType = ['Site Visit']
+      taskFilter.taskType = [labels.siteVisit]
       const taskDrilldownData = {
         uid: targetUid,
         organizationId: orgId,
@@ -375,10 +477,10 @@ export default function AnalyticsPage() {
       { label: 'Closed Won', val: c.closedWon, color: '#10B981', bg: 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.01) 100%)', icon: <CheckCircleIcon sx={{ fontSize: '1.4rem', color: '#10B981' }} /> }, // green
       { label: 'Not Interested', val: c.notInterested, color: '#8B5CF6', bg: 'linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(139,92,246,0.01) 100%)', icon: <CancelIcon sx={{ fontSize: '1.4rem', color: '#8B5CF6' }} /> }, // purple
       { label: 'Closed Lost', val: c.closedLost, color: '#F97316', bg: 'linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(249,115,22,0.01) 100%)', icon: <TrendingDownIcon sx={{ fontSize: '1.4rem', color: '#F97316' }} /> }, // orange
-      { label: 'Completed Visits', val: c.completedVisits, color: '#14B8A6', bg: 'linear-gradient(135deg, rgba(20,184,166,0.06) 0%, rgba(20,184,166,0.01) 100%)', icon: <EventAvailableIcon sx={{ fontSize: '1.4rem', color: '#14B8A6' }} /> }, // teal
-      { label: 'Scheduled Visits', val: c.scheduledVisits, color: '#06B6D4', bg: 'linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(6,182,212,0.01) 100%)', icon: <EventIcon sx={{ fontSize: '1.4rem', color: '#06B6D4' }} /> }, // cyan
+      { label: labels.completedVisits, val: c.completedVisits, color: '#14B8A6', bg: 'linear-gradient(135deg, rgba(20,184,166,0.06) 0%, rgba(20,184,166,0.01) 100%)', icon: <EventAvailableIcon sx={{ fontSize: '1.4rem', color: '#14B8A6' }} /> }, // teal
+      { label: labels.scheduledVisits, val: c.scheduledVisits, color: '#06B6D4', bg: 'linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(6,182,212,0.01) 100%)', icon: <EventIcon sx={{ fontSize: '1.4rem', color: '#06B6D4' }} /> }, // cyan
     ]
-  }, [data, dashboardConfig])
+  }, [data, dashboardConfig, labels])
 
   // Key Metrics Overview section lookup
   const keyMetricsSection = useMemo(() => {
@@ -454,8 +556,10 @@ export default function AnalyticsPage() {
       const strokeDashoffset = `${- (accumulatedPercentage / 100) * 376.99}`
       accumulatedPercentage += percentage
 
+      const translatedName = item.name === 'Site Visit' ? labels.siteVisit : (item.name === 'Meeting' ? labels.meeting : item.name);
+
       return {
-        name: item.name,
+        name: translatedName,
         value: item.value,
         percentage: Math.round(percentage),
         strokeDasharray,
@@ -463,7 +567,7 @@ export default function AnalyticsPage() {
         color: colors[idx] || '#CCCCCC',
       }
     })
-  }, [data?.tasks?.completedChartData])
+  }, [data?.tasks?.completedChartData, labels])
 
   // Download tables as CSV
   const downloadCSV = (type: string) => {
@@ -472,7 +576,7 @@ export default function AnalyticsPage() {
     let filename = 'report.csv'
 
     if (type === 'contacts_feedback') {
-      csvContent += 'S.No,Associate/Group,Total,Fresh,Call Back,Interested,Closed Won,Not Interested,Closed Lost,Completed Visits,Scheduled Visits\n'
+      csvContent += `S.No,Associate/Group,Total,Fresh,Call Back,Interested,Closed Won,Not Interested,Closed Lost,${labels.completedVisits},${labels.scheduledVisits}\n`
       data.contacts.feedbackSummary.forEach(row => {
         csvContent += `${row.sNo},"${row.associate}",${row.total},${row.fresh},${row.callBack},${row.interested},${row.won},${row.notInterested},${row.lost},${row.completedVisits},${row.scheduledVisits}\n`
       })
@@ -484,13 +588,13 @@ export default function AnalyticsPage() {
       })
       filename = 'callback_reasons_summary.csv'
     } else if (type === 'tasks_completed') {
-      csvContent += 'S.No,Associate/Group,Total Completed,Meeting,Call Back,Site Visit\n'
+      csvContent += `S.No,Associate/Group,Total Completed,${labels.meeting},Call Back,${labels.siteVisit}\n`
       data.tasks.completedTasks.forEach(row => {
         csvContent += `${row.sNo},"${row.associate}",${row.total},${row.meeting},${row.callBack},${row.siteVisit}\n`
       })
       filename = 'tasks_completed_summary.csv'
     } else if (type === 'tasks_pending') {
-      csvContent += 'S.No,Associate/Group,Total Pending,Meeting,Call Back,Site Visit\n'
+      csvContent += `S.No,Associate/Group,Total Pending,${labels.meeting},Call Back,${labels.siteVisit}\n`
       data.tasks.pendingTasks.forEach(row => {
         csvContent += `${row.sNo},"${row.associate}",${row.total},${row.meeting},${row.callBack},${row.siteVisit}\n`
       })
@@ -801,43 +905,44 @@ export default function AnalyticsPage() {
                       }
 
                       return (
-                        <Card
-                          key={w.id}
-                          onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
-                          sx={{
-                            p: 1.5,
-                            borderRadius: '10px',
-                            border: '1px solid',
-                            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                            background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                            borderLeft: `3px solid ${cardPayload.color}`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            minHeight: 80,
-                            cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
-                            transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': w.id === 'totalLeads' ? {} : {
-                              transform: 'translateY(-2px)',
-                              boxShadow: isDark
-                                ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
-                                : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
-                              borderColor: alpha(cardPayload.color, 0.5),
-                            }
-                          }}
-                        >
-                          <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {cardPayload.label}
+                        <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                          <Card
+                            onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: '10px',
+                              border: '1px solid',
+                              borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                              background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                              borderLeft: `3px solid ${cardPayload.color}`,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              minHeight: 80,
+                              cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                              transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': w.id === 'totalLeads' ? {} : {
+                                transform: 'translateY(-2px)',
+                                boxShadow: isDark
+                                  ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                                  : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                                borderColor: alpha(cardPayload.color, 0.5),
+                              }
+                            }}
+                          >
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                {cardPayload.label}
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                                {cardPayload.icon}
+                              </Box>
+                            </Stack>
+                            <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                              {cardPayload.val}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                              {cardPayload.icon}
-                            </Box>
-                          </Stack>
-                          <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                            {cardPayload.val}
-                          </Typography>
-                        </Card>
+                          </Card>
+                        </Tooltip>
                       )
                     })}
                   </Box>
@@ -899,43 +1004,44 @@ export default function AnalyticsPage() {
               }
 
               return (
-                <Card
-                  key={w.id}
-                  onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                    background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                    borderLeft: `3px solid ${cardPayload.color}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: 80,
-                    cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
-                    transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': w.id === 'totalLeads' ? {} : {
-                      transform: 'translateY(-2px)',
-                      boxShadow: isDark
-                        ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
-                        : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
-                      borderColor: alpha(cardPayload.color, 0.5),
-                    }
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {cardPayload.label}
+                <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                  <Card
+                    onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: '10px',
+                      border: '1px solid',
+                      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                      background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                      borderLeft: `3px solid ${cardPayload.color}`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: 80,
+                      cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                      transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': w.id === 'totalLeads' ? {} : {
+                        transform: 'translateY(-2px)',
+                        boxShadow: isDark
+                          ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                          : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                        borderColor: alpha(cardPayload.color, 0.5),
+                      }
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {cardPayload.label}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                        {cardPayload.icon}
+                      </Box>
+                    </Stack>
+                    <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                      {cardPayload.val}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                      {cardPayload.icon}
-                    </Box>
-                  </Stack>
-                  <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                    {cardPayload.val}
-                  </Typography>
-                </Card>
+                  </Card>
+                </Tooltip>
               )
             })}
           </Box>
@@ -1271,43 +1377,44 @@ export default function AnalyticsPage() {
                   }
 
                   return (
-                    <Card
-                      key={w.id}
-                      onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: '10px',
-                        border: '1px solid',
-                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
-                        background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
-                        borderLeft: `3px solid ${cardPayload.color}`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        minHeight: 80,
-                        cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
-                        transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': w.id === 'totalLeads' ? {} : {
-                          transform: 'translateY(-2px)',
-                          boxShadow: isDark
-                            ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
-                            : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
-                          borderColor: alpha(cardPayload.color, 0.5),
-                        }
-                      }}
-                    >
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                          {cardPayload.label}
+                    <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                      <Card
+                        onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '10px',
+                          border: '1px solid',
+                          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,17,23,0.06)',
+                          background: isDark ? 'rgba(13, 17, 39, 0.45)' : 'rgba(255, 255, 255, 0.70)',
+                          borderLeft: `3px solid ${cardPayload.color}`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          minHeight: 80,
+                          cursor: w.id === 'totalLeads' ? 'default' : 'pointer',
+                          transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': w.id === 'totalLeads' ? {} : {
+                            transform: 'translateY(-2px)',
+                            boxShadow: isDark
+                              ? `0 4px 20px ${alpha(cardPayload.color, 0.2)}`
+                              : `0 4px 16px ${alpha(cardPayload.color, 0.1)}`,
+                            borderColor: alpha(cardPayload.color, 0.5),
+                          }
+                        }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {cardPayload.label}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
+                            {cardPayload.icon}
+                          </Box>
+                        </Stack>
+                        <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
+                          {cardPayload.val}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', opacity: 0.85, transform: 'scale(0.85)' }}>
-                          {cardPayload.icon}
-                        </Box>
-                      </Stack>
-                      <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.25, color: 'text.primary', fontSize: '1.25rem', letterSpacing: -0.5 }}>
-                        {cardPayload.val}
-                      </Typography>
-                    </Card>
+                      </Card>
+                    </Tooltip>
                   );
                 })}
               </Box>
@@ -1408,7 +1515,7 @@ export default function AnalyticsPage() {
               ) : (
                 <>
                   <Tab label="Contacts Overview" />
-                  <Tab label="Tasks & Meetings" />
+                  <Tab label={labels.tasksAndMeetingsTab} />
                   <Tab label="Calling Analytics" />
                 </>
               )}
@@ -1464,7 +1571,7 @@ export default function AnalyticsPage() {
                           <th>Won</th>
                           <th>Not Interested</th>
                           <th>Lost</th>
-                          <th>Completed Visits</th>
+                          <th>{labels.completedVisits}</th>
                         </Box>
                       </thead>
                       <tbody>
@@ -1788,9 +1895,9 @@ export default function AnalyticsPage() {
                           <th>S.No</th>
                           <th>{groupBy === 'team' ? 'Associate' : groupBy === 'source' ? 'Source' : 'Team'}</th>
                           <th>Total</th>
-                          <th>Meeting</th>
+                          <th>{labels.meeting}</th>
                           <th>Call Back</th>
-                          <th>Site Visit</th>
+                          <th>{labels.siteVisit}</th>
                         </Box>
                       </thead>
                       <tbody>
@@ -1867,9 +1974,9 @@ export default function AnalyticsPage() {
                           <th>S.No</th>
                           <th>{groupBy === 'team' ? 'Associate' : groupBy === 'source' ? 'Source' : 'Team'}</th>
                           <th>Total</th>
-                          <th>Meeting</th>
+                          <th>{labels.meeting}</th>
                           <th>Call Back</th>
-                          <th>Site Visit</th>
+                          <th>{labels.siteVisit}</th>
                         </Box>
                       </thead>
                       <tbody>
@@ -2000,7 +2107,7 @@ export default function AnalyticsPage() {
                                   fontWeight="600"
                                   textAnchor="middle"
                                 >
-                                  {item.name}
+                                  {item.name === 'Site Visit' ? labels.siteVisit : (item.name === 'Meeting' ? labels.meeting : item.name)}
                                 </text>
                               </g>
                             )

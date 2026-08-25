@@ -13,6 +13,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { api } from '@/services/api'
+import { useActionPermission } from '@/hooks/useActionPermission'
 
 export interface Holiday {
   id: string
@@ -25,6 +26,7 @@ export interface Holiday {
 
 export default function HolidayConfigPage() {
   const navigate = useNavigate()
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('holidays')
   const [items, setItems] = useState<Holiday[]>([])
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -70,8 +72,8 @@ export default function HolidayConfigPage() {
     })
   }
 
-  const columns = useMemo<GridColDef<Holiday>[]>(
-    () => [
+  const columns = useMemo<GridColDef<Holiday>[]>(() => {
+    const cols: GridColDef<Holiday>[] = [
       {
         field: 'name',
         headerName: 'Holiday Name',
@@ -92,7 +94,10 @@ export default function HolidayConfigPage() {
         width: 150,
       },
       { field: 'description', headerName: 'Description', flex: 1.5, minWidth: 200 },
-      {
+    ]
+
+    if (can_edit || can_delete) {
+      cols.push({
         field: '__actions',
         headerName: 'Actions',
         width: 100,
@@ -100,22 +105,37 @@ export default function HolidayConfigPage() {
         filterable: false,
         renderCell: (p) => (
           <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-            <Tooltip title="Edit Holiday">
-              <IconButton size="small" onClick={() => navigate(`/configuration/holiday-config/${p.row.id}/edit`)}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete Holiday">
-              <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {can_edit && (
+              <Tooltip title="Edit Holiday">
+                <IconButton size="small" onClick={() => navigate(`/configuration/holiday-config/${p.row.id}/edit`)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete Holiday">
+                <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
-      },
-    ],
-    [],
-  )
+      })
+    }
+
+    return cols
+  }, [navigate, can_edit, can_delete])
+
+  if (!permsLoading && !can_view) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Access Denied: You do not have permission to view Holiday Configuration.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -123,9 +143,11 @@ export default function HolidayConfigPage() {
         title="Holiday Configuration"
         subtitle="Manage regular list of holidays and company off shifts."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/holiday-config/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Add Holiday
-          </Button>
+          can_add ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/configuration/holiday-config/new')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+              Add Holiday
+            </Button>
+          ) : undefined
         }
         fullHeight
       >

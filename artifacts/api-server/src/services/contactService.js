@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 const contactModel = require('../models/contactModel');
+const organizationModel = require('../models/organizationModel');
+const taskModel = require('../models/taskModel');
+const callLogModel = require('../models/callLogModel');
+const accountModel = require('../models/accountModel');
+const dealModel = require('../models/dealModel');
 const screenModel = require('../models/screenModel');
 const fieldModel = require('../models/screenFieldModel');
 const permissionModel = require('../models/screenPermissionModel');
@@ -144,10 +149,13 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
   const filter = {};
   if (isSuperAdmin) {
     if (organizationIdQuery && organizationIdQuery !== 'all') {
-      filter.organization_id = organizationIdQuery;
+      filter.$or = [
+        { organization_id: organizationIdQuery },
+        { organizationId: organizationIdQuery }
+      ];
     } else if (industryIdQuery && industryIdQuery !== 'all') {
-      const Organization = mongoose.model('Organization');
-      const Industry = mongoose.model('Industry');
+      const Organization = organizationModel.Organization || mongoose.model('Organization');
+      const Industry = industryModel.Industry || mongoose.model('Industry');
       let industryDoc = null;
       if (mongoose.Types.ObjectId.isValid(industryIdQuery)) {
         industryDoc = await Industry.findById(industryIdQuery).lean().exec();
@@ -156,20 +164,34 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
       }
 
       if (industryDoc) {
+        const indIdStr = String(industryDoc._id);
+        const indCode = industryDoc.code;
         const orgDocs = await Organization.find({
           $or: [
-            { industryId: String(industryDoc._id) },
-            { industry_id: industryDoc._id },
-            { industryId: industryDoc.code },
-            { industry_code: industryDoc.code }
+            { industryId: indIdStr },
+            { industry_id: indIdStr },
+            { industryId: indCode },
+            { industry_id: indCode },
+            { industryCode: indCode },
+            { industry_code: indCode }
           ]
         }).lean().exec();
-        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id).filter(Boolean);
-        filter.organization_id = { $in: orgIds };
+        const orgIds = orgDocs.map(o => o.organizationId || o.organization_id || String(o._id)).filter(Boolean);
+        filter.$or = [
+          { organization_id: { $in: orgIds } },
+          { organizationId: { $in: orgIds } },
+          { industry_id: indIdStr },
+          { industryId: indIdStr },
+          { industry_id: indCode },
+          { industryId: indCode }
+        ];
       }
     }
   } else {
-    filter.organization_id = user.organizationId;
+    filter.$or = [
+      { organization_id: user.organizationId },
+      { organizationId: user.organizationId }
+    ];
   }
 
   const visibleIds = await getVisibleUserIds({
@@ -370,10 +392,11 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   const targetOrgId = isSuperAdmin ? (cleaned.organizationId || payload.organizationId || payload.fields?.organizationId || data.organizationId || data.organization_id || cleaned.organization_id) : user.organizationId;
 
-  const Organization = mongoose.model('Organization');
+  const Organization = organizationModel.Organization || mongoose.model('Organization');
   const org = await Organization.findOne({
     $or: [
       { organization_id: targetOrgId },
+      { organizationId: targetOrgId },
       ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
     ]
   }).lean().exec();
@@ -389,18 +412,27 @@ exports.createForUser = async ({ payload, authedUser }) => {
       const orConditions = [];
       if (parsedMain.contactNumber) {
         orConditions.push({ contactNumber: parsedMain.contactNumber });
+        orConditions.push({ contact_number: parsedMain.contactNumber });
         orConditions.push({ alternateNo: parsedMain.contactNumber });
+        orConditions.push({ alternate_no: parsedMain.contactNumber });
       }
       if (parsedAlt && parsedAlt.contactNumber) {
         orConditions.push({ contactNumber: parsedAlt.contactNumber });
+        orConditions.push({ contact_number: parsedAlt.contactNumber });
         orConditions.push({ alternateNo: parsedAlt.contactNumber });
+        orConditions.push({ alternate_no: parsedAlt.contactNumber });
       }
       
       if (orConditions.length > 0) {
         const Contact = mongoose.model('Contact');
         const duplicate = await Contact.findOne({
-          organization_id: targetOrgId,
-          $or: orConditions
+          $or: [
+            { organization_id: targetOrgId },
+            { organizationId: targetOrgId }
+          ],
+          $and: [
+            { $or: orConditions }
+          ]
         }).lean().exec();
         
         if (duplicate) {
@@ -411,13 +443,20 @@ exports.createForUser = async ({ payload, authedUser }) => {
       }
     }
 
-    if (cleaned.email) {
-      const cleanEmail = String(cleaned.email).trim().toLowerCase();
+    if (cleaned.email || cleaned.emailId) {
+      const cleanEmail = String(cleaned.email || cleaned.emailId).trim().toLowerCase();
       if (cleanEmail) {
         const Contact = mongoose.model('Contact');
         const duplicateEmail = await Contact.findOne({
-          organization_id: targetOrgId,
-          email: cleanEmail
+          $or: [
+            { organization_id: targetOrgId },
+            { organizationId: targetOrgId }
+          ],
+          $or: [
+            { email: cleanEmail },
+            { emailId: cleanEmail },
+            { email_id: cleanEmail }
+          ]
         }).lean().exec();
         
         if (duplicateEmail) {
@@ -529,21 +568,10 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   }
 
   const cleaned = {};
-  for (const f of allowedFormFields) {
-    const k = f.field_key;
-    const camelK = (k || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-    if (data[camelK] !== undefined) {
-      cleaned[camelK] = data[camelK];
-    } else if (data[k] !== undefined) {
-      cleaned[camelK] = data[k];
-    }
-  }
-
-  // Permit system and metadata updates
-  const systemFields = ['stage', 'latitude', 'longitude', 'modifiedAt', 'stageChangeAt', 'leadAssignTime', 'contactOwnerEmail', 'uid'];
-  for (const k of systemFields) {
-    if (data[k] !== undefined) {
-      cleaned[k] = data[k];
+  // Copy all provided keys so dynamic and lifecycle fields are never dropped
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) {
+      cleaned[k] = v;
     }
   }
 
@@ -561,7 +589,7 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
 
   const targetOrgId = isSuperAdmin ? (cleaned.organizationId || existing.organizationId || cleaned.organization_id || existing.organization_id) : user.organizationId;
 
-  const Organization = mongoose.model('Organization');
+  const Organization = organizationModel.Organization || mongoose.model('Organization');
   const org = await Organization.findOne({
     $or: [
       { organization_id: targetOrgId },
@@ -879,50 +907,243 @@ exports.deleteForUser = async ({ id, authedUser }) => {
     const err = new Error('Forbidden'); err.status = 403; throw err;
   }
 
-  // Cascading deletes
-  const Task = mongoose.model('Task');
-  const CallLog = mongoose.model('CallLog');
-  const Booking = mongoose.model('Booking');
-  const ResourceItem = mongoose.model('OrganizationResources');
+  // 1. Cascading deletes: Tasks
+  try {
+    const Task = mongoose.model('Task');
+    await Task.deleteMany({
+      $or: [
+        { contact_id: id },
+        { contactId: id },
+        { contact_id: String(id) },
+        { contactId: String(id) }
+      ]
+    });
+  } catch (err) {
+    console.warn('[Cascade Delete] Tasks cleanup error:', err.message);
+  }
 
-  await Task.deleteMany({
-    $or: [
-      { contact_id: id },
-      { contactId: id }
-    ]
-  });
+  // 2. Cascading deletes: Call Logs
+  try {
+    const CallLog = mongoose.model('CallLog');
+    await CallLog.deleteMany({
+      $or: [
+        { contact_id: id },
+        { contactId: id },
+        { contact_id: String(id) },
+        { contactId: String(id) }
+      ]
+    });
+  } catch (err) {
+    console.warn('[Cascade Delete] CallLogs cleanup error:', err.message);
+  }
 
-  await CallLog.deleteMany({
-    $or: [
-      { contact_id: id },
-      { contactId: id }
-    ]
-  });
+  // 3. Cascading deletes: Bookings
+  try {
+    const bookingModel = require('../models/bookingModel');
+    const Booking = bookingModel.Booking || mongoose.model('Booking');
+    if (Booking) {
+      await Booking.deleteMany({
+        $or: [
+          { contact_id: id },
+          { contactId: id },
+          { contact_id: String(id) },
+          { contactId: String(id) }
+        ]
+      });
+    }
+  } catch (err) {
+    console.warn('[Cascade Delete] Bookings cleanup error:', err.message);
+  }
 
-  await Booking.deleteMany({
-    $or: [
-      { contact_id: id },
-      { contactId: id }
-    ]
-  });
+  // 4. Cascading deletes: Resource Items (Notes, Attachments)
+  try {
+    const resourceItemModel = require('../models/resourceItemModel');
+    const OrganizationResources = resourceItemModel.ResourceItem || mongoose.model('OrganizationResources');
+    if (OrganizationResources) {
+      const orgDocs = await OrganizationResources.find({}).exec();
+      for (const orgDoc of orgDocs) {
+        let modified = false;
+        if (Array.isArray(orgDoc.notes)) {
+          const prevLen = orgDoc.notes.length;
+          orgDoc.notes = orgDoc.notes.filter(n => {
+            const cId = String(n.contactId || n.contact_id || '');
+            return cId !== String(id);
+          });
+          if (orgDoc.notes.length !== prevLen) {
+            orgDoc.markModified('notes');
+            modified = true;
+          }
+        }
+        if (Array.isArray(orgDoc.attachments)) {
+          const prevLen = orgDoc.attachments.length;
+          orgDoc.attachments = orgDoc.attachments.filter(a => {
+            const cId = String(a.contactId || a.contact_id || '');
+            return cId !== String(id);
+          });
+          if (orgDoc.attachments.length !== prevLen) {
+            orgDoc.markModified('attachments');
+            modified = true;
+          }
+        }
+        if (modified) {
+          await orgDoc.save();
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Cascade Delete] ResourceItems cleanup error:', err.message);
+  }
 
-  await ResourceItem.updateMany(
-    {},
-    {
-      $pull: {
-        notes: {
+  // 5. Cascading deletes: Deals (Clean up open pipeline deals; unlink Closed Won deals)
+  try {
+    const dealModel = require('../models/dealModel');
+    const Deal = dealModel.Deal || mongoose.model('Deal');
+    if (Deal) {
+      // Delete open/non-won deals linked directly to this lead
+      await Deal.deleteMany({
+        $or: [
+          { contact_id: id },
+          { contactId: id },
+          { contact_id: String(id) },
+          { contactId: String(id) }
+        ],
+        stage: { $ne: 'CLOSED_WON' }
+      });
+      // Soft-unlink won deals so revenue reports remain preserved
+      await Deal.updateMany(
+        {
           $or: [
             { contact_id: id },
             { contactId: id },
             { contact_id: String(id) },
             { contactId: String(id) }
-          ]
-        }
-      }
+          ],
+          stage: 'CLOSED_WON'
+        },
+        { $set: { contact_id: null, contactId: null, contact_name: existing.customer_name || existing.customerName || 'Deleted Contact' } }
+      );
     }
-  );
+  } catch (err) {
+    console.warn('[Cascade Delete] Deals cleanup error:', err.message);
+  }
 
+  // 6. Cascading deletes: Quotes
+  try {
+    const quoteModel = require('../models/quoteModel');
+    const Quote = quoteModel.Quote || mongoose.model('Quote');
+    if (Quote) {
+      await Quote.deleteMany({
+        $or: [
+          { contact_id: id },
+          { contactId: id },
+          { contact_id: String(id) },
+          { contactId: String(id) }
+        ]
+      });
+    }
+  } catch (err) {
+    console.warn('[Cascade Delete] Quotes cleanup error:', err.message);
+  }
+
+  // 7. Delete Primary Contact Record
   await contactModel.remove(id);
+};
+
+exports.convertContact = async ({ contactId, payload, authedUser }) => {
+  if (!authedUser?.id) {
+    const err = new Error('Authentication required'); err.status = 401; throw err;
+  }
+  const contact = await contactModel.Contact.findById(contactId).lean().exec();
+  if (!contact) {
+    const err = new Error('Contact not found'); err.status = 404; throw err;
+  }
+
+  const orgId = authedUser.organization_id || authedUser.organizationId || contact.organization_id || contact.organizationId;
+  const wsId = authedUser.workspace_id || authedUser.workspaceId || contact.workspace_id || contact.workspaceId || null;
+  const indId = authedUser.industry_id || authedUser.industryId || contact.industry_id || contact.industryId || 'temp0001';
+
+  const accountModel = require('../models/accountModel');
+  const dealModel = require('../models/dealModel');
+  const Account = accountModel.Account || mongoose.model('Account');
+  const Deal = dealModel.Deal || mongoose.model('Deal');
+
+  // 1. Resolve or Create Account
+  let accountId = payload.accountId || contact.account_id || contact.accountId;
+  if (!accountId && payload.accountName) {
+    const newAccount = await Account.create({
+      name: payload.accountName,
+      organization_id: orgId,
+      workspace_id: wsId,
+      industry_id: indId,
+      phone: contact.contact_number || contact.contactNumber || '',
+      created_by: authedUser.id
+    });
+    accountId = newAccount._id;
+  } else if (!accountId) {
+    const newAccount = await Account.create({
+      name: contact.customer_name || contact.customerName || 'Account',
+      organization_id: orgId,
+      workspace_id: wsId,
+      industry_id: indId,
+      phone: contact.contact_number || contact.contactNumber || '',
+      created_by: authedUser.id
+    });
+    accountId = newAccount._id;
+  }
+
+  // 2. Create Deal if requested
+  let createdDeal = null;
+  if (payload.createDeal !== false) {
+    const dealTitle = payload.dealTitle || `${contact.customer_name || contact.customerName || 'Customer'} - Opportunity`;
+    createdDeal = await Deal.create({
+      title: dealTitle,
+      name: dealTitle,
+      amount: Number(payload.dealAmount || 0),
+      currency: payload.currency || 'INR',
+      pipeline_id: payload.pipelineId || undefined,
+      stage_id: payload.stageId || 'QUALIFICATION',
+      stage: payload.stageName || payload.stageId || 'Qualification',
+      probability: Number(payload.probability || 10),
+      expected_close_date: payload.expectedCloseDate ? new Date(payload.expectedCloseDate) : undefined,
+      account_id: accountId,
+      contact_id: contact._id,
+      contact_name: contact.customer_name || contact.customerName || '',
+      contact_phone: contact.contact_number || contact.contactNumber || '',
+      contact_email: contact.email_id || contact.emailId || '',
+      organization_id: orgId,
+      workspace_id: wsId,
+      industry_id: indId,
+      owner_id: contact.owner_id || authedUser.id,
+      owner_name: authedUser.name || authedUser.email,
+      owner_email: authedUser.email,
+      notes: payload.dealNotes || '',
+      created_by: authedUser.id
+    });
+  }
+
+  // 3. Mark contact as converted
+  const updateFields = {
+    account_id: accountId,
+    accountId: accountId,
+    is_converted: true,
+    isConverted: true,
+    converted_at: new Date(),
+    convertedAt: new Date()
+  };
+  if (createdDeal) {
+    updateFields.converted_deal_id = createdDeal._id;
+    updateFields.convertedDealId = createdDeal._id;
+  }
+
+  await contactModel.Contact.findByIdAndUpdate(contactId, { $set: updateFields }).exec();
+
+  return {
+    success: true,
+    accountId,
+    dealId: createdDeal ? createdDeal._id : null,
+    deal: createdDeal,
+    message: 'Lead converted successfully!'
+  };
 };
 
 exports.fillExtraFields = fillExtraFields;

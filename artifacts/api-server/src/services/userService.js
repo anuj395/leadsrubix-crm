@@ -76,9 +76,18 @@ function pickAllowedFields(payloadFields, allowedFieldDefs) {
   });
 
   const normalizedPayload = {};
+  // First pass: copy camelCase keys (stale/initial values)
   for (const [k, v] of Object.entries(payloadFields || {})) {
-    const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-    normalizedPayload[camelKey] = v;
+    if (!k.includes('_')) {
+      normalizedPayload[k] = v;
+    }
+  }
+  // Second pass: copy snake_case keys (actual updated input fields) to overwrite stale ones
+  for (const [k, v] of Object.entries(payloadFields || {})) {
+    if (k.includes('_')) {
+      const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      normalizedPayload[camelKey] = v;
+    }
   }
 
   for (const [camelKey, v] of Object.entries(normalizedPayload)) {
@@ -260,8 +269,8 @@ exports.create = async ({ payload, authedUser }) => {
     throw e;
   }
   const industryId = isSuperAdmin
-    ? String(payload.industryId || authedUser?.industryId || '').trim()
-    : authedUser?.industryId;
+    ? String(payload.industryId || payload.industry_id || authedUser?.industryId || authedUser?.industry_id || '').trim()
+    : (authedUser?.industryId || authedUser?.industry_id);
 
   const { fields: allowed } = await resolveAllowedFields({
     industry_code: industryId,
@@ -321,7 +330,7 @@ exports.create = async ({ payload, authedUser }) => {
   if (!role) { const e = new Error('role is required'); e.status = 400; throw e; }
   if (!industryId) { const e = new Error('industryId is required'); e.status = 400; throw e; }
 
-  const targetOrgId = authedUser?.organizationId || payload.organizationId || '';
+  const targetOrgId = authedUser?.organizationId || authedUser?.organization_id || payload.organizationId || payload.organization_id || '';
 
   if (targetOrgId && role !== 'admin') {
     const Team = mongoose.model('Team');
@@ -329,9 +338,15 @@ exports.create = async ({ payload, authedUser }) => {
     const Designation = mongoose.model('Designation');
 
     const [hasTeam, hasBranch, hasDesignation] = await Promise.all([
-      Team.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.teams && doc.teams.some(t => t.isActive !== false))),
-      Branch.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.branches && doc.branches.some(b => b.isActive !== false))),
-      Designation.findOne({ organization_id: targetOrgId }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
+      Team.findOne({
+        $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }]
+      }).then(doc => !!(doc && doc.teams && doc.teams.some(t => t.isActive !== false))),
+      Branch.findOne({
+        $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }]
+      }).then(doc => !!(doc && doc.branches && doc.branches.some(b => b.isActive !== false))),
+      Designation.findOne({
+        $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }]
+      }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
     ]);
 
     if (!hasTeam || !hasBranch || !hasDesignation) {
@@ -344,15 +359,30 @@ exports.create = async ({ payload, authedUser }) => {
     const Organization = mongoose.model('Organization');
     const org = await Organization.findOne({
       $or: [
-        { industryId: industryId },
-        { organizationId: targetOrgId }
+        { organizationId: targetOrgId },
+        { organization_id: targetOrgId },
+        { _id: targetOrgId }
       ]
     }).lean().exec();
-    const limitVal = org ? (org.no_of_employees || org.numEmployees || org.num_employees || (org.fields && (org.fields.no_of_employees || org.fields.numEmployees || org.fields.num_employees))) : null;
-    const limit = limitVal ? Number(limitVal) : null;
+    const limitVal = org ? (
+      org.num_employees !== undefined ? org.num_employees :
+      org.numEmployees !== undefined ? org.numEmployees :
+      org.no_of_employees !== undefined ? org.no_of_employees :
+      org.noOfEmployees !== undefined ? org.noOfEmployees :
+      (org.fields && (
+        org.fields.num_employees !== undefined ? org.fields.num_employees :
+        org.fields.numEmployees !== undefined ? org.fields.numEmployees :
+        org.fields.no_of_employees !== undefined ? org.fields.no_of_employees :
+        org.fields.noOfEmployees !== undefined ? org.fields.noOfEmployees : null
+      ))
+    ) : null;
+    const limit = limitVal !== null ? Number(limitVal) : null;
     if (limit !== null && limit !== undefined && !isNaN(limit)) {
       const activeCount = await userModel.User.countDocuments({
-        organizationId: targetOrgId,
+        $or: [
+          { organizationId: targetOrgId },
+          { organization_id: targetOrgId }
+        ],
         isActive: true
       });
       if (activeCount >= limit) {
@@ -503,12 +533,24 @@ exports.update = async ({ id, payload, authedUser }) => {
     if (targetOrgId) {
       const org = await Organization.findOne({
         $or: [
-          { industryId: target.industryId || authedUser?.industryId },
-          { organizationId: targetOrgId }
+          { organizationId: targetOrgId },
+          { organization_id: targetOrgId },
+          { _id: targetOrgId }
         ]
       }).lean().exec();
-      const limitVal = org ? (org.no_of_employees || org.numEmployees || org.num_employees || (org.fields && (org.fields.no_of_employees || org.fields.numEmployees || org.fields.num_employees))) : null;
-      const limit = limitVal ? Number(limitVal) : null;
+      const limitVal = org ? (
+        org.num_employees !== undefined ? org.num_employees :
+        org.numEmployees !== undefined ? org.numEmployees :
+        org.no_of_employees !== undefined ? org.no_of_employees :
+        org.noOfEmployees !== undefined ? org.noOfEmployees :
+        (org.fields && (
+          org.fields.num_employees !== undefined ? org.fields.num_employees :
+          org.fields.numEmployees !== undefined ? org.fields.numEmployees :
+          org.fields.no_of_employees !== undefined ? org.fields.no_of_employees :
+          org.fields.noOfEmployees !== undefined ? org.fields.noOfEmployees : null
+        ))
+      ) : null;
+      const limit = limitVal !== null ? Number(limitVal) : null;
       if (limit !== null && limit !== undefined && !isNaN(limit)) {
         const activeCount = await userModel.User.countDocuments({
           organizationId: targetOrgId,
@@ -525,6 +567,7 @@ exports.update = async ({ id, payload, authedUser }) => {
 
   const nextRole = payload.role || (payload.fields && payload.fields.designation) || target.role;
   const nextIndustry = isSuperAdmin && payload.industryId ? payload.industryId : target.industryId;
+  const nextOrgId = target.organizationId || target.organization_id || authedUser?.organizationId || authedUser?.organization_id || '';
 
   // Block privilege escalation. Also prevent a non-superAdmin from editing an
   // existing superAdmin record (target promotion vector).

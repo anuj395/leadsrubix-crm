@@ -13,6 +13,7 @@ export type MenuIconKey =
   | 'coupon'
   | 'dashboard'
   | 'data'
+  | 'deals'
   | 'faq'
   | 'headers'
   | 'leads'
@@ -85,6 +86,7 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "analytics", name: "Analytics", route: "/analytics", icon: "analytics", module: "analytics" },
   { key: "organization", name: "Organization", route: "/organization/list", icon: "organization", module: "organization" },
   { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
+  { key: "deals", name: "Deals", route: "/leads/deals-list", icon: "deals", module: "deals" },
 
   { key: "leads.contacts", name: "Contacts List", route: "/leads/contacts", icon: "contact", module: "leads" },
   { key: "leads.tasks", name: "Tasks List", route: "/leads/tasks", icon: "tasks", module: "leads" },
@@ -139,6 +141,13 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     route: "/users/roles",
     icon: "shield",
     module: "Users"
+  },
+  {
+    key: "deals",
+    name: "Deals",
+    route: "/leads/deals-list",
+    icon: "deals",
+    module: "Deals"
   },
   {
     key: "leads.contacts",
@@ -203,6 +212,27 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     name: "Days Config",
     route: "/configuration/days-config",
     icon: "days",
+    module: "Configuration"
+  },
+  {
+    key: "configuration.screenFields",
+    name: "Screen Fields",
+    route: "/configuration/screen-fields",
+    icon: "headers",
+    module: "Configuration"
+  },
+  {
+    key: "configuration.screenPermissions",
+    name: "Permission Fields",
+    route: "/configuration/screen-permissions",
+    icon: "shield",
+    module: "Configuration"
+  },
+  {
+    key: "configuration.analyticsConfig",
+    name: "Analytics Layout Builder",
+    route: "/configuration/analytics-config",
+    icon: "settings",
     module: "Configuration"
   },
   {
@@ -300,6 +330,13 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
     module: "Leads"
   },
   {
+    key: "leads.deals",
+    name: "Deals & Pipelines",
+    route: "/leads/deals-list",
+    icon: "billing",
+    module: "Leads"
+  },
+  {
     key: "leads.tasks",
     name: "Tasks List",
     route: "/leads/tasks",
@@ -366,6 +403,13 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
     module: "Leads"
   },
   {
+    key: "leads.deals",
+    name: "Deals & Pipelines",
+    route: "/leads/deals-list",
+    icon: "billing",
+    module: "Leads"
+  },
+  {
     key: "leads.tasks",
     name: "Tasks List",
     route: "/leads/tasks",
@@ -429,6 +473,13 @@ export const salesMenuConfig: SuperAdminMenuItem[] = [
     name: "Contacts List",
     route: "/leads/contacts",
     icon: "contact",
+    module: "Leads"
+  },
+  {
+    key: "leads.deals",
+    name: "Deals & Pipelines",
+    route: "/leads/deals-list",
+    icon: "billing",
     module: "Leads"
   },
   {

@@ -7,7 +7,13 @@ exports.list = async (req, res, next) => {
     const organizationId = isSuperAdmin
       ? (req.query.organizationId || req.query.organization_id || undefined)
       : (req.user?.organizationId || null);
-    const items = await service.list({ activeOnly: req.query.active === 'true', organizationId });
+    const items = await service.list({
+      activeOnly: req.query.active === 'true',
+      organizationId,
+      industryCode: isSuperAdmin
+        ? (req.query.industryId || req.query.industryCode || req.query.industry_id || req.user?.industryId)
+        : (req.user?.industryId || null),
+    });
     res.json({ items });
   } catch (err) {
     next(err);
@@ -16,7 +22,7 @@ exports.list = async (req, res, next) => {
 
 exports.get = async (req, res, next) => {
   try {
-    const item = await service.get(req.params.id);
+    const item = await service.get(req.params.id, req.user);
     res.json(item);
   } catch (err) {
     next(err);
@@ -52,7 +58,7 @@ exports.remove = async (req, res, next) => {
 
 exports.resolve = async (req, res, next) => {
   try {
-    const { screen_key, industry_code, role_key, screenKey, industryCode, roleKey } = req.body || {};
+    const { screen_key, industry_code, role_key, screenKey, industryCode, roleKey, organizationId, organization_id } = req.body || {};
     const finalScreenKey = screenKey || screen_key;
     const finalIndustryCode = industryCode || industry_code;
     const finalRoleKey = roleKey || role_key;
@@ -63,9 +69,10 @@ exports.resolve = async (req, res, next) => {
 
     const out = await permissionService.resolve({
       screenKey: finalScreenKey,
-      industryCode: (isSuperAdmin || isGuestSignup) ? finalIndustryCode : req.user?.industryId,
-      roleKey: (isSuperAdmin || isAdmin || isGuestSignup) ? (finalRoleKey || 'admin') : undefined,
+      industryCode: finalIndustryCode || req.user?.industryId || req.user?.industry_id || 'temp0001',
+      roleKey: finalRoleKey || req.user?.role || 'admin',
       authedUser: req.user,
+      organizationId: organizationId || organization_id || req.user?.organizationId || req.user?.organization_id,
     });
     res.json(out);
   } catch (err) {

@@ -63,7 +63,10 @@ export default function NotesModal({ open, onClose, contactId, customerName = 'N
       await api.post('resources/resourceNotes', {
         contactId,
         note: noteText,
-        userEmail: user?.email || 'System'
+        notes: noteText,
+        userName: user?.name || user?.email || 'Admin',
+        userEmail: user?.email || '',
+        createdBy: user?.name || user?.email || 'Admin'
       })
 
       setToast({ open: true, msg: 'Saved', sev: 'success' })
@@ -95,6 +98,8 @@ export default function NotesModal({ open, onClose, contactId, customerName = 'N
           ) : (
             <DynamicForm
               screen="notes"
+              industryCode={String(user?.industryId || 'temp0001')}
+              organizationId={String((user as any)?.organizationId || (user as any)?.organization_id || '')}
               initialValues={initialValues}
               onSubmit={handleSubmit}
               onCancel={onClose}
