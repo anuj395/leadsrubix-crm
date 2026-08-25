@@ -10,22 +10,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH and deploy to AWS
+      - name: SSH and deploy to AWS EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '65.0.124.51' }}
           username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
           script: |
             cd /home/ubuntu/Leads-Rubix-CRM
             git fetch origin prod
+            git checkout prod
             git reset --hard origin/prod
             pnpm install --no-frozen-lockfile
-            PORT=3000 pnpm run build
-            mkdir -p build dist/public
-            cp -r artifacts/web/dist/public/* build/ 2>/dev/null || true
-            cp -r artifacts/web/dist/public/* dist/public/ 2>/dev/null || true
-            pm2 restart api-server || pm2 start artifacts/api-server/src/index.js --name "api-server"
+            NODE_OPTIONS="--max-old-space-size=1536" PORT=3000 pnpm run build
+            cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
+            pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
+            pm2 save
             sudo systemctl reload nginx 2>/dev/null || true
-
