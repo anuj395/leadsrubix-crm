@@ -176,9 +176,9 @@ export default function ProjectsListPage() {
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
-      valueGetter: (_v, row) => {
-        const idx = items.findIndex((item) => item.id === row.id || (item as any)._id === (row as any)._id)
-        return idx !== -1 ? idx + 1 : ''
+      renderCell: (params) => {
+        const idx = items.findIndex((item) => (item.id && item.id === params.row.id) || ((item as any)._id && (item as any)._id === (params.row as any)._id))
+        return <Box sx={{ my: 'auto', fontWeight: 500 }}>{idx !== -1 ? idx + 1 : ''}</Box>
       }
     }
 
@@ -189,29 +189,46 @@ export default function ProjectsListPage() {
         field: header.key as keyof Project,
         headerName: header.label,
         flex: 1,
-        minWidth: 120,
-        sortable: header.sortable,
-      }
+        minWidth: 140,
+        sortable: header.sortable ?? true,
+        valueGetter: (_v, row) => {
+          const r = (row as unknown) as Record<string, unknown>
+          const camelKey = header.key.replace(/_([a-z])/g, (_: any, g: string) => g.toUpperCase())
+          const snakeKey = header.key.replace(/[A-Z]/g, (letter: string) => `_${letter.toLowerCase()}`)
+          return r[header.key] ?? r[camelKey] ?? r[snakeKey]
+        },
+        renderCell: (p) => {
+          const v = p.value
+          if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
 
-      if (header.key === 'projectName') {
-        col.flex = 1.2
-        col.minWidth = 180
-        col.renderCell = (p) => <Box sx={{ fontWeight: 600 }}>{p.value}</Box>
-      } else if (header.key === 'status') {
-        col.width = 120
-        col.renderCell = (p) => <StatusBadge value={p.value === 'ACTIVE' ? 'Active' : 'Inactive'} />
-      } else if (header.key === 'createdAt') {
-        col.field = 'created_at' as any
-        col.width = 180
-        col.renderCell = (p) => p.value ? new Date(p.value as string).toLocaleString() : ''
+          if (header.type === 'badge' || header.type === 'status' || header.key === 'status' || header.key === 'projectStatus' || header.key === 'project_status') {
+            return <StatusBadge value={String(v)} />
+          }
+          if (header.type === 'date' || header.key === 'created_at' || header.key === 'createdAt') {
+            try {
+              const d = new Date(v as string)
+              return !isNaN(d.getTime()) ? d.toLocaleString() : String(v)
+            } catch {
+              return String(v)
+            }
+          }
+          if (header.type === 'image') {
+            return <Box component="img" src={String(v)} sx={{ width: 48, height: 32, borderRadius: 1, objectFit: 'cover' }} />
+          }
+          return String(v)
+        }
       }
 
       return col
     }).filter(Boolean) as GridColDef<Project>[]
 
+    const nonStatusCols = baseCols.filter(c => c.field !== 'status' && c.field !== 'projectStatus' && (c as any).field !== 'project_status')
+    const statusCols = baseCols.filter(c => c.field === 'status' || c.field === 'projectStatus' || (c as any).field === 'project_status')
+
     const cols: GridColDef<Project>[] = [
       sNoCol,
-      ...baseCols
+      ...nonStatusCols,
+      ...statusCols
     ]
 
     if (can_edit || can_delete) {
@@ -285,7 +302,7 @@ export default function ProjectsListPage() {
               <LinearProgress />
             </Box>
           )}
-          <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id} onReload={loadData} />
+          <AppDataGrid height="100%" rows={items} columns={columns} getRowId={(r) => r.id || (r as any)._id} onReload={loadData} />
         </Box>
       </AppCard>
 

@@ -57,7 +57,7 @@ export default function SuperAdminApiFormPage() {
         await createApiToken(values)
         setToast({ open: true, msg: 'API Token created successfully', sev: 'success' })
       }
-      setTimeout(() => navigate('/configuration/api'), 1500)
+      setTimeout(() => navigate('/integrations/api'), 1500)
     } catch (e: any) {
       setToast({ open: true, msg: e?.response?.data?.message || 'Failed to save configuration', sev: 'error' })
     } finally {
@@ -74,7 +74,7 @@ export default function SuperAdminApiFormPage() {
           <Button
             variant="text"
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/configuration/api')}
+            onClick={() => navigate('/integrations/api')}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             Back
@@ -87,7 +87,7 @@ export default function SuperAdminApiFormPage() {
             industry_code={industryCode}
             role_key="admin"
             initialValues={editingItem ? (editingItem as any) : { organizationId: defaultOrgId, status: 'ACTIVE' }}
-            onCancel={() => navigate('/configuration/api')}
+            onCancel={() => navigate('/integrations/api')}
             submitLabel={id ? 'Save' : 'Create'}
             onSubmit={handleSubmit}
           />

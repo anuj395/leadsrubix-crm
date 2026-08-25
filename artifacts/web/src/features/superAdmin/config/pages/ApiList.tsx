@@ -87,7 +87,7 @@ export default function ApiListPage() {
   }
 
   useEffect(() => {
-    if (!selectedIndustry || !selectedOrg) return
+    if (!selectedIndustry) return
     void loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndustry, selectedOrg])
@@ -127,8 +127,6 @@ export default function ApiListPage() {
   }, [items, selectedIndustry, organizations])
 
   const columns = useMemo<GridColDef<ApiTokenConfig>[]>(() => {
-    if (!resolvedScreen) return []
-
     const sNoCol: GridColDef<ApiTokenConfig> = {
       field: 'sNo',
       headerName: 'S. No.',
@@ -136,44 +134,50 @@ export default function ApiListPage() {
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
-      valueGetter: (_v, row) => {
-        const idx = filteredItems.findIndex((item) => item.id === row.id)
-        return idx !== -1 ? idx + 1 : ''
+      renderCell: (params) => {
+        const idx = filteredItems.findIndex((item) => item.id === params.row.id || (item as any)._id === (params.row as any)._id)
+        return <Box sx={{ my: 'auto', fontWeight: 500 }}>{idx !== -1 ? idx + 1 : ''}</Box>
       }
     }
 
-    const baseCols: GridColDef<ApiTokenConfig>[] = resolvedScreen.table_headers
-      .filter((h) => h.key !== 'organizationId' && h.key !== 'organizationName')
-      .map((header) => {
+    const headersSource = resolvedScreen?.table_headers || (resolvedScreen as any)?.tableHeaders || []
+
+    const baseCols: GridColDef<ApiTokenConfig>[] = headersSource
+      .filter((h: any) => h.key !== 'organizationId' && h.key !== 'organizationName')
+      .map((header: any) => {
         const col: GridColDef<ApiTokenConfig> = {
           field: header.key as keyof ApiTokenConfig,
           headerName: header.label,
           flex: 1,
           minWidth: 140,
-          sortable: header.sortable,
+          sortable: header.sortable ?? true,
           valueGetter: (_v, row) => {
             const r = (row as unknown) as Record<string, unknown>
-            const camelKey = header.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
-            const snakeKey = header.key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+            const camelKey = header.key.replace(/_([a-z])/g, (_: any, g: string) => g.toUpperCase())
+            const snakeKey = header.key.replace(/[A-Z]/g, (letter: string) => `_${letter.toLowerCase()}`)
             return r[header.key] ?? r[camelKey] ?? r[snakeKey]
           },
           renderCell: (p) => {
             const v = p.value
             if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
-            if (header.key === 'status' || header.key === 'isActive') {
-              return <StatusBadge value={v === true || v === 'ACTIVE' || v === 'Active' ? 'Active' : 'Inactive'} />
+
+            if (header.type === 'badge' || header.type === 'status' || header.key === 'status') {
+              return <StatusBadge value={v === 'ACTIVE' || v === true ? 'Active' : 'Inactive'} />
             }
-            if (header.key === 'created_at' || header.key === 'createdAt') {
+            if (header.type === 'date' || header.key === 'created_at' || header.key === 'createdAt') {
               return new Date(v as string).toLocaleString()
             }
-            if (header.key === 'api_key' || header.key === 'apiKey') {
-              const val = p.row.apiKey || ''
+            if (header.key === 'apiKey' || header.key === 'api_key') {
               return (
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <code style={{ fontSize: '0.85rem' }}>{val}</code>
-                  <IconButton size="small" onClick={() => handleCopy(val)}>
-                    <ContentCopyIcon fontSize="inherit" />
-                  </IconButton>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Box sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                    {String(v).substring(0, 8)}...
+                  </Box>
+                  <Tooltip title="Copy API Key">
+                    <IconButton size="small" onClick={() => handleCopy(String(v))}>
+                      <ContentCopyIcon fontSize="inherit" />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               )
             }
@@ -198,12 +202,12 @@ export default function ApiListPage() {
       renderCell: (p) => (
         <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
           <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => navigate(`/configuration/api/${p.row.id}/edit?industry=${selectedIndustry}&organization=${selectedOrg}`)}>
+            <IconButton size="small" onClick={() => navigate(`/integrations/api/${p.row.id || (p.row as any)._id}/edit?industry=${selectedIndustry}&organization=${selectedOrg}`)}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id || '')}>
+            <IconButton size="small" color="error" onClick={() => handleDelete(p.row.id || (p.row as any)._id)}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -230,7 +234,7 @@ export default function ApiListPage() {
         title="API Integration Credentials"
         subtitle="Manage secure API connection credentials, country codes, and incoming webhook triggers."
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/configuration/api/new?industry=${selectedIndustry}&organization=${selectedOrg}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/integrations/api/new?industry=${selectedIndustry}&organization=${selectedOrg}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Add API
           </Button>
         }

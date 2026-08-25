@@ -225,14 +225,34 @@ router.get('/:key', (req, res, next) => {
     try {
       let orgId = null;
       let resolvedIndustryId = null;
-      if (req.user.role === 'superAdmin') {
-        orgId = req.query.organizationId || req.query.organizationId;
-        if (orgId === 'null' || orgId === '') orgId = null;
+      let targetInd = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code;
 
-        const targetInd = req.query.industryId || req.query.industryId || req.query.industry_code || req.body.industryId || req.body.industryId || req.body.industry_code;
+      if (req.user.role === 'superAdmin') {
+        orgId = req.query.organizationId || null;
+        if (orgId === 'null' || orgId === '' || orgId === 'undefined') orgId = null;
+
+        if (!targetInd && orgId) {
+          const Organization = mongoose.model('Organization');
+          const org = await Organization.findOne({
+            $or: [
+              { _id: mongoose.Types.ObjectId.isValid(orgId) ? orgId : null },
+              { organization_id: orgId },
+              { organizationId: orgId }
+            ]
+          }).lean().exec();
+          if (org) {
+            targetInd = org.industry_id || org.industryId;
+          }
+        }
+
         if (targetInd) {
           const Industry = mongoose.model('Industry');
-          let ind = await Industry.findOne({ code: targetInd }).lean().exec();
+          let ind = await Industry.findOne({
+            $or: [
+              { code: String(targetInd).toLowerCase() },
+              { code: String(targetInd).toUpperCase() }
+            ]
+          }).lean().exec();
           if (ind) {
             resolvedIndustryId = ind._id;
           } else if (mongoose.Types.ObjectId.isValid(targetInd)) {
@@ -242,9 +262,16 @@ router.get('/:key', (req, res, next) => {
         }
       } else {
         orgId = req.user.organizationId || req.user.organization_id;
-        if (req.user.industryId) {
+        targetInd = req.user.industryId || req.user.industry_id;
+        if (targetInd) {
           const Industry = mongoose.model('Industry');
-          const ind = await Industry.findOne({ code: req.user.industryId }).lean().exec();
+          const ind = await Industry.findOne({
+            $or: [
+              { code: String(targetInd).toLowerCase() },
+              { code: String(targetInd).toUpperCase() },
+              { _id: mongoose.Types.ObjectId.isValid(targetInd) ? targetInd : null }
+            ]
+          }).lean().exec();
           if (ind) resolvedIndustryId = ind._id;
         }
       }
@@ -255,7 +282,7 @@ router.get('/:key', (req, res, next) => {
 
       const list = await resourceItemModel.list({
         organizationId: orgId,
-        industryId: resolvedIndustryId,
+        industryId: resolvedIndustryId || targetInd,
         workspaceId,
         resource_key: targetKey,
       });
@@ -298,7 +325,7 @@ router.get('/:key', (req, res, next) => {
     }
   }
 
-  if (key === 'propertyStatus') {
+  if (key === 'propertyStatus' || key === 'projectStatus') {
     try {
       const list = await mongoose.connection.db.collection('property_statuses').find({}).toArray();
       if (list && list.length > 0) {
@@ -312,6 +339,15 @@ router.get('/:key', (req, res, next) => {
     } catch (err) {
       console.error('Failed to load property status options from property_statuses collection', err);
     }
+    return res.json({
+      items: [
+        { value: 'Launched', label: 'Launched' },
+        { value: 'Pre Launch', label: 'Pre Launch' },
+        { value: 'Under Construction', label: 'Under Construction' },
+        { value: 'Ready to Move', label: 'Ready to Move' },
+        { value: 'Intermediate Occupation', label: 'Intermediate Occupation' },
+      ]
+    });
   }
 
   if (key === 'teams') {

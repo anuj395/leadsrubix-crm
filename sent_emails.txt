@@ -1223,3 +1223,12 @@ Organization: Royal Palms Realty
 Username / Email: rohan.admin@royalpalms.com
 Temp Password: i8F7LrrQ
 ========================================
+
+========================================
+Timestamp: 2026-08-25T08:15:57.216Z
+To: care@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Health
+Username / Email: care@gmail.com
+Temp Password: 46d0Jq5O
+========================================

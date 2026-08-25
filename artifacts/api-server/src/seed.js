@@ -719,11 +719,11 @@ const SCREEN_DEFAULTS = [
       { field_key: 'projectName', label: 'Project Name', type: 'text', is_required: true, order: 3 },
       { field_key: 'propertyType', label: 'Property Type', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourcePropertyTypes', is_required: true, order: 4 },
       { field_key: 'propertyStage', label: 'Property Stage', type: 'select', dropdown_source: 'api', dropdown_api: 'options/resourcePropertyStages', is_required: true, order: 5 },
-      { field_key: 'projectStatus', label: 'Property Status', type: 'select', dropdown_source: 'api', dropdown_api: 'options/propertyStatus', options: [], is_required: true, order: 6 },
-      { field_key: 'address', label: 'Address', type: 'text', is_required: false, order: 7 },
-      { field_key: 'reraLink', label: 'Rera Link', type: 'text', is_required: false, order: 8 },
-      { field_key: 'walkthroughLink', label: 'Walkthrough Link', type: 'text', is_required: false, order: 9 },
-      { field_key: 'createdAt', label: 'Created At', type: 'date', is_form_visible: false, is_required: false, order: 10 },
+      { field_key: 'address', label: 'Address', type: 'text', is_required: false, order: 6 },
+      { field_key: 'reraLink', label: 'Rera Link', type: 'text', is_required: false, order: 7 },
+      { field_key: 'walkthroughLink', label: 'Walkthrough Link', type: 'text', is_required: false, order: 8 },
+      { field_key: 'createdAt', label: 'Created At', type: 'date', is_form_visible: false, is_required: false, order: 9 },
+      { field_key: 'projectStatus', label: 'Property Status', type: 'select', dropdown_source: 'api', dropdown_api: 'options/propertyStatus', options: [], is_required: true, order: 10 },
     ]
   },
   {
@@ -909,8 +909,10 @@ async function seedScreens() {
           const fKey = field.field_key;
           let isEnabled = true;
 
-          // If the field belongs to the custom industry set, strictly enforce industry matching
-          if (ALL_CUSTOM_FIELDS.has(fKey)) {
+          // If the field belongs to the custom industry set, strictly enforce industry matching on contacts/leads screen
+          const scrKey = screen.key || '';
+          const isLeadScreen = scrKey === 'contacts' || scrKey === 'leads.contact' || scrKey === 'leads';
+          if (isLeadScreen && ALL_CUSTOM_FIELDS.has(fKey)) {
             if (indCode === 'temp0001' && !RE_FIELDS.has(fKey)) isEnabled = false;
             else if (indCode === 'temp0002' && !ECOM_FIELDS.has(fKey)) isEnabled = false;
             else if (indCode === 'temp0003' && !HEALTH_FIELDS.has(fKey)) isEnabled = false;
