@@ -32,7 +32,7 @@ jobs:
       - name: Pull Latest Code on EC2 & Restart API Server
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '65.0.124.51' }}
+          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '3.110.156.220' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
@@ -48,7 +48,7 @@ jobs:
       - name: Copy Built Frontend to EC2
         uses: appleboy/scp-action@master
         with:
-          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '65.0.124.51' }}
+          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '3.110.156.220' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
@@ -59,7 +59,7 @@ jobs:
       - name: Reload Nginx on EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '65.0.124.51' }}
+          host: ${{ secrets.EC2_HOST || secrets.EC2_H0ST || '3.110.156.220' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
