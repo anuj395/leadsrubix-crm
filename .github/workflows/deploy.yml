@@ -41,7 +41,6 @@ jobs:
             git fetch origin prod
             git checkout prod
             git reset --hard origin/prod
-            pnpm install --no-frozen-lockfile
             cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
             pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
             pm2 save
