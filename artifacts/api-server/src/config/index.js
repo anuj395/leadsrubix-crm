@@ -1,7 +1,19 @@
-// src/config/index.js
-// configuration loader; reads from environment variables or defaults
+const path = require('path');
+const fs = require('fs');
 const cliPort = process.env.PORT;
-require('dotenv').config();
+const currentEnv = process.env.NODE_ENV || 'development';
+const envFiles = [
+  path.resolve(__dirname, `../../.env.${currentEnv}`),
+  path.resolve(__dirname, `../../../.env.${currentEnv}`),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../../../.env'),
+];
+for (const f of envFiles) {
+  if (fs.existsSync(f)) {
+    require('dotenv').config({ path: f });
+    break;
+  }
+}
 
 module.exports = {
   // use a port that doesn't conflict with a frontend dev server

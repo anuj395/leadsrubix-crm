@@ -49,14 +49,31 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   const isProjects = resource_key === 'resource_projects' || resource_key === 'resourceProjects';
 
   let resolvedIndustryObjectId = null;
+  let resolvedIndustryCode = null;
   if (industryId) {
     if (mongoose.Types.ObjectId.isValid(industryId)) {
       resolvedIndustryObjectId = industryId;
+      try {
+        const Industry = mongoose.model('Industry');
+        const ind = await Industry.findById(industryId).exec();
+        if (ind) resolvedIndustryCode = ind.code;
+      } catch (e) {}
     } else {
-      const Industry = mongoose.model('Industry');
-      const ind = await Industry.findOne({ code: String(industryId).toLowerCase() }).exec();
-      if (ind) resolvedIndustryObjectId = ind._id;
+      resolvedIndustryCode = String(industryId);
+      try {
+        const Industry = mongoose.model('Industry');
+        const ind = await Industry.findOne({ code: String(industryId).toLowerCase() }).exec();
+        if (ind) resolvedIndustryObjectId = ind._id;
+      } catch (e) {}
     }
+  }
+
+  const indMatchConditions = [];
+  if (resolvedIndustryObjectId) indMatchConditions.push(resolvedIndustryObjectId);
+  if (resolvedIndustryCode) {
+    indMatchConditions.push(resolvedIndustryCode);
+    indMatchConditions.push(resolvedIndustryCode.toUpperCase());
+    indMatchConditions.push(resolvedIndustryCode.toLowerCase());
   }
 
   if (isProjects) {
@@ -72,8 +89,8 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
 
     if (!targetOrgId || all) {
       const query = { organization_id: { $ne: null } };
-      if (resolvedIndustryObjectId) {
-        query.industry_id = resolvedIndustryObjectId;
+      if (indMatchConditions.length > 0) {
+        query.industry_id = { $in: indMatchConditions };
       }
       const docs = await OrganizationResources.find(query).exec();
       const allProjects = [];
@@ -100,52 +117,70 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
       });
     }
 
-    // Specific organization requested - STRICT tenant isolation (NO global dummy fallback)
+    // Specific organization requested
     let query = { organization_id: targetOrgId };
-    let doc = await OrganizationResources.findOne(query).exec();
-    if (!doc) return [];
-    let items = (doc.projects || []).map(p => ({
-      organizationId: targetOrgId,
-      organizationName: orgMap[targetOrgId] || '',
-      ...p,
-    }));
+    let docs = await OrganizationResources.find(query).exec();
+    let items = [];
+    docs.forEach(doc => {
+      if (Array.isArray(doc.projects)) {
+        doc.projects.forEach(p => {
+          items.push({
+            organizationId: targetOrgId,
+            organizationName: orgMap[targetOrgId] || '',
+            ...p,
+          });
+        });
+      }
+    });
 
     if (workspaceId) {
       items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
     }
 
-    return [...items].sort((a, b) => {
+    return items.sort((a, b) => {
       const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
       const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
       return db - da;
     });
   }
 
-  // Generic static options (stages, lead sources, types, etc.) with fallback to industry template
+  // Generic static options (budgets, locations, lead sources, stages, types, carousel, etc.)
   const targetOrgId = (organizationId === 'null' || !organizationId) ? null : organizationId;
   let query = { organization_id: targetOrgId };
-  if (targetOrgId === null && resolvedIndustryObjectId) {
-    query.industry_id = resolvedIndustryObjectId;
+  if (targetOrgId === null && indMatchConditions.length > 0) {
+    query.industry_id = { $in: indMatchConditions };
   }
-  let doc = await OrganizationResources.findOne(query).exec();
-  // Fallback to global defaults if no custom organization resources document exists yet
-  if (!doc && targetOrgId !== null && targetOrgId !== '') {
+  let docs = await OrganizationResources.find(query).exec();
+  if (docs.length === 0 && targetOrgId !== null && targetOrgId !== '') {
     let fallbackQuery = { organization_id: null };
-    if (resolvedIndustryObjectId) {
-      fallbackQuery.industry_id = resolvedIndustryObjectId;
+    if (indMatchConditions.length > 0) {
+      fallbackQuery.industry_id = { $in: indMatchConditions };
     }
-    doc = await OrganizationResources.findOne(fallbackQuery).exec();
+    docs = await OrganizationResources.find(fallbackQuery).exec();
   }
-  if (!doc) return [];
+
   const fieldName = getFieldName(resource_key);
-  let items = doc[fieldName] || [];
+  let items = [];
+  docs.forEach(d => {
+    if (Array.isArray(d[fieldName])) {
+      items.push(...d[fieldName]);
+    }
+  });
 
   if (workspaceId) {
     items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
   }
 
-  // Sort by createdAt descending (matching old behavior)
-  return [...items].sort((a, b) => {
+  // Deduplicate items by id
+  const seen = new Set();
+  const uniqueItems = items.filter(item => {
+    const itemId = item.id || item._id || item.name || item.location || item.budget;
+    if (!itemId || seen.has(String(itemId))) return false;
+    seen.add(String(itemId));
+    return true;
+  });
+
+  return uniqueItems.sort((a, b) => {
     const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
     const db = b.createdAt ? new Date(b.createdAt) : new Date(0);
     return db - da;
@@ -173,49 +208,28 @@ exports.findById = async (id) => {
 };
 
 exports.create = async ({ organizationId, industryId, resource_key, data }) => {
-  let query = { organization_id: organizationId };
-  if (organizationId === null && industryId) {
-    if (mongoose.Types.ObjectId.isValid(industryId)) {
-      query.industry_id = industryId;
-    } else {
+  let resolvedIndustryId = industryId;
+  if (industryId) {
+    if (!mongoose.Types.ObjectId.isValid(industryId.toString())) {
       const Industry = mongoose.model('Industry');
-      const ind = await Industry.findOne({ code: industryId }).exec();
-      if (ind) query.industry_id = ind._id;
+      const ind = await Industry.findOne({ code: String(industryId).toLowerCase() }).exec();
+      if (ind) resolvedIndustryId = ind._id;
     }
+  }
+
+  const cleanOrgId = (organizationId === 'null' || !organizationId) ? null : organizationId;
+  let query = { organization_id: cleanOrgId };
+  if (cleanOrgId === null && resolvedIndustryId) {
+    query.industry_id = resolvedIndustryId;
   }
   let doc = await OrganizationResources.findOne(query).exec();
   if (!doc) {
-    doc = new OrganizationResources({ organization_id: organizationId });
-  }
-
-  let resolvedIndustryId = industryId;
-  if (!doc.industry_id || !mongoose.Types.ObjectId.isValid(doc.industry_id.toString()) || doc.industry_id.toString().startsWith('temp')) {
-    if (organizationId && organizationId !== 'null') {
-      const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ organization_id: organizationId }).exec();
-      if (org) {
-        const orgIndustry = org.industry_id || org.industryId;
-        if (orgIndustry) {
-          const Industry = mongoose.model('Industry');
-          const ind = await Industry.findOne({ code: orgIndustry }).exec();
-          if (ind) {
-            resolvedIndustryId = ind._id;
-          }
-        }
-      }
-    }
-
-    if (resolvedIndustryId) {
-      if (!mongoose.Types.ObjectId.isValid(resolvedIndustryId.toString())) {
-        const Industry = mongoose.model('Industry');
-        const ind = await Industry.findOne({ code: resolvedIndustryId }).exec();
-        if (ind) resolvedIndustryId = ind._id;
-      }
-    }
-
-    if (resolvedIndustryId && mongoose.Types.ObjectId.isValid(resolvedIndustryId.toString())) {
-      doc.industry_id = resolvedIndustryId;
-    }
+    doc = new OrganizationResources({
+      organization_id: cleanOrgId,
+      industry_id: resolvedIndustryId,
+    });
+  } else if (!doc.industry_id && resolvedIndustryId) {
+    doc.industry_id = resolvedIndustryId;
   }
 
   const itemId = new mongoose.Types.ObjectId().toString();

@@ -1,6 +1,22 @@
-// src/index.js
-// Entry point for the application. Loads config, creates server. Enforce secure tenant, industry, teams and branches option matching.
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+// Environment loader supporting .env.development, .env.production, and .env
+const path = require('path');
+const fs = require('fs');
+const currentEnv = process.env.NODE_ENV || 'development';
+const envFiles = [
+  path.resolve(__dirname, `../.env.${currentEnv}`),
+  path.resolve(__dirname, `../../.env.${currentEnv}`),
+  path.resolve(__dirname, `../.env`),
+  path.resolve(__dirname, `../../.env`),
+];
+let loadedEnvPath = null;
+for (const f of envFiles) {
+  if (fs.existsSync(f)) {
+    require('dotenv').config({ path: f });
+    loadedEnvPath = f;
+    break;
+  }
+}
+console.log(`[env] 🚀 Active NODE_ENV="${process.env.NODE_ENV || 'development'}" | Loaded: ${loadedEnvPath || 'System Environment'}`);
 const pgMongoose = require('./db/pgMongoose');
 require.cache[require.resolve('mongoose')] = {
   id: require.resolve('mongoose'),
