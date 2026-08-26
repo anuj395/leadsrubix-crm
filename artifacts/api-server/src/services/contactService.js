@@ -740,22 +740,40 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
   const targetOwnerUid = owner.uid || owner.id;
   const Contact = mongoose.model('Contact');
   const Task = mongoose.model('Task');
+  const Notification = mongoose.model('Notification');
+  const LeadReassignmentHistory = mongoose.model('LeadReassignmentHistory');
   const now = new Date();
 
   const leads = await Contact.find({ _id: { $in: ids } }).exec();
 
   for (const lead of leads) {
+    const oldOwner = lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || lead.assignedTo || '';
+    const leadCustomerName = lead.customer_name || lead.customerName || lead.name || 'Unnamed Lead';
+    const leadContactNo = lead.contact_no || lead.contact_number || lead.contactNumber || lead.phone || '';
+    const leadSource = lead.source || lead.campaign || '';
+    const orgId = lead.organization_id || lead.organizationId;
+
     const updatePayload = {
       uid: targetOwnerUid,
+      contact_owner_id: targetOwnerUid,
+      contactOwnerId: targetOwnerUid,
       contactOwnerEmail: owner.email,
+      contact_owner_email: owner.email,
+      assignedTo: owner.email,
+      assigned_to: owner.email,
+      last_rotation_at: now,
+      lastRotationAt: now,
       transferReason: reason,
+      transfer_reason: reason,
       transferStatus: true,
+      transfer_status: true,
       leadType: leadType || lead.leadType || 'Leads',
+      lead_type: leadType || lead.leadType || 'Leads',
       modifiedAt: now,
       stageChangeAt: now,
       leadAssignTime: now,
       previousOwner1: lead.previousOwner2 || '',
-      previousOwner2: lead.contactOwnerEmail || '',
+      previousOwner2: oldOwner,
       transferBy1: lead.transferBy2 || '',
       transferBy2: authedUser?.email || '',
       previousStage1: lead.previousStage2 || '',
@@ -773,6 +791,7 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
 
       if (!options.contactDetails) {
         updatePayload.projectName = '';
+        updatePayload.project_name = '';
         updatePayload.propertyStage = '';
         updatePayload.propertyType = '';
         updatePayload.budget = '';
@@ -785,30 +804,87 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
     // Direct update on existing lead
     await Contact.findByIdAndUpdate(lead._id, { $set: updatePayload });
 
+    // Write Audit Reassignment History Log
+    try {
+      await LeadReassignmentHistory.create({
+        organization_id: orgId,
+        organizationId: orgId,
+        lead_id: String(lead._id),
+        leadId: String(lead._id),
+        customer_name: leadCustomerName,
+        customerName: leadCustomerName,
+        contact_no: leadContactNo,
+        contactNo: leadContactNo,
+        source: leadSource,
+        from_user: oldOwner || 'Unassigned',
+        fromUser: oldOwner || 'Unassigned',
+        to_user: owner.email,
+        toUser: owner.email,
+        reassigned_by: authedUser?.name || authedUser?.email || 'Manual Transfer',
+        reassignedBy: authedUser?.name || authedUser?.email || 'Manual Transfer',
+        reason: reason || 'Manual Lead Transfer',
+        rotation_time: 0,
+        rotationTime: 0,
+        created_at: now,
+        createdAt: now
+      });
+    } catch (hErr) {
+      console.error('[ContactService] Error writing manual transfer history:', hErr.message);
+    }
+
+    // WhatsApp Transfer Notification to New Owner
     try {
       const { sendNotification } = require('./whatsappService');
       sendNotification({
-        organizationId: lead.organization_id || lead.organizationId,
-        contact: { ...lead.toObject(), ...updatePayload },
+        organizationId: orgId,
+        contact: {
+          ...lead.toObject(),
+          ...updatePayload,
+          customer_name: leadCustomerName,
+          customerName: leadCustomerName,
+          contact_no: leadContactNo,
+          contactNumber: leadContactNo
+        },
         eventType: 'transfer'
       }).catch(err => console.error('[WhatsApp] Transfer notification dispatch error:', err));
     } catch (e) {
       console.error('[WhatsApp] Failed to initiate transfer notification:', e);
     }
 
+    // In-App Notification for New Owner
     try {
       const { createNotification } = require('./notificationService');
       await createNotification({
         userId: targetOwnerUid,
-        organizationId: lead.organization_id || lead.organizationId,
+        organizationId: orgId,
         workspaceId: lead.workspace_id || lead.workspaceId || null,
         title: 'Lead Transferred to You',
-        message: `Lead "${lead.name || 'Unnamed'}" has been transferred to you by ${authedUser?.name || authedUser?.email || 'System'}.`,
+        message: `Lead "${leadCustomerName}" has been transferred to you by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
         type: 'LEAD_TRANSFERRED',
         relatedId: lead._id
       });
     } catch (err) {
       console.error('[Notification] Failed to create in-app transfer notification:', err);
+    }
+
+    // In-App Notification for Previous Owner (Old Agent)
+    if (oldOwner && oldOwner !== owner.email && oldOwner !== 'Unassigned') {
+      try {
+        await Notification.create({
+          organization_id: orgId,
+          organizationId: orgId,
+          recipient_email: oldOwner,
+          recipientEmail: oldOwner,
+          title: 'Lead Reallocated',
+          message: `Lead "${leadCustomerName}" was transferred to ${owner.email} by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
+          type: 'LEAD_REASSIGN',
+          read: false,
+          created_at: now,
+          createdAt: now
+        });
+      } catch (nOldErr) {
+        // ignore
+      }
     }
 
     // Update existing pending tasks for this lead to new owner if options.task is true
@@ -836,44 +912,125 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     const err = new Error('No contact IDs specified'); err.status = 400; throw err;
   }
   const Contact = mongoose.model('Contact');
-  
+  const Notification = mongoose.model('Notification');
+  const LeadReassignmentHistory = mongoose.model('LeadReassignmentHistory');
+  const now = new Date();
+
   const leads = await Contact.find({ _id: { $in: ids } }).exec();
-  
+
   const result = await Contact.updateMany(
     { _id: { $in: ids } },
-    { $set: { contactOwnerEmail, uid: uid || null, modifiedAt: new Date() } }
+    {
+      $set: {
+        contactOwnerEmail,
+        contact_owner_email: contactOwnerEmail,
+        assignedTo: contactOwnerEmail,
+        assigned_to: contactOwnerEmail,
+        uid: uid || null,
+        contactOwnerId: uid || null,
+        contact_owner_id: uid || null,
+        last_rotation_at: now,
+        lastRotationAt: now,
+        modifiedAt: now
+      }
+    }
   );
 
-  try {
-    const { sendNotification } = require('./whatsappService');
-    for (const lead of leads) {
+  for (const lead of leads) {
+    const oldOwner = lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || lead.assignedTo || '';
+    const leadCustomerName = lead.customer_name || lead.customerName || lead.name || 'Unnamed Lead';
+    const leadContactNo = lead.contact_no || lead.contact_number || lead.contactNumber || lead.phone || '';
+    const leadSource = lead.source || lead.campaign || '';
+    const orgId = lead.organization_id || lead.organizationId;
+
+    // Write Audit History Log
+    try {
+      await LeadReassignmentHistory.create({
+        organization_id: orgId,
+        organizationId: orgId,
+        lead_id: String(lead._id),
+        leadId: String(lead._id),
+        customer_name: leadCustomerName,
+        customerName: leadCustomerName,
+        contact_no: leadContactNo,
+        contactNo: leadContactNo,
+        source: leadSource,
+        from_user: oldOwner || 'Unassigned',
+        fromUser: oldOwner || 'Unassigned',
+        to_user: contactOwnerEmail,
+        toUser: contactOwnerEmail,
+        reassigned_by: authedUser?.name || authedUser?.email || 'Bulk Reassignment',
+        reassignedBy: authedUser?.name || authedUser?.email || 'Bulk Reassignment',
+        reason: 'Bulk Reassignment',
+        rotation_time: 0,
+        rotationTime: 0,
+        created_at: now,
+        createdAt: now
+      });
+    } catch (hErr) {
+      console.error('[ContactService] Error writing bulk reassign history:', hErr.message);
+    }
+
+    // WhatsApp Transfer Notification
+    try {
+      const { sendNotification } = require('./whatsappService');
       sendNotification({
-        organizationId: lead.organization_id || lead.organizationId,
-        contact: { ...lead.toObject(), contactOwnerEmail, uid: uid || null },
+        organizationId: orgId,
+        contact: {
+          ...lead.toObject(),
+          contactOwnerEmail,
+          contact_owner_email: contactOwnerEmail,
+          assignedTo: contactOwnerEmail,
+          assigned_to: contactOwnerEmail,
+          uid: uid || null,
+          customer_name: leadCustomerName,
+          customerName: leadCustomerName,
+          contact_no: leadContactNo,
+          contactNumber: leadContactNo
+        },
         eventType: 'transfer'
       }).catch(err => console.error('[WhatsApp] Bulk transfer notification dispatch error:', err));
+    } catch (e) {
+      console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
     }
-  } catch (e) {
-    console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
-  }
 
-  try {
-    const { createNotification } = require('./notificationService');
-    for (const lead of leads) {
-      if (uid) {
+    // In-App Notification for New Owner
+    if (uid) {
+      try {
+        const { createNotification } = require('./notificationService');
         await createNotification({
           userId: uid,
-          organizationId: lead.organization_id || lead.organizationId,
+          organizationId: orgId,
           workspaceId: lead.workspace_id || lead.workspaceId || null,
           title: 'Lead Transferred to You',
-          message: `Lead "${lead.name || 'Unnamed'}" has been reassigned to you by ${authedUser?.name || authedUser?.email || 'System'}.`,
+          message: `Lead "${leadCustomerName}" has been reassigned to you by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
           type: 'LEAD_TRANSFERRED',
           relatedId: lead._id
         });
+      } catch (err) {
+        console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
       }
     }
-  } catch (err) {
-    console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
+
+    // In-App Notification for Previous Owner
+    if (oldOwner && oldOwner !== contactOwnerEmail && oldOwner !== 'Unassigned') {
+      try {
+        await Notification.create({
+          organization_id: orgId,
+          organizationId: orgId,
+          recipient_email: oldOwner,
+          recipientEmail: oldOwner,
+          title: 'Lead Reallocated',
+          message: `Lead "${leadCustomerName}" was reassigned to ${contactOwnerEmail} by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
+          type: 'LEAD_REASSIGN',
+          read: false,
+          created_at: now,
+          createdAt: now
+        });
+      } catch (nOldErr) {
+        // ignore
+      }
+    }
   }
 
   return { modifiedCount: result.modifiedCount };

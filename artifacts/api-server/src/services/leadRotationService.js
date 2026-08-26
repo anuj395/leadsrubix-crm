@@ -49,6 +49,7 @@ async function isWithinWorkingHours(organizationId, now = new Date()) {
   try {
     const WorkingDay = mongoose.model('WorkingDay');
     const Holiday = mongoose.model('Holiday');
+    const Organization = mongoose.model('Organization');
 
     const orgFilter = {
       $or: [
@@ -57,7 +58,9 @@ async function isWithinWorkingHours(organizationId, now = new Date()) {
       ]
     };
 
-    const localTime = getLocalTimeComponents(now);
+    const org = await Organization.findOne(orgFilter).lean().exec();
+    const orgTimeZone = org?.timezone || org?.time_zone || org?.timeZone || 'Asia/Kolkata';
+    const localTime = getLocalTimeComponents(now, orgTimeZone);
 
     // 1. Check if today is a scheduled Holiday in the organization
     const holidayDoc = await Holiday.findOne(orgFilter).lean().exec();
@@ -284,6 +287,31 @@ async function processUnattendedLeadsRotation(organizationId = null) {
           });
         } catch (hErr) {
           console.error('[LeadRotation] Error writing reassignment history:', hErr);
+        }
+
+        // Dispatch WhatsApp Notification for Lead Rotation Transfer to New Owner
+        try {
+          const { sendNotification } = require('./whatsappService');
+          sendNotification({
+            organizationId: orgId,
+            contact: {
+              ...lead,
+              customer_name: leadCustomerName,
+              customerName: leadCustomerName,
+              contact_no: leadContactNo,
+              contactNumber: leadContactNo,
+              contact_owner_email: nextCandidate,
+              contactOwnerEmail: nextCandidate,
+              assigned_to: nextCandidate,
+              assignedTo: nextCandidate,
+              uid: candidateUid,
+              contact_owner_id: candidateUid,
+              contactOwnerId: candidateUid
+            },
+            eventType: 'transfer'
+          }).catch(wErr => console.error('[LeadRotation] WhatsApp rotation notification error:', wErr.message));
+        } catch (wErr2) {
+          // ignore
         }
 
         // Create In-App Notification for New Owner
