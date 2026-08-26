@@ -34,6 +34,7 @@ import EventIcon from '@mui/icons-material/Event'
 import { useAuth } from '@/hooks/useAuth'
 import axiosInstance from '@/services/axiosInstance'
 import { getIndustries, type Industry } from '@/services/sidebarAdminService'
+import { ThreeDDonutChart, ThreeDCylinderBarChart, ThreeDRoseChart, ThreeDAreaTrendChart } from '@/components/charts'
 
 // Types matching backend payload
 interface FeedbackRow {
@@ -627,11 +628,16 @@ export default function AnalyticsPage() {
       for (const key of path) {
         dataList = dataList?.[key]
       }
-      if (!Array.isArray(dataList)) dataList = []
+      const normalizedDataList = dataList.map((item: any) => ({
+        name: item.name || item.associate || item.reason || item.title || 'Other',
+        value: item.value !== undefined ? Number(item.value) : (item.total !== undefined ? Number(item.total) : 0),
+        color: item.color
+      }))
 
       if (w.type === 'TABLE') {
+        const isWideTable = w.id === 'call_duration_table' || w.id === 'call_logs' || w.title?.toLowerCase().includes('call duration')
         return (
-          <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+          <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 320, gridColumn: isWideTable ? { xs: 'span 1', lg: 'span 2' } : 'auto' }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {w.title}
@@ -643,8 +649,8 @@ export default function AnalyticsPage() {
               </Tooltip>
             </Stack>
 
-            <Box sx={{ overflowX: 'auto', width: '100%' }}>
-              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 500 }}>
+            <Box sx={{ overflowX: 'auto', width: '100%', flexGrow: 1 }}>
+              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 400 }}>
                 <thead>
                   <Box component="tr" sx={{ 
                     borderBottom: '1.5px solid', 
@@ -696,7 +702,7 @@ export default function AnalyticsPage() {
                     ))
                   ) : (
                     <Box component="tr">
-                      <td colSpan={(w.columns?.length || 0) + 1} style={{ textAlign: 'center', padding: '20px', color: theme.palette.text.secondary }}>
+                      <td colSpan={(w.columns?.length || 0) + 1} style={{ textAlign: 'center', padding: '36px 0', color: theme.palette.text.secondary }}>
                         No data available
                       </td>
                     </Box>
@@ -707,144 +713,53 @@ export default function AnalyticsPage() {
           </Card>
         )
       } else if (w.type === 'CHART') {
-        if (w.chart_type === 'donut') {
-          const totalVal = dataList.reduce((sum: number, item: any) => sum + item.value, 0)
-          let accumulatedPercentage = 0
-          const colors = ['#10B981', '#3B82F6', '#06B6D4', '#8B5CF6', '#F97316']
-          const slices = dataList.map((item: any, idx: number) => {
-            const percentage = totalVal > 0 ? (item.value / totalVal) * 100 : 0
-            const strokeDasharray = `${(percentage / 100) * 376.99} 376.99`
-            const strokeDashoffset = `${- (accumulatedPercentage / 100) * 376.99}`
-            accumulatedPercentage += percentage
-            return {
-              name: item.name,
-              value: item.value,
-              percentage: Math.round(percentage),
-              strokeDasharray,
-              strokeDashoffset,
-              color: colors[idx] || '#CCCCCC'
-            }
-          })
+        const isConversion = w.id?.includes('conversion') || w.title?.toLowerCase().includes('conversion') || w.title?.toLowerCase().includes('lead status')
+        const isCallback = w.id?.includes('callback') || w.title?.toLowerCase().includes('callback')
+        const isCompletedTask = w.id?.includes('completed') || w.title?.toLowerCase().includes('completed')
+        const isPendingTask = w.id?.includes('pending') || w.title?.toLowerCase().includes('pending')
 
+        if (w.chart_type === 'rose' || isCompletedTask) {
           return (
-            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3, color: 'text.primary' }}>
+            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 320 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
                 {w.title}
               </Typography>
-
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'center', gap: 4, flexGrow: 1 }}>
-                {totalVal > 0 ? (
-                  <Box sx={{ position: 'relative', width: 160, height: 160 }}>
-                    <svg width="100%" height="100%" viewBox="0 0 160 160" style={{ transform: 'rotate(-90deg)' }}>
-                      <circle cx="80" cy="80" r="60" fill="transparent" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'} strokeWidth="16" />
-                      {slices.map((slice: any, idx: number) => (
-                        <circle
-                          key={idx}
-                          cx="80"
-                          cy="80"
-                          r="60"
-                          fill="transparent"
-                          stroke={slice.color}
-                          strokeWidth="16"
-                          strokeDasharray={slice.strokeDasharray}
-                          strokeDashoffset={slice.strokeDashoffset}
-                          strokeLinecap="round"
-                          style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-                          onMouseEnter={() => setHoveredDonutSlice(slice)}
-                          onMouseLeave={() => setHoveredDonutSlice(null)}
-                        />
-                      ))}
-                    </svg>
-                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                      <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1 }}>
-                        {hoveredDonutSlice ? hoveredDonutSlice.value : totalVal}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mt: 0.5, display: 'block' }}>
-                        {hoveredDonutSlice ? hoveredDonutSlice.name : 'Total'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ) : (
-                  <Box sx={{ position: 'relative', width: 160, height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-                    No chart data
-                  </Box>
-                )}
-
-                <Stack spacing={1.5} sx={{ minWidth: 140 }}>
-                  {slices.map((slice: any, idx: number) => (
-                    <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: slice.color }} />
-                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                          {slice.name}
-                        </Typography>
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                        {slice.percentage}%
-                      </Typography>
-                    </Stack>
-                  ))}
-                </Stack>
-              </Box>
+              <ThreeDRoseChart data={normalizedDataList} title={w.title} height={260} />
+            </Card>
+          )
+        } else if (w.chart_type === 'donut' || isConversion) {
+          return (
+            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 320 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
+                {w.title}
+              </Typography>
+              <ThreeDDonutChart
+                data={normalizedDataList}
+                title={w.title}
+                height={260}
+                colorPalette={isPendingTask ? 'pending' : 'conversion'}
+                centerLabel={isConversion ? 'LEADS' : 'TOTAL'}
+              />
             </Card>
           )
         } else if (w.chart_type === 'trend') {
-          const trends = dataList
-          const width = 800
-          const height = 180
-          const paddingLeft = 40
-          const paddingRight = 40
-          const paddingTop = 20
-          const paddingBottom = 20
-
-          const chartWidth = width - paddingLeft - paddingRight
-          const chartHeight = height - paddingTop - paddingBottom
-
-          const stepX = trends.length > 1 ? chartWidth / (trends.length - 1) : chartWidth
-          const maxVal = Math.max(...trends.map((t: any) => t.calls || t.value || 0), 2)
-
-          const points = trends.map((t: any, idx: number) => {
-            const x = paddingLeft + idx * stepX
-            const val = t.calls || t.value || 0
-            const y = paddingTop + chartHeight - (val / maxVal) * chartHeight
-            return { x, y, date: t.date || t.name, calls: val }
-          })
-
-          const linePath = points.map((pt: any, idx: number) => 
-            `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`
-          ).join(' ')
-
           return (
-            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', gridColumn: 'span 2' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', gridColumn: { xs: 'span 1', md: 'span 2' }, minHeight: 300 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
                 {w.title}
               </Typography>
-              <Box sx={{ position: 'relative', width: '100%', height: 180, mt: 3 }}>
-                {points.length > 0 ? (
-                  <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-                    <path d={linePath} fill="none" stroke="#3B82F6" strokeWidth="3" />
-                    {points.map((pt: any, idx: number) => (
-                      <g key={idx}>
-                        <circle
-                          cx={pt.x}
-                          cy={pt.y}
-                          r="5"
-                          fill="#ffffff"
-                          stroke="#3B82F6"
-                          strokeWidth="3"
-                          style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                          onMouseEnter={() => setHoveredTrend({ date: pt.date, calls: pt.calls, x: pt.x, y: pt.y - 10 })}
-                          onMouseLeave={() => setHoveredTrend(null)}
-                        />
-                      </g>
-                    ))}
-                  </svg>
-                ) : (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'text.secondary' }}>
-                    No call data found for this range
-                  </Box>
-                )}
-              </Box>
+              <ThreeDAreaTrendChart data={normalizedDataList} title={w.title} height={240} />
+            </Card>
+          )
+        } else {
+          // 3D Isometric Cylinder Bar Chart with tailored theme
+          const barColorTheme = isCallback ? 'sunset' : (isPendingTask ? 'amber' : 'multi')
+          return (
+            <Card key={w.id} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 320 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
+                {w.title}
+              </Typography>
+              <ThreeDCylinderBarChart data={normalizedDataList} title={w.title} height={240} colorTheme={barColorTheme} />
             </Card>
           )
         }
@@ -949,7 +864,7 @@ export default function AnalyticsPage() {
                 )}
 
                 {secLayoutWidgets.length > 0 && (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.5, mb: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5, mb: 2 }}>
                     {secLayoutWidgets.map((w: any) => renderWidget(w))}
                   </Box>
                 )}
@@ -1048,7 +963,7 @@ export default function AnalyticsPage() {
         )}
 
         {flatLayoutWidgets.length > 0 && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
             {flatLayoutWidgets.map((w: any) => renderWidget(w))}
           </Box>
         )}
@@ -1617,113 +1532,12 @@ export default function AnalyticsPage() {
                   </Box>
                 </Card>
 
-                {/* SVG Bar Chart: Lead Status Chart */}
+                {/* 3D Cylinder Bar Chart: Lead Status Chart */}
                 <Card sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                     Lead Status Distribution
                   </Typography>
-
-                  <Box sx={{ width: '100%', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 220 }}>
-                    {data.cards.totalLeads > 0 ? (
-                      <svg width="100%" height="220" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet">
-                        {/* Define linear gradients and glows for the bars */}
-                        <defs>
-                          <filter id="barGlow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="3" result="blur" />
-                            <feComponentTransfer>
-                              <feFuncA type="linear" slope="0.4" />
-                            </feComponentTransfer>
-                            <feMerge>
-                              <feMergeNode />
-                              <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                          </filter>
-                          <linearGradient id="purpleBarGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#A78BFA" />
-                            <stop offset="100%" stopColor="#8B5CF6" />
-                          </linearGradient>
-                          <linearGradient id="greenBarGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#34D399" />
-                            <stop offset="100%" stopColor="#10B981" />
-                          </linearGradient>
-                          <linearGradient id="yellowBarGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#FBBF24" />
-                            <stop offset="100%" stopColor="#EAB308" />
-                          </linearGradient>
-                        </defs>
-
-                        {/* Grid lines */}
-                        <line x1="40" y1="30" x2="280" y2="30" stroke={theme.palette.divider} strokeWidth="0.8" strokeDasharray="3,3" />
-                        <line x1="40" y1="90" x2="280" y2="90" stroke={theme.palette.divider} strokeWidth="0.8" strokeDasharray="3,3" />
-                        <line x1="40" y1="150" x2="280" y2="150" stroke={theme.palette.divider} strokeWidth="0.8" />
-
-                        {/* Y Labels */}
-                        <text x="18" y="34" fill={theme.palette.text.secondary} fontSize="8.5" textAnchor="middle">Max</text>
-                        <text x="18" y="94" fill={theme.palette.text.secondary} fontSize="8.5" textAnchor="middle">Mid</text>
-                        <text x="18" y="154" fill={theme.palette.text.secondary} fontSize="8.5" textAnchor="middle">0</text>
-
-                        {/* Bars rendering */}
-                        {(() => {
-                          const items = data.contacts.chartData
-                          const maxVal = Math.max(...items.map(i => i.value), 2)
-                          const colors = ['url(#purpleBarGrad)', 'url(#greenBarGrad)', 'url(#yellowBarGrad)']
-
-                          return items.map((item, idx) => {
-                            const barWidth = 32
-                            const spacing = 65
-                            const x = 60 + idx * (barWidth + spacing)
-                            const h = maxVal > 0 ? (item.value / maxVal) * 120 : 0
-                            const y = 150 - h
-
-                            return (
-                              <g
-                                key={item.name}
-                                style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => setHoveredBar(idx)}
-                                onMouseLeave={() => setHoveredBar(null)}
-                              >
-                                <rect
-                                  x={x}
-                                  y={y}
-                                  width={barWidth}
-                                  height={h}
-                                  rx="5"
-                                  fill={colors[idx]}
-                                  opacity={hoveredBar === idx ? 1 : 0.85}
-                                  filter={hoveredBar === idx ? 'url(#barGlow)' : 'none'}
-                                  style={{ transition: 'all 200ms ease' }}
-                                />
-                                {/* Value Label */}
-                                <text
-                                  x={x + barWidth / 2}
-                                  y={y - 8}
-                                  fill={theme.palette.text.primary}
-                                  fontSize="9.5"
-                                  fontWeight="700"
-                                  textAnchor="middle"
-                                >
-                                  {item.value}
-                                </text>
-                                {/* Axis label */}
-                                <text
-                                  x={x + barWidth / 2}
-                                  y="168"
-                                  fill={theme.palette.text.secondary}
-                                  fontSize="9"
-                                  fontWeight="600"
-                                  textAnchor="middle"
-                                >
-                                  {item.name}
-                                </text>
-                              </g>
-                            )
-                          })
-                        })()}
-                      </svg>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">No contacts to display in chart.</Typography>
-                    )}
-                  </Box>
+                  <ThreeDCylinderBarChart data={data.contacts.chartData} colorTheme="purple" height={240} />
                 </Card>
               </Box>
 
@@ -1805,61 +1619,12 @@ export default function AnalyticsPage() {
             <Stack spacing={3}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '5fr 7fr' }, gap: 2.5 }}>
                 
-                {/* SVG Concentric Donut: Task types breakdown */}
-                <Card sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <Typography variant="subtitle1" align="left" sx={{ width: '100%', fontWeight: 700, mb: 3 }}>
+                {/* 3D Polar Rose: Task types breakdown */}
+                <Card sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+                  <Typography variant="subtitle1" align="left" sx={{ width: '100%', fontWeight: 700, mb: 1 }}>
                     Completed Task Types
                   </Typography>
-
-                  <Box sx={{ position: 'relative', width: 160, height: 160, mb: 3 }}>
-                    {completedDonutSlices.length > 0 ? (
-                      <>
-                        <svg width="160" height="160" viewBox="0 0 160 160">
-                          {completedDonutSlices.map((slice) => (
-                            <circle
-                              key={slice.name}
-                              cx="80"
-                              cy="80"
-                              r="60"
-                              fill="transparent"
-                              stroke={slice.color}
-                              strokeWidth={hoveredDonutSlice?.name === slice.name ? "19" : "15"}
-                              strokeDasharray={slice.strokeDasharray}
-                              strokeDashoffset={slice.strokeDashoffset}
-                              transform="rotate(-90 80 80)"
-                              style={{ cursor: 'pointer', transition: 'all 200ms ease' }}
-                              onMouseEnter={() => setHoveredDonutSlice(slice)}
-                              onMouseLeave={() => setHoveredDonutSlice(null)}
-                            />
-                          ))}
-                        </svg>
-                        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', pointerEvents: 'none' }}>
-                          <Typography variant="h5" sx={{ fontWeight: 800, color: hoveredDonutSlice ? hoveredDonutSlice.color : 'text.primary' }}>
-                            {hoveredDonutSlice ? `${hoveredDonutSlice.value}` : (data.cards.completedVisits + data.cards.scheduledVisits > 0 ? `${data.cards.completedVisits + data.cards.scheduledVisits}` : '0')}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>
-                            {hoveredDonutSlice ? hoveredDonutSlice.name : 'Total Tasks'}
-                          </Typography>
-                        </Box>
-                      </>
-                    ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                        <Typography variant="body2" color="text.secondary">No task stats to show.</Typography>
-                      </Box>
-                    )}
-                  </Box>
-
-                  {/* Legends */}
-                  <Stack direction="row" flexWrap="wrap" spacing={2} justifyContent="center" sx={{ width: '100%', mt: 1 }}>
-                    {completedDonutSlices.map((slice) => (
-                      <Stack key={slice.name} direction="row" spacing={1} alignItems="center">
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: slice.color }} />
-                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                          {slice.name} ({slice.percentage}%)
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
+                  <ThreeDRoseChart data={data.tasks.completedChartData} title="Tasks" height={260} />
                 </Card>
 
                 {/* Table: Completed Tasks */}
@@ -2018,106 +1783,12 @@ export default function AnalyticsPage() {
                   </Box>
                 </Card>
 
-                {/* SVG Bar Chart: Pending Tasks Chart */}
+                {/* 3D Cylinder Bar Chart: Pending Tasks Chart */}
                 <Card sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                     Pending Task Types
                   </Typography>
-
-                  <Box sx={{ width: '100%', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
-                    {data.tasks.pendingChartData.some((c) => c.value > 0) ? (
-                      <svg width="100%" height="150" viewBox="0 0 200 120" preserveAspectRatio="xMidYMid meet">
-                        {/* Define linear gradients and glows for pending task chart */}
-                        <defs>
-                          <filter id="taskGlow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="2.5" result="blur" />
-                            <feComponentTransfer>
-                              <feFuncA type="linear" slope="0.35" />
-                            </feComponentTransfer>
-                            <feMerge>
-                              <feMergeNode />
-                              <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                          </filter>
-                          <linearGradient id="pendingTealGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#34D399" />
-                            <stop offset="100%" stopColor="#059669" />
-                          </linearGradient>
-                          <linearGradient id="pendingBlueGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#60A5FA" />
-                            <stop offset="100%" stopColor="#2563EB" />
-                          </linearGradient>
-                          <linearGradient id="pendingCyanGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#22D3EE" />
-                            <stop offset="100%" stopColor="#0891B2" />
-                          </linearGradient>
-                        </defs>
-
-                        {/* Grid lines */}
-                        <line x1="30" y1="15" x2="190" y2="15" stroke={theme.palette.divider} strokeWidth="0.5" strokeDasharray="2,2" />
-                        <line x1="30" y1="55" x2="190" y2="55" stroke={theme.palette.divider} strokeWidth="0.5" strokeDasharray="2,2" />
-                        <line x1="30" y1="95" x2="190" y2="95" stroke={theme.palette.divider} strokeWidth="0.5" />
-
-                        {/* Bars rendering */}
-                        {(() => {
-                          const items = data.tasks.pendingChartData
-                          const maxVal = Math.max(...items.map(i => i.value), 2)
-                          const colors = ['url(#pendingTealGrad)', 'url(#pendingBlueGrad)', 'url(#pendingCyanGrad)']
-
-                          return items.map((item, idx) => {
-                            const barWidth = 20
-                            const spacing = 26
-                            const x = 36 + idx * (barWidth + spacing)
-                            const h = maxVal > 0 ? (item.value / maxVal) * 80 : 0
-                            const y = 95 - h
-
-                            return (
-                              <g
-                                key={item.name}
-                                style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => setHoveredTaskBar(idx)}
-                                onMouseLeave={() => setHoveredTaskBar(null)}
-                              >
-                                <rect
-                                  x={x}
-                                  y={y}
-                                  width={barWidth}
-                                  height={h}
-                                  rx="3"
-                                  fill={colors[idx]}
-                                  opacity={hoveredTaskBar === idx ? 1 : 0.85}
-                                  filter={hoveredTaskBar === idx ? 'url(#taskGlow)' : 'none'}
-                                  style={{ transition: 'all 200ms ease' }}
-                                />
-                                <text
-                                  x={x + barWidth / 2}
-                                  y={y - 5}
-                                  fill={theme.palette.text.primary}
-                                  fontSize="9"
-                                  fontWeight="700"
-                                  textAnchor="middle"
-                                >
-                                  {item.value}
-                                </text>
-                                <text
-                                  x={x + barWidth / 2}
-                                  y="110"
-                                  fill={theme.palette.text.secondary}
-                                  fontSize="7.5"
-                                  fontWeight="600"
-                                  textAnchor="middle"
-                                >
-                                  {item.name === 'Site Visit' ? labels.siteVisit : (item.name === 'Meeting' ? labels.meeting : item.name)}
-                                </text>
-                              </g>
-                            )
-                          })
-                        })()}
-                      </svg>
-                    ) : (
-                      <Typography variant="caption" color="text.disabled">No Pending Tasks</Typography>
-                    )}
-                  </Box>
+                  <ThreeDCylinderBarChart data={data.tasks.pendingChartData} colorTheme="amber" height={220} />
                 </Card>
               </Box>
             </Stack>
@@ -2127,101 +1798,12 @@ export default function AnalyticsPage() {
           {activeTab === 2 && (
             <Stack spacing={3}>
               
-              {/* Curve Line SVG Chart: Calling Trend Summary */}
+              {/* 3D Area Spline Trend Chart */}
               <Card sx={{ p: 2.5, borderRadius: '16px', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                   Calling Volume Trends
                 </Typography>
-
-                <Box sx={{ width: '100%', position: 'relative', overflowX: 'auto', minHeight: 200 }}>
-                  {trendLineConfig ? (
-                    <Box sx={{ width: '100%', position: 'relative', minWidth: 600 }}>
-                      <svg width="100%" height="180" viewBox="0 0 800 180" preserveAspectRatio="none">
-                        
-                        {/* Grid lines */}
-                        <line x1="40" y1="20" x2="760" y2="20" stroke={theme.palette.divider} strokeWidth="0.8" strokeDasharray="3,3" />
-                        <line x1="40" y1="65" x2="760" y2="65" stroke={theme.palette.divider} strokeWidth="0.8" strokeDasharray="3,3" />
-                        <line x1="40" y1="110" x2="760" y2="110" stroke={theme.palette.divider} strokeWidth="0.8" strokeDasharray="3,3" />
-                        <line x1="40" y1="155" x2="760" y2="155" stroke={theme.palette.divider} strokeWidth="0.8" />
-
-                        {/* Y axis labels */}
-                        <text x="20" y="24" fill={theme.palette.text.secondary} fontSize="8.5" textAnchor="middle">Max</text>
-                        <text x="20" y="88" fill={theme.palette.text.secondary} fontSize="8.5" textAnchor="middle">Mid</text>
-                        <text x="20" y="159" fill={theme.palette.text.secondary} fontSize="8.5" textAnchor="middle">0</text>
-
-                        {/* Linear area gradient */}
-                        <defs>
-                          <linearGradient id="curvedAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={theme.palette.secondary.main} stopOpacity="0.25" />
-                            <stop offset="100%" stopColor={theme.palette.secondary.main} stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-
-                        {/* Area Path */}
-                        <path d={trendLineConfig.areaPath} fill="url(#curvedAreaGradient)" />
-
-                        {/* Line Path */}
-                        <path d={trendLineConfig.linePath} fill="none" stroke={theme.palette.secondary.main} strokeWidth="2.5" />
-
-                        {/* Node Dots & Hovers */}
-                        {trendLineConfig.points.map((p, idx) => (
-                          <g key={idx}>
-                            <circle
-                              cx={p.x}
-                              cy={p.y}
-                              r={hoveredTrend?.x === p.x ? "6" : "4.5"}
-                              fill={p.calls > 0 ? theme.palette.secondary.main : theme.palette.background.paper}
-                              stroke={theme.palette.secondary.main}
-                              strokeWidth="2.5"
-                              style={{ cursor: 'pointer', transition: 'r 150ms ease' }}
-                              onMouseEnter={() => setHoveredTrend({ date: p.date, calls: p.calls, x: p.x, y: p.y })}
-                              onMouseLeave={() => setHoveredTrend(null)}
-                            />
-                            {/* Date underneath */}
-                            <text x={p.x} y="172" fill={theme.palette.text.secondary} fontSize="8" textAnchor="middle" fontWeight="600">
-                              {p.date}
-                            </text>
-                            {/* Static call badge above points */}
-                            {p.calls > 0 && (
-                              <g>
-                                <rect x={p.x - 8} y={p.y - 20} width="16" height="11" rx="2" fill={theme.palette.secondary.main} />
-                                <text x={p.x} y={p.y - 12} fill="#FFFFFF" fontSize="7.5" fontWeight="800" textAnchor="middle">{p.calls}</text>
-                              </g>
-                            )}
-                          </g>
-                        ))}
-                      </svg>
-
-                      {/* Interactive Hover Tooltip */}
-                      {hoveredTrend && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: hoveredTrend.x - 55,
-                            top: hoveredTrend.y - 65,
-                            backgroundColor: theme.palette.background.paper,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: '8px',
-                            p: 1,
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-                            pointerEvents: 'none',
-                            zIndex: 10,
-                          }}
-                        >
-                          <Typography variant="caption" display="block" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                            {hoveredTrend.date}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'secondary.main', fontWeight: 800 }}>
-                            Calls: {hoveredTrend.calls}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  ) : (
-                    <Typography color="text.secondary">No trend coordinates available.</Typography>
-                  )}
-                </Box>
+                <ThreeDAreaTrendChart data={data.callLogs.callingTrends} height={240} />
               </Card>
 
               {/* Table: Call Log duration Summary */}

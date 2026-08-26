@@ -1566,6 +1566,13 @@ async function seedAnalyticsConfig() {
                     title: 'Leads Conversion Distribution',
                     chart_type: 'donut',
                     data_key: 'contacts.chartData'
+                  },
+                  {
+                    id: 'contacts_callback_chart',
+                    type: 'CHART',
+                    title: 'Callback Reasons Distribution',
+                    chart_type: 'bar',
+                    data_key: 'contacts.callBackReasons'
                   }
                 ]
               }
@@ -1599,7 +1606,7 @@ async function seedAnalyticsConfig() {
                     id: 'tasks_completed_donut',
                     type: 'CHART',
                     title: 'Completed Tasks Distribution',
-                    chart_type: 'donut',
+                    chart_type: 'rose',
                     data_key: 'tasks.completedChartData'
                   }
                 ]
@@ -1627,7 +1634,7 @@ async function seedAnalyticsConfig() {
                     id: 'tasks_pending_donut',
                     type: 'CHART',
                     title: 'Pending Tasks Distribution',
-                    chart_type: 'donut',
+                    chart_type: 'bar',
                     data_key: 'tasks.pendingChartData'
                   }
                 ]

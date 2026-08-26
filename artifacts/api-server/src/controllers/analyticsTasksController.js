@@ -42,7 +42,7 @@ const dashboard = async (req, res) => {
   const type = req?.params?.type;
   console.log('Received tasks analytics dashboard request with body:', req.body);
   try {
-    const uid = req.body.uid;
+    const uid = req.body.uid || req.user?.uid || req.user?.id || req.user?._id;
     const { start_date, end_date, callFilter, leadFilter, taskFilter, leadUserFilter } = req.body;
 
     if (!uid) {
