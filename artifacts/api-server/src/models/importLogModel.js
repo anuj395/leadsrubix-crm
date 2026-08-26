@@ -4,6 +4,8 @@ const importLogSchema = new mongoose.Schema(
   {
     request_id:      { type: String, required: true, index: true, alias: 'requestId' },
     organization_id: { type: String, required: true, index: true, alias: 'organizationId' },
+    module:          { type: String, default: 'leads' },
+    resource_key:    { type: String, default: '', alias: 'resourceKey' },
     created_by:      { type: String, default: '', alias: 'createdBy' },
     uid:            { type: String, default: '' },
     status:         { type: String, default: 'Uploaded' }, // Uploaded, Processing, Completed, Failed

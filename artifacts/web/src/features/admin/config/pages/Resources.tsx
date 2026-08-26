@@ -46,6 +46,7 @@ import { api } from '@/services/api'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { compressImage } from '@/utils/imageCompressor'
 import { useActionPermission } from '@/hooks/useActionPermission'
+import { ImportResourceModal } from '../components/ImportResourceModal'
 
 export default function ResourcesPage() {
   const user = useAppSelector((s) => s.auth.user)
@@ -74,7 +75,8 @@ export default function ResourcesPage() {
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   const [apiDropdownOptions, setApiDropdownOptions] = useState<Record<string, Array<{ value: string; label: string }>>>({})
 
-  // Import Summary State
+  // Import Modal & Summary State
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const [importSummaryOpen, setImportSummaryOpen] = useState(false)
   const [importSummary, setImportSummary] = useState<{
     total: number
@@ -324,7 +326,7 @@ export default function ResourcesPage() {
   }
 
   const handleImport = () => {
-    document.getElementById('resource-csv-importer')?.click()
+    setImportModalOpen(true)
   }
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -342,6 +344,12 @@ export default function ResourcesPage() {
         setToast({ open: true, msg: 'CSV file is empty or missing data rows.', sev: 'error' })
         return
       }
+
+      // Upload raw import CSV file to AWS S3 multi-tenant storage
+      api.post(`resource-items/${activeScreen.key}/upload-import-file`, {
+        csvContent: text,
+        filename: fileName
+      }).catch(err => console.warn('[ResourceImport] S3 upload error:', err))
 
       const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim())
       const headerToKey: Record<string, string> = {}
@@ -1255,6 +1263,28 @@ export default function ResourcesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {activeScreen && resolvedScreen && (
+        <ImportResourceModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onSuccess={async () => {
+            setToast({ open: true, msg: 'Import completed successfully!', sev: 'success' })
+            try {
+              const items = await getResources(activeScreen.key, undefined, userIndustryCode)
+              setRows(items)
+              setResourceDataCache((prev) => ({ ...prev, [activeScreen.key]: items }))
+            } catch (err) {
+              console.error('Failed to reload resources after import', err)
+            }
+          }}
+          resourceKey={activeScreen.key}
+          resourceTitle={activeScreen.name || 'Resource'}
+          formFields={resolvedScreen.form_fields}
+          organizationId={userOrganizationId}
+          industryId={userIndustryCode}
+        />
+      )}
 
       <input
         type="file"

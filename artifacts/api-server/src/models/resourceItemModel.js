@@ -177,19 +177,6 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
 
   // Generic static options (budgets, locations, lead sources, stages, types, carousel, etc.)
   const targetOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
-  let query = { organization_id: targetOrgId };
-  if (targetOrgId === null && indMatchConditions.length > 0) {
-    query.industry_id = { $in: indMatchConditions };
-  }
-  let docs = await OrganizationResources.find(query).exec();
-  if (docs.length === 0 && targetOrgId !== null && targetOrgId !== '') {
-    let fallbackQuery = { organization_id: null };
-    if (indMatchConditions.length > 0) {
-      fallbackQuery.industry_id = { $in: indMatchConditions };
-    }
-    docs = await OrganizationResources.find(fallbackQuery).exec();
-  }
-
   const primaryFieldName = getFieldName(resource_key);
   const candidateFields = [primaryFieldName];
   if (primaryFieldName === 'propertyStages') candidateFields.push('property_stages');
@@ -199,42 +186,90 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   if (primaryFieldName === 'transferReasons') candidateFields.push('transfer_reasons');
   if (primaryFieldName === 'propertyStatuses') candidateFields.push('property_statuses');
 
-  let items = [];
-  docs.forEach(d => {
-    for (const f of candidateFields) {
-      if (Array.isArray(d[f])) {
-        items.push(...d[f]);
-      }
-    }
-  });
+  let orgItems = [];
+  let masterItems = [];
 
-  if (items.length === 0 && targetOrgId !== null && targetOrgId !== '') {
-    let fallbackQuery = { organization_id: null };
-    if (indMatchConditions.length > 0) {
-      fallbackQuery.industry_id = { $in: indMatchConditions };
-    }
-    const fallbackDocs = await OrganizationResources.find(fallbackQuery).exec();
-    fallbackDocs.forEach(d => {
+  // 1. Fetch organization-specific resources if targetOrgId is provided
+  if (targetOrgId !== null && targetOrgId !== '') {
+    const orgDocs = await OrganizationResources.find({ organization_id: targetOrgId }).exec();
+    orgDocs.forEach(d => {
       for (const f of candidateFields) {
         if (Array.isArray(d[f])) {
-          items.push(...d[f]);
+          d[f].forEach(item => {
+            orgItems.push({
+              ...item,
+              organizationId: targetOrgId,
+              organization_id: targetOrgId,
+              isMaster: false
+            });
+          });
         }
       }
     });
   }
 
-  if (workspaceId) {
-    items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
+  // 2. Fetch industry master resources (where organization_id is null)
+  let masterQuery = { organization_id: null };
+  if (indMatchConditions.length > 0) {
+    masterQuery.industry_id = { $in: indMatchConditions };
+  }
+  const masterDocs = await OrganizationResources.find(masterQuery).exec();
+  masterDocs.forEach(d => {
+    for (const f of candidateFields) {
+      if (Array.isArray(d[f])) {
+        d[f].forEach(item => {
+          masterItems.push({
+            ...item,
+            organizationId: null,
+            organization_id: null,
+            isMaster: true
+          });
+        });
+      }
+    }
+  });
+
+  // If SuperAdmin explicitly requested ONLY master data (targetOrgId === null && !all)
+  let items = [];
+  if (targetOrgId === null && !all) {
+    items = masterItems;
+  } else if (all) {
+    const allDocs = await OrganizationResources.find({}).exec();
+    allDocs.forEach(d => {
+      for (const f of candidateFields) {
+        if (Array.isArray(d[f])) {
+          d[f].forEach(item => {
+            items.push({
+              ...item,
+              organizationId: d.organization_id || null,
+              organization_id: d.organization_id || null,
+              isMaster: !d.organization_id
+            });
+          });
+        }
+      }
+    });
+  } else {
+    // MERGE: Organization Custom Items + Industry Master Items
+    // Org items take precedence over matching master items
+    items = [...orgItems, ...masterItems];
   }
 
-  // Deduplicate items by id or _id or key content
+  if (workspaceId) {
+    items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId) || item.isMaster);
+  }
+
+  // Deduplicate items by identifier while prioritizing org-specific items
   const seen = new Set();
-  const uniqueItems = items.filter(item => {
-    const itemId = item.id || item._id || item.leadSourceId || item.name || item.location || item.locationName || item.budget;
-    if (!itemId || seen.has(String(itemId))) return false;
-    seen.add(String(itemId));
-    return true;
-  });
+  const uniqueItems = [];
+  for (const item of items) {
+    const keyVal = (item.value || item.locationName || item.location || item.propertyType || item.propertySubType || item.property_sub_type || item.stage || item.reason || item.leadSource || item.budget || item.name || item.id || item._id || '').toString().trim().toLowerCase();
+    const uniqueKey = keyVal ? `${primaryFieldName}:${keyVal}` : String(item.id || item._id);
+    if (!seen.has(uniqueKey)) {
+      seen.add(uniqueKey);
+      uniqueItems.push(item);
+    }
+  }
 
   return uniqueItems.sort((a, b) => {
     const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
