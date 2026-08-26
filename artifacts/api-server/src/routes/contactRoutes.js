@@ -11,6 +11,8 @@ router.post('/bulkImport', authenticate, requireScreenAction('contacts', 'add'),
 router.post('/:id/convert', authenticate, requireScreenAction('contacts', 'edit'), ctrl.convert);
 router.get('/importHistory', authenticate, requireScreenAction('contacts', 'view'), ctrl.importHistory);
 router.post('/masterSortSearch', authenticate, requireScreenAction('contacts', 'view'), ctrl.masterSortSearch);
+router.post('/:id/attachments', authenticate, requireScreenAction('contacts', 'edit'), ctrl.addAttachment);
+router.delete('/:id/attachments/:attachmentId', authenticate, requireScreenAction('contacts', 'edit'), ctrl.deleteAttachment);
 router.get('/:id', authenticate, requireScreenAction('contacts', 'view'), ctrl.retrieve);
 router.get('/', authenticate, requireScreenAction('contacts', 'view'), ctrl.list);
 router.post('/', authenticate, requireScreenAction('contacts', 'add'), ctrl.create);

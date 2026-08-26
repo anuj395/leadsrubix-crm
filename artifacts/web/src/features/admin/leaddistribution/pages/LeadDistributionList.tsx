@@ -49,22 +49,38 @@ export default function LeadDistributionListPage() {
 
   const { confirmDelete } = useConfirm()
 
+  const defaultHeaders = [
+    { key: 'source', label: 'Source', visible: true, order: 1 },
+    { key: 'project', label: 'Project', visible: true, order: 2 },
+    { key: 'location', label: 'Location', visible: true, order: 3 },
+    { key: 'propertyType', label: 'Property Type', visible: true, order: 4 },
+    { key: 'budget', label: 'Budget', visible: true, order: 5 },
+    { key: 'users', label: 'Assigned Users', visible: true, order: 6 },
+  ]
+
   const loadData = async () => {
     setLoading(true)
     try {
       const activeOrg = isSuperAdmin ? selectedOrg : undefined
       const [rulesList, resolved] = await Promise.all([
-        getDistributionRules(activeOrg),
+        getDistributionRules(activeOrg).catch((err) => {
+          console.warn('[LeadDistributionList] Failed to get rules:', err)
+          return []
+        }),
         resolveScreen({
           screen_key: 'leadDistribution',
           industry_code: isSuperAdmin ? selectedIndustry || 'temp0001' : undefined,
           role_key: isSuperAdmin ? 'admin' : undefined,
+        }).catch((err) => {
+          console.warn('[LeadDistributionList] Screen config fallback:', err)
+          return null
         })
       ])
-      setItems(rulesList)
-      setDynamicHeaders(resolved?.table_headers || [])
+      setItems(rulesList || [])
+      setDynamicHeaders(resolved?.table_headers?.length ? resolved.table_headers : defaultHeaders)
     } catch (e: any) {
-      setToast({ open: true, msg: 'Failed to load distribution rules or screen configuration', sev: 'error' })
+      console.warn('[LeadDistributionList] loadData fallback:', e)
+      setDynamicHeaders(defaultHeaders)
     } finally {
       setLoading(false)
     }

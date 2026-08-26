@@ -142,10 +142,6 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
       }
     }
 
-    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
-      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
-    }
-
     let resolvedWorkspaceId = req.query.workspaceId || req.body.workspaceId || null;
     let resolvedIndustryId = await resolveIndustryId(req);
     if (req.user.role === 'superAdmin') {
@@ -156,6 +152,18 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
       }
     } else {
       resolvedWorkspaceId = resolvedWorkspaceId || req.user.workspaceId || req.user.workspace_id || null;
+    }
+
+    if (payloadData.url && typeof payloadData.url === 'string' && payloadData.url.startsWith('data:')) {
+      const uploadRes = await s3Service.uploadBase64Media({
+        base64Data: payloadData.url,
+        filename: payloadData.name || resource_key,
+        industryId: resolvedIndustryId,
+        organizationId: orgId,
+        workspaceId: resolvedWorkspaceId,
+        resourceType: resource_key
+      });
+      payloadData.url = typeof uploadRes === 'object' ? uploadRes.url : uploadRes;
     }
 
     const doc = await resourceItemModel.create({
@@ -230,20 +238,30 @@ router.put('/:resource_key/:id', authenticate, requireScreenAction((req) => mapR
 
     const oldUrl = doc ? doc.url : null;
     const { resource_key } = req.params;
-    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
-      if (oldUrl) {
-        await s3Service.deleteImage(oldUrl, 'carousel');
-      }
-      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
-    }
-
     const targetOrgId = organizationId || req.body.organization_id || doc.organizationId || doc.organization_id;
     let targetWorkspaceId = undefined;
+    let targetIndustryId = doc?.industryId || doc?.industry_id;
     if (req.user.role === 'superAdmin') {
       if (organizationId !== undefined || req.body.organization_id !== undefined) {
         const tenant = await resolveTenantFields(targetOrgId);
         targetWorkspaceId = tenant.workspaceId;
+        targetIndustryId = tenant.industryId || targetIndustryId;
       }
+    }
+
+    if (payloadData.url && typeof payloadData.url === 'string' && payloadData.url.startsWith('data:')) {
+      if (oldUrl) {
+        await s3Service.deleteImage(oldUrl, resource_key);
+      }
+      const uploadRes = await s3Service.uploadBase64Media({
+        base64Data: payloadData.url,
+        filename: payloadData.name || resource_key,
+        industryId: targetIndustryId,
+        organizationId: targetOrgId,
+        workspaceId: targetWorkspaceId,
+        resourceType: resource_key
+      });
+      payloadData.url = typeof uploadRes === 'object' ? uploadRes.url : uploadRes;
     }
 
     const updateData = normalizePayload(payloadData);

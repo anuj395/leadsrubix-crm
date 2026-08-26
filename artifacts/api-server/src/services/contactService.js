@@ -1011,30 +1011,103 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
         console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
       }
     }
-
-    // In-App Notification for Previous Owner
-    if (oldOwner && oldOwner !== contactOwnerEmail && oldOwner !== 'Unassigned') {
-      try {
-        await Notification.create({
-          organization_id: orgId,
-          organizationId: orgId,
-          recipient_email: oldOwner,
-          recipientEmail: oldOwner,
-          title: 'Lead Reallocated',
-          message: `Lead "${leadCustomerName}" was reassigned to ${contactOwnerEmail} by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
-          type: 'LEAD_REASSIGN',
-          read: false,
-          created_at: now,
-          createdAt: now
-        });
-      } catch (nOldErr) {
-        // ignore
-      }
-    }
   }
 
   return { modifiedCount: result.modifiedCount };
 };
+
+exports.addContactAttachment = async ({ contactId, name, base64Data, url, type = 'file', authedUser }) => {
+  const Contact = mongoose.model('Contact');
+  const s3Service = require('./s3Service');
+  const contact = await Contact.findById(contactId);
+  if (!contact) {
+    const err = new Error('Contact not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const industryId = contact.industry_id || contact.industryId || authedUser?.industryId || 'global';
+  const organizationId = contact.organization_id || contact.organizationId || authedUser?.organizationId || 'global';
+  const workspaceId = contact.workspace_id || contact.workspaceId || authedUser?.workspaceId || 'default';
+
+  let finalUrl = url || '';
+  let finalKey = '';
+  let finalSize = 0;
+
+  if (base64Data) {
+    const uploadRes = await s3Service.uploadBase64Media({
+      base64Data,
+      filename: name || `attachment-${Date.now()}`,
+      industryId,
+      organizationId,
+      workspaceId,
+      contactId,
+      resourceType: type
+    });
+    finalUrl = typeof uploadRes === 'object' ? uploadRes.url : uploadRes;
+    finalKey = typeof uploadRes === 'object' ? (uploadRes.key || '') : '';
+    finalSize = typeof uploadRes === 'object' ? (uploadRes.size || 0) : 0;
+  }
+
+  if (!finalUrl) {
+    const err = new Error('Either file payload or Resource URL must be provided');
+    err.status = 400;
+    throw err;
+  }
+
+  const attachmentId = new mongoose.Types.ObjectId();
+  const newAttachment = {
+    _id: attachmentId,
+    id: attachmentId.toString(),
+    name: name || 'Attachment',
+    url: finalUrl,
+    key: finalKey,
+    type: type || 'file',
+    size: finalSize,
+    uploaded_by: authedUser?.email || authedUser?.name || 'User',
+    created_at: new Date()
+  };
+
+  const existingAttachments = Array.isArray(contact.attachments) ? contact.attachments : [];
+  existingAttachments.push(newAttachment);
+  contact.attachments = existingAttachments;
+
+  await contact.save();
+  return { success: true, attachment: newAttachment, attachments: existingAttachments };
+};
+
+exports.deleteContactAttachment = async ({ contactId, attachmentId, authedUser }) => {
+  const Contact = mongoose.model('Contact');
+  const s3Service = require('./s3Service');
+  const contact = await Contact.findById(contactId);
+  if (!contact) {
+    const err = new Error('Contact not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const existing = Array.isArray(contact.attachments) ? contact.attachments : [];
+  const targetIndex = existing.findIndex(a => 
+    String(a._id || a.id) === String(attachmentId) || String(a.url) === String(attachmentId)
+  );
+
+  if (targetIndex === -1) {
+    const err = new Error('Attachment not found on this contact');
+    err.status = 404;
+    throw err;
+  }
+
+  const [removed] = existing.splice(targetIndex, 1);
+  if (removed?.url) {
+    await s3Service.deleteImage(removed.url).catch(e => console.error('[S3] Attachment delete error:', e));
+  }
+
+  contact.attachments = existing;
+  await contact.save();
+
+  return { success: true, message: 'Attachment deleted successfully', attachments: existing };
+};
+
 
 exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv', authedUser }) => {
   if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
@@ -1257,7 +1330,21 @@ exports.deleteForUser = async ({ id, authedUser }) => {
     console.warn('[Cascade Delete] Quotes cleanup error:', err.message);
   }
 
-  // 7. Delete Primary Contact Record
+  // 7. Clean up S3 attachments for this contact
+  try {
+    if (Array.isArray(existing.attachments) && existing.attachments.length > 0) {
+      const s3Service = require('./s3Service');
+      for (const att of existing.attachments) {
+        if (att?.url) {
+          await s3Service.deleteImage(att.url).catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Cascade Delete] S3 attachments cleanup error:', err.message);
+  }
+
+  // 8. Delete Primary Contact Record
   await contactModel.remove(id);
 };
 
