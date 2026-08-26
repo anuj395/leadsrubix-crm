@@ -6,7 +6,7 @@ import Alert from '@mui/material/Alert'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
@@ -20,11 +20,28 @@ import { useConfirm } from '@/components/common/ConfirmContext'
 import { resolveScreen } from '@/services/screenAdminService'
 import { useAuth } from '@/hooks/useAuth'
 import { useActionPermission } from '@/hooks/useActionPermission'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 export default function ReassignListPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { can_view, can_add, can_delete, loading: permsLoading } = useActionPermission('leadRotation')
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg,
+  } = useSuperAdminScope(isSuperAdmin)
+
+  const activeOrgId = isSuperAdmin ? selectedOrg : ((user as any)?.organizationId || (user as any)?.organization_id)
+  const activeIndCode = isSuperAdmin ? selectedIndustry : String((user as any)?.industryId || '').toLowerCase().trim()
+
+  const isAllowedRole = user?.role === 'admin' || isSuperAdmin
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('leadRotation')
+
   const [items, setItems] = useState<LeadRotationRule[]>([])
   const [dynamicHeaders, setDynamicHeaders] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -41,11 +58,11 @@ export default function ReassignListPage() {
     setLoading(true)
     try {
       const [rulesList, resolved] = await Promise.all([
-        getRotationRules(),
+        getRotationRules(activeOrgId),
         resolveScreen({
           screen_key: 'leadRotation',
-          industry_code: user?.role === 'superAdmin' ? 'temp0001' : undefined,
-          role_key: user?.role === 'superAdmin' ? 'admin' : undefined,
+          industry_code: activeIndCode || 'temp0001',
+          role_key: isSuperAdmin ? 'admin' : undefined,
         })
       ])
       setItems(rulesList)
@@ -59,12 +76,10 @@ export default function ReassignListPage() {
 
   useEffect(() => {
     void loadData()
-  }, [])
-
-  const indCode = String(user?.industryId || '').toLowerCase().trim();
+  }, [activeOrgId, activeIndCode])
 
   const labels = useMemo(() => {
-    if (indCode === 'temp0002') {
+    if (activeIndCode === 'temp0002') {
       return {
         title: 'Order Reassignments',
         subtitle: 'Manage order rotation rules and reallocations.',
@@ -73,7 +88,7 @@ export default function ReassignListPage() {
         deletedToast: 'Order Rotation Deleted!!'
       };
     }
-    if (indCode === 'temp0003') {
+    if (activeIndCode === 'temp0003') {
       return {
         title: 'Patient Transfers (Reassignments)',
         subtitle: 'Manage patient transfer logic and timeout reassignments.',
@@ -82,7 +97,7 @@ export default function ReassignListPage() {
         deletedToast: 'Patient Transfer Logic Deleted!!'
       };
     }
-    if (indCode === 'temp0004') {
+    if (activeIndCode === 'temp0004') {
       return {
         title: 'Counselor Transfers',
         subtitle: 'Manage student rotation parameters and counselor reassignments.',
@@ -91,7 +106,7 @@ export default function ReassignListPage() {
         deletedToast: 'Counselor Transfer Logic Deleted!!'
       };
     }
-    if (indCode === 'temp0005') {
+    if (activeIndCode === 'temp0005') {
       return {
         title: 'Advisor Reassignments',
         subtitle: 'Manage client rotation parameters and advisor reassignments.',
@@ -100,7 +115,7 @@ export default function ReassignListPage() {
         deletedToast: 'Advisor Reassignment Logic Deleted!!'
       };
     }
-    if (indCode === 'temp0006') {
+    if (activeIndCode === 'temp0006') {
       return {
         title: 'Ticket Reassignments',
         subtitle: 'Manage ticket rotation parameters and SLA reassignments.',
@@ -109,7 +124,7 @@ export default function ReassignListPage() {
         deletedToast: 'Ticket Reassignment Logic Deleted!!'
       };
     }
-    if (indCode === 'temp0007') {
+    if (activeIndCode === 'temp0007') {
       return {
         title: 'Dealer Reallocations',
         subtitle: 'Manage dealer rotation parameters and allocation transfers.',
@@ -119,13 +134,13 @@ export default function ReassignListPage() {
       };
     }
     return {
-      title: 'Lead Distribution',
-      subtitle: 'Manage lead rotation parameters and unattended reassignment logs.',
-      addLogic: 'Add Logic',
+      title: 'Lead Reassignment',
+      subtitle: 'Manage unattended lead timeout auto-rotation parameters.',
+      addLogic: 'Add Reassign Logic',
       deleteMsg: 'Are you sure you want to delete this Lead Rotation Logic?',
       deletedToast: 'Lead Rotation Deleted!!'
     };
-  }, [indCode]);
+  }, [activeIndCode]);
 
   const handleDelete = (id: string) => {
     confirmDelete({
@@ -146,9 +161,17 @@ export default function ReassignListPage() {
     })
   }
 
-  // Build columns dynamically from headers configuration
+  // Build columns dynamically from headers configuration with robust fallback
   const columns = useMemo<GridColDef<LeadRotationRule>[]>(() => {
-    const activeHeaders = [...dynamicHeaders]
+    const defaultHeaders = [
+      { key: 'source', label: 'Lead Source', visible: true, order: 1 },
+      { key: 'project', label: 'Project', visible: true, order: 2 },
+      { key: 'rotationTime', label: 'Rotation Time', visible: true, order: 3 },
+      { key: 'users', label: 'Assigned Users (Queue)', visible: true, order: 4 },
+    ]
+
+    const baseHeaders = (dynamicHeaders && dynamicHeaders.length > 0) ? dynamicHeaders : defaultHeaders
+    const activeHeaders = [...baseHeaders]
       .filter((h) => h.visible !== false)
       .sort((a, b) => (a.order || 0) - (b.order || 0))
 
@@ -163,49 +186,66 @@ export default function ReassignListPage() {
           const val = p.value
           if (c.key === 'users') {
             const list = p.row.users || []
-            return list.map((u) => u.user_email).join(', ')
+            return list.map((u) => u.user_email).join(', ') || '—'
           }
-          if (c.key === 'project') {
-            return val && val.length > 0 ? val.join(', ') : 'All'
+          if (c.key === 'project' || c.key === 'projectName' || c.key === 'project_name') {
+            if (Array.isArray(val) && val.length > 0) {
+              const str = val.filter(Boolean).join(', ')
+              return str || '—'
+            }
+            return (val && val !== 'All') ? String(val) : '—'
           }
-          if (c.key === 'rotationTime') {
-            return val
+          if (c.key === 'rotationTime' || c.key === 'rotation_time') {
+            return val ? `${val} mins` : '—'
           }
           if (c.key === 'source') {
-            return <Box sx={{ fontWeight: 600 }}>{val}</Box>
+            return <Box sx={{ fontWeight: 600 }}>{val || '—'}</Box>
           }
-          return val ? String(val) : '—'
+          return (val !== undefined && val !== null && String(val).trim() !== '' && String(val).trim() !== 'All') ? String(val) : '—'
         }
       }
     })
 
     // Append actions column at the end
-    if (can_delete) {
+    if (can_edit || can_delete) {
       mappedCols.push({
         field: '__actions',
         headerName: 'Actions',
-        width: 80,
+        width: 100,
         sortable: false,
         renderCell: (p) => (
-          <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
-            <Tooltip title="Delete">
-              <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+            {can_edit && (
+              <Tooltip title="Edit">
+                <IconButton
+                  size="small"
+                  color="primary"
+                  onClick={() => navigate(`/reassign/logic?id=${p.row._id}`)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       })
     }
 
     return mappedCols
-  }, [dynamicHeaders, labels, can_delete])
+  }, [dynamicHeaders, labels, can_edit, can_delete])
 
-  if (!permsLoading && !can_view) {
+  if (!isAllowedRole || (!permsLoading && !can_view)) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">
-          Access Denied: You do not have permission to view {labels.title}.
+          Access Denied: Reassign Logic is restricted to Admin role only.
         </Alert>
       </Box>
     )
@@ -213,6 +253,18 @@ export default function ReassignListPage() {
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {isSuperAdmin && (
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
+      )}
+
       <AppCard
         title={labels.title}
         subtitle={labels.subtitle}

@@ -63,5 +63,27 @@ const leadRotationRuleSchema = new mongoose.Schema(
   }
 );
 
+const leadReassignmentHistorySchema = new mongoose.Schema(
+  {
+    organization_id: { type: String, required: true, alias: 'organizationId' },
+    lead_id: { type: String, required: true, alias: 'leadId' },
+    customer_name: { type: String, default: '', alias: 'customerName' },
+    contact_no: { type: String, default: '', alias: 'contactNo' },
+    source: { type: String, default: '' },
+    from_user: { type: String, default: '', alias: 'fromUser' },
+    to_user: { type: String, required: true, alias: 'toUser' },
+    reassigned_by: { type: String, default: 'SYSTEM', alias: 'reassignedBy' },
+    reason: { type: String, default: 'Timeout Auto Rotation' },
+    rotation_time: { type: Number, default: 15, alias: 'rotationTime' },
+    created_at: { type: Date, default: Date.now, alias: 'createdAt' }
+  },
+  { 
+    timestamps: true,
+    toObject: { virtuals: true, getters: true },
+    toJSON: { virtuals: true, getters: true }
+  }
+);
+
 mongoose.model('LeadDistributionRule', leadDistributionRuleSchema, 'lead_distribution_rules');
 mongoose.model('LeadRotationRule', leadRotationRuleSchema, 'lead_rotation_rules');
+mongoose.model('LeadReassignmentHistory', leadReassignmentHistorySchema, 'lead_reassignment_histories');
