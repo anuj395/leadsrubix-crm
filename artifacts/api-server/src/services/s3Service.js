@@ -228,9 +228,70 @@ async function deleteImage(fileUrl, resourceKey = 'carousel') {
   }
 }
 
+/**
+ * Uploads an import CSV/Excel file to S3 with multi-tenant hierarchy
+ * Key: {industryId}/{organizationId}/{workspaceId}/imports/{module}/{timestamp}-{random}-{filename}
+ */
+async function uploadImportFile({
+  fileBuffer,
+  csvContent,
+  filename = 'import.csv',
+  industryId = 'global',
+  organizationId = 'global',
+  workspaceId = 'default',
+  module = 'leads'
+}) {
+  const buffer = fileBuffer || (csvContent ? Buffer.from(csvContent, 'utf-8') : Buffer.from('', 'utf-8'));
+  const cleanFilename = sanitizeFilename(filename);
+  const ind = industryId ? String(industryId).replace(/[^a-zA-Z0-9_-]/g, '') : 'global';
+  const org = organizationId ? String(organizationId).replace(/[^a-zA-Z0-9_-]/g, '') : 'global';
+  const ws = workspaceId ? String(workspaceId).replace(/[^a-zA-Z0-9_-]/g, '') : 'default';
+  const mod = module ? String(module).toLowerCase().replace(/[^a-z0-9_-]/g, '') : 'leads';
+
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const s3Key = `${ind}/${org}/${ws}/imports/${mod}/${timestamp}-${randomSuffix}-${cleanFilename}`;
+
+  const region = process.env.AWS_REGION || 'ap-south-1';
+
+  if (isS3Configured) {
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET,
+      Key: s3Key,
+      Body: buffer,
+      ContentType: cleanFilename.endsWith('.csv') ? 'text/csv' : 'application/octet-stream',
+    });
+    await s3.send(command);
+    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${s3Key}`;
+    return {
+      url: fileUrl,
+      key: s3Key,
+      name: filename,
+      size: buffer.length
+    };
+  } else {
+    const uploadsDir = path.join(__dirname, '../../uploads', s3Key.substring(0, s3Key.lastIndexOf('/')));
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const cleanName = s3Key.substring(s3Key.lastIndexOf('/') + 1);
+    const filepath = path.join(uploadsDir, cleanName);
+    fs.writeFileSync(filepath, buffer);
+    const port = process.env.PORT || 8080;
+    const fileUrl = `http://localhost:${port}/uploads/${s3Key}`;
+    return {
+      url: fileUrl,
+      key: s3Key,
+      name: filename,
+      size: buffer.length
+    };
+  }
+}
+
 module.exports = {
   uploadMediaBuffer,
   uploadBase64Media,
+  uploadImportFile,
   uploadImage,
   deleteImage,
   buildTenantS3Key,

@@ -17,11 +17,14 @@ import CircularProgress from '@mui/material/CircularProgress'
 import DownloadIcon from '@mui/icons-material/Download'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import InfoIcon from '@mui/icons-material/Info'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
 import Link from '@mui/material/Link'
 import { useAuth } from '@/hooks/useAuth'
 import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
-import { bulkImportContacts, fetchImportHistory } from '@/services/contactsService'
+import { bulkImportContacts, fetchImportHistory, deleteImportHistory } from '@/services/contactsService'
 
 interface ImportContactModalProps {
   open: boolean
@@ -34,6 +37,7 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [importHistory, setImportHistory] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dynamicFields, setDynamicFields] = useState<ResolvedFormField[]>([])
 
@@ -124,7 +128,7 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
           return
         }
 
-        const res = await bulkImportContacts(contacts)
+        const res = await bulkImportContacts(contacts, file.name)
         onSuccess()
         void loadHistoryAndConfig()
       } catch (err: any) {
@@ -134,6 +138,20 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
       }
     }
     reader.readAsText(file)
+  }
+
+  const handleDeleteHistory = async (id: string) => {
+    if (!id) return
+    try {
+      setDeletingId(id)
+      setError(null)
+      await deleteImportHistory(id)
+      await loadHistoryAndConfig()
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to delete import history item.')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   return (
@@ -160,49 +178,69 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
                 <TableCell sx={{ fontWeight: 700 }}>Upload Count</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Uploaded File</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Processed File</TableCell>
+                <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loadingHistory ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
               ) : importHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 2 }}>
+                  <TableCell colSpan={8} align="center" sx={{ color: 'text.secondary', py: 2 }}>
                     No previous import requests found.
                   </TableCell>
                 </TableRow>
               ) : (
-                importHistory.map((item, idx) => (
-                  <TableRow key={item._id || idx}>
-                    <TableCell>{idx + 1}</TableCell>
-                    <TableCell>{item.requestId || item._id}</TableCell>
-                    <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
-                    <TableCell>{item.status}</TableCell>
-                    <TableCell>{item.uploadCount ?? 0}</TableCell>
-                    <TableCell>
-                      {item.fileUrl ? (
-                        <Link href={item.fileUrl} target="_blank" rel="noopener">
-                          Uploaded File
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {item.responseUrl ? (
-                        <Link href={item.responseUrl} target="_blank" rel="noopener">
-                          Processed File
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                importHistory.map((item, idx) => {
+                  const itemId = item._id || item.requestId
+                  return (
+                    <TableRow key={itemId || idx}>
+                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell>{item.requestId || item._id}</TableCell>
+                      <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                      <TableCell>{item.status}</TableCell>
+                      <TableCell>{item.uploadCount ?? 0}</TableCell>
+                      <TableCell>
+                        {item.fileUrl ? (
+                          <Link href={item.fileUrl} target="_blank" rel="noopener">
+                            Uploaded File
+                          </Link>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.responseUrl ? (
+                          <Link href={item.responseUrl} target="_blank" rel="noopener">
+                            Processed File
+                          </Link>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Delete Import Log & S3 Files">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            disabled={deletingId === itemId}
+                            onClick={() => handleDeleteHistory(itemId)}
+                          >
+                            {deletingId === itemId ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <DeleteOutlineIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

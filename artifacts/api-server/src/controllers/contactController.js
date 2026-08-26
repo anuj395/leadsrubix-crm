@@ -139,6 +139,18 @@ exports.importHistory = async (req, res, next) => {
   }
 };
 
+exports.deleteImportHistory = async (req, res, next) => {
+  try {
+    const result = await service.deleteImportLog({
+      id: req.params.id,
+      authedUser: req.user,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.remove = async (req, res, next) => {
   try {
     await service.deleteForUser({

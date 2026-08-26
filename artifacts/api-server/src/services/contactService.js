@@ -1122,8 +1122,13 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     return { imported: 0, errors: [] };
   }
   const ImportLog = require('../models/importLogModel');
+  const s3Service = require('./s3Service');
   const user = await userModel.findById(authedUser.id);
   const requestId = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+  const orgId = user?.organizationId || user?.organization_id || authedUser?.organizationId || authedUser?.organization_id;
+  const indId = user?.industryId || user?.industry_id || authedUser?.industryId || 'temp0001';
+  const wsId = user?.workspaceId || user?.workspace_id || authedUser?.workspaceId || 'default';
 
   let imported = 0;
   const errors = [];
@@ -1134,7 +1139,7 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     try {
       await exports.createForUser({ payload: row, authedUser });
       imported++;
-      processedRows.push({ ...row, import_status: 'SUCCESS' });
+      processedRows.push({ ...row, import_status: 'SUCCESS', error_message: '' });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       errors.push({ index: i, error: errMsg });
@@ -1142,16 +1147,45 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     }
   }
 
-  if (user?.organizationId || user?.organization_id) {
-    // Generate simulated/stored file URLs for file download parity
-    const fileUrl = `/api/contacts/import-files/${requestId}_raw.csv`;
-    const responseUrl = `/api/contacts/import-files/${requestId}_processed.csv`;
+  // Generate CSV representations
+  const rawCsv = arrayToCsv(contacts);
+  const processedCsv = arrayToCsv(processedRows);
 
+  let fileUrl = `/api/contacts/import-files/${requestId}_raw.csv`;
+  let responseUrl = `/api/contacts/import-files/${requestId}_processed.csv`;
+
+  try {
+    const [rawUpload, processedUpload] = await Promise.all([
+      s3Service.uploadImportFile({
+        csvContent: rawCsv,
+        filename: fileName || 'leads-import.csv',
+        industryId: indId,
+        organizationId: orgId,
+        workspaceId: wsId,
+        module: 'leads'
+      }),
+      s3Service.uploadImportFile({
+        csvContent: processedCsv,
+        filename: `processed-${fileName || 'leads-import.csv'}`,
+        industryId: indId,
+        organizationId: orgId,
+        workspaceId: wsId,
+        module: 'leads'
+      })
+    ]);
+
+    if (rawUpload?.url) fileUrl = rawUpload.url;
+    if (processedUpload?.url) responseUrl = processedUpload.url;
+  } catch (s3Err) {
+    console.warn('[BulkImport] S3 import file upload error:', s3Err.message);
+  }
+
+  if (orgId) {
     await ImportLog.create({
       requestId,
-      organization_id: user.organizationId || user.organization_id,
-      createdBy: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-      uid: user.uid || String(user._id),
+      organization_id: orgId,
+      createdBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || authedUser?.email || 'Admin',
+      uid: user?.uid || String(user?._id || authedUser?.id),
       status: errors.length === 0 ? 'Completed' : 'Completed with Errors',
       uploadCount: imported,
       failedCount: errors.length,
@@ -1160,8 +1194,21 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     });
   }
 
-  return { imported, errors, requestId };
+  return { imported, errors, requestId, fileUrl, responseUrl };
 };
+
+function arrayToCsv(rows) {
+  if (!rows || rows.length === 0) return '';
+  const headers = Object.keys(rows[0]);
+  const headerLine = headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',');
+  const lines = rows.map(r => 
+    headers.map(h => {
+      const val = r[h] !== undefined && r[h] !== null ? String(r[h]) : '';
+      return `"${val.replace(/"/g, '""')}"`;
+    }).join(',')
+  );
+  return [headerLine, ...lines].join('\n');
+}
 
 exports.listImportLogs = async ({ authedUser }) => {
   if (!authedUser?.id) {
@@ -1177,6 +1224,41 @@ exports.listImportLogs = async ({ authedUser }) => {
     .lean()
     .exec();
   return logs;
+};
+
+exports.deleteImportLog = async ({ id, authedUser }) => {
+  if (!authedUser?.id) {
+    const err = new Error('Authentication required'); err.status = 401; throw err;
+  }
+  const ImportLog = require('../models/importLogModel');
+  const s3Service = require('./s3Service');
+
+  const log = await ImportLog.findOne({
+    $or: [
+      { _id: mongoose.Types.ObjectId.isValid(id) ? id : undefined },
+      { requestId: id },
+      { request_id: id }
+    ].filter(Boolean)
+  });
+
+  if (!log) {
+    const err = new Error('Import log record not found'); err.status = 404; throw err;
+  }
+
+  // 1. Delete Raw S3 file from S3 Bucket
+  if (log.fileUrl) {
+    await s3Service.deleteImage(log.fileUrl).catch(e => console.warn('[ImportLog] S3 raw file delete error:', e.message));
+  }
+
+  // 2. Delete Processed S3 file from S3 Bucket
+  if (log.responseUrl) {
+    await s3Service.deleteImage(log.responseUrl).catch(e => console.warn('[ImportLog] S3 response file delete error:', e.message));
+  }
+
+  // 3. Delete ImportLog from Database
+  await ImportLog.deleteOne({ _id: log._id });
+
+  return { success: true, message: 'Import history and associated S3 files deleted successfully' };
 };
 
 exports.deleteForUser = async ({ id, authedUser }) => {
