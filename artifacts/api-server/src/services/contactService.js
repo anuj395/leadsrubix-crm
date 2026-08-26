@@ -801,6 +801,14 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       }
     }
 
+    if (options.notes === false) {
+      updatePayload.notes = [];
+    }
+
+    if (options.attachments === false) {
+      updatePayload.attachments = [];
+    }
+
     // Direct update on existing lead
     await Contact.findByIdAndUpdate(lead._id, { $set: updatePayload });
 
