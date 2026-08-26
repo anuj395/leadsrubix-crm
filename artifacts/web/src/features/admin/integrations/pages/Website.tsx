@@ -98,7 +98,9 @@ export default function WebsitePage() {
     };
   }, [indCode]);
 
-  const webhookUrl = 'https://api.leadsrubix.com/api/v1/webhooks/website'
+  const webhookUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000/api/webhook/createContacts'
+    : 'https://api.leadsrubix.com/api/webhook/createContacts'
 
   const bodyData = {
     customer_name: '',

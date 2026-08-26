@@ -47,7 +47,7 @@ export default defineConfig({
     },
   },
   define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify('1.0.1'),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify('1.0.0'),
     'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })),
     'import.meta.env.VITE_BUILD_HASH': JSON.stringify(process.env.GITHUB_SHA ? process.env.GITHUB_SHA.substring(0, 7) : 'prod'),
   },

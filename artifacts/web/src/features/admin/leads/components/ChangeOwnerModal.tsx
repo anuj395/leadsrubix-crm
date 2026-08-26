@@ -15,8 +15,9 @@ import Checkbox from '@mui/material/Checkbox'
 import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 import Stack from '@mui/material/Stack'
-import { listManagerCandidates, type ManagerCandidate } from '@/services/usersAdminService'
+import { listUsers } from '@/services/usersAdminService'
 import { transferContacts } from '@/services/contactsService'
+import { api } from '@/services/api'
 
 interface ChangeOwnerModalProps {
   open: boolean
@@ -25,7 +26,15 @@ interface ChangeOwnerModalProps {
   onSuccess: () => void
 }
 
-const TRANSFER_REASONS = [
+interface OwnerOption {
+  _id: string
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
+const DEFAULT_TRANSFER_REASONS = [
   'Reassigned by Admin',
   'Lead Unresponsive',
   'Territory Re-allocation',
@@ -38,7 +47,8 @@ const LEAD_TYPES = ['Leads', 'Data']
 
 export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: ChangeOwnerModalProps) {
   const [step, setStep] = useState<1 | 2>(1)
-  const [users, setUsers] = useState<ManagerCandidate[]>([])
+  const [users, setUsers] = useState<OwnerOption[]>([])
+  const [reasons, setReasons] = useState<string[]>(DEFAULT_TRANSFER_REASONS)
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +56,7 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
   // Form fields
   const [selectedUserId, setSelectedUserId] = useState('')
   const [transferReason, setTransferReason] = useState('')
-  const [leadType, setLeadType] = useState('')
+  const [leadType, setLeadType] = useState('Leads')
 
   // Options
   const [fresh, setFresh] = useState(false)
@@ -60,10 +70,32 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
       setStep(1)
       setError(null)
       setLoadingUsers(true)
-      listManagerCandidates('sales')
-        .then((data) => setUsers(data))
+
+      // 1. Fetch All Active Users in the Organization (Admin, Lead Manager, Team Lead, Sales)
+      listUsers(undefined, true)
+        .then((data) => {
+          const activeUsers = (data || []).filter((u) => u.isActive !== false)
+          setUsers(
+            activeUsers.map((u) => ({
+              _id: String(u._id || u.id || ''),
+              id: String(u._id || u.id || ''),
+              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+              email: u.email,
+              role: u.role,
+            }))
+          )
+        })
         .catch(() => setError('Failed to load user list'))
         .finally(() => setLoadingUsers(false))
+
+      // 2. Fetch Dynamic Transfer Reasons from Config
+      api.get('resource-items/resourceTransferReasons')
+        .then((res) => {
+          const items = res.data?.items || res.data || []
+          const mapped = Array.isArray(items) ? items.map((r: any) => typeof r === 'string' ? r : r?.name || r?.label || r?.value).filter(Boolean) : []
+          if (mapped.length > 0) setReasons(mapped)
+        })
+        .catch(() => {})
     }
   }, [open])
 
@@ -198,7 +230,7 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
                 label="Select Reason To Transfer"
                 onChange={(e) => setTransferReason(e.target.value)}
               >
-                {TRANSFER_REASONS.map((r) => (
+                {reasons.map((r) => (
                   <MenuItem key={r} value={r}>
                     {r}
                   </MenuItem>

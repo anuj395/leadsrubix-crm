@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -22,36 +21,44 @@ import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
 import Link from '@mui/material/Link'
-import { useAuth } from '@/hooks/useAuth'
-import { resolveScreen, type ResolvedFormField } from '@/services/screenAdminService'
-import { bulkImportContacts, fetchImportHistory, deleteImportHistory } from '@/services/contactsService'
+import { api } from '@/services/api'
+import type { ResolvedFormField } from '@/services/screenAdminService'
 
-interface ImportContactModalProps {
+interface ImportResourceModalProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
+  resourceKey: string
+  resourceTitle: string
+  formFields: ResolvedFormField[]
+  organizationId?: string
+  industryId?: string
 }
 
-export function ImportContactModal({ open, onClose, onSuccess }: ImportContactModalProps) {
-  const { user } = useAuth()
+export function ImportResourceModal({
+  open,
+  onClose,
+  onSuccess,
+  resourceKey,
+  resourceTitle,
+  formFields,
+  organizationId,
+  industryId,
+}: ImportResourceModalProps) {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [importHistory, setImportHistory] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [dynamicFields, setDynamicFields] = useState<ResolvedFormField[]>([])
 
-  const loadHistoryAndConfig = async () => {
+  const loadHistory = async () => {
+    if (!resourceKey) return
     try {
       setLoadingHistory(true)
-      const [logs, screenData] = await Promise.all([
-        fetchImportHistory(),
-        resolveScreen({ screenKey: 'contacts', industryCode: user?.industryId }).catch(() => null)
-      ])
-      setImportHistory(logs)
-      if (screenData?.form_fields) {
-        setDynamicFields(screenData.form_fields)
-      }
+      const res = await api.get(`resource-items/${resourceKey}/import-history`, {
+        params: { organizationId }
+      })
+      setImportHistory(res.data ?? [])
     } catch {
       // ignore
     } finally {
@@ -60,23 +67,22 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
   }
 
   useEffect(() => {
-    if (open) {
+    if (open && resourceKey) {
       setError(null)
-      void loadHistoryAndConfig()
+      void loadHistory()
     }
-  }, [open, user?.industryId])
+  }, [open, resourceKey, organizationId])
 
   const handleDownloadTemplate = () => {
-    // Generate CSV template dynamically based on configured contact form fields
-    const headers = dynamicFields.length > 0
-      ? dynamicFields.map((f) => f.key)
-      : ['customerName', 'contactNumber', 'email', 'stage', 'leadSource', 'budget', 'location', 'notes']
+    const headers = formFields && formFields.length > 0
+      ? formFields.map((f) => f.key)
+      : ['name', 'value', 'description']
 
     const csvContent = 'data:text/csv;charset=utf-8,' + headers.join(',') + '\n'
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', 'contact_import_template.csv')
+    link.setAttribute('download', `${resourceKey}_template.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -84,7 +90,7 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !resourceKey) return
 
     setUploading(true)
     setError(null)
@@ -96,57 +102,89 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
         const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0)
 
         if (lines.length < 2) {
-          setError('CSV file must contain a header row and at least one contact row.')
+          setError('CSV file must contain a header row and at least one data row.')
           setUploading(false)
           return
         }
 
         const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, ''))
-        const contacts: any[] = []
+        const headerToKey: Record<string, string> = {}
+        formFields.forEach((f) => {
+          headerToKey[f.label.toLowerCase()] = f.key
+          headerToKey[f.key.toLowerCase()] = f.key
+        })
 
+        const items: any[] = []
         for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',').map((v) => v.trim().replace(/^["']|["']$/g, ''))
-          const rowObj: Record<string, string> = {}
+          const currentLine = lines[i]
+          const values: string[] = []
+          let insideQuote = false
+          let currentValue = ''
+          for (let charIdx = 0; charIdx < currentLine.length; charIdx++) {
+            const char = currentLine[charIdx]
+            if (char === '"' || char === "'") {
+              insideQuote = !insideQuote
+            } else if (char === ',' && !insideQuote) {
+              values.push(currentValue.trim())
+              currentValue = ''
+            } else {
+              currentValue += char
+            }
+          }
+          values.push(currentValue.trim())
+
+          const rowObj: Record<string, any> = {}
           headers.forEach((header, idx) => {
-            rowObj[header] = values[idx] || ''
+            const fieldKey = headerToKey[header.toLowerCase()] || header
+            if (fieldKey && idx < values.length) {
+              let val = values[idx].replace(/^["']|["']$/g, '').trim()
+              const fieldDef = formFields.find((f) => f.key === fieldKey)
+              if (fieldDef?.type === 'checkbox') {
+                rowObj[fieldKey] = val.toLowerCase() === 'true' || val === '1' || val.toLowerCase() === 'yes'
+              } else {
+                rowObj[fieldKey] = val
+              }
+            }
           })
-          if (
-            rowObj.customer_name ||
-            rowObj.customerName ||
-            rowObj.contact_number ||
-            rowObj.contactNumber ||
-            rowObj.name ||
-            rowObj.phone
-          ) {
-            contacts.push(rowObj)
+
+          if (Object.keys(rowObj).length > 0) {
+            items.push(rowObj)
           }
         }
 
-        if (contacts.length === 0) {
-          setError('No valid contact entries found in the uploaded file.')
+        if (items.length === 0) {
+          setError('No valid entries found in the uploaded file.')
           setUploading(false)
           return
         }
 
-        const res = await bulkImportContacts(contacts, file.name)
+        await api.post(`resource-items/${resourceKey}/bulk-import`, {
+          items,
+          fileName: file.name,
+          csvContent: text,
+          organizationId,
+          industryId
+        })
+
         onSuccess()
-        void loadHistoryAndConfig()
+        void loadHistory()
       } catch (err: any) {
         setError(err?.response?.data?.message || err?.message || 'Failed to process file import.')
       } finally {
         setUploading(false)
+        e.target.value = ''
       }
     }
     reader.readAsText(file)
   }
 
   const handleDeleteHistory = async (id: string) => {
-    if (!id) return
+    if (!id || !resourceKey) return
     try {
       setDeletingId(id)
       setError(null)
-      await deleteImportHistory(id)
-      await loadHistoryAndConfig()
+      await api.delete(`resource-items/${resourceKey}/import-history/${id}`)
+      await loadHistory()
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to delete import history item.')
     } finally {
@@ -157,7 +195,7 @@ export function ImportContactModal({ open, onClose, onSuccess }: ImportContactMo
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', fontSize: '1.25rem' }}>
-        Import Data for "Contact Form"
+        Import Data for "{resourceTitle || 'Resource'}"
       </DialogTitle>
 
       <DialogContent dividers>

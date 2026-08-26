@@ -41,7 +41,7 @@ function resolveAssociateName(creatorId, userMap) {
   return 'System / Unassigned';
 }
 
-async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organizationIdQuery, groupBy = 'team', startDate, endDate }) {
+async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organizationIdQuery, workspaceIdQuery, groupBy = 'team', startDate, endDate }) {
   const User = mongoose.model('User');
   const Contact = mongoose.model('Contact');
   const Task = mongoose.model('Task');
@@ -52,9 +52,10 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   const role = authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
-  // 1. Resolve organization/tenant filters
+  // 1. Resolve organization/tenant/workspace filters
   let targetIndustry = null;
   let targetOrgId = null;
+  let targetWorkspaceId = null;
 
   if (isSuperAdmin) {
     if (industryIdQuery && industryIdQuery !== 'all') {
@@ -63,9 +64,13 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     if (organizationIdQuery && organizationIdQuery !== 'all') {
       targetOrgId = organizationIdQuery;
     }
+    if (workspaceIdQuery && workspaceIdQuery !== 'all') {
+      targetWorkspaceId = workspaceIdQuery;
+    }
   } else {
     targetIndustry = authedUser.industryId;
     targetOrgId = authedUser.organizationId;
+    targetWorkspaceId = workspaceIdQuery || authedUser.workspaceId || authedUser.workspace_id || null;
   }
 
   let industryDoc = null;
@@ -133,6 +138,12 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     callLogFilter.organization_id = { $in: [] };
   }
 
+  if (targetWorkspaceId && targetWorkspaceId !== 'all') {
+    contactFilter.workspace_id = targetWorkspaceId;
+    taskFilter.workspace_id = targetWorkspaceId;
+    callLogFilter.workspace_id = targetWorkspaceId;
+  }
+
   // Enforce hierarchical user permissions securely
   if (visibleUserIds !== null) {
     const allowedUserIds = visibleUserIds.map(id => String(id));
@@ -140,25 +151,46 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     
     const allowedUids = matchedUsers.map(u => u.uid).filter(Boolean);
     const allowedEmails = matchedUsers.map(u => u.email).filter(Boolean);
+    const allowedEmailsLower = allowedEmails.map(e => e.toLowerCase());
     const allowedNames = matchedUsers.map(u => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim()).filter(Boolean);
 
+    const allUserIdentifiers = Array.from(new Set([
+      ...allowedUserIds,
+      ...allowedUids,
+      ...allowedEmails,
+      ...allowedEmailsLower,
+      ...allowedNames
+    ]));
+
     contactFilter.$or = [
-      { createdBy: { $in: allowedUserIds } },
-      { createdBy: { $in: allowedNames } },
-      { createdBy: { $in: allowedEmails } },
-      { uid: { $in: allowedUids } }
+      { createdBy: { $in: allUserIdentifiers } },
+      { uid: { $in: allUserIdentifiers } },
+      { assigned_to: { $in: allUserIdentifiers } },
+      { assignedTo: { $in: allUserIdentifiers } },
+      { contact_owner_email: { $in: allUserIdentifiers } },
+      { contactOwnerEmail: { $in: allUserIdentifiers } },
+      { owner_id: { $in: allUserIdentifiers } },
+      { ownerId: { $in: allUserIdentifiers } }
     ];
+
     taskFilter.$or = [
-      { createdBy: { $in: allowedUserIds } },
-      { createdBy: { $in: allowedNames } },
-      { createdBy: { $in: allowedEmails } },
-      { uid: { $in: allowedUids } }
+      { createdBy: { $in: allUserIdentifiers } },
+      { uid: { $in: allUserIdentifiers } },
+      { assigned_to: { $in: allUserIdentifiers } },
+      { assignedTo: { $in: allUserIdentifiers } },
+      { userId: { $in: allUserIdentifiers } },
+      { user_id: { $in: allUserIdentifiers } }
     ];
+
     callLogFilter.$or = [
-      { createdBy: { $in: allowedUserIds } },
-      { createdBy: { $in: allowedNames } },
-      { createdBy: { $in: allowedEmails } },
-      { uid: { $in: allowedUids } }
+      { createdBy: { $in: allUserIdentifiers } },
+      { uid: { $in: allUserIdentifiers } },
+      { userId: { $in: allUserIdentifiers } },
+      { user_id: { $in: allUserIdentifiers } },
+      { caller_id: { $in: allUserIdentifiers } },
+      { callerId: { $in: allUserIdentifiers } },
+      { caller_email: { $in: allUserIdentifiers } },
+      { callerEmail: { $in: allUserIdentifiers } }
     ];
   }
 
@@ -188,10 +220,18 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   usersList.forEach(u => {
     const displayName = u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
     userMap.set(String(u._id), displayName);
+    if (u.email) {
+      userMap.set(u.email.toLowerCase(), displayName);
+      userMap.set(u.email, displayName);
+    }
     if (u.uid) {
       userMap.set(u.uid, displayName);
     }
     teamMap.set(String(u._id), u.team || 'Unknown Team');
+    if (u.email) {
+      teamMap.set(u.email.toLowerCase(), u.team || 'Unknown Team');
+      teamMap.set(u.email, u.team || 'Unknown Team');
+    }
     if (u.uid) {
       teamMap.set(u.uid, u.team || 'Unknown Team');
     }
@@ -250,11 +290,11 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     if (groupBy === 'source') {
       key = c.source || c.lead_source || 'Unknown';
     } else if (groupBy === 'teamWise') {
-      const creatorId = c.createdBy || c.uid;
-      key = teamMap.get(String(creatorId)) || 'Unknown Team';
+      const userRef = c.assigned_to || c.assignedTo || c.contact_owner_email || c.createdBy || c.uid;
+      key = teamMap.get(String(userRef).toLowerCase()) || teamMap.get(String(userRef)) || 'Unknown Team';
     } else {
-      const creatorId = c.createdBy || c.uid;
-      key = resolveAssociateName(creatorId, userMap);
+      const userRef = c.assigned_to || c.assignedTo || c.contact_owner_email || c.createdBy || c.uid;
+      key = resolveAssociateName(userRef, userMap);
     }
 
     if (!contactsGroupMap.has(key)) {
@@ -305,7 +345,9 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   const callBackReasons = Array.from(callbackReasonsMap.entries()).map(([label, total], idx) => ({
     sNo: idx + 1,
     associate: label,
-    total
+    total,
+    name: label,
+    value: total
   }));
 
   const chartData = [
@@ -313,6 +355,11 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     { name: 'Won', value: cards.closedWon },
     { name: 'Interested', value: cards.interested }
   ];
+
+  const callBackReasonsChart = callBackReasons.map(r => ({
+    name: r.associate,
+    value: r.total
+  }));
 
   // ── TASKS ANALYTICS ────────────────────────────────────────────────────────
   const completedTasksMap = new Map();
@@ -334,11 +381,11 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     if (groupBy === 'source') {
       key = t.source || 'Unknown';
     } else if (groupBy === 'teamWise') {
-      const creatorId = t.uid || t.createdBy;
-      key = teamMap.get(String(creatorId)) || 'Unknown Team';
+      const userRef = t.assignedTo || t.assigned_to || t.userId || t.user_id || t.uid || t.createdBy;
+      key = teamMap.get(String(userRef).toLowerCase()) || teamMap.get(String(userRef)) || 'Unknown Team';
     } else {
-      const creatorId = t.createdBy || t.uid;
-      key = resolveAssociateName(creatorId, userMap);
+      const userRef = t.assignedTo || t.assigned_to || t.userId || t.user_id || t.createdBy || t.uid;
+      key = resolveAssociateName(userRef, userMap);
     }
 
     const type = t.type || t.taskType || 'Call';
@@ -398,11 +445,11 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     if (groupBy === 'source') {
       key = log.source || 'Unknown';
     } else if (groupBy === 'teamWise') {
-      const creatorId = log.uid || log.createdBy;
-      key = teamMap.get(String(creatorId)) || 'Unknown Team';
+      const userRef = log.userId || log.user_id || log.caller_id || log.callerId || log.caller_email || log.uid || log.createdBy;
+      key = teamMap.get(String(userRef).toLowerCase()) || teamMap.get(String(userRef)) || 'Unknown Team';
     } else {
-      const creatorId = log.createdBy || log.uid;
-      key = resolveAssociateName(creatorId, userMap);
+      const userRef = log.userId || log.user_id || log.caller_id || log.callerId || log.caller_email || log.createdBy || log.uid;
+      key = resolveAssociateName(userRef, userMap);
     }
 
     if (!callLogSummaryMap.has(key)) {
@@ -452,6 +499,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     contacts: {
       feedbackSummary,
       callBackReasons,
+      callBackReasonsChart,
       chartData
     },
     tasks: {

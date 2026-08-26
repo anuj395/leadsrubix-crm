@@ -189,8 +189,8 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
     }
   } else {
     filter.$or = [
-      { organization_id: user.organizationId },
-      { organizationId: user.organizationId }
+      { organization_id: user.organizationId || user.organization_id },
+      { organizationId: user.organizationId || user.organization_id }
     ];
   }
 
@@ -204,15 +204,30 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
     const visibleUids = users.map(u => u.uid).filter(Boolean);
     const visibleEmails = users.map(u => u.email).filter(Boolean);
     const visibleNames = users.map(u => `${u.firstName || ''} ${u.lastName || ''}`.trim()).filter(Boolean);
+    const ownerEmails = [...visibleEmails, user.email].filter(Boolean);
+    const ownerUids = [...visibleIds, ...visibleUids, ...visibleNames, String(user._id), user.uid].filter(Boolean);
 
-    filter.$or = [
-      { createdBy: { $in: [...visibleIds, ...visibleNames, user.email, String(user._id)] } },
-      { uid: { $in: [...visibleUids, String(user._id), user.uid].filter(Boolean) } },
-      { contactOwnerEmail: { $in: [...visibleEmails, user.email].filter(Boolean) } },
-      { contactOwnerEmail: '' },
-      { contactOwnerEmail: null },
-      { contactOwnerEmail: { $exists: false } }
-    ];
+    const baseOrgFilter = filter.$or ? { $or: filter.$or } : null;
+    delete filter.$or;
+
+    const accessFilter = {
+      $or: [
+        { createdBy: { $in: ownerUids } },
+        { created_by: { $in: ownerUids } },
+        { uid: { $in: ownerUids } },
+        { contact_owner_id: { $in: ownerUids } },
+        { contactOwnerEmail: { $in: ownerEmails } },
+        { contact_owner_email: { $in: ownerEmails } },
+        { assignedTo: { $in: ownerEmails } },
+        { assigned_to: { $in: ownerEmails } }
+      ]
+    };
+
+    if (baseOrgFilter) {
+      filter.$and = [baseOrgFilter, accessFilter];
+    } else {
+      filter.$or = accessFilter.$or;
+    }
   }
   const items = await contactModel.list({ filter, limit });
   await enrichOrganizationNames(items);
@@ -340,7 +355,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
   data.alternateNo = data.alternateNo || '';
   data.emailId = data.emailId || data.email || '';
   data.email = data.email || data.emailId || '';
-  data.contactOwnerEmail = data.contactOwnerEmail || user.email || '';
+  data.contactOwnerEmail = data.contactOwnerEmail || '';
   data.leadType = data.leadType || 'Leads';
   data.propertyType = data.propertyType || '';
   data.propertyStage = data.propertyStage || '';
@@ -348,10 +363,14 @@ exports.createForUser = async ({ payload, authedUser }) => {
   data.projectName = data.projectName || '';
   data.countryCode = data.countryCode || '+91';
 
+  const explicitOwnerEmail = data.contactOwnerEmail || data.contact_owner_email || data.assignedTo || data.assigned_to || data.ownerEmail || data.owner_email || '';
+  const explicitUid = data.uid || data.contactOwnerId || data.contact_owner_id || '';
+
   const cleaned = {
     customerName: data.customerName,
     contactNumber: data.contactNumber,
-    contactOwnerEmail: data.contactOwnerEmail || user.email,
+    contactOwnerEmail: explicitOwnerEmail,
+    uid: explicitUid,
     countryCode: data.countryCode || '+91',
     alternateNo: data.alternateNo || '',
     leadType: data.leadType || 'Leads',
@@ -466,6 +485,42 @@ exports.createForUser = async ({ payload, authedUser }) => {
         }
       }
     }
+  }
+
+  // Auto-evaluate lead distribution rules if owner is not explicitly provided in request
+  if (!explicitOwnerEmail && !explicitUid) {
+    try {
+      const { assignLeadByRules } = require('./leadDistributionService');
+      const assignment = await assignLeadByRules({
+        organizationId: targetOrgId,
+        industryId: resolvedIndustryId,
+        source: cleaned.source || 'Manual Lead',
+        project: cleaned.projectName,
+        location: cleaned.location,
+        budget: cleaned.budget,
+        propertyType: cleaned.propertyType
+      });
+      if (assignment.ownerEmail || assignment.uid) {
+        cleaned.uid = assignment.uid;
+        cleaned.contactOwnerId = assignment.uid;
+        cleaned.contact_owner_id = assignment.uid;
+        cleaned.contactOwnerEmail = assignment.ownerEmail;
+        cleaned.contact_owner_email = assignment.ownerEmail;
+        cleaned.assignedTo = assignment.ownerEmail;
+        cleaned.assigned_to = assignment.ownerEmail;
+      }
+    } catch (e) {
+      console.error('[ContactService] Lead distribution assignment error:', e);
+    }
+  }
+
+  // Fallback to creator if still unassigned
+  if (!cleaned.contactOwnerEmail && user) {
+    cleaned.contactOwnerEmail = user.email || '';
+    cleaned.contact_owner_email = user.email || '';
+    cleaned.assignedTo = user.email || '';
+    cleaned.assigned_to = user.email || '';
+    cleaned.uid = cleaned.uid || user.uid || String(user._id);
   }
 
   const docPayload = fillExtraFields(
@@ -685,22 +740,40 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
   const targetOwnerUid = owner.uid || owner.id;
   const Contact = mongoose.model('Contact');
   const Task = mongoose.model('Task');
+  const Notification = mongoose.model('Notification');
+  const LeadReassignmentHistory = mongoose.model('LeadReassignmentHistory');
   const now = new Date();
 
   const leads = await Contact.find({ _id: { $in: ids } }).exec();
 
   for (const lead of leads) {
+    const oldOwner = lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || lead.assignedTo || '';
+    const leadCustomerName = lead.customer_name || lead.customerName || lead.name || 'Unnamed Lead';
+    const leadContactNo = lead.contact_no || lead.contact_number || lead.contactNumber || lead.phone || '';
+    const leadSource = lead.source || lead.campaign || '';
+    const orgId = lead.organization_id || lead.organizationId;
+
     const updatePayload = {
       uid: targetOwnerUid,
+      contact_owner_id: targetOwnerUid,
+      contactOwnerId: targetOwnerUid,
       contactOwnerEmail: owner.email,
+      contact_owner_email: owner.email,
+      assignedTo: owner.email,
+      assigned_to: owner.email,
+      last_rotation_at: now,
+      lastRotationAt: now,
       transferReason: reason,
+      transfer_reason: reason,
       transferStatus: true,
+      transfer_status: true,
       leadType: leadType || lead.leadType || 'Leads',
+      lead_type: leadType || lead.leadType || 'Leads',
       modifiedAt: now,
       stageChangeAt: now,
       leadAssignTime: now,
       previousOwner1: lead.previousOwner2 || '',
-      previousOwner2: lead.contactOwnerEmail || '',
+      previousOwner2: oldOwner,
       transferBy1: lead.transferBy2 || '',
       transferBy2: authedUser?.email || '',
       previousStage1: lead.previousStage2 || '',
@@ -718,6 +791,7 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
 
       if (!options.contactDetails) {
         updatePayload.projectName = '';
+        updatePayload.project_name = '';
         updatePayload.propertyStage = '';
         updatePayload.propertyType = '';
         updatePayload.budget = '';
@@ -727,33 +801,98 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       }
     }
 
+    if (options.notes === false) {
+      updatePayload.notes = [];
+    }
+
+    if (options.attachments === false) {
+      updatePayload.attachments = [];
+    }
+
     // Direct update on existing lead
     await Contact.findByIdAndUpdate(lead._id, { $set: updatePayload });
 
+    // Write Audit Reassignment History Log
+    try {
+      await LeadReassignmentHistory.create({
+        organization_id: orgId,
+        organizationId: orgId,
+        lead_id: String(lead._id),
+        leadId: String(lead._id),
+        customer_name: leadCustomerName,
+        customerName: leadCustomerName,
+        contact_no: leadContactNo,
+        contactNo: leadContactNo,
+        source: leadSource,
+        from_user: oldOwner || 'Unassigned',
+        fromUser: oldOwner || 'Unassigned',
+        to_user: owner.email,
+        toUser: owner.email,
+        reassigned_by: authedUser?.name || authedUser?.email || 'Manual Transfer',
+        reassignedBy: authedUser?.name || authedUser?.email || 'Manual Transfer',
+        reason: reason || 'Manual Lead Transfer',
+        rotation_time: 0,
+        rotationTime: 0,
+        created_at: now,
+        createdAt: now
+      });
+    } catch (hErr) {
+      console.error('[ContactService] Error writing manual transfer history:', hErr.message);
+    }
+
+    // WhatsApp Transfer Notification to New Owner
     try {
       const { sendNotification } = require('./whatsappService');
       sendNotification({
-        organizationId: lead.organization_id || lead.organizationId,
-        contact: { ...lead.toObject(), ...updatePayload },
+        organizationId: orgId,
+        contact: {
+          ...lead.toObject(),
+          ...updatePayload,
+          customer_name: leadCustomerName,
+          customerName: leadCustomerName,
+          contact_no: leadContactNo,
+          contactNumber: leadContactNo
+        },
         eventType: 'transfer'
       }).catch(err => console.error('[WhatsApp] Transfer notification dispatch error:', err));
     } catch (e) {
       console.error('[WhatsApp] Failed to initiate transfer notification:', e);
     }
 
+    // In-App Notification for New Owner
     try {
       const { createNotification } = require('./notificationService');
       await createNotification({
         userId: targetOwnerUid,
-        organizationId: lead.organization_id || lead.organizationId,
+        organizationId: orgId,
         workspaceId: lead.workspace_id || lead.workspaceId || null,
         title: 'Lead Transferred to You',
-        message: `Lead "${lead.name || 'Unnamed'}" has been transferred to you by ${authedUser?.name || authedUser?.email || 'System'}.`,
+        message: `Lead "${leadCustomerName}" has been transferred to you by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
         type: 'LEAD_TRANSFERRED',
         relatedId: lead._id
       });
     } catch (err) {
       console.error('[Notification] Failed to create in-app transfer notification:', err);
+    }
+
+    // In-App Notification for Previous Owner (Old Agent)
+    if (oldOwner && oldOwner !== owner.email && oldOwner !== 'Unassigned') {
+      try {
+        await Notification.create({
+          organization_id: orgId,
+          organizationId: orgId,
+          recipient_email: oldOwner,
+          recipientEmail: oldOwner,
+          title: 'Lead Reallocated',
+          message: `Lead "${leadCustomerName}" was transferred to ${owner.email} by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
+          type: 'LEAD_REASSIGN',
+          read: false,
+          created_at: now,
+          createdAt: now
+        });
+      } catch (nOldErr) {
+        // ignore
+      }
     }
 
     // Update existing pending tasks for this lead to new owner if options.task is true
@@ -781,56 +920,215 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     const err = new Error('No contact IDs specified'); err.status = 400; throw err;
   }
   const Contact = mongoose.model('Contact');
-  
+  const Notification = mongoose.model('Notification');
+  const LeadReassignmentHistory = mongoose.model('LeadReassignmentHistory');
+  const now = new Date();
+
   const leads = await Contact.find({ _id: { $in: ids } }).exec();
-  
+
   const result = await Contact.updateMany(
     { _id: { $in: ids } },
-    { $set: { contactOwnerEmail, uid: uid || null, modifiedAt: new Date() } }
+    {
+      $set: {
+        contactOwnerEmail,
+        contact_owner_email: contactOwnerEmail,
+        assignedTo: contactOwnerEmail,
+        assigned_to: contactOwnerEmail,
+        uid: uid || null,
+        contactOwnerId: uid || null,
+        contact_owner_id: uid || null,
+        last_rotation_at: now,
+        lastRotationAt: now,
+        modifiedAt: now
+      }
+    }
   );
 
-  try {
-    const { sendNotification } = require('./whatsappService');
-    for (const lead of leads) {
+  for (const lead of leads) {
+    const oldOwner = lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || lead.assignedTo || '';
+    const leadCustomerName = lead.customer_name || lead.customerName || lead.name || 'Unnamed Lead';
+    const leadContactNo = lead.contact_no || lead.contact_number || lead.contactNumber || lead.phone || '';
+    const leadSource = lead.source || lead.campaign || '';
+    const orgId = lead.organization_id || lead.organizationId;
+
+    // Write Audit History Log
+    try {
+      await LeadReassignmentHistory.create({
+        organization_id: orgId,
+        organizationId: orgId,
+        lead_id: String(lead._id),
+        leadId: String(lead._id),
+        customer_name: leadCustomerName,
+        customerName: leadCustomerName,
+        contact_no: leadContactNo,
+        contactNo: leadContactNo,
+        source: leadSource,
+        from_user: oldOwner || 'Unassigned',
+        fromUser: oldOwner || 'Unassigned',
+        to_user: contactOwnerEmail,
+        toUser: contactOwnerEmail,
+        reassigned_by: authedUser?.name || authedUser?.email || 'Bulk Reassignment',
+        reassignedBy: authedUser?.name || authedUser?.email || 'Bulk Reassignment',
+        reason: 'Bulk Reassignment',
+        rotation_time: 0,
+        rotationTime: 0,
+        created_at: now,
+        createdAt: now
+      });
+    } catch (hErr) {
+      console.error('[ContactService] Error writing bulk reassign history:', hErr.message);
+    }
+
+    // WhatsApp Transfer Notification
+    try {
+      const { sendNotification } = require('./whatsappService');
       sendNotification({
-        organizationId: lead.organization_id || lead.organizationId,
-        contact: { ...lead.toObject(), contactOwnerEmail, uid: uid || null },
+        organizationId: orgId,
+        contact: {
+          ...lead.toObject(),
+          contactOwnerEmail,
+          contact_owner_email: contactOwnerEmail,
+          assignedTo: contactOwnerEmail,
+          assigned_to: contactOwnerEmail,
+          uid: uid || null,
+          customer_name: leadCustomerName,
+          customerName: leadCustomerName,
+          contact_no: leadContactNo,
+          contactNumber: leadContactNo
+        },
         eventType: 'transfer'
       }).catch(err => console.error('[WhatsApp] Bulk transfer notification dispatch error:', err));
+    } catch (e) {
+      console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
     }
-  } catch (e) {
-    console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
-  }
 
-  try {
-    const { createNotification } = require('./notificationService');
-    for (const lead of leads) {
-      if (uid) {
+    // In-App Notification for New Owner
+    if (uid) {
+      try {
+        const { createNotification } = require('./notificationService');
         await createNotification({
           userId: uid,
-          organizationId: lead.organization_id || lead.organizationId,
+          organizationId: orgId,
           workspaceId: lead.workspace_id || lead.workspaceId || null,
           title: 'Lead Transferred to You',
-          message: `Lead "${lead.name || 'Unnamed'}" has been reassigned to you by ${authedUser?.name || authedUser?.email || 'System'}.`,
+          message: `Lead "${leadCustomerName}" has been reassigned to you by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
           type: 'LEAD_TRANSFERRED',
           relatedId: lead._id
         });
+      } catch (err) {
+        console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
       }
     }
-  } catch (err) {
-    console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
   }
 
   return { modifiedCount: result.modifiedCount };
 };
+
+exports.addContactAttachment = async ({ contactId, name, base64Data, url, type = 'file', authedUser }) => {
+  const Contact = mongoose.model('Contact');
+  const s3Service = require('./s3Service');
+  const contact = await Contact.findById(contactId);
+  if (!contact) {
+    const err = new Error('Contact not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const industryId = contact.industry_id || contact.industryId || authedUser?.industryId || 'global';
+  const organizationId = contact.organization_id || contact.organizationId || authedUser?.organizationId || 'global';
+  const workspaceId = contact.workspace_id || contact.workspaceId || authedUser?.workspaceId || 'default';
+
+  let finalUrl = url || '';
+  let finalKey = '';
+  let finalSize = 0;
+
+  if (base64Data) {
+    const uploadRes = await s3Service.uploadBase64Media({
+      base64Data,
+      filename: name || `attachment-${Date.now()}`,
+      industryId,
+      organizationId,
+      workspaceId,
+      contactId,
+      resourceType: type
+    });
+    finalUrl = typeof uploadRes === 'object' ? uploadRes.url : uploadRes;
+    finalKey = typeof uploadRes === 'object' ? (uploadRes.key || '') : '';
+    finalSize = typeof uploadRes === 'object' ? (uploadRes.size || 0) : 0;
+  }
+
+  if (!finalUrl) {
+    const err = new Error('Either file payload or Resource URL must be provided');
+    err.status = 400;
+    throw err;
+  }
+
+  const attachmentId = new mongoose.Types.ObjectId();
+  const newAttachment = {
+    _id: attachmentId,
+    id: attachmentId.toString(),
+    name: name || 'Attachment',
+    url: finalUrl,
+    key: finalKey,
+    type: type || 'file',
+    size: finalSize,
+    uploaded_by: authedUser?.email || authedUser?.name || 'User',
+    created_at: new Date()
+  };
+
+  const existingAttachments = Array.isArray(contact.attachments) ? contact.attachments : [];
+  existingAttachments.push(newAttachment);
+  contact.attachments = existingAttachments;
+
+  await contact.save();
+  return { success: true, attachment: newAttachment, attachments: existingAttachments };
+};
+
+exports.deleteContactAttachment = async ({ contactId, attachmentId, authedUser }) => {
+  const Contact = mongoose.model('Contact');
+  const s3Service = require('./s3Service');
+  const contact = await Contact.findById(contactId);
+  if (!contact) {
+    const err = new Error('Contact not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const existing = Array.isArray(contact.attachments) ? contact.attachments : [];
+  const targetIndex = existing.findIndex(a => 
+    String(a._id || a.id) === String(attachmentId) || String(a.url) === String(attachmentId)
+  );
+
+  if (targetIndex === -1) {
+    const err = new Error('Attachment not found on this contact');
+    err.status = 404;
+    throw err;
+  }
+
+  const [removed] = existing.splice(targetIndex, 1);
+  if (removed?.url) {
+    await s3Service.deleteImage(removed.url).catch(e => console.error('[S3] Attachment delete error:', e));
+  }
+
+  contact.attachments = existing;
+  await contact.save();
+
+  return { success: true, message: 'Attachment deleted successfully', attachments: existing };
+};
+
 
 exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv', authedUser }) => {
   if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
     return { imported: 0, errors: [] };
   }
   const ImportLog = require('../models/importLogModel');
+  const s3Service = require('./s3Service');
   const user = await userModel.findById(authedUser.id);
   const requestId = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+  const orgId = user?.organizationId || user?.organization_id || authedUser?.organizationId || authedUser?.organization_id;
+  const indId = user?.industryId || user?.industry_id || authedUser?.industryId || 'temp0001';
+  const wsId = user?.workspaceId || user?.workspace_id || authedUser?.workspaceId || 'default';
 
   let imported = 0;
   const errors = [];
@@ -841,7 +1139,7 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     try {
       await exports.createForUser({ payload: row, authedUser });
       imported++;
-      processedRows.push({ ...row, import_status: 'SUCCESS' });
+      processedRows.push({ ...row, import_status: 'SUCCESS', error_message: '' });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       errors.push({ index: i, error: errMsg });
@@ -849,16 +1147,45 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     }
   }
 
-  if (user?.organizationId || user?.organization_id) {
-    // Generate simulated/stored file URLs for file download parity
-    const fileUrl = `/api/contacts/import-files/${requestId}_raw.csv`;
-    const responseUrl = `/api/contacts/import-files/${requestId}_processed.csv`;
+  // Generate CSV representations
+  const rawCsv = arrayToCsv(contacts);
+  const processedCsv = arrayToCsv(processedRows);
 
+  let fileUrl = `/api/contacts/import-files/${requestId}_raw.csv`;
+  let responseUrl = `/api/contacts/import-files/${requestId}_processed.csv`;
+
+  try {
+    const [rawUpload, processedUpload] = await Promise.all([
+      s3Service.uploadImportFile({
+        csvContent: rawCsv,
+        filename: fileName || 'leads-import.csv',
+        industryId: indId,
+        organizationId: orgId,
+        workspaceId: wsId,
+        module: 'leads'
+      }),
+      s3Service.uploadImportFile({
+        csvContent: processedCsv,
+        filename: `processed-${fileName || 'leads-import.csv'}`,
+        industryId: indId,
+        organizationId: orgId,
+        workspaceId: wsId,
+        module: 'leads'
+      })
+    ]);
+
+    if (rawUpload?.url) fileUrl = rawUpload.url;
+    if (processedUpload?.url) responseUrl = processedUpload.url;
+  } catch (s3Err) {
+    console.warn('[BulkImport] S3 import file upload error:', s3Err.message);
+  }
+
+  if (orgId) {
     await ImportLog.create({
       requestId,
-      organization_id: user.organizationId || user.organization_id,
-      createdBy: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-      uid: user.uid || String(user._id),
+      organization_id: orgId,
+      createdBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || authedUser?.email || 'Admin',
+      uid: user?.uid || String(user?._id || authedUser?.id),
       status: errors.length === 0 ? 'Completed' : 'Completed with Errors',
       uploadCount: imported,
       failedCount: errors.length,
@@ -867,8 +1194,21 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     });
   }
 
-  return { imported, errors, requestId };
+  return { imported, errors, requestId, fileUrl, responseUrl };
 };
+
+function arrayToCsv(rows) {
+  if (!rows || rows.length === 0) return '';
+  const headers = Object.keys(rows[0]);
+  const headerLine = headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',');
+  const lines = rows.map(r => 
+    headers.map(h => {
+      const val = r[h] !== undefined && r[h] !== null ? String(r[h]) : '';
+      return `"${val.replace(/"/g, '""')}"`;
+    }).join(',')
+  );
+  return [headerLine, ...lines].join('\n');
+}
 
 exports.listImportLogs = async ({ authedUser }) => {
   if (!authedUser?.id) {
@@ -884,6 +1224,41 @@ exports.listImportLogs = async ({ authedUser }) => {
     .lean()
     .exec();
   return logs;
+};
+
+exports.deleteImportLog = async ({ id, authedUser }) => {
+  if (!authedUser?.id) {
+    const err = new Error('Authentication required'); err.status = 401; throw err;
+  }
+  const ImportLog = require('../models/importLogModel');
+  const s3Service = require('./s3Service');
+
+  const log = await ImportLog.findOne({
+    $or: [
+      { _id: mongoose.Types.ObjectId.isValid(id) ? id : undefined },
+      { requestId: id },
+      { request_id: id }
+    ].filter(Boolean)
+  });
+
+  if (!log) {
+    const err = new Error('Import log record not found'); err.status = 404; throw err;
+  }
+
+  // 1. Delete Raw S3 file from S3 Bucket
+  if (log.fileUrl) {
+    await s3Service.deleteImage(log.fileUrl).catch(e => console.warn('[ImportLog] S3 raw file delete error:', e.message));
+  }
+
+  // 2. Delete Processed S3 file from S3 Bucket
+  if (log.responseUrl) {
+    await s3Service.deleteImage(log.responseUrl).catch(e => console.warn('[ImportLog] S3 response file delete error:', e.message));
+  }
+
+  // 3. Delete ImportLog from Database
+  await ImportLog.deleteOne({ _id: log._id });
+
+  return { success: true, message: 'Import history and associated S3 files deleted successfully' };
 };
 
 exports.deleteForUser = async ({ id, authedUser }) => {
@@ -1045,7 +1420,21 @@ exports.deleteForUser = async ({ id, authedUser }) => {
     console.warn('[Cascade Delete] Quotes cleanup error:', err.message);
   }
 
-  // 7. Delete Primary Contact Record
+  // 7. Clean up S3 attachments for this contact
+  try {
+    if (Array.isArray(existing.attachments) && existing.attachments.length > 0) {
+      const s3Service = require('./s3Service');
+      for (const att of existing.attachments) {
+        if (att?.url) {
+          await s3Service.deleteImage(att.url).catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Cascade Delete] S3 attachments cleanup error:', err.message);
+  }
+
+  // 8. Delete Primary Contact Record
   await contactModel.remove(id);
 };
 

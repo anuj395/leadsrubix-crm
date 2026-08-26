@@ -1,13 +1,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
+const { sendNotification } = require('../services/whatsappService');
 
 const router = express.Router();
 
+// GET WhatsApp configuration
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
-    const Organization = mongoose.model('Organization');
 
     let orgId = null;
     if (req.user.role === 'superAdmin') {
@@ -18,18 +19,25 @@ router.get('/', authenticate, async (req, res, next) => {
       orgId = req.user.organizationId || req.user.organization_id;
     }
 
-    // Try finding the organization specific config
     let config = null;
     if (orgId) {
-      config = await WhatsAppConfig.findOne({ organizationId: orgId }).exec();
+      config = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: orgId },
+          { organizationId: orgId }
+        ]
+      }).exec();
     }
 
-    // If no org config, look for global default config
     if (!config) {
-      config = await WhatsAppConfig.findOne({ organizationId: null }).exec();
+      config = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: null },
+          { organizationId: null }
+        ]
+      }).exec();
     }
 
-    // If still no config, return a default template
     if (!config) {
       config = {
         simply: {
@@ -37,8 +45,8 @@ router.get('/', authenticate, async (req, res, next) => {
           url: 'https://app.simplywhatsapp.com/api/send',
           instanceId: '',
           accessToken: '',
-          incoming_json: '',
-          transfer_json: ''
+          incoming_json: '{\n  "Customer Name": "customer_name",\n  "Contact No": "contact_no",\n  "Project": "project",\n  "Source": "lead_source"\n}',
+          transfer_json: '{\n  "Customer Name": "customer_name",\n  "Contact No": "contact_no",\n  "Project": "project",\n  "Assigned Agent": "assigned_agent"\n}'
         },
         wapi: {
           active: false,
@@ -63,10 +71,10 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
+// POST Save WhatsApp configuration
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
-    const Organization = mongoose.model('Organization');
 
     if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Forbidden: Only admins and superAdmins can update WhatsApp settings' });
@@ -82,13 +90,23 @@ router.post('/', authenticate, async (req, res, next) => {
       orgId = req.user.organizationId || req.user.organization_id;
     }
 
-    // Upsert the WhatsApp config
-    let config = await WhatsAppConfig.findOne({ organizationId: orgId }).exec();
-    if (!config) {
-      config = new WhatsAppConfig({ organizationId: orgId });
+    let config = null;
+    if (orgId) {
+      config = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: orgId },
+          { organizationId: orgId }
+        ]
+      }).exec();
     }
 
-    // Assign payload fields (simply, wapi, chatSimplified)
+    if (!config) {
+      config = new WhatsAppConfig({
+        organization_id: orgId,
+        organizationId: orgId
+      });
+    }
+
     if (req.body.simply) {
       const existingSimply = config.simply ? (config.simply.toObject ? config.simply.toObject() : config.simply) : {};
       config.simply = { ...existingSimply, ...req.body.simply };
@@ -97,13 +115,47 @@ router.post('/', authenticate, async (req, res, next) => {
       const existingWapi = config.wapi ? (config.wapi.toObject ? config.wapi.toObject() : config.wapi) : {};
       config.wapi = { ...existingWapi, ...req.body.wapi };
     }
-    if (req.body.chatSimplified) {
+    if (req.body.chatSimplified || req.body.chat_simplified) {
+      const payloadCS = req.body.chatSimplified || req.body.chat_simplified;
       const existingCS = config.chatSimplified ? (config.chatSimplified.toObject ? config.chatSimplified.toObject() : config.chatSimplified) : {};
-      config.chatSimplified = { ...existingCS, ...req.body.chatSimplified };
+      config.chatSimplified = { ...existingCS, ...payloadCS };
+      config.chat_simplified = { ...existingCS, ...payloadCS };
     }
 
     await config.save();
     res.json(config);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST Test WhatsApp message dispatch
+router.post('/test', authenticate, async (req, res, next) => {
+  try {
+    let orgId = null;
+    if (req.user.role === 'superAdmin') {
+      orgId = req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    } else {
+      orgId = req.user.organizationId || req.user.organization_id;
+    }
+
+    const { recipientPhone, message } = req.body;
+    if (!recipientPhone) {
+      return res.status(400).json({ message: 'Recipient phone number is required for test message.' });
+    }
+
+    const result = await sendNotification({
+      organizationId: orgId,
+      customRecipient: recipientPhone,
+      customMessage: message || 'Hello from Leads Rubix CRM! Your WhatsApp notification integration is working perfectly. 🚀',
+      eventType: 'incoming'
+    });
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
   } catch (err) {
     next(err);
   }

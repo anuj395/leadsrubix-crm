@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,15 +11,164 @@ if (isS3Configured) {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || 'ap-south-1',
   });
 }
 
 /**
- * Uploads a base64 image payload to S3 or a local folder fallback.
- * @param {string} base64Data 
- * @param {string} resourceKey 
- * @returns {Promise<string>} The uploaded file URL
+ * Sanitizes a filename to remove special characters and spaces
+ */
+function sanitizeFilename(filename) {
+  if (!filename) return `file-${Date.now()}`;
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_{2,}/g, '_');
+}
+
+/**
+ * Enterprise Multi-Tenant S3 Key Generator
+ * Format: {industryId}/{organizationId}/{workspaceId}/contacts/{contactId}/attachments/{category}/{filename}
+ */
+function buildTenantS3Key({
+  industryId = 'global',
+  organizationId = 'global',
+  workspaceId = 'default',
+  contactId = null,
+  resourceType = 'attachments',
+  filename = 'file'
+}) {
+  const cleanFilename = sanitizeFilename(filename);
+  const ind = industryId ? String(industryId).replace(/[^a-zA-Z0-9_-]/g, '') : 'global';
+  const org = organizationId ? String(organizationId).replace(/[^a-zA-Z0-9_-]/g, '') : 'global';
+  const ws = workspaceId ? String(workspaceId).replace(/[^a-zA-Z0-9_-]/g, '') : 'default';
+  const resType = resourceType ? String(resourceType).toLowerCase().replace(/[^a-z0-9_-]/g, '') : 'attachments';
+  
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 7);
+
+  if (contactId) {
+    const cleanContactId = String(contactId).replace(/[^a-zA-Z0-9_-]/g, '');
+    return `${ind}/${org}/${ws}/contacts/${cleanContactId}/${resType}/${timestamp}-${randomSuffix}-${cleanFilename}`;
+  }
+
+  return `${ind}/${org}/${ws}/${resType}/${timestamp}-${randomSuffix}-${cleanFilename}`;
+}
+
+/**
+ * Uploads a raw buffer to S3 with enterprise multi-tenant path hierarchy
+ */
+async function uploadMediaBuffer({
+  fileBuffer,
+  mimeType = 'application/octet-stream',
+  filename = 'file',
+  industryId = null,
+  organizationId = null,
+  workspaceId = null,
+  contactId = null,
+  resourceType = 'attachments'
+}) {
+  if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) {
+    throw new Error('Invalid file buffer provided for S3 upload.');
+  }
+
+  const s3Key = buildTenantS3Key({
+    industryId,
+    organizationId,
+    workspaceId,
+    contactId,
+    resourceType,
+    filename
+  });
+
+  const region = process.env.AWS_REGION || 'ap-south-1';
+
+  if (isS3Configured) {
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET,
+      Key: s3Key,
+      Body: fileBuffer,
+      ContentType: mimeType,
+    });
+    await s3.send(command);
+    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${s3Key}`;
+    return {
+      url: fileUrl,
+      key: s3Key,
+      name: filename,
+      size: fileBuffer.length,
+      mimeType,
+      type: resourceType
+    };
+  } else {
+    // Local Fallback Storage
+    const uploadsDir = path.join(__dirname, '../../uploads', s3Key.substring(0, s3Key.lastIndexOf('/')));
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const cleanFilename = s3Key.substring(s3Key.lastIndexOf('/') + 1);
+    const filepath = path.join(uploadsDir, cleanFilename);
+    fs.writeFileSync(filepath, fileBuffer);
+    const port = process.env.PORT || 8080;
+    const fileUrl = `http://localhost:${port}/uploads/${s3Key}`;
+    return {
+      url: fileUrl,
+      key: s3Key,
+      name: filename,
+      size: fileBuffer.length,
+      mimeType,
+      type: resourceType
+    };
+  }
+}
+
+/**
+ * Uploads a base64 encoded media payload to S3
+ */
+async function uploadBase64Media({
+  base64Data,
+  filename = 'attachment',
+  industryId = null,
+  organizationId = null,
+  workspaceId = null,
+  contactId = null,
+  resourceType = 'photo'
+}) {
+  if (!base64Data || typeof base64Data !== 'string') {
+    return base64Data;
+  }
+
+  const matches = base64Data.match(/^data:([A-Za-z-+\/0-9.]+);base64,(.+)$/);
+  if (!matches) {
+    // Already a remote URL
+    return {
+      url: base64Data,
+      key: '',
+      name: filename,
+      type: resourceType
+    };
+  }
+
+  const mimeType = matches[1];
+  const buffer = Buffer.from(matches[2], 'base64');
+  let ext = mimeType.split('/')[1] || 'bin';
+  ext = ext.split('+')[0].replace('jpeg', 'jpg');
+
+  const finalFilename = filename.includes('.') ? filename : `${filename}.${ext}`;
+
+  return await uploadMediaBuffer({
+    fileBuffer: buffer,
+    mimeType,
+    filename: finalFilename,
+    industryId,
+    organizationId,
+    workspaceId,
+    contactId,
+    resourceType
+  });
+}
+
+/**
+ * Legacy uploadImage helper for carousel / general resources
  */
 async function uploadImage(base64Data, resourceKey = 'carousel') {
   if (!base64Data || typeof base64Data !== 'string') {
@@ -28,45 +177,20 @@ async function uploadImage(base64Data, resourceKey = 'carousel') {
 
   const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
   if (!matches) {
-    // If it's already a URL, return it
     return base64Data;
   }
 
-  const mimeType = matches[1];
-  const buffer = Buffer.from(matches[2], 'base64');
-  const rawExtension = mimeType.split('/')[1] || 'png';
-  // Clean up content-type like svg+xml to svg
-  const extension = rawExtension.split('+')[0];
-  const filename = `${resourceKey}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${extension}`;
+  const res = await uploadBase64Media({
+    base64Data,
+    filename: `${resourceKey}.png`,
+    resourceType: resourceKey
+  });
 
-  if (isS3Configured) {
-    const key = `${resourceKey}/${filename}`;
-    const command = new PutObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: mimeType,
-    });
-    await s3.send(command);
-    const region = process.env.AWS_REGION || 'us-east-1';
-    return `https://${process.env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
-  } else {
-    // Local fallback
-    const uploadsDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    const filepath = path.join(uploadsDir, filename);
-    fs.writeFileSync(filepath, buffer);
-    const port = process.env.PORT || 3001;
-    return `http://localhost:${port}/uploads/${filename}`;
-  }
+  return typeof res === 'object' ? res.url : res;
 }
 
 /**
- * Deletes an image from S3 or local folder.
- * @param {string} fileUrl 
- * @param {string} resourceKey 
+ * Deletes an object from S3 or local folder
  */
 async function deleteImage(fileUrl, resourceKey = 'carousel') {
   if (!fileUrl || typeof fileUrl !== 'string') return;
@@ -76,19 +200,23 @@ async function deleteImage(fileUrl, resourceKey = 'carousel') {
     const s3Index = fileUrl.indexOf(s3Marker);
     if (s3Index !== -1) {
       const key = fileUrl.substring(s3Index + s3Marker.length);
-      const command = new DeleteObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKET,
-        Key: key,
-      });
-      await s3.send(command);
+      try {
+        const command = new DeleteObjectCommand({
+          Bucket: process.env.AWS_S3_BUCKET,
+          Key: key,
+        });
+        await s3.send(command);
+      } catch (s3Err) {
+        console.warn(`[S3Service] Could not delete S3 object (${key}): ${s3Err.message}`);
+      }
     }
   } else {
     // Local fallback deletion
     const urlMarker = '/uploads/';
     const urlIndex = fileUrl.indexOf(urlMarker);
     if (urlIndex !== -1) {
-      const filename = fileUrl.substring(urlIndex + urlMarker.length);
-      const filepath = path.join(__dirname, '../../uploads', filename);
+      const relativeKey = fileUrl.substring(urlIndex + urlMarker.length);
+      const filepath = path.join(__dirname, '../../uploads', relativeKey);
       if (fs.existsSync(filepath)) {
         try {
           fs.unlinkSync(filepath);
@@ -100,8 +228,72 @@ async function deleteImage(fileUrl, resourceKey = 'carousel') {
   }
 }
 
+/**
+ * Uploads an import CSV/Excel file to S3 with multi-tenant hierarchy
+ * Key: {industryId}/{organizationId}/{workspaceId}/imports/{module}/{timestamp}-{random}-{filename}
+ */
+async function uploadImportFile({
+  fileBuffer,
+  csvContent,
+  filename = 'import.csv',
+  industryId = 'global',
+  organizationId = 'global',
+  workspaceId = 'default',
+  module = 'leads'
+}) {
+  const buffer = fileBuffer || (csvContent ? Buffer.from(csvContent, 'utf-8') : Buffer.from('', 'utf-8'));
+  const cleanFilename = sanitizeFilename(filename);
+  const ind = industryId ? String(industryId).replace(/[^a-zA-Z0-9_-]/g, '') : 'global';
+  const org = organizationId ? String(organizationId).replace(/[^a-zA-Z0-9_-]/g, '') : 'global';
+  const ws = workspaceId ? String(workspaceId).replace(/[^a-zA-Z0-9_-]/g, '') : 'default';
+  const mod = module ? String(module).toLowerCase().replace(/[^a-z0-9_-]/g, '') : 'leads';
+
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const s3Key = `${ind}/${org}/${ws}/imports/${mod}/${timestamp}-${randomSuffix}-${cleanFilename}`;
+
+  const region = process.env.AWS_REGION || 'ap-south-1';
+
+  if (isS3Configured) {
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET,
+      Key: s3Key,
+      Body: buffer,
+      ContentType: cleanFilename.endsWith('.csv') ? 'text/csv' : 'application/octet-stream',
+    });
+    await s3.send(command);
+    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${s3Key}`;
+    return {
+      url: fileUrl,
+      key: s3Key,
+      name: filename,
+      size: buffer.length
+    };
+  } else {
+    const uploadsDir = path.join(__dirname, '../../uploads', s3Key.substring(0, s3Key.lastIndexOf('/')));
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const cleanName = s3Key.substring(s3Key.lastIndexOf('/') + 1);
+    const filepath = path.join(uploadsDir, cleanName);
+    fs.writeFileSync(filepath, buffer);
+    const port = process.env.PORT || 8080;
+    const fileUrl = `http://localhost:${port}/uploads/${s3Key}`;
+    return {
+      url: fileUrl,
+      key: s3Key,
+      name: filename,
+      size: buffer.length
+    };
+  }
+}
+
 module.exports = {
+  uploadMediaBuffer,
+  uploadBase64Media,
+  uploadImportFile,
   uploadImage,
   deleteImage,
+  buildTenantS3Key,
   isS3Configured
 };

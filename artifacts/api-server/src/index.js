@@ -495,4 +495,18 @@ const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.POR
   } catch (err) {
     console.error('[migration] failed to migrate existing workspaces:', err.stack || err);
   }
+
+  try {
+    const { startSubscriptionCron } = require('./cron/subscriptionCron');
+    startSubscriptionCron();
+  } catch (err) {
+    console.error('[cron] failed to start subscription cron:', err.message || err);
+  }
+
+  try {
+    const { startLeadRotationCron } = require('./services/leadRotationService');
+    startLeadRotationCron();
+  } catch (err) {
+    console.error('[cron] failed to start lead rotation cron:', err.message || err);
+  }
 })();

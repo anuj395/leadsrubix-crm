@@ -32,8 +32,8 @@ const DEFAULT_CONFIGS: Record<string, WhatsAppConfig> = {
     url: 'https://app.simplywhatsapp.com/api/send',
     isActive: false,
     fields: {
-      instanceId: 'BBFA5B635D09Cccc',
-      accessToken: '655cebdfb2b71',
+      instanceId: '',
+      accessToken: '',
       url: 'https://app.simplywhatsapp.com/api/send',
     },
   },
@@ -43,16 +43,16 @@ const DEFAULT_CONFIGS: Record<string, WhatsAppConfig> = {
     isActive: false,
     fields: {
       wapiUrl: 'https://gate.whapi.cloud',
-      wapiToken: 'OV27q3a1QL7Kv1YizZisCHMxAwp2lk7O',
+      wapiToken: '',
     },
   },
   chatsimplified: {
     type: 'ChatSimplified',
-    url: 'https://www.chatsimplified.co/api/v1/abcd',
+    url: 'https://www.chatsimplified.co/api/v1/',
     isActive: false,
     fields: {
-      apiKey: 'ec8b3b94d73145d99309f774e31d6314e22adc425c98086b659391bc113d7c5a',
-      baseUrl: 'https://www.chatsimplified.co/api/v1/abcd',
+      apiKey: '',
+      baseUrl: 'https://www.chatsimplified.co/api/v1/',
     },
   },
 }

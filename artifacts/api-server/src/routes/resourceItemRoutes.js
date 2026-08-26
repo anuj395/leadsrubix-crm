@@ -113,6 +113,226 @@ router.get('/:resource_key', authenticate, requireScreenAction((req) => mapResou
   }
 });
 
+// 1. Get resource import history
+router.get('/:resource_key/import-history', authenticate, async (req, res, next) => {
+  try {
+    const { resource_key } = req.params;
+    const ImportLog = require('../models/importLogModel');
+    let orgId = await resolveOrganizationId(req);
+    const filter = { resource_key };
+    if (orgId) {
+      filter.organization_id = orgId;
+    }
+    const logs = await ImportLog.find(filter).sort({ createdAt: -1 }).lean().exec();
+    res.json(logs);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 2. Resource Bulk Import with AWS S3 multi-tenant storage
+router.post('/:resource_key/bulk-import', authenticate, async (req, res, next) => {
+  try {
+    const { resource_key } = req.params;
+    const { items, fileName, csvContent } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'No items provided for import' });
+    }
+
+    const ImportLog = require('../models/importLogModel');
+    const requestId = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    let orgId = await resolveOrganizationId(req);
+    let resolvedWorkspaceId = req.query.workspaceId || req.body.workspaceId || null;
+    let resolvedIndustryId = await resolveIndustryId(req);
+    if (req.user.role === 'superAdmin') {
+      if (orgId) {
+        const tenant = await resolveTenantFields(orgId);
+        resolvedIndustryId = tenant.industryId || resolvedIndustryId;
+        resolvedWorkspaceId = resolvedWorkspaceId || tenant.workspaceId;
+      }
+    } else {
+      resolvedWorkspaceId = resolvedWorkspaceId || req.user.workspaceId || req.user.workspace_id || null;
+    }
+
+    let imported = 0;
+    const errors = [];
+    const processedRows = [];
+    const createdDocs = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const payloadData = items[i];
+      try {
+        const doc = await resourceItemModel.create({
+          organizationId: orgId,
+          industryId: resolvedIndustryId,
+          resource_key,
+          data: {
+            ...payloadData,
+            createdBy: req.user?.name || req.user?.email || 'Admin',
+            created_by: req.user?.name || req.user?.email || 'Admin',
+            userName: req.user?.name || req.user?.email || 'Admin',
+            user_name: req.user?.name || req.user?.email || 'Admin',
+            userEmail: req.user?.email || '',
+            user_email: req.user?.email || '',
+            workspaceId: resolvedWorkspaceId,
+            workspace_id: resolvedWorkspaceId,
+          }
+        });
+        imported++;
+        processedRows.push({ ...payloadData, import_status: 'SUCCESS', error_message: '' });
+        createdDocs.push(doc);
+      } catch (err) {
+        const errMsg = err?.message || 'Failed to save record';
+        errors.push({ index: i, error: errMsg });
+        processedRows.push({ ...payloadData, import_status: 'FAILED', error_message: errMsg });
+      }
+    }
+
+    // Convert to CSV for S3 archival
+    const rawCsv = csvContent || arrayToCsv(items);
+    const processedCsv = arrayToCsv(processedRows);
+
+    let fileUrl = '';
+    let responseUrl = '';
+
+    try {
+      const [rawUpload, procUpload] = await Promise.all([
+        s3Service.uploadImportFile({
+          csvContent: rawCsv,
+          filename: fileName || `${resource_key}_import.csv`,
+          industryId: resolvedIndustryId,
+          organizationId: orgId,
+          workspaceId: resolvedWorkspaceId,
+          module: `resources/${resource_key}`
+        }),
+        s3Service.uploadImportFile({
+          csvContent: processedCsv,
+          filename: `processed-${fileName || `${resource_key}_import.csv`}`,
+          industryId: resolvedIndustryId,
+          organizationId: orgId,
+          workspaceId: resolvedWorkspaceId,
+          module: `resources/${resource_key}`
+        })
+      ]);
+      if (rawUpload?.url) fileUrl = rawUpload.url;
+      if (procUpload?.url) responseUrl = procUpload.url;
+    } catch (s3Err) {
+      console.warn('[ResourceBulkImport] S3 upload error:', s3Err.message);
+    }
+
+    if (orgId) {
+      await ImportLog.create({
+        requestId,
+        organization_id: orgId,
+        module: 'resources',
+        resource_key,
+        createdBy: req.user?.name || req.user?.email || 'Admin',
+        uid: String(req.user?.id || req.user?._id || ''),
+        status: errors.length === 0 ? 'Completed' : 'Completed with Errors',
+        uploadCount: imported,
+        failedCount: errors.length,
+        fileUrl,
+        responseUrl
+      });
+    }
+
+    return res.status(201).json({
+      imported,
+      errors,
+      requestId,
+      fileUrl,
+      responseUrl,
+      items: createdDocs
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 3. Delete Resource Import History & S3 Files
+router.delete('/:resource_key/import-history/:id', authenticate, async (req, res, next) => {
+  try {
+    const { resource_key, id } = req.params;
+    const ImportLog = require('../models/importLogModel');
+    const log = await ImportLog.findOne({
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(id) ? id : undefined },
+        { requestId: id },
+        { request_id: id }
+      ].filter(Boolean)
+    });
+
+    if (!log) {
+      return res.status(404).json({ message: 'Import history record not found' });
+    }
+
+    if (log.fileUrl) {
+      await s3Service.deleteImage(log.fileUrl).catch(e => console.warn('[ResourceImportLog] S3 raw file delete error:', e.message));
+    }
+    if (log.responseUrl) {
+      await s3Service.deleteImage(log.responseUrl).catch(e => console.warn('[ResourceImportLog] S3 response file delete error:', e.message));
+    }
+
+    await ImportLog.deleteOne({ _id: log._id });
+    res.json({ success: true, message: 'Resource import history and S3 files deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+function arrayToCsv(rows) {
+  if (!rows || rows.length === 0) return '';
+  const headers = Object.keys(rows[0]);
+  const headerLine = headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',');
+  const lines = rows.map(r => 
+    headers.map(h => {
+      const val = r[h] !== undefined && r[h] !== null ? String(r[h]) : '';
+      return `"${val.replace(/"/g, '""')}"`;
+    }).join(',')
+  );
+  return [headerLine, ...lines].join('\n');
+}
+
+// Upload raw import CSV file to S3 with multi-tenant path
+router.post('/:resource_key/upload-import-file', authenticate, async (req, res, next) => {
+  try {
+    const { resource_key } = req.params;
+    const { csvContent, fileBase64, filename } = req.body;
+    let orgId = await resolveOrganizationId(req);
+    let resolvedWorkspaceId = req.query.workspaceId || req.body.workspaceId || null;
+    let resolvedIndustryId = await resolveIndustryId(req);
+    if (req.user.role === 'superAdmin') {
+      if (orgId) {
+        const tenant = await resolveTenantFields(orgId);
+        resolvedIndustryId = tenant.industryId || resolvedIndustryId;
+        resolvedWorkspaceId = resolvedWorkspaceId || tenant.workspaceId;
+      }
+    } else {
+      resolvedWorkspaceId = resolvedWorkspaceId || req.user.workspaceId || req.user.workspace_id || null;
+    }
+
+    const uploadRes = await s3Service.uploadImportFile({
+      csvContent,
+      fileBuffer: fileBase64 ? Buffer.from(fileBase64.split(',')[1] || fileBase64, 'base64') : undefined,
+      filename: filename || `${resource_key}_import.csv`,
+      industryId: resolvedIndustryId,
+      organizationId: orgId,
+      workspaceId: resolvedWorkspaceId,
+      module: `resources/${resource_key}`
+    });
+
+    return res.json({
+      success: true,
+      fileUrl: uploadRes.url,
+      key: uploadRes.key,
+      name: uploadRes.name,
+      size: uploadRes.size
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/:resource_key', authenticate, requireScreenAction((req) => mapResourceKeyToScreenKey(req.params.resource_key), 'add'), async (req, res, next) => {
   try {
     const { resource_key } = req.params;
@@ -142,10 +362,6 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
       }
     }
 
-    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
-      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
-    }
-
     let resolvedWorkspaceId = req.query.workspaceId || req.body.workspaceId || null;
     let resolvedIndustryId = await resolveIndustryId(req);
     if (req.user.role === 'superAdmin') {
@@ -156,6 +372,18 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
       }
     } else {
       resolvedWorkspaceId = resolvedWorkspaceId || req.user.workspaceId || req.user.workspace_id || null;
+    }
+
+    if (payloadData.url && typeof payloadData.url === 'string' && payloadData.url.startsWith('data:')) {
+      const uploadRes = await s3Service.uploadBase64Media({
+        base64Data: payloadData.url,
+        filename: payloadData.name || resource_key,
+        industryId: resolvedIndustryId,
+        organizationId: orgId,
+        workspaceId: resolvedWorkspaceId,
+        resourceType: resource_key
+      });
+      payloadData.url = typeof uploadRes === 'object' ? uploadRes.url : uploadRes;
     }
 
     const doc = await resourceItemModel.create({
@@ -230,20 +458,30 @@ router.put('/:resource_key/:id', authenticate, requireScreenAction((req) => mapR
 
     const oldUrl = doc ? doc.url : null;
     const { resource_key } = req.params;
-    if (resource_key === 'resourceCarousel' && payloadData.url && payloadData.url.startsWith('data:image')) {
-      if (oldUrl) {
-        await s3Service.deleteImage(oldUrl, 'carousel');
-      }
-      payloadData.url = await s3Service.uploadImage(payloadData.url, 'carousel');
-    }
-
     const targetOrgId = organizationId || req.body.organization_id || doc.organizationId || doc.organization_id;
     let targetWorkspaceId = undefined;
+    let targetIndustryId = doc?.industryId || doc?.industry_id;
     if (req.user.role === 'superAdmin') {
       if (organizationId !== undefined || req.body.organization_id !== undefined) {
         const tenant = await resolveTenantFields(targetOrgId);
         targetWorkspaceId = tenant.workspaceId;
+        targetIndustryId = tenant.industryId || targetIndustryId;
       }
+    }
+
+    if (payloadData.url && typeof payloadData.url === 'string' && payloadData.url.startsWith('data:')) {
+      if (oldUrl) {
+        await s3Service.deleteImage(oldUrl, resource_key);
+      }
+      const uploadRes = await s3Service.uploadBase64Media({
+        base64Data: payloadData.url,
+        filename: payloadData.name || resource_key,
+        industryId: targetIndustryId,
+        organizationId: targetOrgId,
+        workspaceId: targetWorkspaceId,
+        resourceType: resource_key
+      });
+      payloadData.url = typeof uploadRes === 'object' ? uploadRes.url : uploadRes;
     }
 
     const updateData = normalizePayload(payloadData);

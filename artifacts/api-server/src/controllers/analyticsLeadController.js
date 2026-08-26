@@ -95,7 +95,7 @@ const getTeamUsers = async (uid, organizationId) => {
 };
 
 const feedbackReport = async (req, res) => {
-  const uid = req.body.uid;
+  const uid = req.body.uid || req.user?.uid || req.user?.id || req.user?._id;
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const resultUser = await userModel.find(userQuery);
   if (resultUser.length === 0) {
@@ -573,7 +573,7 @@ const feedbackReport = async (req, res) => {
 };
 
 const callBackReasonReport = async (req, res) => {
-  const uid = req.body.uid;
+  const uid = req.body.uid || req.user?.uid || req.user?.id || req.user?._id;
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const resultUser = await userModel.find(userQuery);
   if (resultUser.length === 0) {
@@ -1045,7 +1045,7 @@ const callBackReasonReport = async (req, res) => {
 };
 
 const InterestedReport = async (req, res) => {
-  const uid = req.body.uid;
+  const uid = req.body.uid || req.user?.uid || req.user?.id || req.user?._id;
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const resultUser = await userModel.find(userQuery);
   if (resultUser.length === 0) {
@@ -1569,7 +1569,7 @@ const InterestedReport = async (req, res) => {
 };
 
 const ReasonReport = async (req, res) => {
-  const uid = req.body.uid;
+  const uid = req.body.uid || req.user?.uid || req.user?.id || req.user?._id;
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const resultUser = await userModel.find(userQuery);
   if (resultUser.length === 0) {
@@ -2096,7 +2096,7 @@ const dashboard = async (req, res) => {
   const type = req.params.type;
   console.log('Received analytics dashboard request with body:', req.body);
   try {
-    const uid = req.body.uid;
+    const uid = req.body.uid || req.user?.uid || req.user?.id || req.user?._id;
     const { start_date, end_date, callFilter, leadFilter, taskFilter, leadUserFilter } = req.body;
 
     console.log('Analytics dashboard request:', { uid, start_date, end_date });

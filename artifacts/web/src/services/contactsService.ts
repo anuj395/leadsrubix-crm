@@ -39,14 +39,19 @@ export async function bulkReassignContacts(ids: string[], contactOwnerEmail: str
   return res.data
 }
 
-export async function bulkImportContacts(contacts: any[]): Promise<{ imported: number; errors: any[]; requestId?: string }> {
-  const res = await api.post('contacts/bulkImport', { contacts })
+export async function bulkImportContacts(contacts: any[], fileName?: string): Promise<{ imported: number; errors: any[]; requestId?: string; fileUrl?: string; responseUrl?: string }> {
+  const res = await api.post('contacts/bulkImport', { contacts, fileName })
   return res.data
 }
 
 export async function fetchImportHistory(): Promise<any[]> {
   const res = await api.get('contacts/importHistory')
   return res.data ?? []
+}
+
+export async function deleteImportHistory(id: string): Promise<any> {
+  const res = await api.delete(`contacts/importHistory/${id}`)
+  return res.data
 }
 
 export async function transferContacts(payload: {

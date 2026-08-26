@@ -97,6 +97,7 @@ router.use('/analytics-calls', analyticsCallsRoutes);
 router.use('/analyticsCalls', analyticsCallsRoutes);
 router.use('/whatsapp-config', whatsappRoutes);
 router.use('/resources', resourceItemRoutes);
+router.use('/resource-items', resourceItemRoutes);
 router.use('/api-tokens', apiTokenRoutes);
 router.use('/lead-distribution', leadDistributionRoutes);
 router.use('/holidays', holidayRoutes);

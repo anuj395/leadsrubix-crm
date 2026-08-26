@@ -762,6 +762,7 @@ const modelToTableMap = {
   Designation: 'designations',
   LeadDistributionRule: 'lead_distribution_rules',
   LeadRotationRule: 'lead_rotation_rules',
+  LeadReassignmentHistory: 'lead_reassignment_histories',
   OrganizationResources: 'resource_items',
   Workspace: 'workspaces',
   CallLog: 'call_logs',

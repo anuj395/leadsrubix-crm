@@ -45,6 +45,9 @@ import EditIcon from '@mui/icons-material/Edit'
 import PhoneIcon from '@mui/icons-material/Phone'
 import EmailIcon from '@mui/icons-material/Email'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
+import DeleteIcon from '@mui/icons-material/Delete'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -122,7 +125,71 @@ export default function ContactDetailsPage() {
   const [attachOpen, setAttachOpen] = useState(false)
   const [attachName, setAttachName] = useState('')
   const [attachUrl, setAttachUrl] = useState('')
-  const [attachType, setAttachType] = useState('file')
+  const [attachType, setAttachType] = useState<'photo' | 'video' | 'file'>('photo')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileBase64, setFileBase64] = useState<string | null>(null)
+  const [uploadingAttach, setUploadingAttach] = useState(false)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      if (!attachName) {
+        setAttachName(file.name)
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFileBase64(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleAddAttachment = async () => {
+    if (!selectedFile && !attachUrl.trim()) {
+      setToast({ open: true, msg: 'Please select a file to upload or enter a URL', sev: 'error' })
+      return
+    }
+
+    try {
+      setUploadingAttach(true)
+      const payload: any = {
+        name: attachName.trim() || selectedFile?.name || 'Attachment',
+        type: attachType,
+      }
+
+      if (fileBase64) {
+        payload.base64Data = fileBase64
+      } else if (attachUrl.trim()) {
+        payload.url = attachUrl.trim()
+      }
+
+      await api.post(`contacts/${id}/attachments`, payload)
+      setToast({ open: true, msg: 'Attachment uploaded successfully!', sev: 'success' })
+      setAttachOpen(false)
+      setAttachName('')
+      setAttachUrl('')
+      setSelectedFile(null)
+      setFileBase64(null)
+      await loadData()
+    } catch (err: any) {
+      console.error('Failed to add attachment', err)
+      setToast({ open: true, msg: err?.response?.data?.message || 'Failed to upload attachment', sev: 'error' })
+    } finally {
+      setUploadingAttach(false)
+    }
+  }
+
+  const handleDeleteAttachment = async (attachId: string) => {
+    try {
+      await api.delete(`contacts/${id}/attachments/${attachId}`)
+      setToast({ open: true, msg: 'Attachment deleted successfully', sev: 'success' })
+      await loadData()
+    } catch (err: any) {
+      console.error('Failed to delete attachment', err)
+      setToast({ open: true, msg: err?.response?.data?.message || 'Failed to delete attachment', sev: 'error' })
+    }
+  }
 
   const [callbackOpen, setCallbackOpen] = useState(false)
   const [notInterestedOpen, setNotInterestedOpen] = useState(false)
@@ -325,20 +392,7 @@ export default function ContactDetailsPage() {
     }
   }
 
-  const handleAddAttachment = async () => {
-    if (!attachName.trim() || !attachUrl.trim()) return
-    const newAttachment = {
-      name: attachName,
-      url: attachUrl,
-      type: attachType,
-      created_at: new Date()
-    }
-    const currentAttachments = booking?.attachments ?? []
-    await saveBookingUpdate({ attachments: [...currentAttachments, newAttachment] })
-    setAttachOpen(false)
-    setAttachName('')
-    setAttachUrl('')
-  }
+
 
   if (loading || configLoading) {
     return (
@@ -555,7 +609,7 @@ export default function ContactDetailsPage() {
             <Tab label="Activity & Timeline" />
             <Tab label="Profile Information" />
             <Tab label={`Deals & Pipeline (${deals.length})`} />
-            <Tab label={`Notes & Attachments (${notes.length + (booking?.attachments?.length || 0)})`} />
+            <Tab label={`Notes & Attachments (${notes.length + ((contact as any)?.attachments?.length || 0)})`} />
           </Tabs>
         </Box>
 
@@ -852,7 +906,7 @@ export default function ContactDetailsPage() {
                         size="small"
                         variant="outlined"
                         startIcon={<ImageIcon />}
-                        onClick={() => { setAttachOpen(true); setAttachType('photo'); }}
+                        onClick={() => { setAttachOpen(true); setAttachType('photo'); setSelectedFile(null); setFileBase64(null); setAttachName(''); setAttachUrl(''); }}
                         sx={{ textTransform: 'none', fontSize: '0.75rem' }}
                       >
                         Photo
@@ -861,7 +915,7 @@ export default function ContactDetailsPage() {
                         size="small"
                         variant="outlined"
                         startIcon={<VideoCameraBackIcon />}
-                        onClick={() => { setAttachOpen(true); setAttachType('video'); }}
+                        onClick={() => { setAttachOpen(true); setAttachType('video'); setSelectedFile(null); setFileBase64(null); setAttachName(''); setAttachUrl(''); }}
                         sx={{ textTransform: 'none', fontSize: '0.75rem' }}
                       >
                         Video
@@ -870,7 +924,7 @@ export default function ContactDetailsPage() {
                         size="small"
                         variant="outlined"
                         startIcon={<DescriptionIcon />}
-                        onClick={() => { setAttachOpen(true); setAttachType('file'); }}
+                        onClick={() => { setAttachOpen(true); setAttachType('file'); setSelectedFile(null); setFileBase64(null); setAttachName(''); setAttachUrl(''); }}
                         sx={{ textTransform: 'none', fontSize: '0.75rem' }}
                       >
                         Document
@@ -879,19 +933,57 @@ export default function ContactDetailsPage() {
                   </Stack>
                   <Divider />
                   <Box sx={{ overflowY: 'auto', maxHeight: 420, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-                    {(booking?.attachments ?? []).map((a: any, i: number) => (
-                      <Paper key={i} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 1 }}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          {a.type === 'video' && <VideoCameraBackIcon fontSize="small" />}
-                          {a.type === 'photo' && <ImageIcon fontSize="small" />}
-                          {a.type === 'file' && <DescriptionIcon fontSize="small" />}
-                          <Typography variant="body2" sx={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 200 }}>{String(a.name)}</Typography>
-                        </Box>
-                        <Button href={String(a.url)} target="_blank" size="small" variant="outlined" sx={{ textTransform: 'none' }}>View</Button>
-                      </Paper>
-                    ))}
-                    {(booking?.attachments ?? []).length === 0 && (
-                      <Typography variant="body2" align="center" color="text.secondary" sx={{ py: 6 }}>No Attachments uploaded yet.</Typography>
+                    {((contact as any)?.attachments ?? []).map((a: any, i: number) => {
+                      const attachId = a._id || a.id || String(i)
+                      const isPhoto = a.type === 'photo'
+                      const isVideo = a.type === 'video'
+                      return (
+                        <Paper key={attachId} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 1 }}>
+                          <Box display="flex" alignItems="center" gap={1.5} sx={{ minWidth: 0 }}>
+                            <Avatar sx={{ width: 36, height: 36, bgcolor: isPhoto ? 'success.light' : isVideo ? 'secondary.light' : 'primary.light', color: '#fff' }}>
+                              {isVideo && <VideoCameraBackIcon fontSize="small" />}
+                              {isPhoto && <ImageIcon fontSize="small" />}
+                              {!isVideo && !isPhoto && <DescriptionIcon fontSize="small" />}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: { xs: 140, sm: 220 } }}>
+                                {String(a.name || 'Attachment')}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {a.size ? `${(a.size / 1024 / 1024).toFixed(2)} MB • ` : ''}
+                                {a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN') : 'Uploaded'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Button
+                              href={String(a.url)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              size="small"
+                              variant="outlined"
+                              startIcon={<OpenInNewIcon fontSize="small" />}
+                              sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                            >
+                              View
+                            </Button>
+                            {can_edit && (
+                              <Tooltip title="Delete Attachment">
+                                <IconButton size="small" color="error" onClick={() => handleDeleteAttachment(attachId)}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </Paper>
+                      )
+                    })}
+                    {((contact as any)?.attachments ?? []).length === 0 && (
+                      <Box sx={{ py: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        <CloudUploadIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
+                        <Typography variant="body2" color="text.secondary">No Attachments uploaded yet.</Typography>
+                        <Typography variant="caption" color="text.disabled">Click Photo, Video, or Document above to upload.</Typography>
+                      </Box>
                     )}
                   </Box>
                 </Paper>
@@ -963,42 +1055,92 @@ export default function ContactDetailsPage() {
       />
 
       {/* Attachment Dialog */}
-      <Dialog open={attachOpen} onClose={() => setAttachOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Attachment Resource</DialogTitle>
+      <Dialog open={attachOpen} onClose={() => !uploadingAttach && setAttachOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CloudUploadIcon color="primary" />
+          Upload {attachType === 'photo' ? 'Photo' : attachType === 'video' ? 'Video' : 'Document'}
+        </DialogTitle>
         <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            {/* File Upload Zone */}
+            <Box
+              sx={{
+                border: '2px dashed',
+                borderColor: selectedFile ? 'primary.main' : 'divider',
+                borderRadius: 2,
+                p: 3,
+                textAlign: 'center',
+                bgcolor: selectedFile ? 'action.selected' : 'background.default',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
+              }}
+              component="label"
+            >
+              <input
+                type="file"
+                hidden
+                accept={
+                  attachType === 'photo'
+                    ? 'image/*'
+                    : attachType === 'video'
+                    ? 'video/*'
+                    : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv'
+                }
+                onChange={handleFileChange}
+              />
+              <CloudUploadIcon sx={{ fontSize: 40, color: selectedFile ? 'primary.main' : 'text.secondary', mb: 1 }} />
+              {selectedFile ? (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} color="primary.main">{selectedFile.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB • Ready to upload</Typography>
+                </Box>
+              ) : (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600}>Click or Drag file to select</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {attachType === 'photo' ? 'Supports JPG, PNG, WEBP, GIF' : attachType === 'video' ? 'Supports MP4, MOV, WEBM' : 'Supports PDF, Word, Excel, CSV'}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
             <TextField
-              autoFocus
-              label="Attachment Name"
+              label="Attachment Title / Name"
               type="text"
               fullWidth
+              size="small"
               value={attachName}
               onChange={(e) => setAttachName(e.target.value)}
+              placeholder="e.g. Site Visit Photos, ID Proof, Agreement"
             />
+
+            <Divider>
+              <Typography variant="caption" color="text.secondary">OR ENTER EXTERNAL URL</Typography>
+            </Divider>
+
             <TextField
-              label="Resource URL"
+              label="Resource URL (Optional)"
               type="url"
               fullWidth
+              size="small"
               value={attachUrl}
               onChange={(e) => setAttachUrl(e.target.value)}
+              placeholder="https://..."
+              disabled={Boolean(selectedFile)}
             />
-            <TextField
-              select
-              label="Resource Type"
-              fullWidth
-              SelectProps={{ native: true }}
-              value={attachType}
-              onChange={(e) => setAttachType(e.target.value)}
-            >
-              <option value="file">File Document</option>
-              <option value="photo">Photo Image</option>
-              <option value="video">Video Recording</option>
-            </TextField>
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAttachOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddAttachment} variant="contained">Save</Button>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setAttachOpen(false)} disabled={uploadingAttach} sx={{ textTransform: 'none' }}>Cancel</Button>
+          <Button
+            onClick={handleAddAttachment}
+            variant="contained"
+            disabled={uploadingAttach || (!selectedFile && !attachUrl.trim())}
+            sx={{ textTransform: 'none', fontWeight: 600, px: 3 }}
+          >
+            {uploadingAttach ? <CircularProgress size={20} color="inherit" /> : 'Upload'}
+          </Button>
         </DialogActions>
       </Dialog>
 

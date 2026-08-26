@@ -1232,3 +1232,66 @@ Organization: Health
 Username / Email: care@gmail.com
 Temp Password: 46d0Jq5O
 ========================================
+
+========================================
+Timestamp: 2026-08-26T05:24:23.834Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: G7KoLFZS
+========================================
+
+========================================
+Timestamp: 2026-08-26T05:25:51.410Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Lead Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: bDeZWg6A
+========================================
+
+========================================
+Timestamp: 2026-08-26T05:52:54.126Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: 8jxdsoFk
+========================================
+
+========================================
+Timestamp: 2026-08-26T05:58:28.795Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lead@gmail.com
+Temp Password: 0anI67HC
+========================================
+
+========================================
+Timestamp: 2026-08-26T06:00:09.338Z
+To: team@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: team@gmail.com
+Temp Password: l62vZoWl
+========================================
+
+========================================
+Timestamp: 2026-08-26T06:00:52.764Z
+To: sales@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: sales@gmail.com
+Temp Password: hxLnjnmd
+========================================
+
+========================================
+Timestamp: 2026-08-26T06:01:29.620Z
+To: salestwo@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: salestwo@gmail.com
+Temp Password: v84Up8zG
+========================================

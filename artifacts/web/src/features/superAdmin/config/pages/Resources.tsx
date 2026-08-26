@@ -46,6 +46,7 @@ import { listOrganizationsPaged, type Organization } from '@/services/organizati
 import { api } from '@/services/api'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import { ImportResourceModal } from '@/features/admin/config/components/ImportResourceModal'
 
 import { useAppSelector } from '@/store/hooks'
 import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
@@ -183,7 +184,8 @@ export default function ResourcesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<any | null>(null)
 
-  // Import Summary State
+  // Import Modal & Summary State
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const [importSummaryOpen, setImportSummaryOpen] = useState(false)
   const [importSummary, setImportSummary] = useState<{
     total: number
@@ -303,7 +305,7 @@ export default function ResourcesPage() {
   }
 
   const handleImport = () => {
-    document.getElementById('resource-csv-importer')?.click()
+    setImportModalOpen(true)
   }
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -321,6 +323,14 @@ export default function ResourcesPage() {
         setToast({ open: true, msg: 'CSV file is empty or missing data rows.', sev: 'error' })
         return
       }
+
+      // Upload raw import CSV file to AWS S3 multi-tenant storage
+      api.post(`resource-items/${activeScreen.key}/upload-import-file`, {
+        csvContent: text,
+        filename: fileName,
+        industryId: selectedIndustry,
+        organizationId: selectedOrg
+      }).catch(err => console.warn('[SuperAdminResourceImport] S3 upload error:', err))
 
       const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim())
       const headerToKey: Record<string, string> = {}
@@ -581,7 +591,7 @@ export default function ResourcesPage() {
       onConfirm: async () => {
         try {
           await deleteResource(activeScreen.key, id, selectedIndustry)
-          const nextRows = rows.filter((r) => r.id !== id)
+          const nextRows = rows.filter((r) => r.id !== id && (r as any)._id !== id)
           setRows(nextRows)
           const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
           setResourceDataCache((prev) => ({ ...prev, [cacheKey]: nextRows }))
@@ -605,7 +615,7 @@ export default function ResourcesPage() {
           for (const id of selectedRowIds) {
             await deleteResource(activeScreen.key, String(id), selectedIndustry)
           }
-          const nextRows = rows.filter((r) => !selectedRowIds.includes(r.id))
+          const nextRows = rows.filter((r) => !selectedRowIds.includes(r.id) && !selectedRowIds.includes((r as any)._id))
           setRows(nextRows)
           const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
           setResourceDataCache((prev) => ({ ...prev, [cacheKey]: nextRows }))
@@ -1022,6 +1032,28 @@ export default function ResourcesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {activeScreen && resolvedScreen && (
+        <ImportResourceModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onSuccess={async () => {
+            setToast({ open: true, msg: 'Import completed successfully!', sev: 'success' })
+            try {
+              const items = await getResources(activeScreen.key, selectedOrgId, selectedIndustry)
+              setRows(items)
+              setResourceDataCache((prev) => ({ ...prev, [`${selectedIndustry}:${selectedOrgId}:${activeScreen.key}`]: items }))
+            } catch (err) {
+              console.error('Failed to reload resources after import', err)
+            }
+          }}
+          resourceKey={activeScreen.key}
+          resourceTitle={activeScreen.name}
+          formFields={resolvedScreen.form_fields}
+          organizationId={selectedOrgId === 'null' ? undefined : selectedOrgId}
+          industryId={selectedIndustry}
+        />
+      )}
 
       <input
         type="file"

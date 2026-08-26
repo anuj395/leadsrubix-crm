@@ -36,6 +36,7 @@ async function getVisibleUserIds(authedUser) {
 
   while ((frontierIds.length > 0 || frontierUids.length > 0) && depth < MAX_DEPTH) {
     depth += 1;
+    const orgId = authedUser.organizationId || authedUser.organization_id;
     const filter = {
       $or: [
         { reportingTo: { $in: frontierUids } },
@@ -44,6 +45,7 @@ async function getVisibleUserIds(authedUser) {
         { reporting_to: { $in: frontierIds } }
       ],
       ...(authedUser.industryId ? { industry_id: authedUser.industryId } : {}),
+      ...(orgId ? { organization_id: orgId } : {})
     };
     const reports = await User.find(filter).select('_id uid').lean().exec();
     const nextFrontierIds = [];

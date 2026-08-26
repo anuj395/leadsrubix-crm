@@ -139,6 +139,18 @@ exports.importHistory = async (req, res, next) => {
   }
 };
 
+exports.deleteImportHistory = async (req, res, next) => {
+  try {
+    const result = await service.deleteImportLog({
+      id: req.params.id,
+      authedUser: req.user,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.remove = async (req, res, next) => {
   try {
     await service.deleteForUser({
@@ -384,6 +396,38 @@ exports.masterSortSearch = async (req, res, next) => {
   } catch (error) {
     console.error("Error in masterSortSearch Excel export:", error);
     next(error);
+  }
+};
+
+exports.addAttachment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, base64Data, type, url } = req.body;
+    const result = await service.addContactAttachment({
+      contactId: id,
+      name,
+      base64Data,
+      url,
+      type: type || 'file',
+      authedUser: req.user
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteAttachment = async (req, res, next) => {
+  try {
+    const { id, attachmentId } = req.params;
+    const result = await service.deleteContactAttachment({
+      contactId: id,
+      attachmentId,
+      authedUser: req.user
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
   }
 };
 

@@ -66,9 +66,15 @@ export interface Branch {
   name: string
 }
 
-export async function getDistributionRules(): Promise<LeadDistributionRule[]> {
-  const res = await api.get('lead-distribution/rules')
+export async function getDistributionRules(orgId?: string): Promise<LeadDistributionRule[]> {
+  const params = orgId && orgId !== 'all' ? { organizationId: orgId } : undefined
+  const res = await api.get('lead-distribution/rules', { params })
   return res.data || []
+}
+
+export async function getDistributionRuleById(id: string): Promise<LeadDistributionRule> {
+  const res = await api.get(`lead-distribution/rules/${id}`)
+  return res.data
 }
 
 export async function createDistributionRule(rule: Partial<LeadDistributionRule>): Promise<LeadDistributionRule> {
@@ -85,13 +91,23 @@ export async function deleteDistributionRule(id: string): Promise<void> {
   await api.delete(`lead-distribution/rules/${id}`)
 }
 
-export async function getRotationRules(): Promise<LeadRotationRule[]> {
-  const res = await api.get('lead-distribution/rotation-rules')
+export async function getRotationRules(orgId?: string): Promise<LeadRotationRule[]> {
+  const res = await api.get('lead-distribution/rotation-rules', { params: orgId ? { organizationId: orgId } : undefined })
   return res.data || []
+}
+
+export async function getRotationRuleById(id: string): Promise<LeadRotationRule> {
+  const res = await api.get(`lead-distribution/rotation-rules/${id}`)
+  return res.data
 }
 
 export async function createRotationRule(rule: Partial<LeadRotationRule>): Promise<LeadRotationRule> {
   const res = await api.post('lead-distribution/rotation-rules', rule)
+  return res.data
+}
+
+export async function updateRotationRule(id: string, rule: Partial<LeadRotationRule>): Promise<LeadRotationRule> {
+  const res = await api.put(`lead-distribution/rotation-rules/${id}`, rule)
   return res.data
 }
 

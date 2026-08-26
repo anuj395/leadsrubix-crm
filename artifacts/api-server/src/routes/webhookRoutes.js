@@ -271,19 +271,34 @@ router.post('/createContacts', async (req, res, next) => {
       }
     }
 
-    // Lead distribution logic fallback
+    const emailVal = reqData.emailId || reqData.email_id || reqData.email || '';
+    const projectVal = reqData.projectName || reqData.project_name || reqData.project || reqData.projectId || reqData.project_id || '';
+    const locationVal = reqData.location || reqData.city || reqData.locationName || '';
+    const budgetVal = reqData.budget || reqData.budgetId || reqData.budget_id || '';
+    const propertyTypeVal = reqData.propertyType || reqData.property_type || reqData.propertyTypeId || '';
+    const sourceVal = reqData.source || tokenData.source || 'Incoming API';
+    const campaignVal = reqData.campaign || reqData.campaignName || sourceVal;
+
+    // Lead distribution & round-robin rule evaluation
     if (!uid) {
-      const adminUser = await User.findOne({
-        $or: [
-          { organizationId: orgId },
-          { organization_id: orgId }
-        ],
-        role: 'admin'
-      }).exec();
-      if (adminUser) {
-        uid = String(adminUser._id);
-        reqData.ownerEmail = adminUser.email;
-        ownerUser = adminUser;
+      const { assignLeadByRules } = require('../services/leadDistributionService');
+      const assignment = await assignLeadByRules({
+        organizationId: orgId,
+        industryId: tokenData.industryId || tokenData.industry_id,
+        workspaceId: tokenData.workspaceId || tokenData.workspace_id,
+        source: sourceVal,
+        project: projectVal,
+        location: locationVal,
+        budget: budgetVal,
+        propertyType: propertyTypeVal
+      });
+
+      if (assignment.uid || assignment.ownerEmail) {
+        uid = assignment.uid;
+        reqData.ownerEmail = assignment.ownerEmail;
+        if (assignment.uid) {
+          ownerUser = await User.findById(assignment.uid).lean().exec();
+        }
       }
     }
 
@@ -291,13 +306,31 @@ router.post('/createContacts', async (req, res, next) => {
     const contactPayload = {
       ...reqData,
       customerName,
+      customer_name: customerName,
       contactNumber: phoneResult.contactNumber,
+      contact_number: phoneResult.contactNumber,
       countryCode: phoneResult.countryCode,
+      country_code: phoneResult.countryCode,
+      emailId: emailVal,
+      email_id: emailVal,
+      email: emailVal,
+      projectName: projectVal,
+      project_name: projectVal,
+      location: locationVal,
+      budget: budgetVal,
+      propertyType: propertyTypeVal,
+      property_type: propertyTypeVal,
+      source: sourceVal,
+      campaign: campaignVal,
       organizationId: orgId,
       organization_id: orgId,
       industryId: tokenData.industryId || tokenData.industry_id || (ownerUser ? (ownerUser.industryId || ownerUser.industry_id) : null),
       workspaceId: tokenData.workspaceId || tokenData.workspace_id || (ownerUser ? (ownerUser.workspaceId || ownerUser.workspace_id) : null),
       uid: uid || null,
+      contactOwnerEmail: reqData.ownerEmail || (ownerUser ? ownerUser.email : ''),
+      contact_owner_email: reqData.ownerEmail || (ownerUser ? ownerUser.email : ''),
+      assignedTo: reqData.ownerEmail || (ownerUser ? ownerUser.email : ''),
+      assigned_to: reqData.ownerEmail || (ownerUser ? ownerUser.email : ''),
       stage: reqData.stage ? String(reqData.stage).toUpperCase() : "FRESH",
     };
 
@@ -483,16 +516,25 @@ router.post('/facebook', async (req, res, next) => {
           }
         }
 
-        // 6. Resolve Owner User
+        // 6. Resolve Owner User via Lead Distribution Rules
         let uid = '';
         let ownerUser = null;
-        const adminUser = await User.findOne({
+
+        const { assignLeadByRules } = require('../services/leadDistributionService');
+        const assignment = await assignLeadByRules({
           organizationId: tokenDoc.organizationId,
-          role: 'admin'
-        }).exec();
-        if (adminUser) {
-          uid = String(adminUser._id);
-          ownerUser = adminUser;
+          industryId: tokenDoc.industryId || tokenDoc.industry_id,
+          workspaceId: tokenDoc.workspaceId || tokenDoc.workspace_id,
+          source: 'Facebook Ads',
+          project: projectId,
+          location: cityField || locationId,
+          budget: budgetId,
+          propertyType: ''
+        });
+
+        if (assignment.uid) {
+          uid = assignment.uid;
+          ownerUser = await User.findById(assignment.uid).lean().exec();
         }
 
         const contactPayload = {
