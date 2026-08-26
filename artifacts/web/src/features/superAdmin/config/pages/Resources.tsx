@@ -581,7 +581,7 @@ export default function ResourcesPage() {
       onConfirm: async () => {
         try {
           await deleteResource(activeScreen.key, id, selectedIndustry)
-          const nextRows = rows.filter((r) => r.id !== id)
+          const nextRows = rows.filter((r) => r.id !== id && (r as any)._id !== id)
           setRows(nextRows)
           const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
           setResourceDataCache((prev) => ({ ...prev, [cacheKey]: nextRows }))
@@ -605,7 +605,7 @@ export default function ResourcesPage() {
           for (const id of selectedRowIds) {
             await deleteResource(activeScreen.key, String(id), selectedIndustry)
           }
-          const nextRows = rows.filter((r) => !selectedRowIds.includes(r.id))
+          const nextRows = rows.filter((r) => !selectedRowIds.includes(r.id) && !selectedRowIds.includes((r as any)._id))
           setRows(nextRows)
           const cacheKey = `${activeScreen.key}_${selectedOrgId}_${selectedIndustry || 'default'}`
           setResourceDataCache((prev) => ({ ...prev, [cacheKey]: nextRows }))

@@ -66,9 +66,15 @@ export interface Branch {
   name: string
 }
 
-export async function getDistributionRules(): Promise<LeadDistributionRule[]> {
-  const res = await api.get('lead-distribution/rules')
+export async function getDistributionRules(orgId?: string): Promise<LeadDistributionRule[]> {
+  const params = orgId && orgId !== 'all' ? { organizationId: orgId } : undefined
+  const res = await api.get('lead-distribution/rules', { params })
   return res.data || []
+}
+
+export async function getDistributionRuleById(id: string): Promise<LeadDistributionRule> {
+  const res = await api.get(`lead-distribution/rules/${id}`)
+  return res.data
 }
 
 export async function createDistributionRule(rule: Partial<LeadDistributionRule>): Promise<LeadDistributionRule> {

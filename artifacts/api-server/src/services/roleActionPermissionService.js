@@ -103,6 +103,12 @@ exports.upsert = async ({ roleId, industryId, screenId, organizationId, organiza
 exports.userCan = async ({ authedUser, screen_key, action }) => {
   if (!authedUser) return false;
   if (!ACTIONS.includes(action)) return false;
+
+  // Strict restriction: leadDistribution and leadRotation are only accessible by Admin & Super Admin
+  if (screen_key === 'leadDistribution' || screen_key === 'leadRotation') {
+    return authedUser.role === 'admin' || authedUser.role === 'superAdmin';
+  }
+
   if (authedUser.role === 'superAdmin' || authedUser.role === 'admin') return true;
 
   const orgId = authedUser.organizationId || authedUser.organization_id || null;
@@ -135,6 +141,10 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
 
 exports.getEffectiveForScreen = async ({ authedUser, screen_key }) => {
   const out = { can_view: false, can_add: false, can_edit: false, can_delete: false };
+  if (screen_key === 'leadDistribution' || screen_key === 'leadRotation') {
+    const isAdmin = authedUser?.role === 'admin' || authedUser?.role === 'superAdmin';
+    return { can_view: isAdmin, can_add: isAdmin, can_edit: isAdmin, can_delete: isAdmin };
+  }
   if (authedUser?.role === 'superAdmin' || authedUser?.role === 'admin') {
     return { can_view: true, can_add: true, can_edit: true, can_delete: true };
   }

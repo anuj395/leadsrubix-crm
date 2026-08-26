@@ -189,8 +189,8 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
     }
   } else {
     filter.$or = [
-      { organization_id: user.organizationId },
-      { organizationId: user.organizationId }
+      { organization_id: user.organizationId || user.organization_id },
+      { organizationId: user.organizationId || user.organization_id }
     ];
   }
 
@@ -204,15 +204,30 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
     const visibleUids = users.map(u => u.uid).filter(Boolean);
     const visibleEmails = users.map(u => u.email).filter(Boolean);
     const visibleNames = users.map(u => `${u.firstName || ''} ${u.lastName || ''}`.trim()).filter(Boolean);
+    const ownerEmails = [...visibleEmails, user.email].filter(Boolean);
+    const ownerUids = [...visibleIds, ...visibleUids, ...visibleNames, String(user._id), user.uid].filter(Boolean);
 
-    filter.$or = [
-      { createdBy: { $in: [...visibleIds, ...visibleNames, user.email, String(user._id)] } },
-      { uid: { $in: [...visibleUids, String(user._id), user.uid].filter(Boolean) } },
-      { contactOwnerEmail: { $in: [...visibleEmails, user.email].filter(Boolean) } },
-      { contactOwnerEmail: '' },
-      { contactOwnerEmail: null },
-      { contactOwnerEmail: { $exists: false } }
-    ];
+    const baseOrgFilter = filter.$or ? { $or: filter.$or } : null;
+    delete filter.$or;
+
+    const accessFilter = {
+      $or: [
+        { createdBy: { $in: ownerUids } },
+        { created_by: { $in: ownerUids } },
+        { uid: { $in: ownerUids } },
+        { contact_owner_id: { $in: ownerUids } },
+        { contactOwnerEmail: { $in: ownerEmails } },
+        { contact_owner_email: { $in: ownerEmails } },
+        { assignedTo: { $in: ownerEmails } },
+        { assigned_to: { $in: ownerEmails } }
+      ]
+    };
+
+    if (baseOrgFilter) {
+      filter.$and = [baseOrgFilter, accessFilter];
+    } else {
+      filter.$or = accessFilter.$or;
+    }
   }
   const items = await contactModel.list({ filter, limit });
   await enrichOrganizationNames(items);
@@ -340,7 +355,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
   data.alternateNo = data.alternateNo || '';
   data.emailId = data.emailId || data.email || '';
   data.email = data.email || data.emailId || '';
-  data.contactOwnerEmail = data.contactOwnerEmail || user.email || '';
+  data.contactOwnerEmail = data.contactOwnerEmail || '';
   data.leadType = data.leadType || 'Leads';
   data.propertyType = data.propertyType || '';
   data.propertyStage = data.propertyStage || '';
@@ -348,10 +363,14 @@ exports.createForUser = async ({ payload, authedUser }) => {
   data.projectName = data.projectName || '';
   data.countryCode = data.countryCode || '+91';
 
+  const explicitOwnerEmail = data.contactOwnerEmail || data.contact_owner_email || data.assignedTo || data.assigned_to || data.ownerEmail || data.owner_email || '';
+  const explicitUid = data.uid || data.contactOwnerId || data.contact_owner_id || '';
+
   const cleaned = {
     customerName: data.customerName,
     contactNumber: data.contactNumber,
-    contactOwnerEmail: data.contactOwnerEmail || user.email,
+    contactOwnerEmail: explicitOwnerEmail,
+    uid: explicitUid,
     countryCode: data.countryCode || '+91',
     alternateNo: data.alternateNo || '',
     leadType: data.leadType || 'Leads',
@@ -466,6 +485,42 @@ exports.createForUser = async ({ payload, authedUser }) => {
         }
       }
     }
+  }
+
+  // Auto-evaluate lead distribution rules if owner is not explicitly provided in request
+  if (!explicitOwnerEmail && !explicitUid) {
+    try {
+      const { assignLeadByRules } = require('./leadDistributionService');
+      const assignment = await assignLeadByRules({
+        organizationId: targetOrgId,
+        industryId: resolvedIndustryId,
+        source: cleaned.source || 'Manual Lead',
+        project: cleaned.projectName,
+        location: cleaned.location,
+        budget: cleaned.budget,
+        propertyType: cleaned.propertyType
+      });
+      if (assignment.ownerEmail || assignment.uid) {
+        cleaned.uid = assignment.uid;
+        cleaned.contactOwnerId = assignment.uid;
+        cleaned.contact_owner_id = assignment.uid;
+        cleaned.contactOwnerEmail = assignment.ownerEmail;
+        cleaned.contact_owner_email = assignment.ownerEmail;
+        cleaned.assignedTo = assignment.ownerEmail;
+        cleaned.assigned_to = assignment.ownerEmail;
+      }
+    } catch (e) {
+      console.error('[ContactService] Lead distribution assignment error:', e);
+    }
+  }
+
+  // Fallback to creator if still unassigned
+  if (!cleaned.contactOwnerEmail && user) {
+    cleaned.contactOwnerEmail = user.email || '';
+    cleaned.contact_owner_email = user.email || '';
+    cleaned.assignedTo = user.email || '';
+    cleaned.assigned_to = user.email || '';
+    cleaned.uid = cleaned.uid || user.uid || String(user._id);
   }
 
   const docPayload = fillExtraFields(

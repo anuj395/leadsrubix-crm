@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+require('./industryModel');
 
 const KEY_MAP = {
   resourcePropertyTypes: 'propertyTypes',
@@ -12,7 +13,32 @@ const KEY_MAP = {
   resourceProjects: 'projects',
   resourcePropertyStatus: 'propertyStatuses',
   resourceNotes: 'notes',
+  resource_property_types: 'propertyTypes',
+  resource_property_sub_types: 'propertySubTypes',
+  resource_budgets: 'budgets',
+  resource_locations: 'locations',
+  resource_lead_sources: 'leadSources',
+  resource_transfer_reasons: 'transferReasons',
+  resource_property_stages: 'propertyStages',
+  resource_carousel: 'carousel',
+  resource_projects: 'projects',
+  resource_property_statuses: 'propertyStatuses',
+  resource_notes: 'notes',
 };
+
+const RESOURCE_FIELDS = [
+  'propertyTypes', 'property_types',
+  'propertySubTypes', 'property_sub_types',
+  'budgets',
+  'locations',
+  'leadSources', 'lead_sources',
+  'transferReasons', 'transfer_reasons',
+  'propertyStages', 'property_stages',
+  'carousel',
+  'projects',
+  'propertyStatuses', 'property_statuses',
+  'notes',
+];
 
 function getFieldName(resourceKey) {
   return KEY_MAP[resourceKey] || resourceKey;
@@ -51,19 +77,24 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   let resolvedIndustryObjectId = null;
   let resolvedIndustryCode = null;
   if (industryId) {
+    const Industry = mongoose.model('Industry');
     if (mongoose.Types.ObjectId.isValid(industryId)) {
-      resolvedIndustryObjectId = industryId;
+      resolvedIndustryObjectId = String(industryId);
       try {
-        const Industry = mongoose.model('Industry');
         const ind = await Industry.findById(industryId).exec();
         if (ind) resolvedIndustryCode = ind.code;
       } catch (e) {}
     } else {
       resolvedIndustryCode = String(industryId);
       try {
-        const Industry = mongoose.model('Industry');
-        const ind = await Industry.findOne({ code: String(industryId).toLowerCase() }).exec();
-        if (ind) resolvedIndustryObjectId = ind._id;
+        const ind = await Industry.findOne({
+          $or: [
+            { code: String(industryId).toLowerCase() },
+            { code: String(industryId).toUpperCase() },
+            { code: String(industryId) }
+          ]
+        }).exec();
+        if (ind) resolvedIndustryObjectId = String(ind._id);
       } catch (e) {}
     }
   }
@@ -145,7 +176,7 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   }
 
   // Generic static options (budgets, locations, lead sources, stages, types, carousel, etc.)
-  const targetOrgId = (organizationId === 'null' || !organizationId) ? null : organizationId;
+  const targetOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
   let query = { organization_id: targetOrgId };
   if (targetOrgId === null && indMatchConditions.length > 0) {
     query.industry_id = { $in: indMatchConditions };
@@ -159,11 +190,21 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
     docs = await OrganizationResources.find(fallbackQuery).exec();
   }
 
-  const fieldName = getFieldName(resource_key);
+  const primaryFieldName = getFieldName(resource_key);
+  const candidateFields = [primaryFieldName];
+  if (primaryFieldName === 'propertyStages') candidateFields.push('property_stages');
+  if (primaryFieldName === 'propertyTypes') candidateFields.push('property_types');
+  if (primaryFieldName === 'propertySubTypes') candidateFields.push('property_sub_types');
+  if (primaryFieldName === 'leadSources') candidateFields.push('lead_sources');
+  if (primaryFieldName === 'transferReasons') candidateFields.push('transfer_reasons');
+  if (primaryFieldName === 'propertyStatuses') candidateFields.push('property_statuses');
+
   let items = [];
   docs.forEach(d => {
-    if (Array.isArray(d[fieldName])) {
-      items.push(...d[fieldName]);
+    for (const f of candidateFields) {
+      if (Array.isArray(d[f])) {
+        items.push(...d[f]);
+      }
     }
   });
 
@@ -174,8 +215,10 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
     }
     const fallbackDocs = await OrganizationResources.find(fallbackQuery).exec();
     fallbackDocs.forEach(d => {
-      if (Array.isArray(d[fieldName])) {
-        items.push(...d[fieldName]);
+      for (const f of candidateFields) {
+        if (Array.isArray(d[f])) {
+          items.push(...d[f]);
+        }
       }
     });
   }
@@ -184,10 +227,10 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
     items = items.filter(item => !item.workspaceId && !item.workspace_id || String(item.workspaceId || item.workspace_id) === String(workspaceId));
   }
 
-  // Deduplicate items by id
+  // Deduplicate items by id or _id or key content
   const seen = new Set();
   const uniqueItems = items.filter(item => {
-    const itemId = item.id || item._id || item.name || item.location || item.budget;
+    const itemId = item.id || item._id || item.leadSourceId || item.name || item.location || item.locationName || item.budget;
     if (!itemId || seen.has(String(itemId))) return false;
     seen.add(String(itemId));
     return true;
@@ -201,19 +244,23 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
 };
 
 exports.findById = async (id) => {
-  const doc = await OrganizationResources.findOne({
-    $or: Object.values(KEY_MAP).map(field => ({ [`${field}.id`]: id }))
-  }).exec();
+  if (!id) return null;
+  const strId = String(id);
 
-  if (!doc) return null;
-  for (const field of Object.values(KEY_MAP)) {
-    if (doc[field]) {
-      const item = doc[field].find(i => String(i.id) === String(id));
-      if (item) {
-        return {
-          ...item,
-          organizationId: doc.organization_id,
-        };
+  const docs = await OrganizationResources.find({}).exec();
+  for (const doc of docs) {
+    for (const field of RESOURCE_FIELDS) {
+      const arr = doc[field] || (doc.get && doc.get(field));
+      if (Array.isArray(arr)) {
+        const item = arr.find(i => String(i.id) === strId || String(i._id) === strId || (i.leadSourceId && String(i.leadSourceId) === strId));
+        if (item) {
+          return {
+            ...item,
+            organizationId: doc.organization_id || doc.organizationId,
+            organization_id: doc.organization_id || doc.organizationId,
+            workspaceId: item.workspaceId || item.workspace_id || doc.workspaceId || null,
+          };
+        }
       }
     }
   }
@@ -225,12 +272,18 @@ exports.create = async ({ organizationId, industryId, resource_key, data }) => {
   if (industryId) {
     if (!mongoose.Types.ObjectId.isValid(industryId.toString())) {
       const Industry = mongoose.model('Industry');
-      const ind = await Industry.findOne({ code: String(industryId).toLowerCase() }).exec();
-      if (ind) resolvedIndustryId = ind._id;
+      const ind = await Industry.findOne({
+        $or: [
+          { code: String(industryId).toLowerCase() },
+          { code: String(industryId).toUpperCase() },
+          { code: String(industryId) }
+        ]
+      }).exec();
+      if (ind) resolvedIndustryId = ind._id.toString();
     }
   }
 
-  const cleanOrgId = (organizationId === 'null' || !organizationId) ? null : organizationId;
+  const cleanOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
   let query = { organization_id: cleanOrgId };
   if (cleanOrgId === null && resolvedIndustryId) {
     query.industry_id = resolvedIndustryId;
@@ -250,12 +303,13 @@ exports.create = async ({ organizationId, industryId, resource_key, data }) => {
 
   const newItem = {
     id: itemId,
+    _id: itemId,
     ...data,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
-  if (resource_key === 'resource_lead_sources') {
+  if (resource_key === 'resource_lead_sources' || resource_key === 'resourceLeadSources') {
     newItem.leadSourceId = itemId;
   }
 
@@ -270,52 +324,61 @@ exports.create = async ({ organizationId, industryId, resource_key, data }) => {
 };
 
 exports.update = async (id, data) => {
-  const doc = await OrganizationResources.findOne({
-    $or: Object.values(KEY_MAP).map(field => ({ [`${field}.id`]: id }))
-  }).exec();
+  if (!id) return null;
+  const strId = String(id);
+  let updatedItem = null;
 
-  if (!doc) return null;
-
-  for (const field of Object.values(KEY_MAP)) {
-    if (doc[field]) {
-      const idx = doc[field].findIndex(i => String(i.id) === String(id));
-      if (idx !== -1) {
-        const updatePayload = { ...data };
-        if (field === 'leadSources') {
-          updatePayload.leadSourceId = id;
+  const docs = await OrganizationResources.find({}).exec();
+  for (const doc of docs) {
+    let modified = false;
+    for (const field of RESOURCE_FIELDS) {
+      if (Array.isArray(doc[field])) {
+        const idx = doc[field].findIndex(i => String(i.id) === strId || String(i._id) === strId || (i.leadSourceId && String(i.leadSourceId) === strId));
+        if (idx !== -1) {
+          const updatePayload = { ...data };
+          if (field === 'leadSources' || field === 'lead_sources') {
+            updatePayload.leadSourceId = doc[field][idx].leadSourceId || id;
+          }
+          doc[field][idx] = {
+            ...doc[field][idx],
+            ...updatePayload,
+            updatedAt: new Date(),
+          };
+          updatedItem = doc[field][idx];
+          doc.markModified(field);
+          modified = true;
         }
-        doc[field][idx] = {
-          ...doc[field][idx],
-          ...updatePayload,
-          updatedAt: new Date(),
-        };
-        doc.markModified(field);
-        await doc.save();
-        return doc[field][idx];
       }
     }
+    if (modified) {
+      await doc.save();
+    }
   }
-  return null;
+  return updatedItem;
 };
 
 exports.remove = async (id) => {
-  const doc = await OrganizationResources.findOne({
-    $or: Object.values(KEY_MAP).map(field => ({ [`${field}.id`]: id }))
-  }).exec();
+  if (!id) return null;
+  const strId = String(id);
+  let removedItem = null;
 
-  if (!doc) return null;
-
-  for (const field of Object.values(KEY_MAP)) {
-    if (doc[field]) {
-      const idx = doc[field].findIndex(i => String(i.id) === String(id));
-      if (idx !== -1) {
-        const removed = doc[field][idx];
-        doc[field].splice(idx, 1);
-        doc.markModified(field);
-        await doc.save();
-        return removed;
+  const docs = await OrganizationResources.find({}).exec();
+  for (const doc of docs) {
+    let modified = false;
+    for (const field of RESOURCE_FIELDS) {
+      if (Array.isArray(doc[field])) {
+        const idx = doc[field].findIndex(i => String(i.id) === strId || String(i._id) === strId || (i.leadSourceId && String(i.leadSourceId) === strId));
+        if (idx !== -1) {
+          removedItem = doc[field][idx];
+          doc[field].splice(idx, 1);
+          doc.markModified(field);
+          modified = true;
+        }
       }
     }
+    if (modified) {
+      await doc.save();
+    }
   }
-  return null;
+  return removedItem;
 };

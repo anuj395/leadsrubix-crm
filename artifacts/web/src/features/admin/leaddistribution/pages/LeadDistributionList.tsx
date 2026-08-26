@@ -6,7 +6,7 @@ import Alert from '@mui/material/Alert'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
@@ -20,11 +20,23 @@ import { useConfirm } from '@/components/common/ConfirmContext'
 import { resolveScreen } from '@/services/screenAdminService'
 import { useAuth } from '@/hooks/useAuth'
 import { useActionPermission } from '@/hooks/useActionPermission'
+import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
+import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 
 export default function LeadDistributionListPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { can_view, can_add, can_delete, loading: permsLoading } = useActionPermission('leadDistribution')
+  const isSuperAdmin = user?.role === 'superAdmin'
+  const {
+    industries,
+    selectedIndustry,
+    setSelectedIndustry,
+    filteredOrgs,
+    selectedOrg,
+    setSelectedOrg
+  } = useSuperAdminScope(isSuperAdmin)
+
+  const { can_view, can_add, can_edit, can_delete, loading: permsLoading } = useActionPermission('leadDistribution')
   const [items, setItems] = useState<LeadDistributionRule[]>([])
   const [dynamicHeaders, setDynamicHeaders] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -40,12 +52,13 @@ export default function LeadDistributionListPage() {
   const loadData = async () => {
     setLoading(true)
     try {
+      const activeOrg = isSuperAdmin ? selectedOrg : undefined
       const [rulesList, resolved] = await Promise.all([
-        getDistributionRules(),
+        getDistributionRules(activeOrg),
         resolveScreen({
           screen_key: 'leadDistribution',
-          industry_code: user?.role === 'superAdmin' ? 'temp0001' : undefined,
-          role_key: user?.role === 'superAdmin' ? 'admin' : undefined,
+          industry_code: isSuperAdmin ? selectedIndustry || 'temp0001' : undefined,
+          role_key: isSuperAdmin ? 'admin' : undefined,
         })
       ])
       setItems(rulesList)
@@ -59,9 +72,9 @@ export default function LeadDistributionListPage() {
 
   useEffect(() => {
     void loadData()
-  }, [])
+  }, [selectedOrg, selectedIndustry])
 
-  const indCode = String(user?.industryId || '').toLowerCase().trim();
+  const indCode = String(isSuperAdmin ? selectedIndustry : (user?.industryId || '')).toLowerCase().trim();
 
   const labels = useMemo(() => {
     if (indCode === 'temp0002') {
@@ -163,49 +176,71 @@ export default function LeadDistributionListPage() {
           const val = p.value
           if (c.key === 'users') {
             const list = p.row.users || []
-            return list.map((u) => u.user_email).join(', ')
+            return list.map((u) => u.user_email).join(', ') || '—'
           }
-          if (['project', 'location', 'budget', 'propertyType'].includes(c.key)) {
-            return val && val.length > 0 ? val.join(', ') : 'All'
+          if (['project', 'location', 'budget', 'propertyType', 'property_type', 'projectName', 'project_name', 'locationName', 'location_name'].includes(c.key)) {
+            if (Array.isArray(val) && val.length > 0) {
+              const str = val.filter(Boolean).join(', ')
+              return str || '—'
+            }
+            if (val !== undefined && val !== null && String(val).trim() !== '' && String(val).trim() !== 'All') {
+              return String(val)
+            }
+            return '—'
           }
-          if (c.key === 'distributionType') {
-            return <Box sx={{ color: 'primary.main', fontWeight: 600 }}>{val}</Box>
+          if (c.key === 'distributionType' || c.key === 'distribution_type') {
+            return <Box sx={{ color: 'primary.main', fontWeight: 600 }}>{val || 'Normal'}</Box>
           }
           if (c.key === 'source') {
-            return <Box sx={{ fontWeight: 600 }}>{val}</Box>
+            return <Box sx={{ fontWeight: 600 }}>{val || '—'}</Box>
           }
-          return val ? String(val) : '—'
+          return (val !== undefined && val !== null && String(val).trim() !== '' && String(val).trim() !== 'All') ? String(val) : '—'
         }
       }
     })
 
     // Append actions column at the end
-    if (can_delete) {
+    if (can_edit || can_delete) {
       mappedCols.push({
         field: '__actions',
         headerName: 'Actions',
-        width: 80,
+        width: 100,
         sortable: false,
         renderCell: (p) => (
-          <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
-            <Tooltip title="Delete">
-              <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+            {can_edit && (
+              <Tooltip title="Edit">
+                <IconButton
+                  size="small"
+                  color="primary"
+                  onClick={() => navigate(`/lead-distribution/logic?id=${p.row._id}`)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {can_delete && (
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDelete(p.row._id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       })
     }
 
     return mappedCols
-  }, [dynamicHeaders, labels, can_delete])
+  }, [dynamicHeaders, labels, can_edit, can_delete])
 
-  if (!permsLoading && !can_view) {
+  const isAllowedRole = user?.role === 'admin' || user?.role === 'superAdmin'
+
+  if (!isAllowedRole || (!permsLoading && !can_view)) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">
-          Access Denied: You do not have permission to view {labels.title}.
+          Access Denied: Lead Distribution is restricted to Admin role only.
         </Alert>
       </Box>
     )
@@ -213,6 +248,17 @@ export default function LeadDistributionListPage() {
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {isSuperAdmin && (
+        <SuperAdminScopeSelector
+          isSuperAdmin={isSuperAdmin}
+          industries={industries}
+          selectedIndustry={selectedIndustry}
+          setSelectedIndustry={setSelectedIndustry}
+          filteredOrgs={filteredOrgs}
+          selectedOrg={selectedOrg}
+          setSelectedOrg={setSelectedOrg}
+        />
+      )}
       <AppCard
         title={labels.title}
         subtitle={labels.subtitle}
