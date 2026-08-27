@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
     letterSpacing: -0.4,
   },
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   connectorName: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
   },
   connectorCat: {
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   configLink: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.primary,
   },
 });

@@ -141,16 +141,16 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   badgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   quoteText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '400',
+    color: '#F8FAFC',
     textAlign: 'center',
-    lineHeight: 20,
     fontStyle: 'italic',
+    lineHeight: 19,
   },
 });

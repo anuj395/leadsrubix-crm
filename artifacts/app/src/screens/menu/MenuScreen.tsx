@@ -27,7 +27,7 @@ export const MenuScreen = ({ navigation }: any) => {
       subtitle: 'Manage buyer prospects & deals',
       icon: 'people-sharp',
       color: '#0284C7',
-      route: 'LeadsList',
+      route: 'Leads',
     },
     {
       id: 'tasks',
@@ -62,6 +62,14 @@ export const MenuScreen = ({ navigation }: any) => {
       route: 'CallLogs',
     },
     {
+      id: 'integrations',
+      title: 'Integrations & WhatsApp',
+      subtitle: 'WhatsApp campaigns & webhooks',
+      icon: 'logo-whatsapp',
+      color: '#25D366',
+      route: 'Integrations',
+    },
+    {
       id: 'automations',
       title: 'Workflow Automation',
       subtitle: 'Zapier-style custom triggers',
@@ -76,6 +84,14 @@ export const MenuScreen = ({ navigation }: any) => {
       icon: 'create-sharp',
       color: '#E11D48',
       action: () => setFormBuilderVisible(true),
+    },
+    {
+      id: 'notifications',
+      title: 'Notifications & Alerts',
+      subtitle: 'Real-time workspace activity',
+      icon: 'notifications-sharp',
+      color: '#EA580C',
+      route: 'Notifications',
     },
     {
       id: 'profile',
@@ -241,9 +257,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   contentContainer: {
     padding: 16,
@@ -257,9 +273,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -291,7 +307,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   cardSubtitle: {
@@ -325,7 +341,7 @@ const styles = StyleSheet.create({
   modalHeaderTitle: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
 });

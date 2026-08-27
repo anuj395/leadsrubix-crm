@@ -1,16 +1,28 @@
+import { Platform } from 'react-native';
 import axios, { AxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '../utils/safeStorage';
+import { APP_CONFIG } from '../constants/appConstants';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const getDefaultApiUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:8080/api';
+  }
+  return 'http://127.0.0.1:8080/api';
+};
+
+export const API_BASE_URL = getDefaultApiUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 12000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'X-Client-Platform': 'mobile-ios',
-    'X-Client-Version': '1.4.0',
+    'X-Client-Platform': Platform.OS === 'android' ? 'mobile-android' : 'mobile-ios',
+    'X-Client-Version': APP_CONFIG.version,
   },
 });
 
@@ -18,12 +30,12 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = (await safeStorage.getItem('@auth_token')) || (await safeStorage.getItem('auth_token'));
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // SAP Zero-One Security Signature Header
+      // Security Signature Header
       const timestamp = Date.now().toString();
       config.headers['X-Request-Timestamp'] = timestamp;
       config.headers['X-Signature'] = `sig_${timestamp.slice(-6)}`;
@@ -35,7 +47,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Token Refresh & Exponential Backoff Retry
+// Response Interceptor: Token Refresh & Graceful Error Handling
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -49,10 +61,15 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     }
 
-    // 2. Token Expired Handling (401 Unauthorized)
-    if (error.response?.status === 401) {
-      console.warn('[apiClient] Session unauthorized (401), purging local auth token...');
-      await AsyncStorage.removeItem('auth_token');
+    // 2. Token Expired Handling (401 Unauthorized for authenticated session)
+    if (error.response?.status === 401 && !originalRequest.url?.includes('/auth/login')) {
+      try {
+        await safeStorage.removeItem('@auth_token');
+        await safeStorage.removeItem('@user_data');
+        await safeStorage.removeItem('auth_token');
+      } catch (e) {
+        // Safe storage handles suppression
+      }
     }
 
     return Promise.reject(error);

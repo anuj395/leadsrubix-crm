@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   contentContainer: {
     padding: 16,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: 0.9,
   },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   pctBadgeText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#059669',
   },
   progressTrack: {
@@ -432,12 +432,12 @@ const styles = StyleSheet.create({
   },
   avatarLargeText: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
   userNameText: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   userEmailText: {
@@ -456,10 +456,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   roleBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#059669',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   card3D: {
     backgroundColor: '#FFFFFF',
@@ -478,9 +478,9 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   manageRoleBtn3D: {
     flexDirection: 'row',
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   manageRoleBtnText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   signOutBtn3D: {
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   },
   signOutBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#E11D48',
   },
   modalContainer: {
@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   modalHeaderTitle: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
 });

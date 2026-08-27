@@ -281,9 +281,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   contentContainer: {
     padding: 16,
@@ -297,9 +297,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   loadingBox: {
     alignItems: 'center',
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   buyerNameText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   buyerPhoneText: {
@@ -358,8 +358,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   outcomePillText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
   },
   cardFooterRow: {
     flexDirection: 'row',
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   redialBtnText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   modalBackdrop: {
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   modalSubtitle: {

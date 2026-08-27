@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme/theme';
@@ -177,17 +178,17 @@ const styles = StyleSheet.create({
   speechBubble3D: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E2E8F0',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
   },
   bubbleHeaderRow: {
     flexDirection: 'row',
@@ -207,12 +208,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
   },
   badgeTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   closeBtn: {
-    padding: 2,
+    padding: 4,
   },
   bubbleBodyRow: {
     flexDirection: 'row',
@@ -222,10 +223,11 @@ const styles = StyleSheet.create({
   },
   messageText: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0F172A',
-    lineHeight: 19,
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#1E293B',
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   characterAvatar3D: {
     width: 44,
@@ -286,7 +288,7 @@ const styles = StyleSheet.create({
   },
   minimizedTitleText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   minimizedRightHint: {

@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   addBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   headerTagPill: {
     alignSelf: 'flex-start',
@@ -311,9 +311,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   searchBarBox: {
     flexDirection: 'row',
@@ -362,8 +362,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.brand700,
   },
   statusChipText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
   },
   statusChipTextSelected: {
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   emptySubtext: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
   leadInfoGroup: {
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   },
   leadNameText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   leadProjectText: {
@@ -465,8 +465,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   statusPillText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   leadSpecStrip: {
     flexDirection: 'row',
@@ -482,8 +482,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   specLabel: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '700',
     color: '#64748B',
     marginBottom: 2,
   },
@@ -527,8 +527,10 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
   },
   actionBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#FFFFFF',
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

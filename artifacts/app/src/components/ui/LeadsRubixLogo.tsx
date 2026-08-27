@@ -48,13 +48,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   brandTitle: {
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.primary,
     letterSpacing: -0.5,
   },
   brandSubtitle: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: theme.colors.textMuted,
     letterSpacing: 1.5,
     marginTop: 2,

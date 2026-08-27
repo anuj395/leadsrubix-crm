@@ -123,7 +123,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             <View style={styles.mappedDomainNotice}>
               <Ionicons name="checkmark-circle-sharp" size={16} color="#059669" />
               <Text style={styles.mappedDomainText}>
-                CNAME target issued for <Text style={{ fontWeight: '800' }}>{activeCustomDomain}</Text>. Point CNAME to <Text style={{ fontWeight: '800' }}>client1.leadsrubix.com</Text>.
+                CNAME target issued for <Text style={{ fontWeight: '700' }}>{activeCustomDomain}</Text>. Point CNAME to <Text style={{ fontWeight: '700' }}>client1.leadsrubix.com</Text>.
               </Text>
             </View>
           )}
@@ -263,9 +263,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   contentContainer: {
     padding: 16,
@@ -293,9 +293,9 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   activeSubdomainBox: {
     flexDirection: 'row',
@@ -309,13 +309,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   subdomainLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#64748B',
     fontWeight: '700',
   },
   subdomainUrlText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
   activeBadgePill: {
@@ -325,16 +325,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   activeBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '700',
     color: '#059669',
   },
   fieldLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
     marginBottom: 6,
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   domainInputRow: {
     flexDirection: 'row',
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   mapBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   mappedDomainNotice: {
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   },
   currencySymbolText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   currencySymbolTextSelected: {

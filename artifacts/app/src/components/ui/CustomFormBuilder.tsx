@@ -184,9 +184,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   card3D: {
     backgroundColor: '#FFFFFF',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   cardSectionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: 0.9,
     marginBottom: 12,
@@ -214,11 +214,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
     marginBottom: 6,
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   textInput: {
     backgroundColor: '#F8FAFC',
@@ -249,8 +249,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.brand700,
   },
   typeChipText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
   },
   typeChipTextSelected: {
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   previewHeaderRow: {
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   fieldPreviewWrapper: {
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   fieldMetaKey: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
 });

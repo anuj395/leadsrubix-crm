@@ -1,8 +1,17 @@
 import { apiClient } from '../api/apiClient';
 
+export interface AnalyticsQueryParams {
+  startDate?: string;
+  endDate?: string;
+  groupBy?: string;
+  industryId?: string;
+  organizationId?: string;
+  workspaceId?: string;
+}
+
 export const analyticsRepository = {
-  async fetchRawAnalyticsOverview() {
-    const res = await apiClient.get('/analytics/overview');
+  async fetchRawAnalyticsOverview(params?: AnalyticsQueryParams) {
+    const res = await apiClient.get('/analytics/dashboard', { params });
     return res.data;
   },
 };
