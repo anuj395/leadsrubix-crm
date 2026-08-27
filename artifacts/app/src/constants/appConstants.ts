@@ -1,11 +1,7 @@
 export const APP_CONFIG = {
-  name: 'Leads Rubix CRM',
-  shortName: 'LeadsRubix',
-  edition: 'Enterprise',
+  appName: 'Leads Rubix CRM',
   version: '1.4.0',
-  displayVersion: 'v1.4',
-  tagline: 'ENTERPRISE REAL ESTATE CRM',
-  get footerVersionText(): string {
-    return `${this.name} • ${this.edition} ${this.displayVersion}`;
-  },
+  build: '2026.08.27',
+  apiBaseUrl: 'https://api1.leadsrubix.com/api',
+  webBaseUrl: 'https://web.leadsrubix.com',
 };
