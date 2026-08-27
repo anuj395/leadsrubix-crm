@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   addBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   headerTagPill: {
     flexDirection: 'row',
@@ -248,9 +248,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   contentContainer: {
     padding: 16,
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   },
   filterTabText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
   },
   filterTabTextActive: {
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   emptySubtext: {
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   taskTitleText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   taskTitleCompleted: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   priorityBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

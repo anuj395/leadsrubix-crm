@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { safeStorage } from '../utils/safeStorage';
 import { theme } from '../theme/theme';
+import { CompanyLogo } from '../components/ui/CompanyLogo';
+import { getIndustrySemantics } from '../utils/industryLabels';
 
 // Screens
 import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { SignupScreen } from '../screens/auth/SignupScreen';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
 import { DashboardScreen } from '../screens/dashboard/DashboardScreen';
 import { LeadsListScreen } from '../screens/leads/LeadsListScreen';
 import { LeadDetailScreen } from '../screens/leads/LeadDetailScreen';
@@ -44,11 +48,11 @@ type ScreenName =
   | 'Signup';
 
 export const AppNavigator = () => {
-  const { token, isLoading } = useAuth();
+  const { token, user, isLoading } = useAuth();
 
   // Navigation stack & route state
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Dashboard');
-  const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup'>('Login');
+  const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');
   const [routeParams, setRouteParams] = useState<any>({});
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
@@ -72,8 +76,10 @@ export const AppNavigator = () => {
   if (isLoading || hasSeenOnboarding === null) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <Ionicons name="briefcase-sharp" size={54} color={theme.colors.brand700} />
+        <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+        <CompanyLogo variant="white" height={44} />
+        <ActivityIndicator color="#60A5FA" size="small" style={{ marginTop: 24 }} />
+        <Text style={styles.loadingSubtext}>POWERING CRM ENGINE...</Text>
       </View>
     );
   }
@@ -81,7 +87,13 @@ export const AppNavigator = () => {
   // If not logged in, render Auth / Onboarding Stack
   if (!token) {
     const authNav = {
-      navigate: (screen: 'Onboarding' | 'Login' | 'Signup') => setAuthScreen(screen),
+      navigate: (
+        screen: 'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword',
+        params?: any
+      ) => {
+        if (params) setRouteParams(params);
+        setAuthScreen(screen);
+      },
     };
 
     const handleFinishOnboarding = () => {
@@ -96,8 +108,12 @@ export const AppNavigator = () => {
           <OnboardingScreen navigation={authNav} onFinish={handleFinishOnboarding} />
         ) : authScreen === 'Login' ? (
           <LoginScreen navigation={authNav} />
-        ) : (
+        ) : authScreen === 'Signup' ? (
           <SignupScreen navigation={authNav} />
+        ) : authScreen === 'ForgotPassword' ? (
+          <ForgotPasswordScreen navigation={authNav} route={{ params: routeParams }} />
+        ) : (
+          <ResetPasswordScreen navigation={authNav} route={{ params: routeParams }} />
         )}
       </SafeAreaView>
     );
@@ -193,17 +209,19 @@ export const AppNavigator = () => {
 
   const hideTabBar = currentScreen === 'LeadForm' || currentScreen === 'TaskForm' || currentScreen === 'LeadDetail';
 
+  const semantics = getIndustrySemantics(user?.industryId);
+
   const tabs: { name: ScreenName; label: string; icon: keyof typeof Ionicons.glyphMap; iconActive: keyof typeof Ionicons.glyphMap }[] = [
     { name: 'Dashboard', label: 'Dashboard', icon: 'grid-outline', iconActive: 'grid' },
-    { name: 'Leads', label: 'Leads', icon: 'people-outline', iconActive: 'people' },
-    { name: 'Tasks', label: 'Tasks', icon: 'checkbox-outline', iconActive: 'checkbox' },
+    { name: 'Leads', label: semantics.leadEntityPlural, icon: 'people-outline', iconActive: 'people' },
+    { name: 'Tasks', label: semantics.taskEntityPlural, icon: 'checkbox-outline', iconActive: 'checkbox' },
     { name: 'Analytics', label: 'Analytics', icon: 'trending-up-outline', iconActive: 'trending-up' },
     { name: 'Menu', label: 'Menu', icon: 'menu-outline', iconActive: 'menu' },
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={styles.appContainer}>
+      <StatusBar barStyle="light-content" backgroundColor="#272944" />
 
       {/* Screen Body */}
       <View style={styles.screenContainer}>{renderActiveScreen()}</View>
@@ -233,33 +251,47 @@ export const AppNavigator = () => {
           })}
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#1A1C30',
+  },
+  appContainer: {
+    flex: 1,
+    backgroundColor: '#272944',
   },
   screenContainer: {
     flex: 1,
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1A1C30',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  loadingSubtext: {
+    color: '#94A3B8',
+    fontSize: 11,
+    letterSpacing: 1,
+    fontWeight: '600',
+    marginTop: 12,
+  },
   tabBarDock: {
     flexDirection: 'row',
-    height: 68,
+    height: Platform.OS === 'ios' ? 76 : 64,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 8,
+    paddingTop: 6,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 6,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.06,
@@ -270,29 +302,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingVertical: 4,
   },
   iconPill3D: {
     paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: theme.borderRadius.round,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   iconPill3DActive: {
     backgroundColor: theme.colors.brand700,
     shadowColor: theme.colors.brand700,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabLabelText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '600',
     color: '#64748B',
-    marginTop: 3,
+    marginTop: 2,
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   tabLabelTextActive: {
     color: theme.colors.brand700,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 });

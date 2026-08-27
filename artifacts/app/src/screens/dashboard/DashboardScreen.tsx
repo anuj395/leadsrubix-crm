@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,165 +11,178 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { analyticsService, AnalyticsData } from '../../services/analyticsService';
-import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
+import {
+  analyticsService,
+  AnalyticsDashboardState,
+} from '../../services/analyticsService';
+import { taskService, TaskItem } from '../../services/taskService';
+import { leadService, LeadItem } from '../../services/leadService';
+import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { LicenseTrialBanner } from '../../components/ui/LicenseTrialBanner';
+import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
+import { DashboardActionCockpit } from '../../components/dashboard/DashboardActionCockpit';
+import { DashboardQuickKpis } from '../../components/dashboard/DashboardQuickKpis';
+import { DashboardTodayAgenda } from '../../components/dashboard/DashboardTodayAgenda';
+import { DashboardRecentLeads } from '../../components/dashboard/DashboardRecentLeads';
 import { theme } from '../../theme/theme';
 
 export const DashboardScreen = ({ navigation }: any) => {
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const { user } = useAuth();
+  const [data, setData] = useState<AnalyticsDashboardState | null>(null);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchDashboardData = async () => {
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const fetchDashboardData = useCallback(async (isPullRefresh = false) => {
     try {
-      setLoading(true);
-      const res = await analyticsService.getAnalyticsData();
-      setAnalytics(res);
+      if (!isPullRefresh) setLoading(true);
+      const [analyticsRes, tasksRes, leadsRes] = await Promise.all([
+        analyticsService.getAnalyticsData({
+          industryId: user?.industryId,
+          organizationId: user?.organizationId,
+        }),
+        taskService.getTasks(),
+        leadService.getLeads({ limit: 5 }),
+      ]);
+      setData(analyticsRes);
+      setTasks(tasksRes);
+      setLeads(leadsRes);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchDashboardData();
+    fetchDashboardData(true);
   };
+
+  const handleKpiSelect = (kpiKey: string, label: string) => {
+    if (kpiKey === 'completedVisits' || kpiKey === 'scheduledVisits') {
+      navigation.navigate('Tasks', { filter: kpiKey, title: label });
+    } else {
+      navigation.navigate('Leads', { filter: kpiKey, title: label });
+    }
+  };
+
+  const handleCockpitAction = (screen: 'Leads' | 'Tasks', params?: any) => {
+    navigation.navigate(screen, params);
+  };
+
+  const userDisplayName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Executive';
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#272944" />
 
-      {/* Clean Executive #272944 Hero Header Banner */}
-      <View style={styles.hero3DHeader}>
+      {/* Zone 1: Executive Greeting & Hero Header */}
+      <View style={styles.heroHeader}>
         <View style={styles.headerTopRow}>
-          <CompanyLogo variant="white" height={34} />
+          <CompanyLogo variant="white" height={28} />
 
           <TouchableOpacity
             style={styles.notifBtnCircle}
             onPress={() => navigation.navigate('Notifications')}
             activeOpacity={0.8}
           >
-            <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+            <Ionicons name="notifications-outline" size={17} color="#FFFFFF" />
             <View style={styles.notifBadgeDot} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.headerTagPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.headerTagText}>EXECUTIVE SALES DASHBOARD</Text>
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingTextCol}>
+            <Text style={styles.greetingLabel}>
+              {getGreeting()}, {userDisplayName}
+            </Text>
+            <Text style={styles.organizationLabel} numberOfLines={1}>
+              {(user as any)?.organizationName || data?.organizationName || 'Leads Rubix Workspace'}
+            </Text>
+          </View>
+
+          <View style={styles.headerTagPill}>
+            <View style={styles.greenPulseDot} />
+            <Text style={styles.headerTagText}>WORKSPACE ACTIVE</Text>
+          </View>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.brand700}
+          />
         }
       >
-        {/* Executive 7-Day Free Trial & License Allocation Banner */}
+        {/* Zone 2: Dynamic Subscription / Trial Status Banner */}
         <LicenseTrialBanner />
 
-        {/* Animated AI Mascot Companion */}
-        <AIAdvisorMascot
-          screenName="Dashboard"
-          message="Pipeline active! You have fresh buyer inquiries requiring site visit scheduling today."
-        />
-
-        {/* Quick Action Shortcuts Grid */}
-        <View style={styles.quickActionGrid}>
-          <TouchableOpacity
-            style={styles.actionCard3D}
-            onPress={() => navigation.navigate('LeadForm')}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.actionIconBadge, { backgroundColor: 'rgba(2, 132, 199, 0.12)' }]}>
-              <Ionicons name="person-add-sharp" size={18} color="#0284C7" />
-            </View>
-            <Text style={styles.actionCardTitle}>Add Lead</Text>
-            <Text style={styles.actionCardSub}>New Prospect</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard3D}
-            onPress={() => navigation.navigate('CallLogs')}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.actionIconBadge, { backgroundColor: 'rgba(5, 150, 105, 0.12)' }]}>
-              <Ionicons name="call-sharp" size={18} color="#059669" />
-            </View>
-            <Text style={styles.actionCardTitle}>Call Dialer</Text>
-            <Text style={styles.actionCardSub}>Auto Logger</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard3D}
-            onPress={() => navigation.navigate('TaskForm')}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.actionIconBadge, { backgroundColor: 'rgba(217, 119, 6, 0.12)' }]}>
-              <Ionicons name="calendar-sharp" size={18} color="#D97706" />
-            </View>
-            <Text style={styles.actionCardTitle}>Schedule</Text>
-            <Text style={styles.actionCardSub}>Site Visit</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard3D}
-            onPress={() => navigation.navigate('Projects')}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.actionIconBadge, { backgroundColor: 'rgba(124, 58, 237, 0.12)' }]}>
-              <Ionicons name="calculator-sharp" size={18} color="#7C3AED" />
-            </View>
-            <Text style={styles.actionCardTitle}>CPQ Quote</Text>
-            <Text style={styles.actionCardSub}>PDF Share</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Dynamic Pipeline Summary Metrics */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>DYNAMIC PIPELINE SUMMARY</Text>
-          <InfoGuideBadge
-            title="Pipeline Summary"
-            description="Real-time aggregation of active deals, revenue velocity, and conversion rate across your workspace."
+        {/* Zone 3: Today's Action Command Cockpit (Fresh, Visits, Follow-ups) */}
+        {data && (
+          <DashboardActionCockpit
+            metrics={data.cards}
+            industryId={user?.industryId || data.industryId}
+            onNavigateAction={handleCockpitAction}
           />
-        </View>
+        )}
 
+        {/* Loading State or Operational Views */}
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Fetching workspace pipeline metrics...</Text>
+            <Text style={styles.loadingText}>Fetching daily agenda…</Text>
           </View>
         ) : (
-          <View style={styles.statsRow}>
-            <View style={styles.statCard3D}>
-              <Text style={styles.statLabel}>TOTAL REVENUE</Text>
-              <Text style={[styles.statValue, theme.typography.tabularNumbers]}>
-                {analytics?.revenue || '₹4.2 Cr'}
-              </Text>
-              <Text style={styles.statTrendText}>↑ 14% vs last month</Text>
-            </View>
+          data && (
+            <>
+              {/* Zone 4: 4-Card Quick KPI Overview */}
+              <DashboardQuickKpis
+                metrics={data.cards}
+                industryId={user?.industryId || data.industryId}
+                onSelectKpi={handleKpiSelect}
+              />
 
-            <View style={styles.statCard3D}>
-              <Text style={styles.statLabel}>CONVERSION RATE</Text>
-              <Text style={[styles.statValue, theme.typography.tabularNumbers]}>
-                {analytics?.conversionRate || '18.4%'}
-              </Text>
-              <Text style={styles.statTrendText}>↑ 3.2% vs industry avg</Text>
-            </View>
-          </View>
+              {/* Zone 5: Today's Schedule & Actionable Follow-up List */}
+              <DashboardTodayAgenda
+                tasks={tasks}
+                industryId={user?.industryId || data.industryId}
+                onViewAll={() => navigation.navigate('Tasks')}
+                onTaskPress={(t) => navigation.navigate('Tasks')}
+              />
+
+              {/* Zone 6: Fresh Incoming Leads Queue */}
+              <DashboardRecentLeads
+                leads={leads}
+                industryId={user?.industryId || data.industryId}
+                onViewAll={() => navigation.navigate('Leads')}
+                onLeadPress={(l) => navigation.navigate('LeadDetail', { id: l.id })}
+              />
+            </>
+          )
         )}
+
+        {/* Zone 7: Standard App Version Footer */}
+        <AppVersionFooter />
       </ScrollView>
     </View>
   );
@@ -180,171 +193,106 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  hero3DHeader: {
+  heroHeader: {
     width: '100%',
     backgroundColor: '#272944',
     paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 18,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 6,
   },
   headerTopRow: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   notifBtnCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   notifBadgeDot: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#E11D48',
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  greetingTextCol: {
+    flex: 1,
+    marginRight: 10,
+  },
+  greetingLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  organizationLabel: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    marginTop: 2,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   headerTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 999,
-    marginTop: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    gap: 6,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    gap: 5,
   },
   greenPulseDot: {
-    width: 6,
-    height: 6,
+    width: 5.5,
+    height: 5.5,
     borderRadius: 3,
     backgroundColor: '#34D399',
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  contentContainer: {
+  scrollContent: {
     padding: 16,
     paddingBottom: 40,
   },
-  quickActionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  actionCard3D: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  actionIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  actionCardTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  actionCardSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-    fontWeight: '500',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 1.1,
-  },
   loadingBox: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 32,
     gap: 8,
   },
   loadingText: {
     fontSize: 13,
     color: '#64748B',
     fontWeight: '500',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  statCard3D: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 1.1,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  statTrendText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-    marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

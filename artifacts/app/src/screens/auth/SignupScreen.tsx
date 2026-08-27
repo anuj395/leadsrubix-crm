@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
+import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { theme } from '../../theme/theme';
 
 export interface IndustryOption {
@@ -87,7 +88,7 @@ const EMPLOYEE_COUNT_OPTIONS = [
 export const SignupScreen = ({ navigation }: any) => {
   const { logout } = useAuth();
 
-  // Step 1: Industry Selection
+  // Step 1: Industry Selection (Only Launched Industries Matching Web)
   const [industries, setIndustries] = useState<IndustryOption[]>([]);
   const [loadingIndustries, setLoadingIndustries] = useState(true);
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
@@ -100,10 +101,13 @@ export const SignupScreen = ({ navigation }: any) => {
   const [dialCode, setDialCode] = useState('+91');
   const [showDialCodePicker, setShowDialCodePicker] = useState(false);
 
-  // Step 2: Dynamic Resolved Fields
+  // Step 2: Dynamic Resolved Fields & Options
   const [resolvedFields, setResolvedFields] = useState<DynamicFormField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [activeDropdownKey, setActiveDropdownKey] = useState<string | null>(null);
+
+  const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>(COUNTRY_OPTIONS);
+  const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>(STATE_OPTIONS);
 
   // Form Field Values State
   const [formValues, setFormValues] = useState<Record<string, string>>({
@@ -112,13 +116,15 @@ export const SignupScreen = ({ navigation }: any) => {
     firstName: '',
     lastName: '',
     contactNo: '',
+    contactNumber: '',
     emailId: '',
     country: 'India',
     state: 'Haryana',
     city: 'Gurugram',
     pincode: '122002',
     industryId: '',
-    numberOfEmployees: '11-50',
+    numberOfEmployees: '',
+    numEmployees: '',
     address: '',
     password: '',
   });
@@ -144,28 +150,31 @@ export const SignupScreen = ({ navigation }: any) => {
     handleValueChange('subdomain', clean);
   };
 
-  // Load Industries on mount
+  // Load Only Launched Industries on mount (Matching Web)
   useEffect(() => {
     let isMounted = true;
     setLoadingIndustries(true);
 
     apiClient
-      .get('/industries')
+      .get('/industries?active=true')
       .then((res) => {
         if (!isMounted) return;
         const list = res.data?.items || res.data || [];
-        const formatted: IndustryOption[] = list.map((item: any) => ({
-          code: item.code || item.key || item._id || item.id || item.name.toLowerCase().replace(/\s+/g, '_'),
-          name: item.name || item.title || item.code || 'Real Estate',
-        }));
+        const formatted: IndustryOption[] = list
+          .filter((item: any) => item.status === 'Launched' || (item.is_active === true && item.status !== 'Pre-Launched'))
+          .map((item: any) => ({
+            code: item.code || item.key || item._id || item.id,
+            name: item.name || item.title || item.code,
+          }));
 
         if (formatted.length === 0) {
           formatted.push(
-            { code: 'real_estate', name: 'Real Estate & Property Development' },
-            { code: 'auto_dealership', name: 'Auto Sales Outlet & Dealership' },
-            { code: 'auto_service', name: 'Auto Service Center & Repair' },
-            { code: 'it_saas', name: 'IT Services & SaaS Enterprise' },
-            { code: 'manufacturing', name: 'Manufacturing & Industrial' }
+            { code: 'temp0001', name: 'Real Estate' },
+            { code: 'temp0003', name: 'Healthcare' },
+            { code: 'temp0004', name: 'Education' },
+            { code: 'temp0005', name: 'Financial Services' },
+            { code: 'temp0006', name: 'IT & Tech Services' },
+            { code: 'temp0007', name: 'Manufacturing' }
           );
         }
 
@@ -173,22 +182,48 @@ export const SignupScreen = ({ navigation }: any) => {
         setLoadingIndustries(false);
       })
       .catch((err) => {
-        console.warn('Failed to load industries from API, using fallback:', err);
+        console.warn('Failed to load launched industries from API, using fallback:', err);
         if (!isMounted) return;
         setIndustries([
-          { code: 'real_estate', name: 'Real Estate & Property Development' },
-          { code: 'auto_dealership', name: 'Auto Sales Outlet & Dealership' },
-          { code: 'auto_service', name: 'Auto Service Center & Repair' },
-          { code: 'it_saas', name: 'IT Services & SaaS Enterprise' },
-          { code: 'manufacturing', name: 'Manufacturing & Industrial' }
+          { code: 'temp0001', name: 'Real Estate' },
+          { code: 'temp0003', name: 'Healthcare' },
+          { code: 'temp0004', name: 'Education' },
+          { code: 'temp0005', name: 'Financial Services' },
+          { code: 'temp0006', name: 'IT & Tech Services' },
+          { code: 'temp0007', name: 'Manufacturing' }
         ]);
         setLoadingIndustries(false);
       });
+
+    // Fetch Countries Dropdown
+    apiClient
+      .get('/options/countries')
+      .then((res) => {
+        const items = res.data?.items || res.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          setCountryOptions(items);
+        }
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // Fetch Dynamic States when Country changes
+  useEffect(() => {
+    const country = formValues.country || 'India';
+    apiClient
+      .get(`/options/states?country=${encodeURIComponent(country)}`)
+      .then((res) => {
+        const items = res.data?.items || res.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          setStateOptions(items);
+        }
+      })
+      .catch(() => {});
+  }, [formValues.country]);
 
   // Resolve Dynamic Screen Fields for Industry
   useEffect(() => {
@@ -201,7 +236,7 @@ export const SignupScreen = ({ navigation }: any) => {
     setErrorMessage(null);
 
     const indName = industries.find((i) => i.code === selectedIndustry)?.name || selectedIndustry;
-    setFormValues((prev) => ({ ...prev, industryId: indName }));
+    setFormValues((prev) => ({ ...prev, industryId: selectedIndustry }));
 
     apiClient
       .post('/screens/resolve', {
@@ -221,16 +256,20 @@ export const SignupScreen = ({ navigation }: any) => {
               const k = f.key || f.fieldKey || f.field_key;
               let opts = f.options ? f.options.map((o: any) => (typeof o === 'string' ? { value: o, label: o } : o)) : [];
               
-              if (k === 'country' && opts.length === 0) opts = COUNTRY_OPTIONS;
-              if (k === 'state' && opts.length === 0) opts = STATE_OPTIONS;
-              if ((k === 'numberOfEmployees' || k === 'number_of_employees') && opts.length === 0) opts = EMPLOYEE_COUNT_OPTIONS;
+              if (k === 'country' && opts.length === 0) opts = countryOptions;
+              if (k === 'state' && opts.length === 0) opts = stateOptions;
+              if (k === 'industryId') opts = [{ value: selectedIndustry, label: indName }];
+
+              const isSelect = k === 'country' || k === 'state' || k === 'industryId' || f.type === 'select';
 
               return {
                 key: k,
                 label: f.label || f.name || f.key,
-                type: (k === 'country' || k === 'state' || k.includes('employee')) ? 'select' : (f.type || 'text'),
-                isRequired: f.isRequired ?? f.is_required ?? true,
+                type: isSelect ? 'select' : (f.type || 'text'),
+                isRequired: f.isRequired ?? f.is_required ?? f.required ?? true,
                 options: opts,
+                defaultValue: k === 'industryId' ? indName : undefined,
+                readOnly: k === 'industryId',
               };
             });
           setResolvedFields(mapped.length > 0 ? mapped : getWebExactOrganizationFields(indName));
@@ -244,20 +283,20 @@ export const SignupScreen = ({ navigation }: any) => {
         setResolvedFields(getWebExactOrganizationFields(indName));
         setLoadingFields(false);
       });
-  }, [selectedIndustry]);
+  }, [selectedIndustry, countryOptions, stateOptions]);
 
   const getWebExactOrganizationFields = (industryName: string): DynamicFormField[] => [
     { key: 'organizationName', label: 'Organization Name', type: 'text', isRequired: true },
     { key: 'firstName', label: 'First Name', type: 'text', isRequired: true },
     { key: 'lastName', label: 'Last Name', type: 'text', isRequired: true },
-    { key: 'contactNo', label: 'Contact Number', type: 'phone', isRequired: true },
+    { key: 'contactNumber', label: 'Contact Number', type: 'phone', isRequired: true },
     { key: 'emailId', label: 'Email ID', type: 'email', isRequired: true },
-    { key: 'country', label: 'Country', type: 'select', isRequired: true, options: COUNTRY_OPTIONS },
-    { key: 'state', label: 'State', type: 'select', isRequired: true, options: STATE_OPTIONS },
+    { key: 'country', label: 'Country', type: 'select', isRequired: true, options: countryOptions },
+    { key: 'state', label: 'State', type: 'select', isRequired: true, options: stateOptions },
     { key: 'city', label: 'City', type: 'text', isRequired: true },
     { key: 'pincode', label: 'Pincode', type: 'text', isRequired: true },
-    { key: 'industryId', label: 'Industry ID', type: 'text', isRequired: true, readOnly: true, defaultValue: industryName },
-    { key: 'numberOfEmployees', label: 'Number of Employees(Licenses)', type: 'select', isRequired: true, options: EMPLOYEE_COUNT_OPTIONS },
+    { key: 'industryId', label: 'Industry ID', type: 'select', isRequired: true, readOnly: true, defaultValue: industryName, options: [{ value: selectedIndustry, label: industryName }] },
+    { key: 'numEmployees', label: 'Number of Employees(Licenses)', type: 'number', isRequired: true, options: EMPLOYEE_COUNT_OPTIONS },
     { key: 'address', label: 'Address', type: 'textarea', isRequired: true },
     { key: 'password', label: 'Password', type: 'password', isRequired: true },
   ];
@@ -285,7 +324,8 @@ export const SignupScreen = ({ navigation }: any) => {
     const firstName = formValues.firstName || formValues.first_name || '';
     const email = formValues.emailId || formValues.email_id || formValues.email || '';
     const pwd = formValues.password || '';
-    const contact = formValues.contactNo || formValues.contact_no || '';
+    const contact = formValues.contactNumber || formValues.contactNo || formValues.contact_number || formValues.contact_no || '';
+    const numEmp = formValues.numEmployees || formValues.numberOfEmployees || formValues.number_of_employees || '11-50';
 
     if (!orgName.trim()) {
       setErrorMessage('Please enter Organization Name.');
@@ -306,7 +346,7 @@ export const SignupScreen = ({ navigation }: any) => {
 
     try {
       setSubmitting(true);
-      const fullContactPhone = `${dialCode} ${contact.trim()}`.trim();
+      const fullContactPhone = contact.trim().startsWith('+') ? contact.trim() : `${dialCode} ${contact.trim()}`.trim();
 
       const payload = {
         fields: {
@@ -321,6 +361,8 @@ export const SignupScreen = ({ navigation }: any) => {
           last_name: (formValues.lastName || '').trim(),
           contactNo: fullContactPhone,
           contact_no: fullContactPhone,
+          contactNumber: fullContactPhone,
+          contact_number: fullContactPhone,
           emailId: email.trim().toLowerCase(),
           email_id: email.trim().toLowerCase(),
           email: email.trim().toLowerCase(),
@@ -330,8 +372,9 @@ export const SignupScreen = ({ navigation }: any) => {
           state: formValues.state || 'Haryana',
           city: formValues.city || 'Gurugram',
           pincode: formValues.pincode || '122002',
-          numberOfEmployees: formValues.numberOfEmployees || '11-50',
-          number_of_employees: formValues.numberOfEmployees || '11-50',
+          numberOfEmployees: numEmp,
+          number_of_employees: numEmp,
+          numEmployees: numEmp,
           address: formValues.address || '',
         },
         password: pwd,
@@ -503,38 +546,7 @@ export const SignupScreen = ({ navigation }: any) => {
                   </View>
                 ) : (
                   <View style={styles.dynamicFormGrid}>
-                    {/* MANDATORY WORKSPACE SUBDOMAIN FIELD */}
-                    <View style={styles.fieldBlock}>
-                      <View style={styles.subdomainLabelRow}>
-                        <Text style={styles.fieldLabel}>MANDATORY WORKSPACE SUBDOMAIN *</Text>
-                        <InfoGuideBadge
-                          title="Mandatory Subdomain"
-                          description="Your team's dedicated workspace URL (e.g. acme.leadsrubix.com). Every client workspace receives an active subdomain upon registration."
-                        />
-                      </View>
-
-                      <View style={[styles.subdomainInputBox, focusedField === 'subdomain' && styles.inputBoxFocused]}>
-                        <TextInput
-                          style={styles.subdomainControl}
-                          placeholder="e.g. acme"
-                          placeholderTextColor={theme.colors.textDisabled}
-                          value={subdomainSlug}
-                          onChangeText={handleSubdomainChange}
-                          onFocus={() => setFocusedField('subdomain')}
-                          onBlur={() => setFocusedField(null)}
-                          autoCapitalize="none"
-                        />
-                        <Text style={styles.subdomainSuffixText}>.leadsrubix.com</Text>
-                      </View>
-
-                      {subdomainSlug ? (
-                        <Text style={styles.subdomainPreviewText}>
-                          Active URL: <Text style={{ fontWeight: '800', color: theme.colors.brand700 }}>https://{subdomainSlug}.leadsrubix.com</Text>
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    {/* Render Dynamic Form Fields */}
+                    {/* Render Dynamic Form Fields Matching Web 100% */}
                     {resolvedFields.map((field) => {
                       const key = field.key;
                       const val = formValues[key] ?? field.defaultValue ?? '';
@@ -613,14 +625,18 @@ export const SignupScreen = ({ navigation }: any) => {
                         field.type === 'select' ||
                         key === 'country' ||
                         key === 'state' ||
-                        key === 'numberOfEmployees' ||
-                        (field.options && field.options.length > 0)
+                        key === 'industryId' ||
+                        (field.options && field.options.length > 0 && field.type !== 'number' && key !== 'numEmployees')
                       ) {
                         const isDropdownOpen = activeDropdownKey === key;
                         let opts = field.options && field.options.length > 0 ? field.options : [];
-                        if (key === 'country') opts = COUNTRY_OPTIONS;
-                        if (key === 'state') opts = STATE_OPTIONS;
-                        if (key === 'numberOfEmployees') opts = EMPLOYEE_COUNT_OPTIONS;
+                        const currentIndName = selectedIndustryObj?.name || selectedIndustry;
+                        if (key === 'country') opts = countryOptions;
+                        if (key === 'state') opts = stateOptions;
+                        if (key === 'industryId') opts = [{ value: selectedIndustry, label: currentIndName }];
+
+                        const selectedOpt = opts.find((o) => o.value === val || o.label === val || (key === 'industryId' && o.value === selectedIndustry));
+                        const displayLabel = selectedOpt?.label || (key === 'industryId' ? currentIndName : val) || `Select ${field.label}...`;
 
                         return (
                           <View key={key} style={styles.fieldBlock}>
@@ -629,11 +645,12 @@ export const SignupScreen = ({ navigation }: any) => {
                             </Text>
 
                             <TouchableOpacity
-                              style={styles.selectTriggerBox}
-                              onPress={() => setActiveDropdownKey(isDropdownOpen ? null : key)}
-                              activeOpacity={0.8}
+                              style={[styles.selectTriggerBox, field.readOnly && styles.inputBoxDisabled]}
+                              onPress={() => !field.readOnly && setActiveDropdownKey(isDropdownOpen ? null : key)}
+                              activeOpacity={field.readOnly ? 1 : 0.8}
+                              disabled={field.readOnly}
                             >
-                              <Text style={styles.selectTriggerText}>{val || `Select ${field.label}...`}</Text>
+                              <Text style={styles.selectTriggerText}>{displayLabel}</Text>
                               <Ionicons
                                 name={isDropdownOpen ? 'chevron-up-sharp' : 'chevron-down-sharp'}
                                 size={18}
@@ -641,7 +658,7 @@ export const SignupScreen = ({ navigation }: any) => {
                               />
                             </TouchableOpacity>
 
-                            {isDropdownOpen && (
+                            {isDropdownOpen && !field.readOnly && (
                               <View style={styles.dropdownScrollContainer}>
                                 <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
                                   {opts.map((opt, oIdx) => (
@@ -764,7 +781,7 @@ export const SignupScreen = ({ navigation }: any) => {
                         <ActivityIndicator color="#FFFFFF" size="small" />
                       ) : (
                         <View style={styles.ctaContentRow}>
-                          <Text style={styles.ctaButtonText}>Register Workspace</Text>
+                          <Text style={styles.ctaButtonText}>Sign Up</Text>
                           <View style={styles.ctaArrowCircle}>
                             <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
                           </View>
@@ -785,9 +802,7 @@ export const SignupScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          <View style={styles.bottomFooterInfo}>
-            <Text style={styles.bottomFooterText}>Leads Rubix CRM • Enterprise v1.4</Text>
-          </View>
+          <AppVersionFooter />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -855,9 +870,9 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#F8FAFC',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   scrollContentContainer: {
     paddingHorizontal: 16,
@@ -963,7 +978,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#475569',
     marginBottom: 6,
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   subdomainInputBox: {
     flexDirection: 'row',
@@ -986,7 +1001,7 @@ const styles = StyleSheet.create({
   },
   subdomainSuffixText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
   },
   subdomainPreviewText: {
@@ -1152,33 +1167,34 @@ const styles = StyleSheet.create({
   primaryCtaButton3D: {
     backgroundColor: theme.colors.brand700,
     borderRadius: 14,
-    height: 54,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 3,
     borderBottomColor: '#16182B',
     shadowColor: theme.colors.brand700,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 4,
     marginTop: 12,
   },
   ctaContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   ctaButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: -0.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   ctaArrowCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',

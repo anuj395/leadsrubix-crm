@@ -223,9 +223,9 @@ const styles = StyleSheet.create({
   },
   headerTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   contentContainer: {
     padding: 16,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   },
   sectionHeaderTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
     letterSpacing: 1.2,
     marginBottom: 10,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   projectNameText: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   projectLocationText: {
@@ -287,8 +287,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   statusPillText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
   },
   inventoryGrid: {
     backgroundColor: '#F8FAFC',
@@ -305,10 +305,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   invLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   invValue: {
     fontSize: 12,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   invValueHighlight: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#059669',
   },
   cardFooterActions: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   quoteBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   inventoryBtn: {
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   inventoryBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
 });

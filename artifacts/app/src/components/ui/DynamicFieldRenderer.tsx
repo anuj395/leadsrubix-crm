@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#475569',
     letterSpacing: 0.9,
   },
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   addRepeaterText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
 });

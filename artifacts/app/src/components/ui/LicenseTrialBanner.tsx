@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { licenseService, LicenseStatus } from '../../services/licenseService';
@@ -21,7 +22,10 @@ export const LicenseTrialBanner: React.FC = () => {
   }, []);
 
   const handleUpgradeRequest = async (type: 'online' | 'offline') => {
-    await licenseService.requestUpgrade(type === 'online' ? 'online_gateway' : 'offline_invoice', 25);
+    await licenseService.requestUpgrade(
+      type === 'online' ? 'online_gateway' : 'offline_invoice',
+      licenseInfo?.allocatedLicenses || 10
+    );
     setModalVisible(false);
 
     Alert.alert(
@@ -33,65 +37,90 @@ export const LicenseTrialBanner: React.FC = () => {
     );
   };
 
-  if (!licenseInfo) return null;
+  if (
+    !licenseInfo ||
+    (!licenseInfo.isTrial && !licenseInfo.isGracePeriod) ||
+    licenseInfo.trialDaysRemaining <= 0
+  ) {
+    return null;
+  }
 
   return (
     <View style={styles.bannerContainer}>
-      <View style={styles.topRow}>
-        <View style={styles.pillBadge}>
-          <Ionicons name="time-sharp" size={12} color="#D97706" />
-          <Text style={styles.pillText}>
-            {licenseInfo.isTrial ? `${licenseInfo.trialDaysRemaining} DAYS TRIAL REMAINING` : 'ENTERPRISE PLAN'}
-          </Text>
+      <View style={styles.bannerLeftGroup}>
+        <View style={styles.hourglassBadge}>
+          <Ionicons name="hourglass-outline" size={17} color="#FFFFFF" />
         </View>
-
-        <InfoGuideBadge
-          title="Trial & License Allocation"
-          description="Every new client workspace receives a 7-Day Enterprise Trial with 10 User Licenses. Upgrade anytime via online payment or offline invoice."
-        />
-      </View>
-
-      <View style={styles.contentRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.planName}>{licenseInfo.planName}</Text>
+        <View style={styles.textColumn}>
+          <View style={styles.titleRow}>
+            <Text style={styles.planName}>{licenseInfo.planName}</Text>
+            <InfoGuideBadge
+              title={licenseInfo.isTrial ? 'Trial Period Active' : 'Grace Period Active'}
+              description={
+                licenseInfo.isTrial
+                  ? `Your workspace is currently in active trial mode with ${licenseInfo.trialDaysRemaining} days remaining. Renew anytime to maintain uninterrupted access.`
+                  : `Your trial has concluded with ${licenseInfo.trialDaysRemaining} days grace period remaining. Please renew your subscription.`
+              }
+            />
+          </View>
           <Text style={styles.seatInfo}>
-            {licenseInfo.usedLicenses} of {licenseInfo.allocatedLicenses} User Licenses Active
+            {licenseInfo.trialDaysRemaining} {licenseInfo.trialDaysRemaining === 1 ? 'day' : 'days'} remaining
           </Text>
         </View>
-
-        <TouchableOpacity style={styles.upgradeBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
-          <Ionicons name="card-sharp" size={14} color="#FFFFFF" />
-          <Text style={styles.upgradeBtnText}>Upgrade</Text>
-        </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.upgradeBtn}
+        onPress={() => setModalVisible(true)}
+        activeOpacity={0.88}
+      >
+        <Text style={styles.upgradeBtnText}>Renew Subscription</Text>
+      </TouchableOpacity>
 
       {/* Upgrade Options Modal */}
-      <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>UPGRADE WORKSPACE LICENSES</Text>
+              <Text style={styles.modalTitle}>RENEW / UPGRADE SUBSCRIPTION</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-sharp" size={20} color="#0F172A" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSub}>Select your preferred license payment method:</Text>
+            <Text style={styles.modalSub}>Select your preferred payment method:</Text>
 
-            <TouchableOpacity style={styles.optionCard} onPress={() => handleUpgradeRequest('online')} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.optionCard}
+              onPress={() => handleUpgradeRequest('online')}
+              activeOpacity={0.8}
+            >
               <Ionicons name="flash-sharp" size={22} color="#059669" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.optionTitle}>Instant Online Upgrade</Text>
-                <Text style={styles.optionDesc}>Credit Card / NetBanking / UPI instant activation</Text>
+                <Text style={styles.optionDesc}>
+                  Credit Card / NetBanking / UPI instant activation
+                </Text>
               </View>
               <Ionicons name="chevron-forward-sharp" size={16} color="#94A3B8" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.optionCard} onPress={() => handleUpgradeRequest('offline')} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.optionCard}
+              onPress={() => handleUpgradeRequest('offline')}
+              activeOpacity={0.8}
+            >
               <Ionicons name="document-text-sharp" size={22} color="#0284C7" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.optionTitle}>Offline Purchase Order / Invoice</Text>
-                <Text style={styles.optionDesc}>Generate GST Invoice for Wire Transfer / Cheque</Text>
+                <Text style={styles.optionDesc}>
+                  Generate GST Invoice for Wire Transfer / Cheque
+                </Text>
               </View>
               <Ionicons name="chevron-forward-sharp" size={16} color="#94A3B8" />
             </TouchableOpacity>
@@ -104,65 +133,84 @@ export const LicenseTrialBanner: React.FC = () => {
 
 const styles = StyleSheet.create({
   bannerContainer: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 14,
+    padding: 13,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderBottomWidth: 3,
-    borderBottomColor: '#F59E0B',
-  },
-  topRow: {
+    borderColor: '#E2E8F0',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    gap: 10,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  pillBadge: {
+  bannerLeftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(217, 119, 6, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    gap: 4,
+    gap: 10,
+    flex: 1,
   },
-  pillText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#D97706',
-    letterSpacing: 0.8,
+  hourglassBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#272944',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#272944',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  contentRow: {
+  textColumn: {
+    flex: 1,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 6,
   },
   planName: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13.5,
+    fontWeight: '700',
     color: '#0F172A',
+    letterSpacing: -0.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   seatInfo: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#64748B',
-    marginTop: 2,
-    fontWeight: '600',
+    marginTop: 1,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   upgradeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.brand700,
+    backgroundColor: '#272944',
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 10,
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#272944',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 2,
   },
   upgradeBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '600',
     color: '#FFFFFF',
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   modalOverlay: {
     flex: 1,
@@ -179,18 +227,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 10,
   },
   modalTitle: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#0F172A',
-    letterSpacing: 1.1,
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   modalSub: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#64748B',
-    marginBottom: 14,
+    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   optionCard: {
     flexDirection: 'row',
@@ -204,13 +254,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   optionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   optionDesc: {
     fontSize: 11,
     color: '#64748B',
     marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

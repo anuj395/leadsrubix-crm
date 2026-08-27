@@ -11,11 +11,14 @@ import {
   ScrollView,
   Alert,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { apiClient } from '../../api/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
+import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { theme } from '../../theme/theme';
 
 export const LoginScreen = ({ navigation }: any) => {
@@ -28,6 +31,13 @@ export const LoginScreen = ({ navigation }: any) => {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
+  // Forgot Password State
+  const [forgotModalVisible, setForgotModalVisible] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Required Fields', 'Please enter your work email and password.');
@@ -37,13 +47,48 @@ export const LoginScreen = ({ navigation }: any) => {
       setLoading(true);
       await login(email.trim(), password);
     } catch (err: any) {
-      console.error('Login error:', err);
       const isRestriction = err.isSuperAdminRestriction;
       const title = isRestriction ? 'Access Restricted' : 'Sign In Failed';
-      const msg = err.message || err.response?.data?.message || 'Invalid work email or password.';
+
+      let msg = 'Incorrect work email or password. Please check your credentials and try again.';
+      if (err.isSuperAdminRestriction) {
+        msg = err.message;
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err.response?.status === 401) {
+        msg = 'Invalid work email or password. Please verify and try again.';
+      } else if (!err.response) {
+        msg = 'Unable to connect to CRM server. Please check your internet connection.';
+      }
+
       Alert.alert(title, msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async () => {
+    if (!forgotEmail.trim()) {
+      setForgotError('Please enter your registered work email.');
+      return;
+    }
+    try {
+      setForgotLoading(true);
+      setForgotError(null);
+      setForgotSuccess(null);
+
+      const res = await apiClient.post('/auth/forgot-password', {
+        email: forgotEmail.trim().toLowerCase(),
+      });
+
+      setForgotSuccess(res.data?.message || 'Password reset link sent to your email.');
+    } catch (err: any) {
+      console.error('Forgot password error:', err);
+      const msg =
+        err.response?.data?.message || err.message || 'Unable to send password reset link.';
+      setForgotError(msg);
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -155,12 +200,9 @@ export const LoginScreen = ({ navigation }: any) => {
             {/* Forgot Password Row */}
             <View style={styles.forgotRow}>
               <TouchableOpacity
-                onPress={() =>
-                  Alert.alert(
-                    'Reset Password',
-                    'Please contact your CRM administrator or use the web portal to reset your password.'
-                  )
-                }
+                onPress={() => {
+                  navigation.navigate('ForgotPassword', { email: email.trim() });
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotLink}>Forgot password?</Text>
@@ -196,11 +238,106 @@ export const LoginScreen = ({ navigation }: any) => {
           </View>
 
           {/* Footer Version Info */}
-          <View style={styles.bottomFooterInfo}>
-            <Text style={styles.bottomFooterText}>Leads Rubix CRM • Enterprise v1.4</Text>
-          </View>
+          <AppVersionFooter />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Forgot Password SMTP Email Modal */}
+      <Modal
+        visible={forgotModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setForgotModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalCardWrapper}
+          >
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalHeadingTitle}>Reset Password</Text>
+                <TouchableOpacity
+                  onPress={() => setForgotModalVisible(false)}
+                  style={styles.modalCloseCircle}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSubheadingText}>
+                We will send a secure password reset link to your registered work email via SMTP.
+              </Text>
+
+              {forgotError && (
+                <View style={styles.modalAlertError}>
+                  <Ionicons name="alert-circle" size={16} color="#E11D48" />
+                  <Text style={styles.modalAlertErrorText}>{forgotError}</Text>
+                </View>
+              )}
+
+              {forgotSuccess && (
+                <View style={styles.modalAlertSuccess}>
+                  <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                  <Text style={styles.modalAlertSuccessText}>{forgotSuccess}</Text>
+                </View>
+              )}
+
+              {!forgotSuccess && (
+                <>
+                  <View style={styles.fieldBlock}>
+                    <Text style={styles.fieldLabel}>WORK EMAIL *</Text>
+                    <View style={styles.inputBox}>
+                      <View style={styles.fieldIconBadge}>
+                        <Ionicons name="mail" size={16} color={theme.colors.brand700} />
+                      </View>
+                      <TextInput
+                        style={styles.textInputControl}
+                        placeholder="name@company.com"
+                        placeholderTextColor={theme.colors.textDisabled}
+                        value={forgotEmail}
+                        onChangeText={setForgotEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.primaryCtaButton3D}
+                    onPress={handleForgotPasswordSubmit}
+                    disabled={forgotLoading}
+                    activeOpacity={0.88}
+                  >
+                    {forgotLoading ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <View style={styles.ctaContentRow}>
+                        <Text style={styles.ctaButtonText}>Send Reset Link</Text>
+                        <View style={styles.ctaArrowCircle}>
+                          <Ionicons name="mail-unread-sharp" size={16} color={theme.colors.brand700} />
+                        </View>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {forgotSuccess && (
+                <TouchableOpacity
+                  style={[styles.primaryCtaButton3D, { marginTop: 16 }]}
+                  onPress={() => setForgotModalVisible(false)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.ctaButtonText}>Back to Sign In</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -252,9 +389,9 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#F8FAFC',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   scrollContentContainer: {
     paddingHorizontal: 16,
@@ -264,39 +401,42 @@ const styles = StyleSheet.create({
   framedFormCard3D: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 24,
+    padding: 22,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderBottomWidth: 3,
     borderBottomColor: '#CBD5E1',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 4,
   },
   headingTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   headingSubtext: {
-    fontSize: 13,
+    fontSize: 13.5,
     color: '#64748B',
     marginTop: 4,
-    marginBottom: 24,
-    fontWeight: '500',
+    marginBottom: 20,
+    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   fieldBlock: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   fieldLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#475569',
     marginBottom: 6,
-    letterSpacing: 1.1,
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   inputBox: {
     flexDirection: 'row',
@@ -306,9 +446,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
-    borderBottomWidth: 2.5,
+    borderBottomWidth: 2,
     borderBottomColor: '#CBD5E1',
-    height: 54,
+    height: 50,
   },
   inputBoxFocused: {
     borderColor: theme.colors.brand700,
@@ -316,9 +456,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   fieldIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     backgroundColor: 'rgba(39, 41, 68, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -329,53 +469,56 @@ const styles = StyleSheet.create({
   },
   textInputControl: {
     flex: 1,
-    height: 54,
+    height: 50,
     color: '#0F172A',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14.5,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   eyeBtn: {
     padding: 6,
   },
   forgotRow: {
     alignItems: 'flex-end',
-    marginBottom: 24,
+    marginBottom: 20,
     marginTop: 2,
   },
   forgotLink: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: theme.colors.brand700,
-    fontWeight: '800',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   primaryCtaButton3D: {
     backgroundColor: theme.colors.brand700,
     borderRadius: 14,
-    height: 56,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 3,
     borderBottomColor: '#16182B',
     shadowColor: theme.colors.brand700,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 4,
   },
   ctaContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   ctaButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: -0.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   ctaArrowCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -384,27 +527,117 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
-    paddingTop: 18,
+    marginTop: 20,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   newAccountPrompt: {
     fontSize: 13,
     color: '#64748B',
+    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   signupLinkText: {
     fontSize: 13,
     color: theme.colors.brand700,
-    fontWeight: '800',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   bottomFooterInfo: {
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 20,
   },
   bottomFooterText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#94A3B8',
     fontWeight: '500',
+    letterSpacing: 0.4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCardWrapper: {
+    width: '100%',
+    maxWidth: 420,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalHeadingTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  modalCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSubheadingText: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
+    marginBottom: 16,
+    fontWeight: '400',
+  },
+  modalAlertError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+    gap: 8,
+  },
+  modalAlertErrorText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E11D48',
+    fontWeight: '600',
+  },
+  modalAlertSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    gap: 8,
+  },
+  modalAlertSuccessText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#065F46',
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });

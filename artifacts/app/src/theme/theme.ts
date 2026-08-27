@@ -1,4 +1,4 @@
-import { TextStyle, ViewStyle } from 'react-native';
+import { TextStyle, ViewStyle, Platform } from 'react-native';
 
 export const theme = {
   colors: {
@@ -80,39 +80,93 @@ export const theme = {
 
   typography: {
     display: {
-      fontSize: 26,
+      fontSize: 28,
       fontWeight: '700' as const,
-      letterSpacing: -0.6,
+      letterSpacing: -0.75,
       color: '#0F172A',
       lineHeight: 34,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     h1: {
       fontSize: 22,
       fontWeight: '700' as const,
       letterSpacing: -0.5,
       color: '#0F172A',
-      lineHeight: 30,
+      lineHeight: 28,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     h2: {
       fontSize: 18,
       fontWeight: '700' as const,
       letterSpacing: -0.3,
       color: '#0F172A',
-      lineHeight: 26,
+      lineHeight: 24,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     h3: {
       fontSize: 15,
       fontWeight: '600' as const,
       letterSpacing: -0.2,
       color: '#0F172A',
+      lineHeight: 20,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    bodyLarge: {
+      fontSize: 15,
+      fontWeight: '400' as const,
+      letterSpacing: -0.1,
+      color: '#334155',
       lineHeight: 22,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    bodyMedium: {
+      fontSize: 13.5,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      color: '#334155',
+      lineHeight: 19,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    bodySmall: {
+      fontSize: 12,
+      fontWeight: '400' as const,
+      letterSpacing: 0.1,
+      color: '#64748B',
+      lineHeight: 16,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    labelCaps: {
+      fontSize: 11.5,
+      fontWeight: '700' as const,
+      letterSpacing: 0.75,
+      color: '#64748B',
+      textTransform: 'uppercase' as const,
+      lineHeight: 14,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    buttonLarge: {
+      fontSize: 15,
+      fontWeight: '700' as const,
+      letterSpacing: -0.1,
+      color: '#FFFFFF',
+      lineHeight: 20,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    buttonMedium: {
+      fontSize: 13.5,
+      fontWeight: '600' as const,
+      letterSpacing: 0,
+      color: '#FFFFFF',
+      lineHeight: 18,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     body: {
       fontSize: 14,
       fontWeight: '400' as const,
       letterSpacing: -0.1,
       color: '#334155',
-      lineHeight: 22,
+      lineHeight: 20,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     bodyBold: {
       fontSize: 14,
@@ -120,25 +174,7 @@ export const theme = {
       letterSpacing: -0.1,
       color: '#0F172A',
       lineHeight: 20,
-    },
-    bodySmall: {
-      fontSize: 12,
-      fontWeight: '400' as const,
-      color: '#64748B',
-      lineHeight: 18,
-    },
-    caption: {
-      fontSize: 11,
-      fontWeight: '500' as const,
-      color: '#64748B',
-      lineHeight: 16,
-    },
-    overline: {
-      fontSize: 10,
-      fontWeight: '700' as const,
-      letterSpacing: 1.1,
-      textTransform: 'uppercase' as const,
-      color: '#64748B',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     tabularNumbers: {
       fontVariant: ['tabular-nums' as const],

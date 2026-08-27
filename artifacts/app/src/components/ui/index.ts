@@ -10,3 +10,4 @@ export * from './CustomFormBuilder';
 export * from './RolePermissionManager';
 export * from './AutomationWorkflowBuilder';
 export * from './LicenseTrialBanner';
+export * from './AppVersionFooter';

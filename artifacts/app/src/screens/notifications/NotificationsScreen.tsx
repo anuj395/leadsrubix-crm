@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,38 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { notificationService, NotificationItem } from '../../services/notificationService';
 import { theme } from '../../theme/theme';
 
 export const NotificationsScreen = () => {
-  const [notifications, setNotifications] = useState<any[]>([
-    {
-      id: '1',
-      title: 'New Lead Assigned',
-      body: 'Alexander Wright was assigned to your active pipeline from Website Webhook.',
-      timestamp: '10m ago',
-      read: false,
-      type: 'lead',
-    },
-    {
-      id: '2',
-      title: 'Task Reminder',
-      body: 'Follow up call with Eleanor Vance is scheduled for 02:00 PM today.',
-      timestamp: '1h ago',
-      read: false,
-      type: 'task',
-    },
-    {
-      id: '3',
-      title: 'Deal Stage Updated',
-      body: 'Marcus Sterling deal status changed to Qualified.',
-      timestamp: 'Yesterday',
-      read: true,
-      type: 'deal',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchNotifs = async () => {
+    try {
+      const data = await notificationService.getNotifications();
+      setNotifications(data);
+    } catch (e) {
+      console.warn('Failed to load notifications:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifs();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchNotifs();
+  };
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
   const getIcon = (type: string) => {
@@ -55,7 +53,7 @@ export const NotificationsScreen = () => {
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <View style={[styles.notificationCard, !item.read && styles.unreadCard]}>
+    <View style={[styles.notificationCard, !item.isRead && !item.read && styles.unreadCard]}>
       <View style={[styles.iconBox, { backgroundColor: `${getIconColor(item.type)}15` }]}>
         <Ionicons name={getIcon(item.type) as any} size={20} color={getIconColor(item.type)} />
       </View>
@@ -114,7 +112,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
     letterSpacing: -0.4,
   },
@@ -174,7 +172,7 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
   },
   timeText: {

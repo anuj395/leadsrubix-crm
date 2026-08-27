@@ -1295,3 +1295,27 @@ Organization: Leads Rubix
 Username / Email: salestwo@gmail.com
 Temp Password: v84Up8zG
 ========================================
+[2026-08-26T13:27:12.258Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=e2eb55b169ca66df9b0265e3a2eaea160664df4a
+
+========================================
+Timestamp: 2026-08-26T13:28:56.997Z
+To: testuser1787750932334@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Test Org 1787750932334
+Username / Email: testuser1787750932334@gmail.com
+Temp Password: Password123!
+========================================
+[2026-08-26T13:29:23.350Z] To: testuser1787750932334@gmail.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=e6dcbdc6e5ed4f989c41332839da6931093b9152
+[2026-08-27T05:44:02.517Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=76453acd776e84bde319807e3822ffbaed260590
+[2026-08-27T05:50:03.095Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=cf7b6e4b2c6f4667cc8a8680bf5da00e4f93d585
+[2026-08-27T05:51:59.653Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=dcfd7292dc2a0f1768a1f8729054203c4aca61a5
+[2026-08-27T05:58:04.139Z] To: dev@digitalrubix.com | Subject: Password Reset | Link: http://localhost:22333/reset-password?token=4eca68a3b7df35c84172ff9d38a79b6d81684d90
+
+========================================
+Timestamp: 2026-08-27T07:13:58.682Z
+To: care@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Heath
+Username / Email: care@gmail.com
+Temp Password: RRYFkXeV
+========================================

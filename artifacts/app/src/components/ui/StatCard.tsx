@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   valueText: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
     letterSpacing: -0.5,
   },

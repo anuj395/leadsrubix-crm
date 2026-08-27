@@ -175,9 +175,9 @@ const styles = StyleSheet.create({
   },
   sectionHeaderTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   roleScroll: {
     marginBottom: 14,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   roleChipText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
   },
   roleChipTextSelected: {
@@ -215,10 +215,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#CBD5E1',
   },
   presetTitle: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
     marginBottom: 10,
   },
   presetBtnRow: {
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   presetBtnText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.brand700,
   },
   categoryCard3D: {
@@ -254,9 +254,9 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
     marginBottom: 12,
   },
   permRow: {

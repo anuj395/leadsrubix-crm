@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,184 +12,209 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { analyticsService, AnalyticsData } from '../../services/analyticsService';
-import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
+import {
+  analyticsService,
+  AnalyticsDashboardState,
+} from '../../services/analyticsService';
+import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
+import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
+import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
+import {
+  DashboardTimeFilter,
+  TimeRangeFilter,
+} from '../../components/dashboard/DashboardTimeFilter';
+import { DashboardKpiGrid } from '../../components/dashboard/DashboardKpiGrid';
+import { DashboardFunnelChart } from '../../components/dashboard/DashboardFunnelChart';
+import { DashboardCallingTrends } from '../../components/dashboard/DashboardCallingTrends';
+import {
+  DashboardFeedbackSummary,
+  GroupByMode,
+} from '../../components/dashboard/DashboardFeedbackSummary';
 import { theme } from '../../theme/theme';
 
-export const AnalyticsScreen = () => {
-  const [data, setData] = useState<AnalyticsData | null>(null);
+export const AnalyticsScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
+  const [data, setData] = useState<AnalyticsDashboardState | null>(null);
+  const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('all');
+  const [groupBy, setGroupBy] = useState<GroupByMode>('team');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedReportType, setSelectedReportType] = useState<string>('Standard Conversion');
 
-  const reportPresets = [
-    'Standard Conversion',
-    'Sales Velocity',
-    'Agent Leaderboard',
-    'Custom Pivot Report',
-  ];
-
-  const fetchAnalytics = async () => {
-    try {
-      setLoading(true);
-      const res = await analyticsService.getAnalyticsData();
-      setData(res);
-    } catch (err) {
-      console.error('Failed to load analytics data:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const calculateDateRange = (filter: TimeRangeFilter) => {
+    const now = new Date();
+    if (filter === 'today') {
+      const todayStr = now.toISOString().split('T')[0];
+      return { startDate: todayStr, endDate: todayStr };
     }
+    if (filter === '7d') {
+      const past = new Date();
+      past.setDate(now.getDate() - 7);
+      return {
+        startDate: past.toISOString().split('T')[0],
+        endDate: now.toISOString().split('T')[0],
+      };
+    }
+    if (filter === '30d') {
+      const past = new Date();
+      past.setDate(now.getDate() - 30);
+      return {
+        startDate: past.toISOString().split('T')[0],
+        endDate: now.toISOString().split('T')[0],
+      };
+    }
+    return {};
   };
 
+  const fetchAnalytics = useCallback(
+    async (filter: TimeRangeFilter, group: GroupByMode, isPullRefresh = false) => {
+      try {
+        if (!isPullRefresh) setLoading(true);
+        const dateParams = calculateDateRange(filter);
+        const res = await analyticsService.getAnalyticsData({
+          ...dateParams,
+          groupBy: group,
+          industryId: user?.industryId,
+          organizationId: user?.organizationId,
+        });
+        setData(res);
+      } catch (err) {
+        console.error('Failed to load analytics data:', err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user]
+  );
+
   useEffect(() => {
-    fetchAnalytics();
-  }, []);
+    fetchAnalytics(timeFilter, groupBy);
+  }, [timeFilter, groupBy, fetchAnalytics]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchAnalytics();
+    fetchAnalytics(timeFilter, groupBy, true);
+  };
+
+  const handleKpiSelect = (kpiKey: string, label: string) => {
+    if (kpiKey === 'scheduledVisits' || kpiKey === 'completedVisits') {
+      navigation?.navigate('Tasks', { filter: kpiKey, title: label });
+    } else {
+      navigation?.navigate('Leads', { filter: kpiKey, title: label });
+    }
   };
 
   const handleExportReport = () => {
     Alert.alert(
-      'Export Custom BI Report',
-      `Report "${selectedReportType}" generated! Exporting to CSV / Excel dataset...`,
+      'Export Executive BI Report',
+      'Full workspace conversion metrics, channel attribution, and talk-time duration reports exported to CSV / Excel dataset.',
       [{ text: 'OK' }]
     );
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#272944" />
 
-      {/* Clean Executive #272944 Hero Header Banner */}
-      <View style={styles.hero3DHeader}>
-        <View style={styles.headerLogoRow}>
-          <CompanyLogo variant="white" height={34} />
+      {/* Hero Header */}
+      <View style={styles.heroHeader}>
+        <View style={styles.headerTopRow}>
+          <CompanyLogo variant="white" height={28} />
+
+          <TouchableOpacity
+            style={styles.exportBtn}
+            onPress={handleExportReport}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="download-outline" size={15} color="#FFFFFF" />
+            <Text style={styles.exportBtnText}>Export CSV</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.headerTagPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.headerTagText}>MULTI-INDUSTRY CUSTOM BI ANALYTICS</Text>
+        <View style={styles.titleRow}>
+          <View>
+            <Text style={styles.headerTitle}>BI & PERFORMANCE ANALYTICS</Text>
+            <Text style={styles.headerSub}>Deep pipeline velocity, attribution & calling insights</Text>
+          </View>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.brand700}
+          />
         }
       >
-        {/* Animated AI Mascot Companion */}
-        <AIAdvisorMascot screenName="Analytics" />
-
-        {/* Report Template Selector Strip */}
-        <View style={styles.reportSelectorSection}>
-          <View style={styles.labelRow}>
-            <Text style={styles.sectionHeaderTitle}>SELECT REPORT TEMPLATE</Text>
-            <InfoGuideBadge
-              title="Custom BI Report Builder"
-              description="Choose a default report template (Conversion, Velocity, Leaderboard) or build custom workspace reports."
-            />
+        {/* Section Header & Time Range Filter */}
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>TIME-RANGE AGGREGATION</Text>
+            <Text style={styles.sectionSub}>Select reporting timeframe</Text>
           </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-            {reportPresets.map((type) => {
-              const isSelected = selectedReportType === type;
-              return (
-                <TouchableOpacity
-                  key={type}
-                  style={[styles.reportChip, isSelected && styles.reportChipSelected]}
-                  onPress={() => setSelectedReportType(type)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.reportChipText, isSelected && styles.reportChipTextSelected]}>
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <InfoGuideBadge
+            title="Time Range Filter"
+            description="Dynamically filters KPI metrics, conversion velocity, channel attribution, and calling talk-time by selected timeframe."
+          />
         </View>
 
+        <DashboardTimeFilter
+          activeFilter={timeFilter}
+          onChange={(newF) => setTimeFilter(newF)}
+        />
+
+        {/* Loading State or Full BI Views */}
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Computing analytics for {selectedReportType}...</Text>
+            <Text style={styles.loadingText}>Compiling BI reports…</Text>
           </View>
         ) : (
-          <View>
-            {/* KPI Executive Summary Cards */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statBox3D}>
-                <View style={styles.statBoxHeader}>
-                  <View style={[styles.statIconContainer, { backgroundColor: 'rgba(5, 150, 105, 0.12)' }]}>
-                    <Ionicons name="cash-outline" size={18} color="#059669" />
-                  </View>
-                  <Text style={[styles.statBadgeText, { color: '#059669' }]}>Revenue</Text>
-                </View>
-                <Text style={[styles.statValueText, theme.typography.tabularNumbers]}>
-                  {data?.revenue || '₹4.2 Cr'}
-                </Text>
-                <Text style={styles.statLabelText}>Closed Deal Revenue</Text>
-              </View>
+          data && (
+            <>
+              {/* 9-Card Interactive KPI Matrix */}
+              <DashboardKpiGrid
+                metrics={data.cards}
+                industryId={user?.industryId || data.industryId}
+                onSelectKpi={handleKpiSelect}
+              />
 
-              <View style={styles.statBox3D}>
-                <View style={styles.statBoxHeader}>
-                  <View style={[styles.statIconContainer, { backgroundColor: 'rgba(2, 132, 199, 0.12)' }]}>
-                    <Ionicons name="trending-up-outline" size={18} color="#0284C7" />
-                  </View>
-                  <Text style={[styles.statBadgeText, { color: '#0284C7' }]}>Velocity</Text>
-                </View>
-                <Text style={[styles.statValueText, theme.typography.tabularNumbers]}>
-                  {data?.conversionRate || '18.4%'}
-                </Text>
-                <Text style={styles.statLabelText}>Pipeline Conversion Rate</Text>
-              </View>
-            </View>
+              {/* Multi-Channel & Associate Attribution Breakdown */}
+              <DashboardFeedbackSummary
+                feedbackList={data.feedbackSummary}
+                groupBy={groupBy}
+                onGroupByChange={(mode) => setGroupBy(mode)}
+                onItemPress={(row) => {
+                  navigation?.navigate('Leads', {
+                    associate: row.associate,
+                    title: `${row.associate} Leads`,
+                  });
+                }}
+              />
 
-            {/* Sales Conversion Funnel & BI Chart */}
-            <View style={styles.chartCard3D}>
-              <View style={styles.chartCardHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.chartTitle}>{selectedReportType} Report</Text>
-                  <Text style={styles.chartSubtitle}>Stage velocity breakdown & conversion</Text>
-                </View>
+              {/* Sales Pipeline Conversion Funnel */}
+              <DashboardFunnelChart
+                stages={data.funnelStages}
+                conversionRate={data.conversionRate}
+                revenue={data.revenue}
+              />
 
-                <TouchableOpacity style={styles.exportBtn} onPress={handleExportReport} activeOpacity={0.8}>
-                  <Ionicons name="download-outline" size={14} color="#FFFFFF" />
-                  <Text style={styles.exportBtnText}>CSV</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.funnelList}>
-                {(data?.funnelStages || []).map((item, idx) => (
-                  <View key={idx} style={styles.funnelRow}>
-                    <View style={styles.funnelMetaRow}>
-                      <Text style={styles.funnelStageText}>{item.stage}</Text>
-                      <Text style={[styles.funnelCountText, theme.typography.tabularNumbers]}>
-                        {item.count} ({item.pct})
-                      </Text>
-                    </View>
-
-                    <View style={styles.progressTrack}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { width: item.pct as any, backgroundColor: item.color },
-                        ]}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
+              {/* Calling Trends & Duration Distribution */}
+              <DashboardCallingTrends
+                durations={data.callDurations}
+                trends={data.callingTrends}
+              />
+            </>
+          )
         )}
+
+        {/* Standard App Version Footer */}
+        <AppVersionFooter />
       </ScrollView>
     </View>
   );
@@ -200,222 +225,96 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  hero3DHeader: {
+  heroHeader: {
     width: '100%',
     backgroundColor: '#272944',
     paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 18,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  headerLogoRow: {
-    marginBottom: 8,
-  },
-  headerTagPill: {
+  headerTopRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginTop: 4,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     gap: 6,
   },
-  greenPulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#34D399',
-  },
-  headerTagText: {
+  exportBtnText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11.5,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  contentContainer: {
+  titleRow: {
+    marginTop: 2,
+  },
+  headerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  headerSub: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    marginTop: 2,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  scrollContent: {
     padding: 16,
     paddingBottom: 40,
   },
-  reportSelectorSection: {
-    marginBottom: 16,
-  },
-  labelRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginTop: 2,
   },
-  sectionHeaderTitle: {
+  sectionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  chipScroll: {
-    marginHorizontal: -4,
-  },
-  reportChip: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  reportChipSelected: {
-    backgroundColor: theme.colors.brand700,
-    borderColor: theme.colors.brand700,
-  },
-  reportChipText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-  },
-  reportChipTextSelected: {
-    color: '#FFFFFF',
+  sectionSub: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginTop: 1,
+    letterSpacing: -0.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   loadingBox: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 32,
     gap: 8,
   },
   loadingText: {
     fontSize: 13,
     color: '#64748B',
     fontWeight: '500',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  statBox3D: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  statBoxHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  statValueText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  statLabelText: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  chartCard3D: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  chartCardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  chartSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  exportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.brand700,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-  },
-  exportBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  funnelList: {
-    gap: 16,
-  },
-  funnelRow: {
-    gap: 6,
-  },
-  funnelMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  funnelStageText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  funnelCountText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#64748B',
-  },
-  progressTrack: {
-    height: 10,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

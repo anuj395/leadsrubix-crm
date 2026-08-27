@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   topTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
   },
   editBtn: {
@@ -255,12 +255,12 @@ const styles = StyleSheet.create({
   },
   avatarLetter: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.primary,
   },
   profileName: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
     letterSpacing: -0.4,
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },

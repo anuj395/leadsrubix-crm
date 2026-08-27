@@ -161,7 +161,7 @@ export const AutomationWorkflowBuilder: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.ruleNameText}>{rule.name}</Text>
                 <Text style={styles.ruleSubtext}>
-                  Executed <Text style={{ fontWeight: '800', color: theme.colors.brand700 }}>{rule.executionCount} times</Text>
+                  Executed <Text style={{ fontWeight: '700', color: theme.colors.brand700 }}>{rule.executionCount} times</Text>
                 </Text>
               </View>
 
@@ -201,9 +201,9 @@ const styles = StyleSheet.create({
   },
   sectionHeaderTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
   },
   card3D: {
     backgroundColor: '#FFFFFF',
@@ -217,17 +217,17 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
-    letterSpacing: 1.1,
+    letterSpacing: 0.6,
     marginBottom: 12,
   },
   inputLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
     marginBottom: 6,
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   textInput: {
     backgroundColor: '#F8FAFC',
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   nodeChipText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#64748B',
   },
   nodeChipTextSelected: {
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   createBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   ruleItemCard: {
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   ruleNameText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   ruleSubtext: {
@@ -327,8 +327,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   triggerBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '700',
     color: '#0284C7',
   },
   actionBadge: {
@@ -338,8 +338,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   actionBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '700',
     color: '#059669',
   },
 });

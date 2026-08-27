@@ -72,8 +72,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(39, 41, 68, 0.25)',
   },
   infoLetter: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: theme.colors.brand700,
     fontStyle: 'italic',
   },
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     flex: 1,
   },
@@ -136,6 +136,6 @@ const styles = StyleSheet.create({
   closeBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

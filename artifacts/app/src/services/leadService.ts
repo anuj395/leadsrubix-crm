@@ -10,101 +10,87 @@ export interface LeadItem {
   phone?: string;
   contactNo?: string;
   status: string;
+  stage?: string;
   source?: string;
   budget?: string;
   propertyType?: string;
   project?: string;
+  projectName?: string;
   createdAt?: string;
 }
 
 export const leadService = {
-  async getLeads(params?: { status?: string; q?: string; page?: number; limit?: number }): Promise<LeadItem[]> {
+  async getLeads(params?: {
+    status?: string;
+    stage?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<LeadItem[]> {
     try {
       const search = new URLSearchParams();
       if (params?.status) search.set('status', params.status);
+      if (params?.stage) search.set('stage', params.stage);
       if (params?.q) search.set('q', params.q);
       if (params?.page) search.set('page', String(params.page));
       if (params?.limit) search.set('limit', String(params.limit));
 
       const qs = search.toString();
       const rawData = await leadRepository.fetchRawLeads(qs);
-      const items = rawData?.items || rawData?.leads || rawData || [];
+      const items = rawData?.items || rawData?.leads || rawData?.contacts || (Array.isArray(rawData) ? rawData : []);
 
-      return items.map((item: any) => ({
-        id: item._id || item.id,
-        _id: item._id || item.id,
-        name: item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Prospective Buyer',
-        firstName: item.firstName || item.name?.split(' ')[0] || '',
-        lastName: item.lastName || item.name?.split(' ')[1] || '',
-        email: item.email || item.emailId || '',
-        phone: item.phone || item.contactNo || '+91 98765 43210',
-        status: item.status || 'Fresh',
-        source: item.source || 'Website Inquiry',
-        budget: item.budget || '₹1.5 - 2.5 Cr',
-        propertyType: item.propertyType || '3 BHK Luxury Apartment',
-        project: item.project || 'Grand Horizon Towers',
-        createdAt: item.createdAt || 'Just now',
-      }));
+      if (!Array.isArray(items)) return [];
+
+      return items.map((item: any) => {
+        let createdFormatted = 'Recently';
+        if (item.createdAt || item.created_at) {
+          const d = new Date(item.createdAt || item.created_at);
+          if (!isNaN(d.getTime())) {
+            createdFormatted = d.toLocaleDateString([], {
+              month: 'short',
+              day: 'numeric',
+            });
+          }
+        }
+
+        const fullName =
+          item.name ||
+          `${item.firstName || item.first_name || ''} ${item.lastName || item.last_name || ''}`.trim() ||
+          item.customerName ||
+          item.customer_name ||
+          'Inquiry';
+
+        return {
+          id: item._id || item.id,
+          _id: item._id || item.id,
+          name: fullName,
+          firstName: item.firstName || item.first_name || fullName.split(' ')[0] || '',
+          lastName: item.lastName || item.last_name || fullName.split(' ')[1] || '',
+          email: item.email || item.emailId || item.user_email || '',
+          phone: item.phone || item.contactNo || item.contact_number || item.phone_number || '',
+          status: item.stage || item.status || 'Fresh',
+          stage: item.stage || item.status || 'Fresh',
+          source: item.source || item.lead_source || 'Direct',
+          budget: item.budget || '',
+          propertyType: item.propertyType || item.inventoryType || '',
+          project: item.projectName || item.project_name || item.project || '',
+          projectName: item.projectName || item.project_name || item.project || '',
+          createdAt: createdFormatted,
+        };
+      });
     } catch (err) {
-      console.warn('[leadService] Data access fallback simulation active:', err);
-      return [
-        {
-          id: '1',
-          name: 'Rajesh Kumar',
-          email: 'rajesh.k@gmail.com',
-          phone: '+91 98765 43210',
-          status: 'Fresh',
-          source: '99acres Portal',
-          budget: '₹2.2 - 3.0 Cr',
-          propertyType: '3 BHK Apartment',
-          project: 'Grand Horizon Towers',
-          createdAt: '10 mins ago',
-        },
-        {
-          id: '2',
-          name: 'Sunita Sharma',
-          email: 'sunita.s@yahoo.com',
-          phone: '+91 98123 45678',
-          status: 'Contacted',
-          source: 'Meta Lead Ads',
-          budget: '₹3.5 - 4.5 Cr',
-          propertyType: '4 BHK Luxury Villa',
-          project: 'Rubix Empire Estates',
-          createdAt: '2 hours ago',
-        },
-        {
-          id: '3',
-          name: 'Amitabh Verma',
-          email: 'amit.verma@corp.com',
-          phone: '+91 99887 76655',
-          status: 'Qualified',
-          source: 'Walk-in Inquiry',
-          budget: '₹1.8 - 2.2 Cr',
-          propertyType: 'Commercial Office',
-          project: 'Skyline Business Park',
-          createdAt: '1 day ago',
-        },
-        {
-          id: '4',
-          name: 'Pooja Reddy',
-          email: 'pooja.r@outlook.com',
-          phone: '+91 97654 32109',
-          status: 'Won',
-          source: 'Direct Referral',
-          budget: '₹5.0 Cr+',
-          propertyType: 'Penthouse Suite',
-          project: 'Grand Horizon Towers',
-          createdAt: '2 days ago',
-        },
-      ];
+      console.warn('[leadService] Error loading leads from backend:', err);
+      return [];
     }
   },
 
-  async createLead(leadData: Partial<LeadItem>): Promise<LeadItem> {
-    return await leadRepository.createRawLead(leadData);
-  },
-
-  async updateLead(id: string, updates: Partial<LeadItem>): Promise<LeadItem> {
-    return await leadRepository.updateRawLead(id, updates);
+  async createLead(payload: Partial<LeadItem>): Promise<LeadItem | null> {
+    try {
+      const res = await leadRepository.createRawLead(payload);
+      return res;
+    } catch (err) {
+      console.error('[leadService] Failed to create lead:', err);
+      return null;
+    }
   },
 };

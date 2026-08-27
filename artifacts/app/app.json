@@ -1,24 +1,38 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
-    "version": "1.0.0",
+    "name": "LeadsRubix",
+    "slug": "leadsrubix-crm",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#272944"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.app"
+      "bundleIdentifier": "com.leadsrubix.lr",
+      "infoPlist": {
+        "CFBundleDisplayName": "LeadsRubix",
+        "NSCameraUsageDescription": "LeadsRubix uses the photo camera for uploading attachments.",
+        "NSPhotoLibraryUsageDescription": "LeadsRubix uses the photo library for uploading attachments.",
+        "NSMicrophoneUsageDescription": "LeadsRubix uses the photo microphone for uploading attachments.",
+        "NSContactsUsageDescription": "LeadsRubix requires access to contacts to allow users to select and attach contact details while creating a lead.",
+        "NSLocationWhenInUseUsageDescription": "We use your location to capture accurate latitude and longitude when creating a lead.",
+        "NSCalendarsUsageDescription": "This app requires access to the calendar"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#272944",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.app"
+      "package": "com.leadsrubix.lr"
     },
     "web": {
       "favicon": "./assets/favicon.png"

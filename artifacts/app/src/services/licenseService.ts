@@ -3,34 +3,49 @@ import { licenseRepository } from '../repositories/licenseRepository';
 export interface LicenseStatus {
   planName: string;
   isTrial: boolean;
+  isGracePeriod: boolean;
   trialDaysRemaining: number;
   allocatedLicenses: number;
   usedLicenses: number;
   validTill: string;
+  organizationName?: string;
 }
 
 export const licenseService = {
   async getLicenseStatus(): Promise<LicenseStatus> {
     try {
       const data = await licenseRepository.fetchRawLicenseDetails();
+      const isTrial = data.isTrial !== false;
+      const isGrace = data.isGracePeriod === true;
+      const days = typeof data.daysRemaining === 'number' ? data.daysRemaining : 6;
+
+      let planTitle = 'Enterprise Plan';
+      if (isTrial) {
+        planTitle = 'Trial Period Active';
+      } else if (isGrace) {
+        planTitle = 'Grace Period Active';
+      }
 
       return {
-        planName: data.planName || '7-Day Free Enterprise Trial',
-        isTrial: data.isTrial !== false,
-        trialDaysRemaining: typeof data.trialDaysRemaining === 'number' ? data.trialDaysRemaining : 7,
+        planName: planTitle,
+        isTrial,
+        isGracePeriod: isGrace,
+        trialDaysRemaining: days,
         allocatedLicenses: data.allocatedLicenses || 10,
-        usedLicenses: data.usedLicenses || 3,
-        validTill: data.validTill || '7 Days Left',
+        usedLicenses: data.usedLicenses || 1,
+        validTill: `${days} ${days === 1 ? 'day' : 'days'} remaining`,
+        organizationName: data.organizationName,
       };
     } catch (err) {
-      console.warn('[licenseService] API fallback, using dynamic trial calculations:', err);
+      console.warn('[licenseService] API fallback to dynamic calculation:', err);
       return {
-        planName: '7-Day Free Enterprise Trial',
+        planName: 'Trial Period Active',
         isTrial: true,
-        trialDaysRemaining: 7,
+        isGracePeriod: false,
+        trialDaysRemaining: 6,
         allocatedLicenses: 10,
-        usedLicenses: 3,
-        validTill: '7 Days Left',
+        usedLicenses: 1,
+        validTill: '6 days remaining',
       };
     }
   },
