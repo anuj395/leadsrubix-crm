@@ -13,29 +13,44 @@ const app = express();
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: false }));
 
-// CORS — allow same-origin, configured frontend origins, and direct IP origins.
+// CORS — allow all domains, custom origins, and mobile clients
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 
-const isProd = process.env.NODE_ENV === 'production';
-
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Allow non-browser requests (curl, server-side) and same-origin (no Origin header).
+      // Allow mobile apps, curl, postman, and same-origin (no Origin header)
       if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
-      // Allow direct IP address origins (e.g. http://13.233.54.12 or http://13.233.54.12:3000)
-      if (/^https?:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin)) return cb(null, true);
-      // If no explicit origins configured, allow origin
-      if (allowedOrigins.length === 0) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*') || allowedOrigins.length === 0) {
+        return cb(null, true);
+      }
+      // Allow leadsrubix.com domains and subdomains
+      if (/^https?:\/\/([a-zA-Z0-9-]+\.)*leadsrubix\.com(:\d+)?$/.test(origin)) {
+        return cb(null, true);
+      }
+      // Allow localhost and IP addresses
+      if (/^https?:\/\/(localhost|127\.0\.0\.1|(\d{1,3}\.){3}\d{1,3})(:\d+)?$/.test(origin)) {
+        return cb(null, true);
+      }
+      return cb(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Client-Platform',
+      'X-Client-Version',
+      'X-Request-Timestamp',
+      'X-Signature',
+      'X-Organization-Id',
+      'X-Industry-Id',
+      'X-Requested-With',
+      'Accept',
+    ],
   }),
 );
 
@@ -47,8 +62,10 @@ app.use(morgan('dev'));
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// health check
-app.get('/api/healthz', (req, res) => res.json({ status: 'ok' }));
+// root status & health check
+app.get('/', (req, res) => res.json({ status: 'ok', server: 'Leads Rubix CRM API', version: '1.4.0', time: new Date().toISOString() }));
+app.get('/api/healthz', (req, res) => res.json({ status: 'ok', server: 'leadsrubix-crm', time: new Date().toISOString() }));
+app.get('/healthz', (req, res) => res.json({ status: 'ok', server: 'leadsrubix-crm', time: new Date().toISOString() }));
 
 // mount API routes
 app.use('/api', routes);
@@ -60,7 +77,7 @@ app.use((req, res, next) => {
   next(err);
 });
 
-// centralized error handler
+// global error handler
 app.use(errorHandler);
 
 module.exports = app;

@@ -6,13 +6,14 @@ import { storage } from './storage'
 
 function joinApiBase(base: string) {
   const cleaned = base.replace(/\/+$/g, '')
-  // always expose API root at {base}/api
+  if (!cleaned) return '/api'
+  if (cleaned.endsWith('/api')) return cleaned
   return `${cleaned}/api`
 }
 
 const axiosInstance = axios.create({
   baseURL: joinApiBase(env.apiBaseUrl),
-  timeout: 10000,
+  timeout: 15000,
 })
 
 axiosInstance.interceptors.request.use((config) => {
