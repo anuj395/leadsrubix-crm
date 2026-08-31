@@ -9,6 +9,11 @@ import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import Avatar from '@mui/material/Avatar'
+import Chip from '@mui/material/Chip'
+import Paper from '@mui/material/Paper'
+import TableContainer from '@mui/material/TableContainer'
+import Tooltip from '@mui/material/Tooltip'
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
@@ -18,6 +23,13 @@ import CardContent from '@mui/material/CardContent'
 import Link from '@mui/material/Link'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import FacebookIcon from '@mui/icons-material/Facebook'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import LogoutIcon from '@mui/icons-material/Logout'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
+import { alpha } from '@mui/material/styles'
 import axios from 'axios'
 import { api } from '@/services/api'
 import { AppCard } from '@/components/ui/AppCard'
@@ -269,118 +281,235 @@ export default function FacebookLeadsPage() {
 
       <AppCard title="Facebook Integration" subtitle="Manage connected Facebook business pages and capture Lead Ads automatically.">
         {loginStatus ? (
-          <Box sx={{ mt: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Facebook Connected Account
-              </Typography>
-              <Button variant="outlined" color="error" size="small" onClick={handleFacebookLogout}>
-                LogOut
-              </Button>
-            </Box>
+          <Box sx={{ mt: 1 }}>
+            {/* Connected User Hero Card */}
+            <Card
+              variant="outlined"
+              sx={{
+                mb: 3.5,
+                borderRadius: 2,
+                p: 2.5,
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(24, 119, 242, 0.08)' : 'rgba(24, 119, 242, 0.04)',
+                border: '1px solid',
+                borderColor: (theme) => alpha('#1877F2', 0.25),
+              }}
+            >
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Avatar
+                    src={userData?.picture?.data?.url}
+                    alt={userData?.name || 'Facebook User'}
+                    sx={{
+                      width: 52,
+                      height: 52,
+                      border: '2px solid #1877F2',
+                      boxShadow: '0 2px 8px rgba(24,119,242,0.25)',
+                    }}
+                  />
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle1" fontWeight={700}>
+                        {userData?.name || 'Facebook Business Account'}
+                      </Typography>
+                      <Chip
+                        icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.85rem !important' }} />}
+                        label="Connected & Active"
+                        size="small"
+                        color="success"
+                        sx={{ height: 22, fontWeight: 700, fontSize: '0.72rem' }}
+                      />
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.8125rem' }}>
+                      Meta Lead Ads Webhook integration authorized for this organization workspace.
+                    </Typography>
+                  </Box>
+                </Stack>
 
-            {userData && (
-              <Card sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, mb: 4, borderRadius: 2, border: '1px solid #f0f0f0' }}>
-                <img
-                  src={userData.picture?.data?.url}
-                  alt={userData.name}
-                  style={{ width: 50, height: 50, borderRadius: '50%' }}
-                />
-                <Box>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {userData.name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#2e7d32', fontWeight: 600 }}>
-                    Connected
-                  </Typography>
-                </Box>
-              </Card>
-            )}
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  startIcon={<LogoutIcon />}
+                  onClick={handleFacebookLogout}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    px: 2,
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  Disconnect Account
+                </Button>
+              </Stack>
+            </Card>
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                Connected Pages ({activePages.length})
-              </Typography>
-              <Button variant="text" size="small" onClick={handleFacebookLogin} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            {/* Connected Pages Section */}
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700} display="flex" alignItems="center" gap={1}>
+                  <FacebookIcon color="primary" sx={{ fontSize: 20 }} /> Connected Facebook Pages ({activePages.length})
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  Manage incoming Lead Ads webhooks and map lead forms to CRM projects.
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={handleFacebookLogin}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: '#1877F2',
+                  borderRadius: '8px',
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: '#166FE5', boxShadow: 'none' },
+                }}
+              >
                 Manage Facebook Pages
               </Button>
-            </Box>
+            </Stack>
 
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>ID</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {activePages.map((page) => (
-                  <React.Fragment key={page.id}>
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+              <Table size="small">
+                <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', py: 1.5 }}>Page Name & Forms</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase' }}>Page ID</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase' }}>Category</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase' }}>Status</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase' }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {activePages.length === 0 ? (
                     <TableRow>
-                      <TableCell>{page.id}</TableCell>
-                      <TableCell>{page.category}</TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {page.name}
-                          </Typography>
-                          <Link
-                            component="button"
-                            variant="caption"
-                            onClick={() => setExpandedId(expandedId === page.id ? null : page.id)}
-                            sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, textAlign: 'left', fontWeight: 600 }}
-                          >
-                            {page.formcount} lead forms connected
-                            {expandedId === page.id ? <ExpandLessIcon sx={{ fontSize: 14 }} /> : <ExpandMoreIcon sx={{ fontSize: 14 }} />}
-                          </Link>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Button color="error" size="small" onClick={() => handleUnsubscribe(page.id)} sx={{ textTransform: 'none' }}>
-                          remove
-                        </Button>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No Facebook pages connected yet. Click "Manage Facebook Pages" above to select pages.
+                        </Typography>
                       </TableCell>
                     </TableRow>
+                  ) : (
+                    activePages.map((page) => (
+                      <React.Fragment key={page.id}>
+                        <TableRow hover sx={{ bgcolor: expandedId === page.id ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'inherit' }}>
+                          <TableCell sx={{ py: 1.75 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                              <Typography variant="body2" fontWeight={700} color="text.primary">
+                                {page.name}
+                              </Typography>
+                              <Box>
+                                <Chip
+                                  icon={expandedId === page.id ? <ExpandLessIcon sx={{ fontSize: '1rem !important' }} /> : <ExpandMoreIcon sx={{ fontSize: '1rem !important' }} />}
+                                  label={`${page.formcount || page.form_data?.length || 0} Lead Forms Connected`}
+                                  size="small"
+                                  color={expandedId === page.id ? "primary" : "default"}
+                                  variant={expandedId === page.id ? "filled" : "outlined"}
+                                  onClick={() => setExpandedId(expandedId === page.id ? null : page.id)}
+                                  sx={{
+                                    height: 24,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    '&:hover': { bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12) },
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
+                              {page.id}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={page.category || 'Page'} size="small" variant="outlined" sx={{ fontSize: '0.72rem', fontWeight: 500 }} />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.85rem !important' }} />}
+                              label="Active & Synced"
+                              size="small"
+                              color="success"
+                              sx={{ height: 22, fontWeight: 600, fontSize: '0.72rem' }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Button
+                              color="error"
+                              variant="outlined"
+                              size="small"
+                              startIcon={<DeleteOutlineIcon sx={{ fontSize: '1rem !important' }} />}
+                              onClick={() => handleUnsubscribe(page.id)}
+                              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px', fontSize: '0.75rem', py: 0.4 }}
+                            >
+                              Remove Page
+                            </Button>
+                          </TableCell>
+                        </TableRow>
 
-                    {expandedId === page.id && (
-                      <TableRow>
-                        <TableCell colSpan={4} sx={{ bgcolor: '#fafafa', p: 0 }}>
-                          <FormModel
-                            pageFormsData={page.form_data || []}
-                            pageId={page.id}
-                            allFacebookPages={fbConfig?.facebookPages || []}
-                            dispatcher={null}
-                            projectsList={projectsList}
-                            setExpandedId={setExpandedId}
-                            onSave={handleSavePageMappings}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
+                        {expandedId === page.id && (
+                          <TableRow>
+                            <TableCell colSpan={5} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)', p: 2 }}>
+                              <FormModel
+                                pageFormsData={page.form_data || []}
+                                pageId={page.id}
+                                allFacebookPages={fbConfig?.facebookPages || []}
+                                dispatcher={null}
+                                projectsList={projectsList}
+                                setExpandedId={setExpandedId}
+                                onSave={handleSavePageMappings}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2 }}>
-            <Typography variant="body1" align="center" color="text.secondary" sx={{ maxWidth: 450 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2.5 }}>
+            <Box
+              sx={{
+                width: 60,
+                height: 60,
+                borderRadius: '12px',
+                bgcolor: alpha('#1877F2', 0.1),
+                color: '#1877F2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <FacebookIcon sx={{ fontSize: 34 }} />
+            </Box>
+            <Typography variant="body1" align="center" color="text.secondary" sx={{ maxWidth: 450, fontSize: '0.875rem' }}>
               Receive new leads from your Facebook Lead Ads directly in your Leads Rubix account.
             </Typography>
             <Button
               variant="contained"
+              startIcon={<FacebookIcon />}
               onClick={handleFacebookLogin}
               sx={{
                 bgcolor: '#1877F2',
-                color: '#fff',
+                color: '#ffffff',
                 textTransform: 'none',
                 fontWeight: 600,
-                px: 4,
+                fontSize: '0.875rem',
+                px: 3,
                 py: 1,
-                borderRadius: 2,
-                '&:hover': { bgcolor: '#166FE5' },
+                borderRadius: '8px',
+                boxShadow: 'none',
+                '&:hover': {
+                  bgcolor: '#166FE5',
+                  boxShadow: 'none',
+                },
               }}
             >
               Login with Facebook
