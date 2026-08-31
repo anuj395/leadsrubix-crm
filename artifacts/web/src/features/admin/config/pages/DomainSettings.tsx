@@ -10,9 +10,24 @@ import Typography from '@mui/material/Typography'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
+import Paper from '@mui/material/Paper'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import Chip from '@mui/material/Chip'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import SaveIcon from '@mui/icons-material/Save'
 import LanguageIcon from '@mui/icons-material/Language'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import DnsIcon from '@mui/icons-material/Dns'
+import PublicIcon from '@mui/icons-material/Public'
 import { AppCard } from '@/components/ui/AppCard'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/services/api'
@@ -122,6 +137,50 @@ export default function DomainSettingsPage() {
     setToast({ open: true, msg: 'DNS CNAME instruction copied to clipboard', sev: 'success' })
   }
 
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  const localPort = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : ''
+
+  const activeDomainsList = [
+    ...(form.subdomain
+      ? [
+          {
+            id: 'subdomain',
+            domain: `${form.subdomain}.leadsrubix.com`,
+            url: isLocal ? `http://${form.subdomain}.leadsrubix.com${localPort}` : `https://${form.subdomain}.leadsrubix.com`,
+            type: 'Dedicated Subdomain',
+            typeColor: 'primary' as const,
+            dnsTarget: `*.leadsrubix.com`,
+            status: 'Active',
+            isDefault: false,
+          },
+        ]
+      : []),
+    ...(form.customDomain
+      ? [
+          {
+            id: 'custom-domain',
+            domain: form.customDomain,
+            url: form.customDomain.startsWith('http') ? form.customDomain : `https://${form.customDomain}`,
+            type: 'Custom CNAME Domain',
+            typeColor: 'secondary' as const,
+            dnsTarget: `custom.leadsrubix.com`,
+            status: 'Active',
+            isDefault: false,
+          },
+        ]
+      : []),
+    {
+      id: 'default-app',
+      domain: 'web.leadsrubix.com',
+      url: typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : 'https://web.leadsrubix.com',
+      type: 'Default Platform Domain',
+      typeColor: 'default' as const,
+      dnsTarget: 'Direct / Platform',
+      status: 'Active',
+      isDefault: true,
+    },
+  ]
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', overflowY: 'auto' }}>
       <AppCard
@@ -134,6 +193,110 @@ export default function DomainSettingsPage() {
           </Box>
         ) : (
           <Stack spacing={3}>
+            {/* Active Domains & Routing Status Table (Live List) */}
+            <Card variant="outlined" sx={{ border: '1px solid', borderColor: 'primary.light', bgcolor: 'background.paper' }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={700} display="flex" alignItems="center" gap={1}>
+                      <DnsIcon color="primary" /> Active Mapped Domains & Status
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Active live domain endpoints routed to this organization workspace.
+                    </Typography>
+                  </Box>
+                  <Chip
+                    icon={<CheckCircleOutlineIcon sx={{ fontSize: '1rem !important' }} />}
+                    label="Workspace Routing Active"
+                    color="success"
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Stack>
+
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5 }}>
+                  <Table size="small">
+                    <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>Domain / Hostname</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Routing Type</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>DNS Target</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Security</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {activeDomainsList.map((item) => (
+                        <TableRow key={item.id} hover>
+                          <TableCell>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <PublicIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                              <Typography variant="body2" fontWeight={600} color="primary.main">
+                                {item.domain}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={item.type} size="small" color={item.typeColor} variant="outlined" sx={{ fontWeight: 500, fontSize: '0.75rem' }} />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 0.5 }}>
+                              {item.dnsTarget}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.9rem !important' }} />}
+                              label={item.status}
+                              size="small"
+                              color="success"
+                              sx={{ fontWeight: 600, height: 22 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" alignItems="center" spacing={0.5}>
+                              <LockOutlinedIcon sx={{ fontSize: 15, color: 'success.main' }} />
+                              <Typography variant="caption" color="success.main" fontWeight={600}>
+                                SSL Secured
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              <Tooltip title="Copy URL">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.url)
+                                    setToast({ open: true, msg: `${item.domain} copied to clipboard!`, sev: 'success' })
+                                  }}
+                                >
+                                  <ContentCopyIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Open Live Portal">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  component="a"
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <OpenInNewIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
             <Card variant="outlined">
               <CardContent>
                 <Stack spacing={1} sx={{ mb: 2 }}>

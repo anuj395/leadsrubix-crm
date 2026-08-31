@@ -39,29 +39,32 @@ export default function MagicBricksPage() {
     try {
       const resResources = await api.get('/resources/resourceLeadSources')
       const resources = resResources.data || []
-      const sourceExists = resources.some(
-        (item: any) => String(item.leadSource).toLowerCase() === 'magicbricks'
+      const norm = (s: any) => String(s || '').toLowerCase().replace(/[\s\-_.]/g, '')
+      const matchedResource = resources.find(
+        (item: any) => norm(item.leadSource || item.source).includes('magicbrick')
       )
 
-      if (!sourceExists) {
+      if (!matchedResource) {
         setToast({
           open: true,
-          msg: "Before configuring the lead source in 'magicbricks,' ensure it is added to the resources!!",
+          msg: "Before configuring the lead source in 'Magicbricks,' ensure it is added to the resources!!",
           sev: 'error',
         })
         setLoading(false)
         return
       }
 
+      const canonicalSource = matchedResource.leadSource || matchedResource.source || 'Magicbricks'
+
       const resTokens = await api.get('/api-tokens')
       const tokens = resTokens.data || []
       
-      const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === 'magicbricks')
+      const filtered = tokens.find((item: any) => norm(item.source).includes('magicbrick'))
       if (filtered) {
         setApiKey(filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
-          source: 'Magicbricks',
+          source: canonicalSource,
           countryCode: '+91',
           status: 'ACTIVE',
         })

@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "LeadsRubix",
-    "slug": "leadsrubix-crm",
+    "name": "Leads Rubix CRM",
+    "slug": "leads-rubix",
     "version": "1.4.0",
+    "scheme": "leadsrubixcrm",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,15 +14,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.leadsrubix.lr",
+      "bundleIdentifier": "com.leadsrubix.crm",
       "infoPlist": {
-        "CFBundleDisplayName": "LeadsRubix",
-        "NSCameraUsageDescription": "LeadsRubix uses the photo camera for uploading attachments.",
-        "NSPhotoLibraryUsageDescription": "LeadsRubix uses the photo library for uploading attachments.",
-        "NSMicrophoneUsageDescription": "LeadsRubix uses the photo microphone for uploading attachments.",
-        "NSContactsUsageDescription": "LeadsRubix requires access to contacts to allow users to select and attach contact details while creating a lead.",
-        "NSLocationWhenInUseUsageDescription": "We use your location to capture accurate latitude and longitude when creating a lead.",
-        "NSCalendarsUsageDescription": "This app requires access to the calendar"
+        "CFBundleDisplayName": "Leads Rubix CRM",
+        "NSCameraUsageDescription": "Leads Rubix uses the camera for uploading deal documents and lead attachments.",
+        "NSPhotoLibraryUsageDescription": "Leads Rubix uses the photo library for uploading lead attachments.",
+        "NSMicrophoneUsageDescription": "Leads Rubix uses the microphone for recording call logs and voice notes.",
+        "NSContactsUsageDescription": "Leads Rubix requires access to contacts to allow users to select and attach contact details while creating a lead.",
+        "NSLocationWhenInUseUsageDescription": "Leads Rubix uses your location to capture accurate site visit check-ins and lead coordinates.",
+        "NSCalendarsUsageDescription": "Leads Rubix requires calendar access to synchronize scheduled client visits and tasks.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -32,10 +34,15 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.leadsrubix.lr"
+      "package": "com.leadsrubix.crm"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "749b72c8-bc02-4d8a-90cd-507490ebbfdf"
+      }
     }
   }
 }

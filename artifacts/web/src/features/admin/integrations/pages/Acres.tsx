@@ -39,11 +39,12 @@ export default function AcresPage() {
     try {
       const resResources = await api.get('/resources/resourceLeadSources')
       const resources = resResources.data || []
-      const sourceExists = resources.some(
-        (item: any) => String(item.leadSource).toLowerCase() === '99 acres'
+      const norm = (s: any) => String(s || '').toLowerCase().replace(/[\s\-_.]/g, '')
+      const matchedResource = resources.find(
+        (item: any) => norm(item.leadSource || item.source).includes('99acre')
       )
 
-      if (!sourceExists) {
+      if (!matchedResource) {
         setToast({
           open: true,
           msg: "Before configuring the lead source in '99 Acres,' ensure it is added to the resources!!",
@@ -53,22 +54,24 @@ export default function AcresPage() {
         return
       }
 
+      const canonicalSource = matchedResource.leadSource || matchedResource.source || '99 Acres'
+
       const resTokens = await api.get('/api-tokens')
       const tokens = resTokens.data || []
       
-      const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === '99 acres')
+      const filtered = tokens.find((item: any) => norm(item.source).includes('99acre'))
       if (filtered) {
         setApiKey(filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
-          source: '99 Acres',
+          source: canonicalSource,
           countryCode: '+91',
           status: 'ACTIVE',
         })
         setApiKey(resCreate.data?.api_key || '')
       }
     } catch (e: any) {
-      setToast({ open: true, msg: 'Failed to configure 99Acres integration', sev: 'error' })
+      setToast({ open: true, msg: 'Failed to configure 99 Acres integration', sev: 'error' })
     } finally {
       setLoading(false)
       loadingRef.current = false
@@ -89,7 +92,7 @@ export default function AcresPage() {
     email: '',
     country_code: '',
     project: '',
-    campaign: '99Acres',
+    campaign: '99 Acres',
     token: apiKey,
   }
 
@@ -143,16 +146,16 @@ export default function AcresPage() {
         </Link>
         <ArrowForwardIosIcon sx={{ fontSize: 10, color: 'text.secondary' }} />
         <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          99Acres
+          99 Acres
         </Typography>
       </Box>
 
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
-      <AppCard title="99Acres Integration" subtitle="Configure automatic lead capturing from your 99acres property listings." fullHeight>
+      <AppCard title="99 Acres Integration" subtitle="Configure automatic lead capturing from your 99acres property listings." fullHeight>
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', mt: 2, pr: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '1.25rem' }}>
-            Receive New Leads from 99acres in Your Leads Rubix Account
+            Receive New Leads from 99 Acres in Your Leads Rubix Account
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4, lineHeight: 1.6 }}>
             To integrate your 99acres leads with Leads Rubix, please copy and forward the integration details below to your 99acres Account Manager:

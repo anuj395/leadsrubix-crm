@@ -31,8 +31,8 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
   },
   {
     key: '99acres',
-    name: '99Acres',
-    description: 'Receive new leads from 99Acres in your Leads Rubix account.',
+    name: '99 Acres',
+    description: 'Receive new leads from 99 Acres in your Leads Rubix account.',
     icon: <BusinessIcon sx={{ fontSize: 32, color: '#FF8F00' }} />,
   },
   {

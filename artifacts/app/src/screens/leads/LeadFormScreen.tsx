@@ -47,7 +47,7 @@ export const LeadFormScreen = ({ navigation }: any) => {
     phone: '',
     budget: '₹2.5 Cr - ₹3.5 Cr',
     propertyType: '3 BHK Luxury Apartment',
-    source: '99acres Portal',
+    source: '',
     project: 'Grand Horizon Towers',
   });
 

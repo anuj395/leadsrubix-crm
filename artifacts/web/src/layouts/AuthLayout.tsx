@@ -7,12 +7,17 @@ import { useTheme } from '@mui/material/styles'
 import { alpha } from '@mui/material/styles'
 
 import { useState } from 'react'
+import { useTenantWorkspace } from '@/context/TenantContext'
 
 export default function AuthLayout() {
   const theme = useTheme()
   const location = useLocation()
   const isDark = theme.palette.mode === 'dark'
   const [isWider, setIsWider] = useState(false)
+  const { workspace } = useTenantWorkspace()
+
+  const customLogo = workspace?.branding?.logoUrl
+  const appName = workspace?.branding?.appName || 'Leads Rubix CRM'
 
   return (
     <Box
@@ -55,8 +60,8 @@ export default function AuthLayout() {
           >
             <Box
               component="img"
-              src={isDark ? '/companylogo_white.png' : '/companylogo_dark.png'}
-              alt="Leads Rubix"
+              src={customLogo || (isDark ? '/companylogo_white.png' : '/companylogo_dark.png')}
+              alt={appName}
               sx={{
                 height: 38,
                 width: 'auto',
@@ -76,7 +81,7 @@ export default function AuthLayout() {
                 display: 'block',
               }}
             >
-              Leads Rubix CRM
+              {appName}
             </Typography>
 
             <Typography
@@ -148,8 +153,8 @@ export default function AuthLayout() {
             >
               <Box
                 component="img"
-                src={isDark ? '/companylogo_white.png' : '/companylogo_dark.png'}
-                alt="Leads Rubix"
+                src={customLogo || (isDark ? '/companylogo_white.png' : '/companylogo_dark.png')}
+                alt={appName}
                 sx={{
                   height: 30,
                   width: 'auto',

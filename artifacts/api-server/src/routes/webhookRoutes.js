@@ -276,8 +276,30 @@ router.post('/createContacts', async (req, res, next) => {
     const locationVal = reqData.location || reqData.city || reqData.locationName || '';
     const budgetVal = reqData.budget || reqData.budgetId || reqData.budget_id || '';
     const propertyTypeVal = reqData.propertyType || reqData.property_type || reqData.propertyTypeId || '';
-    const sourceVal = reqData.source || tokenData.source || 'Incoming API';
-    const campaignVal = reqData.campaign || reqData.campaignName || sourceVal;
+    let sourceVal = reqData.source || tokenData.source || 'Incoming API';
+    let campaignVal = reqData.campaign || reqData.campaignName || sourceVal;
+
+    // Dynamically canonicalize incoming source name against organization's registered resources
+    try {
+      const resourceItemModel = require('../models/resourceItemModel');
+      const orgSources = await resourceItemModel.list({
+        organizationId: orgId,
+        resource_key: 'resourceLeadSources'
+      });
+      const registeredSources = (orgSources || [])
+        .map(s => s.leadSource || s.source || s.name || s.value || '')
+        .filter(Boolean);
+
+      const { matchSources } = require('../services/sourceMatcher');
+      for (const reg of registeredSources) {
+        if (matchSources(sourceVal, reg)) {
+          sourceVal = reg;
+          break;
+        }
+      }
+    } catch (err) {
+      // Fallback to raw sourceVal
+    }
 
     // Lead distribution & round-robin rule evaluation
     if (!uid) {

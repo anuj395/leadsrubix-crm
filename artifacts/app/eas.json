@@ -1,0 +1,49 @@
+{
+  "cli": {
+    "version": ">= 14.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "pnpm": "9.15.9",
+      "node": "20.19.5",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "pnpm": "9.15.9",
+      "node": "20.19.5",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api1.leadsrubix.com/api"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "info@leadsrubix.com",
+        "ascAppId": "6805854225",
+        "appleTeamId": "8Q85MSNAX9"
+      }
+    }
+  }
+}

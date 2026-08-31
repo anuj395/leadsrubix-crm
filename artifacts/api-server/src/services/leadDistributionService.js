@@ -18,20 +18,7 @@ function matchesCriteria(leadVal, ruleArray) {
   });
 }
 
-/**
- * Checks if a lead source matches a rule's source.
- */
-function matchesSource(leadSource, ruleSource) {
-  if (!ruleSource || ruleSource === 'all' || ruleSource === 'any' || ruleSource === 'All') {
-    return true;
-  }
-  if (!leadSource) {
-    return false;
-  }
-  const cleanLead = String(leadSource).trim().toLowerCase();
-  const cleanRule = String(ruleSource).trim().toLowerCase();
-  return cleanLead === cleanRule || cleanLead.includes(cleanRule) || cleanRule.includes(cleanLead);
-}
+const { matchSources } = require('./sourceMatcher');
 
 /**
  * Evaluates active lead distribution rules for an organization and returns the assigned user.

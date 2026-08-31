@@ -23,7 +23,7 @@ import {
   getRotationRuleById,
   updateRotationRule,
 } from '@/services/leadDistributionService'
-import { getResources } from '@/services/resourcesService'
+import { getResources, getLeadSources } from '@/services/resourcesService'
 import { useAuth } from '@/hooks/useAuth'
 import { useActionPermission } from '@/hooks/useActionPermission'
 import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
@@ -86,8 +86,8 @@ export default function ReassignLogicPage() {
     if (!managerIds || managerIds.length === 0) return usersList
 
     // Collect all identifiers (id, _id, uid, email) for the selected managers
-    const selectedManagerObjects = usersList.filter(u => 
-      managerIds.includes(String(u._id || u.id)) || 
+    const selectedManagerObjects = usersList.filter(u =>
+      managerIds.includes(String(u._id || u.id)) ||
       ((u as any).uid && managerIds.includes((u as any).uid)) ||
       (u.email && managerIds.includes(u.email.toLowerCase()))
     )
@@ -154,7 +154,7 @@ export default function ReassignLogicPage() {
       try {
         const [usrs, sourcesRes, projectsRes] = await Promise.all([
           listUsers(activeIndCode, true, activeOrgId),
-          getResources('resourceLeadSources', activeOrgId, activeIndCode).catch(() => []),
+          getLeadSources(activeOrgId, activeIndCode),
           getResources('resourceProjects', activeOrgId, activeIndCode).catch(() => [])
         ])
 
@@ -162,10 +162,8 @@ export default function ReassignLogicPage() {
 
         setAllUsers(usrs || [])
 
-        const DEFAULT_SOURCES = ['99 Acres', 'Magicbricks', 'Housing.com', 'Website', 'Facebook', 'Google Ads', 'Justdial', 'Sulekha', 'Self Generated', 'Referral', 'Walk-in', 'Campaign']
-        const sList = (sourcesRes || []).map((s: any) => s.source || s.leadSource || s.name || s.value || '').filter(Boolean)
-        const combinedSources = sList.length > 0 ? sList : DEFAULT_SOURCES
-        setLeadSources(Array.from(new Set(combinedSources)))
+        // Dynamic Lead Sources from Resources master (ZERO hardcoding)
+        setLeadSources(sourcesRes || [])
 
         const pData: any[] = Array.isArray(projectsRes) ? projectsRes : ((projectsRes as any)?.data || [])
         const pList = pData.map((p: any) => p.projectName || p.project_name || p.name || p.title || '').filter(Boolean)
@@ -339,7 +337,7 @@ export default function ReassignLogicPage() {
                   select
                   fullWidth
                   size="small"
-                  label="Lead Source *"
+                  label="Lead Source"
                   required
                   value={source}
                   onChange={(e) => setSource(e.target.value)}

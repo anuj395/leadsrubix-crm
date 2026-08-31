@@ -38,11 +38,12 @@ export default function HousingPage() {
     try {
       const resResources = await api.get('/resources/resourceLeadSources')
       const resources = resResources.data || []
-      const sourceExists = resources.some(
-        (item: any) => String(item.leadSource).toLowerCase() === 'housing.com'
+      const norm = (s: any) => String(s || '').toLowerCase().replace(/[\s\-_.]/g, '')
+      const matchedResource = resources.find(
+        (item: any) => norm(item.leadSource || item.source).includes('housing')
       )
 
-      if (!sourceExists) {
+      if (!matchedResource) {
         setToast({
           open: true,
           msg: "Before configuring the lead source in 'Housing.com,' ensure it is added to the resources!!",
@@ -52,15 +53,17 @@ export default function HousingPage() {
         return
       }
 
+      const canonicalSource = matchedResource.leadSource || matchedResource.source || 'Housing.com'
+
       const resTokens = await api.get('/api-tokens')
       const tokens = resTokens.data || []
       
-      const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === 'housing.com')
+      const filtered = tokens.find((item: any) => norm(item.source).includes('housing'))
       if (filtered) {
         setApiKey(filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
-          source: 'Housing.com',
+          source: canonicalSource,
           countryCode: '+91',
           status: 'ACTIVE',
         })

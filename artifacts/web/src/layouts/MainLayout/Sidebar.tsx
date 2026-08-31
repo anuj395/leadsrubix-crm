@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSubscription } from '@/hooks/useSubscription'
+import { useTenantWorkspace } from '@/context/TenantContext'
 import { APP_BUILD_INFO } from '@/config/version'
 
 import ApiOutlinedIcon from '@mui/icons-material/ApiOutlined'
@@ -105,6 +106,9 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const isDark = theme.palette.mode === 'dark'
   const location = useLocation()
   const { user } = useAppSelector(selectAuth)
+  const { workspace } = useTenantWorkspace()
+  const customLogo = workspace?.branding?.logoUrl
+  const appName = workspace?.branding?.appName || 'Leads Rubix'
 
   const { menu, loading, error } = useSidebarMenu()
 
@@ -618,8 +622,8 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
         {!collapsed && (
           <Box
             component="img"
-            src={isDark ? '/companylogo_white.png' : '/companylogo_dark.png'}
-            alt="Leads Rubix"
+            src={customLogo || (isDark ? '/companylogo_white.png' : '/companylogo_dark.png')}
+            alt={appName}
             sx={{
               height: '2.25rem',
               width: 'auto',

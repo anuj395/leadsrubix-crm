@@ -3,15 +3,11 @@ import axios, { AxiosRequestConfig } from 'axios';
 import { safeStorage } from '../utils/safeStorage';
 import { APP_CONFIG } from '../constants/appConstants';
 
-const getDefaultApiUrl = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  // Production Domain API
-  return 'https://api1.leadsrubix.com/api';
-};
+export const API_BASE_URL = APP_CONFIG.apiBaseUrl;
 
-export const API_BASE_URL = getDefaultApiUrl();
+console.log(
+  `[LeadsRubix] 🚀 Running in ${APP_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode | Target API: ${API_BASE_URL}`
+);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
