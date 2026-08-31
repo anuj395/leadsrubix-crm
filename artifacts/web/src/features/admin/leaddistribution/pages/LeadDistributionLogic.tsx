@@ -26,7 +26,7 @@ import {
   getDistributionRuleById,
   type LeadDistributionRule
 } from '@/services/leadDistributionService'
-import { getResources } from '@/services/resourcesService'
+import { getResources, getLeadSources } from '@/services/resourcesService'
 import { api } from '@/services/api'
 import { useActionPermission } from '@/hooks/useActionPermission'
 import { useAuth } from '@/hooks/useAuth'
@@ -175,7 +175,7 @@ export default function LeadDistributionLogicPage() {
           typesRes
         ] = await Promise.all([
           listUsers(activeIndCode, true, activeOrgId),
-          getResources('resourceLeadSources', activeOrgId, activeIndCode).catch(() => []),
+          getLeadSources(activeOrgId, activeIndCode),
           getResources('resourceProjects', activeOrgId, activeIndCode).catch(() => []),
           getResources('resourceLocations', activeOrgId, activeIndCode).catch(() => []),
           getResources('resourceBudgets', activeOrgId, activeIndCode).catch(() => []),
@@ -186,11 +186,8 @@ export default function LeadDistributionLogicPage() {
 
         setAllUsers(usrs || [])
 
-        // Extract and normalize string array options
-        const DEFAULT_SOURCES = ['Facebook', 'Google Ads', 'Website', 'Referral', 'Self Generated', 'Instagram', 'LinkedIn', 'Walk-in', 'Campaign', 'Cold Call']
-        const sList = (sourcesRes || []).map((s: any) => s.source || s.leadSource || s.name || s.value || '').filter(Boolean)
-        const combinedSources = sList.length > 0 ? sList : DEFAULT_SOURCES
-        setLeadSources(Array.from(new Set(combinedSources)))
+        // Dynamic Lead Sources from Resources master (ZERO hardcoding)
+        setLeadSources(sourcesRes || [])
 
         const pData: any[] = Array.isArray(projectsRes) ? projectsRes : ((projectsRes as any)?.data || [])
         const pList = pData.map((p: any) => p.projectName || p.project_name || p.name || p.title || '').filter(Boolean)
@@ -224,7 +221,6 @@ export default function LeadDistributionLogicPage() {
       try {
         const rule = await getDistributionRuleById(editId)
         if (cancelled || !rule) return
-        setActiveTab(rule.distributionType || 'Normal')
         setSource(rule.source || '')
         setProject(Array.isArray(rule.project) ? rule.project : (rule.project ? [rule.project] : []))
         setLocation(Array.isArray(rule.location) ? rule.location : (rule.location ? [rule.location] : []))

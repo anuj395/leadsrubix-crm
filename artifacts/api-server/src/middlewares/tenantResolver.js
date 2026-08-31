@@ -6,7 +6,7 @@ const { Organization } = require('../models/organizationModel');
  */
 module.exports = async function tenantResolver(req, res, next) {
   try {
-    const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const rawHost = req.query.host || req.headers['x-tenant-host'] || req.headers['x-forwarded-host'] || req.headers.host || '';
     const host = String(rawHost).split(':')[0].toLowerCase().trim();
     const isIp = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
 

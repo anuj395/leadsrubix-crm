@@ -6,7 +6,7 @@ exports.resolveDomain = async (req, res, next) => {
       return res.json({ resolved: true, workspace: req.tenantWorkspace });
     }
 
-    const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const rawHost = req.query.host || req.headers['x-tenant-host'] || req.headers['x-forwarded-host'] || req.headers.host || '';
     const host = String(rawHost).split(':')[0].toLowerCase().trim();
 
     let org = await Organization.findOne({ custom_domain: host, is_active: true }).exec();

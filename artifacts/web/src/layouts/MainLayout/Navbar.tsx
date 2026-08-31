@@ -98,7 +98,7 @@ const breadcrumbMap: Record<string, string[]> = {
     '/integrations/api': ['Home', 'Integrations', 'API'],
     '/integrations/api-data': ['Home', 'Integrations', 'API Data'],
     '/integrations/facebook': ['Home', 'Integrations', 'Facebook'],
-    '/integrations/99acres': ['Home', 'Integrations', '99Acres'],
+    '/integrations/99acres': ['Home', 'Integrations', '99 Acres'],
     '/integrations/magicbricks': ['Home', 'Integrations', 'MagicBricks'],
     '/integrations/justdial': ['Home', 'Integrations', 'JustDial'],
     '/integrations/sulekha': ['Home', 'Integrations', 'Sulekha'],

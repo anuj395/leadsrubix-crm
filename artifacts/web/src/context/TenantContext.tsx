@@ -50,7 +50,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let active = true
     const resolveTenant = async () => {
       try {
-        const res = await api.get('/workspace/resolve-domain')
+        const currentHost = typeof window !== 'undefined' ? window.location.hostname : ''
+        const res = await api.get('/workspace/resolve-domain', {
+          params: { host: currentHost },
+          headers: { 'x-tenant-host': currentHost }
+        })
         if (active && res.data?.workspace) {
           setWorkspace(res.data.workspace)
           setResolved(res.data.resolved ?? false)

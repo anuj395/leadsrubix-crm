@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { matchLeadSourceAndCampaign } = require('./sourceMatcher');
 
 /**
  * Converts a Date object to local time components based on timezone (Default Asia/Kolkata / IST).
@@ -160,12 +161,13 @@ async function processUnattendedLeadsRotation(organizationId = null) {
         const isFresh = !stage || ['FRESH', 'NEW', ''].includes(stage);
         if (!isFresh) return false;
 
-        // 2. Source Matching
+        // 2. Universal Dynamic Source Matching (works for all sources: Website, Housing.com, 99 Acres, Magicbricks, etc.)
         if (rule.source && rule.source.toLowerCase() !== 'all' && rule.source.toLowerCase() !== 'any') {
-          const lSource = String(lead.source || '').trim().toLowerCase();
-          const lCampaign = String(lead.campaign || '').trim().toLowerCase();
-          const targetSource = rule.source.trim().toLowerCase();
-          if (lSource !== targetSource && lCampaign !== targetSource) return false;
+          const lSource = lead.source || '';
+          const lCampaign = lead.campaign || '';
+          if (!matchLeadSourceAndCampaign(lSource, lCampaign, rule.source)) {
+            return false;
+          }
         }
 
         // 3. Project Matching
