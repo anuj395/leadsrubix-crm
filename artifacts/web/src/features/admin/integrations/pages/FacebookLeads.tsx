@@ -238,15 +238,28 @@ export default function FacebookLeadsPage() {
     }
   }
 
-  const handleFacebookLogout = () => {
-    if (window.FB) {
-      window.FB.logout(async () => {
-        setLoginStatus(false)
-        setUserData(null)
-        setActivePages([])
-        await api.delete('/api-tokens/facebook/token')
-        setToast({ open: true, msg: 'Logged out successfully', sev: 'success' })
-      })
+  const handleFacebookLogout = async () => {
+    setLoading(true)
+    try {
+      if (window.FB && typeof window.FB.logout === 'function') {
+        try {
+          window.FB.logout(() => {})
+        } catch (e) {
+          console.warn('FB client logout notice:', e)
+        }
+      }
+
+      await api.delete('/api-tokens/facebook/token')
+      setLoginStatus(false)
+      setUserData(null)
+      setActivePages([])
+      setFbConfig(null)
+      setToast({ open: true, msg: 'Facebook account disconnected successfully', sev: 'success' })
+    } catch (e: any) {
+      console.error('Failed to disconnect Facebook account:', e)
+      setToast({ open: true, msg: 'Failed to disconnect Facebook account', sev: 'error' })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -256,10 +269,13 @@ export default function FacebookLeadsPage() {
         p: { xs: 2, sm: 3 },
         width: '100%',
         minWidth: 0,
+        flex: 1,
+        minHeight: 0,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'auto',
+        overflowY: 'auto',
+        overflowX: 'hidden',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
