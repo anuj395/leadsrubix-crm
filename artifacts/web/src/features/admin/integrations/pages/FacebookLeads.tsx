@@ -22,7 +22,6 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Link from '@mui/material/Link'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import FacebookIcon from '@mui/icons-material/Facebook'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -30,6 +29,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+import DynamicFeedIcon from '@mui/icons-material/DynamicFeed'
 import { alpha } from '@mui/material/styles'
 import axios from 'axios'
 import { api } from '@/services/api'
@@ -51,7 +51,7 @@ export default function FacebookLeadsPage() {
   const [activePages, setActivePages] = useState<any[]>([])
   const [fbConfig, setFbConfig] = useState<any>(null)
   const [projectsList, setProjectsList] = useState<any[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [selectedModalPage, setSelectedModalPage] = useState<any>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -521,84 +521,83 @@ export default function FacebookLeadsPage() {
                     </TableRow>
                   ) : (
                     activePages.map((page) => (
-                      <React.Fragment key={page.id}>
-                        <TableRow hover sx={{ bgcolor: expandedId === page.id ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'inherit' }}>
-                          <TableCell sx={{ py: 1.75 }}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                              <Typography variant="body2" fontWeight={700} color="text.primary">
-                                {page.name}
-                              </Typography>
-                              <Box>
-                                <Chip
-                                  icon={expandedId === page.id ? <ExpandLessIcon sx={{ fontSize: '1rem !important' }} /> : <ExpandMoreIcon sx={{ fontSize: '1rem !important' }} />}
-                                  label={`${page.formcount || page.form_data?.length || 0} Lead Forms Connected`}
-                                  size="small"
-                                  color={expandedId === page.id ? "primary" : "default"}
-                                  variant={expandedId === page.id ? "filled" : "outlined"}
-                                  onClick={() => setExpandedId(expandedId === page.id ? null : page.id)}
-                                  sx={{
-                                    height: 24,
-                                    fontSize: '0.75rem',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    '&:hover': { bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12) },
-                                  }}
-                                />
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
-                              {page.id}
+                      <TableRow key={page.id} hover>
+                        <TableCell sx={{ py: 1.75 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                            <Typography variant="body2" fontWeight={700} color="text.primary">
+                              {page.name}
                             </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip label={page.category || 'Page'} size="small" variant="outlined" sx={{ fontSize: '0.72rem', fontWeight: 500 }} />
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.85rem !important' }} />}
-                              label="Active & Synced"
-                              size="small"
-                              color="success"
-                              sx={{ height: 22, fontWeight: 600, fontSize: '0.72rem' }}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            <Button
-                              color="error"
-                              variant="outlined"
-                              size="small"
-                              startIcon={<DeleteOutlineIcon sx={{ fontSize: '1rem !important' }} />}
-                              onClick={() => handleUnsubscribe(page.id)}
-                              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px', fontSize: '0.75rem', py: 0.4 }}
-                            >
-                              Remove Page
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-
-                        {expandedId === page.id && (
-                          <TableRow>
-                            <TableCell colSpan={5} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)', p: 2 }}>
-                              <FormModel
-                                pageFormsData={page.form_data || []}
-                                pageId={page.id}
-                                allFacebookPages={fbConfig?.facebookPages || []}
-                                dispatcher={null}
-                                projectsList={projectsList}
-                                setExpandedId={setExpandedId}
-                                onSave={handleSavePageMappings}
+                            <Box>
+                              <Chip
+                                icon={<DynamicFeedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                                label={`${page.formcount || page.form_data?.length || 0} Lead Forms Connected`}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                onClick={() => setSelectedModalPage(page)}
+                                sx={{
+                                  height: 24,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06),
+                                  '&:hover': {
+                                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+                                  },
+                                }}
                               />
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </React.Fragment>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
+                            {page.id}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={page.category || 'Page'} size="small" variant="outlined" sx={{ fontSize: '0.72rem', fontWeight: 500 }} />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.85rem !important' }} />}
+                            label="Active & Synced"
+                            size="small"
+                            color="success"
+                            sx={{ height: 22, fontWeight: 600, fontSize: '0.72rem' }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button
+                            color="error"
+                            variant="outlined"
+                            size="small"
+                            startIcon={<DeleteOutlineIcon sx={{ fontSize: '1rem !important' }} />}
+                            onClick={() => handleUnsubscribe(page.id)}
+                            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px', fontSize: '0.75rem', py: 0.4 }}
+                          >
+                            Remove Page
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Lead Form Routing Dialog Modal */}
+            {selectedModalPage && (
+              <FormModel
+                open={Boolean(selectedModalPage)}
+                onClose={() => setSelectedModalPage(null)}
+                pageName={selectedModalPage.name}
+                pageFormsData={selectedModalPage.form_data || []}
+                pageId={selectedModalPage.id}
+                allFacebookPages={fbConfig?.facebookPages || []}
+                projectsList={projectsList}
+                onSave={handleSavePageMappings}
+              />
+            )}
           </Box>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2.5 }}>
