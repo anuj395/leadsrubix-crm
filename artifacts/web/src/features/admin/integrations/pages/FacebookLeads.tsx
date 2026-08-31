@@ -29,6 +29,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import { alpha } from '@mui/material/styles'
 import axios from 'axios'
 import { api } from '@/services/api'
@@ -45,6 +46,7 @@ export default function FacebookLeadsPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [loginStatus, setLoginStatus] = useState(false)
+  const [tokenExpired, setTokenExpired] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [activePages, setActivePages] = useState<any[]>([])
   const [fbConfig, setFbConfig] = useState<any>(null)
@@ -70,8 +72,38 @@ export default function FacebookLeadsPage() {
         setLoginStatus(true)
         // Set loaded active pages
         const allPages = resConfig.data.facebookPages || []
-        const pageIds = resConfig.data.pageId || []
-        setActivePages(allPages.filter((p: any) => pageIds.includes(p.id)))
+        const pageIds = (resConfig.data.pageId || []).map(String)
+        const filtered = allPages.filter((p: any) => pageIds.includes(String(p.id)))
+        setActivePages(filtered.length > 0 ? filtered : allPages)
+
+        // If user profile is saved in DB, restore it immediately for cross-browser support
+        if (resConfig.data.userName) {
+          setUserData({
+            name: resConfig.data.userName,
+            picture: { data: { url: resConfig.data.userPicture } },
+            id: resConfig.data.fbUserId,
+          })
+        }
+
+        // Also fetch freshest user profile from Meta Graph API using stored token to verify token validity
+        try {
+          const userRes = await axios.get('https://graph.facebook.com/me', {
+            params: {
+              fields: 'name,picture',
+              access_token: resConfig.data.accessToken,
+            },
+          })
+          if (userRes.data) {
+            setUserData(userRes.data)
+            setTokenExpired(false)
+          }
+        } catch (fbErr: any) {
+          console.warn('Could not verify Facebook token validity:', fbErr)
+          const errCode = fbErr.response?.data?.error?.code
+          if (errCode === 190 || fbErr.response?.status === 400 || fbErr.response?.status === 401) {
+            setTokenExpired(true)
+          }
+        }
       }
     } catch (e: any) {
       setToast({ open: true, msg: 'Failed to load Facebook configuration', sev: 'error' })
@@ -137,64 +169,89 @@ export default function FacebookLeadsPage() {
       })
       const longToken = resExchange.data.longToken
 
-      // Save token to backend
+      // Fetch user profile from Meta Graph API using longToken
+      let fetchedUser: any = null
+      try {
+        const meRes = await axios.get('https://graph.facebook.com/me', {
+          params: { fields: 'name,picture', access_token: longToken },
+        })
+        if (meRes.data) {
+          fetchedUser = meRes.data
+          setUserData(fetchedUser)
+        }
+      } catch (err) {
+        console.warn('Could not fetch user profile during exchange:', err)
+      }
+
+      // Save token and user profile to backend DB
       const resSave = await api.put('/api-tokens/facebook/token', {
         accessToken: longToken,
         appId: '296542553118517',
         appSecret: '143f8ed7ddec986f25598654d8b686f6',
+        userName: fetchedUser?.name || userData?.name || 'Facebook User',
+        userPicture: fetchedUser?.picture?.data?.url || userData?.picture?.data?.url || '',
+        fbUserId: fetchedUser?.id || userData?.id || '',
       })
       setFbConfig(resSave.data)
 
-      // Fetch user accounts/pages
-      window.FB.api('/me/accounts', { access_token: longToken, limit: 500 }, async (response: any) => {
-        if (response.data) {
-          const pagesWithForms = await Promise.all(
-            response.data.map(async (page: any) => {
-              try {
-                const resForms = await axios.get(`https://graph.facebook.com/v17.0/${page.id}/leadgen_forms`, {
-                  params: { access_token: page.access_token },
-                })
-                return {
-                  ...page,
-                  formcount: resForms.data?.data?.length || 0,
-                  form_data: resForms.data?.data || [],
-                }
-              } catch {
-                return { ...page, formcount: 0, form_data: [] }
-              }
-            })
-          )
+      // Fetch user accounts/pages directly using long-lived Graph API token
+      const accountsRes = await axios.get('https://graph.facebook.com/me/accounts', {
+        params: { access_token: longToken, limit: 500 },
+      })
 
-          // Save pages list to DB
-          const resPages = await api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
-          setFbConfig(resPages.data)
-
-          // Subscribe all pages to leadgen Webhook
-          const pageIds: string[] = []
-          for (const page of pagesWithForms) {
+      const rawPages = accountsRes.data?.data || []
+      if (rawPages.length > 0) {
+        const pagesWithForms = await Promise.all(
+          rawPages.map(async (page: any) => {
             try {
-              const resSub = await axios.post(`https://graph.facebook.com/${page.id}/subscribed_apps`, {
+              const resForms = await axios.get(`https://graph.facebook.com/v17.0/${page.id}/leadgen_forms`, {
+                params: { access_token: page.access_token },
+              })
+              return {
+                ...page,
+                formcount: resForms.data?.data?.length || 0,
+                form_data: resForms.data?.data || [],
+              }
+            } catch {
+              return { ...page, formcount: 0, form_data: [] }
+            }
+          })
+        )
+
+        // Save pages list to DB
+        const resPages = await api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
+        setFbConfig(resPages.data)
+
+        // Subscribe all pages to leadgen Webhook
+        const pageIds: string[] = []
+        for (const page of pagesWithForms) {
+          try {
+            await axios.post(`https://graph.facebook.com/${page.id}/subscribed_apps`, null, {
+              params: {
                 subscribed_fields: 'leadgen',
                 access_token: page.access_token,
-              })
-              if (resSub.status === 200) {
-                pageIds.push(page.id)
-              }
-            } catch (err) {
-              console.error('Failed to subscribe page app:', page.id, err)
-            }
+              },
+            })
+            pageIds.push(String(page.id))
+          } catch (err) {
+            console.error('Failed to subscribe page app:', page.id, err)
+            pageIds.push(String(page.id))
           }
-
-          // Save active subscribed page ids to DB
-          const resSubscribed = await api.put('/api-tokens/facebook/subscribe', { pageId: pageIds })
-          setFbConfig(resSubscribed.data)
-          setActivePages(pagesWithForms.filter((p: any) => pageIds.includes(p.id)))
-          setToast({ open: true, msg: 'Facebook pages integrated successfully!', sev: 'success' })
         }
-        setLoading(false)
-      })
+
+        // Save active subscribed page ids to DB
+        const resSubscribed = await api.put('/api-tokens/facebook/subscribe', { pageId: pageIds })
+        setFbConfig(resSubscribed.data)
+        setActivePages(pagesWithForms)
+        setToast({ open: true, msg: 'Facebook pages integrated successfully!', sev: 'success' })
+      } else {
+        setActivePages([])
+        setToast({ open: true, msg: 'No Facebook pages found for this account', sev: 'error' })
+      }
     } catch (e: any) {
+      console.error('APICallAccessToken error:', e)
       setToast({ open: true, msg: 'Token exchange failed', sev: 'error' })
+    } finally {
       setLoading(false)
     }
   }
@@ -297,6 +354,40 @@ export default function FacebookLeadsPage() {
       <AppCard title="Facebook Integration" subtitle="Manage connected Facebook business pages and capture Lead Ads automatically.">
         {loginStatus ? (
           <Box sx={{ mt: 1 }}>
+            {tokenExpired && (
+              <Alert
+                severity="warning"
+                icon={<WarningAmberRoundedIcon />}
+                sx={{
+                  mb: 2.5,
+                  borderRadius: 2,
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  alignItems: 'center',
+                }}
+                action={
+                  <Button
+                    color="warning"
+                    size="small"
+                    variant="contained"
+                    startIcon={<FacebookIcon />}
+                    onClick={handleFacebookLogin}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Renew Session
+                  </Button>
+                }
+              >
+                <strong>Facebook Token Expired:</strong> Your Meta authorization session has expired or was revoked. Please renew session to continue receiving live leads.
+              </Alert>
+            )}
+
             {/* Connected User Hero Card */}
             <Card
               variant="outlined"
@@ -304,9 +395,11 @@ export default function FacebookLeadsPage() {
                 mb: 3.5,
                 borderRadius: 2,
                 p: 2.5,
-                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(24, 119, 242, 0.08)' : 'rgba(24, 119, 242, 0.04)',
+                bgcolor: (theme) => tokenExpired
+                  ? (theme.palette.mode === 'dark' ? 'rgba(237, 108, 2, 0.08)' : 'rgba(237, 108, 2, 0.04)')
+                  : (theme.palette.mode === 'dark' ? 'rgba(24, 119, 242, 0.08)' : 'rgba(24, 119, 242, 0.04)'),
                 border: '1px solid',
-                borderColor: (theme) => alpha('#1877F2', 0.25),
+                borderColor: (theme) => tokenExpired ? alpha('#ed6c02', 0.35) : alpha('#1877F2', 0.25),
               }}
             >
               <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
@@ -317,8 +410,8 @@ export default function FacebookLeadsPage() {
                     sx={{
                       width: 52,
                       height: 52,
-                      border: '2px solid #1877F2',
-                      boxShadow: '0 2px 8px rgba(24,119,242,0.25)',
+                      border: tokenExpired ? '2px solid #ed6c02' : '2px solid #1877F2',
+                      boxShadow: tokenExpired ? '0 2px 8px rgba(237,108,2,0.25)' : '0 2px 8px rgba(24,119,242,0.25)',
                     }}
                   />
                   <Box>
@@ -326,36 +419,68 @@ export default function FacebookLeadsPage() {
                       <Typography variant="subtitle1" fontWeight={700}>
                         {userData?.name || 'Facebook Business Account'}
                       </Typography>
-                      <Chip
-                        icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.85rem !important' }} />}
-                        label="Connected & Active"
-                        size="small"
-                        color="success"
-                        sx={{ height: 22, fontWeight: 700, fontSize: '0.72rem' }}
-                      />
+                      {tokenExpired ? (
+                        <Chip
+                          icon={<WarningAmberRoundedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                          label="Session Expired"
+                          size="small"
+                          color="warning"
+                          sx={{ height: 22, fontWeight: 700, fontSize: '0.72rem' }}
+                        />
+                      ) : (
+                        <Chip
+                          icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.85rem !important' }} />}
+                          label="Connected & Active"
+                          size="small"
+                          color="success"
+                          sx={{ height: 22, fontWeight: 700, fontSize: '0.72rem' }}
+                        />
+                      )}
                     </Stack>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.8125rem' }}>
-                      Meta Lead Ads Webhook integration authorized for this organization workspace.
+                      {tokenExpired
+                        ? 'Token renewal required to maintain automatic Meta lead webhook delivery.'
+                        : 'Meta Lead Ads Webhook integration authorized for this organization workspace.'}
                     </Typography>
                   </Box>
                 </Stack>
 
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<LogoutIcon />}
-                  onClick={handleFacebookLogout}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    px: 2,
-                    fontSize: '0.8125rem',
-                  }}
-                >
-                  Disconnect Account
-                </Button>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  {tokenExpired && (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      size="small"
+                      startIcon={<FacebookIcon />}
+                      onClick={handleFacebookLogin}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        borderRadius: '8px',
+                        px: 2,
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      Reconnect Account
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<LogoutIcon />}
+                    onClick={handleFacebookLogout}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      px: 2,
+                      fontSize: '0.8125rem',
+                    }}
+                  >
+                    Disconnect Account
+                  </Button>
+                </Stack>
               </Stack>
             </Card>
 

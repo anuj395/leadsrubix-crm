@@ -56,7 +56,7 @@ export default function FormModel({
       if (String(page.id) === String(pageId)) {
         const updatedForms = (page.form_data || page.formData || []).map((form: any) => {
           if (String(form.id) === String(formId)) {
-            return { ...form, projectId: targetProjId }
+            return { ...form, projectId: targetProjId, project_id: targetProjId }
           }
           return form
         })
