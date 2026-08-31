@@ -246,23 +246,12 @@ export default function FacebookLeadsPage() {
         console.warn('Could not fetch user profile during exchange:', err)
       }
 
-      // Save token and user profile to backend DB
-      const resSave = await api.put('/api-tokens/facebook/token', {
-        accessToken: longToken,
-        appId: '296542553118517',
-        appSecret: '143f8ed7ddec986f25598654d8b686f6',
-        userName: fetchedUser?.name || userData?.name || 'Facebook User',
-        userPicture: fetchedUser?.picture?.data?.url || userData?.picture?.data?.url || '',
-        fbUserId: fetchedUser?.id || userData?.id || '',
-      })
-      setFbConfig(resSave.data)
-
       // Fetch user pages and leadgen forms using fetchUserPages helper
       const pagesWithForms = await fetchUserPages(longToken, fbConfig?.facebookPages || [])
 
+      // Subscribe all pages to leadgen Webhook
+      const pageIds: string[] = []
       if (pagesWithForms && pagesWithForms.length > 0) {
-        // Subscribe all pages to leadgen Webhook
-        const pageIds: string[] = []
         for (const page of pagesWithForms) {
           try {
             await axios.post(`https://graph.facebook.com/${page.id}/subscribed_apps`, null, {
@@ -277,10 +266,22 @@ export default function FacebookLeadsPage() {
             pageIds.push(String(page.id))
           }
         }
+      }
 
-        // Save active subscribed page ids to DB
-        const resSubscribed = await api.put('/api-tokens/facebook/subscribe', { pageId: pageIds })
-        setFbConfig(resSubscribed.data)
+      // Atomically save token, profile, pages and pageIds to backend DB
+      const resSave = await api.put('/api-tokens/facebook/token', {
+        accessToken: longToken,
+        appId: '296542553118517',
+        appSecret: '143f8ed7ddec986f25598654d8b686f6',
+        userName: fetchedUser?.name || userData?.name || 'Facebook User',
+        userPicture: fetchedUser?.picture?.data?.url || userData?.picture?.data?.url || '',
+        fbUserId: fetchedUser?.id || userData?.id || '',
+        facebookPages: pagesWithForms || [],
+        pageId: pageIds,
+      })
+      setFbConfig(resSave.data)
+      if (pagesWithForms && pagesWithForms.length > 0) {
+        setActivePages(pagesWithForms)
         setToast({ open: true, msg: 'Facebook pages integrated successfully!', sev: 'success' })
       } else {
         setToast({ open: true, msg: 'No Facebook pages found for this account', sev: 'error' })

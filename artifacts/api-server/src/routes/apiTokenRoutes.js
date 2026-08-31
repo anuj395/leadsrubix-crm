@@ -431,18 +431,26 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
       ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
       : (req.user.organizationId || req.user.organization_id);
     
-    const { accessToken, appId, appSecret, userName, userPicture, fbUserId } = req.body;
+    const { accessToken, appId, appSecret, userName, userPicture, fbUserId, facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
-    const updateFields = { access_token: accessToken, app_id: appId, app_secret: appSecret };
-    if (userName) updateFields.user_name = userName;
-    if (userPicture) updateFields.user_picture = userPicture;
-    if (fbUserId) updateFields.fb_user_id = fbUserId;
+    const updateFields = { 
+      source: 'Facebook',
+      status: 'ACTIVE'
+    };
+    if (accessToken !== undefined) updateFields.access_token = accessToken;
+    if (appId !== undefined) updateFields.app_id = appId;
+    if (appSecret !== undefined) updateFields.app_secret = appSecret;
+    if (userName !== undefined) updateFields.user_name = userName;
+    if (userPicture !== undefined) updateFields.user_picture = userPicture;
+    if (fbUserId !== undefined) updateFields.fb_user_id = fbUserId;
+    if (facebookPages !== undefined) updateFields.facebook_pages = facebookPages;
+    if (pageId !== undefined) updateFields.page_id = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
 
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
       { 
         $set: updateFields,
-        $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), status: 'ACTIVE' }
+        $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), source: 'Facebook', status: 'ACTIVE' }
       },
       { new: true, upsert: true }
     );
@@ -462,13 +470,17 @@ router.put('/facebook/pages', authenticate, async (req, res, next) => {
       ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
       : (req.user.organizationId || req.user.organization_id);
     
-    const { facebookPages } = req.body;
+    const { facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
+    const updateFields = { facebook_pages: facebookPages, source: 'Facebook' };
+    if (pageId !== undefined) {
+      updateFields.page_id = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
+    }
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
       { 
-        $set: { facebook_pages: facebookPages },
-        $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), status: 'ACTIVE' }
+        $set: updateFields,
+        $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), source: 'Facebook', status: 'ACTIVE' }
       },
       { new: true, upsert: true }
     );
@@ -494,8 +506,8 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
       { 
-        $set: { page_id: ids },
-        $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), status: 'ACTIVE' }
+        $set: { page_id: ids, source: 'Facebook' },
+        $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), source: 'Facebook', status: 'ACTIVE' }
       },
       { new: true, upsert: true }
     );
