@@ -60,12 +60,25 @@ export default function FacebookLeadsPage() {
 
   const fetchUserPages = async (token: string, existingPages: any[] = []) => {
     try {
-      const accountsRes = await axios.get('https://graph.facebook.com/me/accounts', {
-        params: { access_token: token, limit: 500 },
-      })
-      const rawPages = accountsRes.data?.data || []
+      let rawPages: any[] = []
+      try {
+        const accountsRes = await axios.get('https://graph.facebook.com/me/accounts', {
+          params: { access_token: token, limit: 500 },
+        })
+        rawPages = accountsRes.data?.data || []
+      } catch (axiosErr) {
+        console.warn('Axios /me/accounts failed, trying FB.api fallback:', axiosErr)
+        if (window.FB) {
+          rawPages = await new Promise((resolve) => {
+            window.FB.api('/me/accounts', { access_token: token, limit: 500 }, (fbRes: any) => {
+              resolve(fbRes?.data || [])
+            })
+          })
+        }
+      }
+
       if (rawPages.length > 0) {
-        // Map existing form project mappings so hard refresh doesn't lose mapped project IDs
+        // Map existing form project mappings so refresh doesn't lose mapped project IDs
         const existingFormProjectMap: Record<string, string> = {}
         existingPages.forEach((p: any) => {
           ;(p.form_data || p.formData || []).forEach((f: any) => {
@@ -102,7 +115,11 @@ export default function FacebookLeadsPage() {
 
         setActivePages(pagesWithForms)
         // Background sync to backend database so pages and forms are permanently stored
-        void api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
+        try {
+          await api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
+        } catch (dbErr) {
+          console.warn('Could not sync facebookPages to DB:', dbErr)
+        }
         return pagesWithForms
       } else {
         if (existingPages.length === 0) {
@@ -145,8 +162,12 @@ export default function FacebookLeadsPage() {
           })
         }
 
-        // 3. ALWAYS fetch freshest pages from Facebook Graph API on hard refresh
-        void fetchUserPages(resConfig.data.accessToken, dbPages)
+        // 3. If DB pages are empty, await live fetch to avoid 0-pages flash. If cached, background refresh.
+        if (dbPages.length === 0) {
+          await fetchUserPages(resConfig.data.accessToken, dbPages)
+        } else {
+          void fetchUserPages(resConfig.data.accessToken, dbPages)
+        }
 
         // 4. Verify token validity with Meta Graph API
         try {
@@ -177,19 +198,6 @@ export default function FacebookLeadsPage() {
 
   useEffect(() => {
     void loadData()
-  }, [])
-
-  useEffect(() => {
-    if (window.FB) {
-      window.FB.getLoginStatus((response: any) => {
-        if (response.status === 'connected') {
-          setLoginStatus(true)
-          window.FB.api('/me', { fields: 'name,picture' }, (data: any) => {
-            setUserData(data)
-          })
-        }
-      })
-    }
   }, [])
 
   const handleFacebookLogin = () => {
