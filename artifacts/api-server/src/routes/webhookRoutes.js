@@ -449,10 +449,12 @@ router.post('/facebook', async (req, res, next) => {
         if (!leadgenId) continue;
 
         // 1. Fetch the organization's Facebook ApiToken
-        const tokenDoc = await ApiToken.findOne({
-          source: { $regex: /^facebook$/i },
-          page_id: pageId
-        }).exec();
+        const fbTokens = await ApiToken.find({ source: { $regex: /^facebook$/i } }).exec();
+        const tokenDoc = fbTokens.find(t => {
+          const pIds = (t.page_id || t.pageId || []).map(String);
+          const fbPages = (t.facebook_pages || t.facebookPages || []).map(p => String(p.id));
+          return pIds.includes(String(pageId)) || fbPages.includes(String(pageId));
+        });
 
         if (!tokenDoc) {
           console.warn(`No ApiToken configuration found for Facebook page: ${pageId}`);

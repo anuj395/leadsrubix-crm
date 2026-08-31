@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
@@ -7,12 +8,14 @@ import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import FacebookIcon from '@mui/icons-material/Facebook'
 import WebIcon from '@mui/icons-material/Web'
 import ContactPageIcon from '@mui/icons-material/ContactPage'
 import BusinessIcon from '@mui/icons-material/Business'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { AppCard } from '@/components/ui/AppCard'
+import { api } from '@/services/api'
 
 interface IntegrationItem {
   key: string
@@ -76,6 +79,21 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
 
 export default function IntegrationsPage() {
   const navigate = useNavigate()
+  const [fbConnected, setFbConnected] = useState<boolean>(false)
+
+  useEffect(() => {
+    const checkFb = async () => {
+      try {
+        const res = await api.get('/api-tokens/facebook')
+        if (res.data?.accessToken) {
+          setFbConnected(true)
+        }
+      } catch (err) {
+        console.warn('Could not fetch integration status:', err)
+      }
+    }
+    void checkFb()
+  }, [])
 
   const handleConfigure = (key: string) => {
     if (key === 'facebook') {
@@ -114,64 +132,86 @@ export default function IntegrationsPage() {
         subtitle="Manage and configure active incoming data lead streams with advertising engines, listing portals, and messaging platforms."
       >
         <Grid container spacing={3} sx={{ mt: 1 }}>
-          {INTEGRATION_ITEMS.map((item) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.key}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  borderRadius: 2,
-                  boxShadow: 'rgba(100, 100, 111, 0.15) 0px 7px 29px 0px',
-                  border: '1px solid #f0f0f0',
-                  transition: 'transform 0.2s',
-                  '&:hover': {
-                    transform: 'translateY(-3px)',
-                  },
-                }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      {item.icon}
-                      <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                        {item.name}
-                      </Typography>
+          {INTEGRATION_ITEMS.map((item) => {
+            const isFb = item.key === 'facebook'
+            const isConnected = isFb && fbConnected
+
+            return (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.key}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    borderRadius: 2,
+                    boxShadow: 'rgba(100, 100, 111, 0.15) 0px 7px 29px 0px',
+                    border: isConnected ? '1.5px solid #1877F2' : '1px solid #f0f0f0',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-3px)',
+                    },
+                  }}
+                >
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        {item.icon}
+                        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                          {item.name}
+                        </Typography>
+                      </Box>
+                      {item.comingSoon ? (
+                        <Chip
+                          label="Coming Soon"
+                          size="small"
+                          sx={{
+                            bgcolor: '#FFF3CD',
+                            color: '#856404',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      ) : isConnected ? (
+                        <Chip
+                          icon={<CheckCircleRoundedIcon sx={{ fontSize: '0.85rem !important', color: '#16A34A !important' }} />}
+                          label="Connected"
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(34, 197, 94, 0.12)',
+                            color: '#16A34A',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      ) : null}
                     </Box>
-                    {item.comingSoon && (
-                      <Chip
-                        label="Coming Soon"
+                    <Typography variant="body2" color="text.secondary" sx={{ minHeight: 48, mb: 2 }}>
+                      {item.description}
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
                         size="small"
+                        color={isConnected ? 'success' : 'primary'}
+                        disabled={item.comingSoon}
+                        endIcon={<ArrowForwardIosIcon sx={{ fontSize: '10px !important' }} />}
+                        onClick={() => handleConfigure(item.key)}
                         sx={{
-                          bgcolor: '#FFF3CD',
-                          color: '#856404',
-                          fontWeight: 600,
-                          fontSize: '0.75rem',
-                          borderRadius: '8px',
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          color: isConnected ? '#1877F2' : undefined,
                         }}
-                      />
-                    )}
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: 48, mb: 2 }}>
-                    {item.description}
-                  </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                      size="small"
-                      color="primary"
-                      disabled={item.comingSoon}
-                      endIcon={<ArrowForwardIosIcon sx={{ fontSize: '10px !important' }} />}
-                      onClick={() => handleConfigure(item.key)}
-                      sx={{ textTransform: 'none', fontWeight: 600 }}
-                    >
-                      Configure
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                      >
+                        {isConnected ? 'Connected' : 'Configure'}
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )
+          })}
         </Grid>
       </AppCard>
     </Box>

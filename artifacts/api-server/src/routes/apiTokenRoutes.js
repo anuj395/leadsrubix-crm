@@ -57,6 +57,9 @@ function formatApiToken(t, orgMap = {}) {
     pageId: t.page_id || t.pageId || undefined,
     appId: t.app_id || t.appId || undefined,
     appSecret: t.app_secret || t.appSecret || undefined,
+    userName: t.user_name || t.userName || undefined,
+    userPicture: t.user_picture || t.userPicture || undefined,
+    fbUserId: t.fb_user_id || t.fbUserId || undefined,
   };
 }
 
@@ -428,12 +431,17 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
       ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
       : (req.user.organizationId || req.user.organization_id);
     
-    const { accessToken, appId, appSecret } = req.body;
+    const { accessToken, appId, appSecret, userName, userPicture, fbUserId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
+    const updateFields = { access_token: accessToken, app_id: appId, app_secret: appSecret };
+    if (userName) updateFields.user_name = userName;
+    if (userPicture) updateFields.user_picture = userPicture;
+    if (fbUserId) updateFields.fb_user_id = fbUserId;
+
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
       { 
-        $set: { access_token: accessToken, app_id: appId, app_secret: appSecret },
+        $set: updateFields,
         $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), status: 'ACTIVE' }
       },
       { new: true, upsert: true }
@@ -482,10 +490,11 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
     
     const { pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
+    const ids = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
       { 
-        $addToSet: { page_id: { $each: Array.isArray(pageId) ? pageId : [pageId] } },
+        $set: { page_id: ids },
         $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), status: 'ACTIVE' }
       },
       { new: true, upsert: true }
@@ -507,9 +516,13 @@ router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
       : (req.user.organizationId || req.user.organization_id);
     
     const { pageId } = req.body;
+    const currentDoc = await ApiToken.findOne({ organization_id: orgId, source: { $regex: /^facebook$/i } }).exec();
+    const currentPages = (currentDoc?.page_id || []).map(String).filter(id => id !== String(pageId));
+    const currentFbPages = (currentDoc?.facebook_pages || []).filter(p => String(p.id) !== String(pageId));
+
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
-      { $pull: { page_id: pageId } },
+      { $set: { page_id: currentPages, facebook_pages: currentFbPages } },
       { new: true }
     );
     res.json(formatApiToken(doc));
@@ -530,7 +543,7 @@ router.delete('/facebook/token', authenticate, async (req, res, next) => {
     
     const doc = await ApiToken.findOneAndUpdate(
       { organization_id: orgId, source: { $regex: /^facebook$/i } },
-      { access_token: '', facebook_pages: [], page_id: [] },
+      { access_token: '', facebook_pages: [], page_id: [], user_name: '', user_picture: '', fb_user_id: '' },
       { new: true }
     );
     res.json(formatApiToken(doc));

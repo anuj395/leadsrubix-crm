@@ -15,6 +15,9 @@ const apiTokenSchema = new mongoose.Schema(
     page_id: { type: Array, alias: 'pageId' },
     app_id: { type: String, alias: 'appId' },
     app_secret: { type: String, alias: 'appSecret' },
+    user_name: { type: String, alias: 'userName' },
+    user_picture: { type: String, alias: 'userPicture' },
+    fb_user_id: { type: String, alias: 'fbUserId' },
   },
   { 
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

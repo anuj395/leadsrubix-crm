@@ -56,7 +56,7 @@ export default function FormModel({
       if (String(page.id) === String(pageId)) {
         const updatedForms = (page.form_data || page.formData || []).map((form: any) => {
           if (String(form.id) === String(formId)) {
-            return { ...form, projectId: targetProjId }
+            return { ...form, projectId: targetProjId, project_id: targetProjId }
           }
           return form
         })
@@ -109,11 +109,13 @@ export default function FormModel({
         sx={{
           borderRadius: 1.5,
           bgcolor: 'background.paper',
-          maxHeight: 460,
+          maxHeight: 360,
           overflowY: 'auto',
+          overflowX: 'auto',
+          maxWidth: '100%',
         }}
       >
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={{ minWidth: 640 }}>
           <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', py: 1.2 }}>Form ID</TableCell>
