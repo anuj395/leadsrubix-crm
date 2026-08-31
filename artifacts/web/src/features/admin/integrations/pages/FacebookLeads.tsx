@@ -58,6 +58,64 @@ export default function FacebookLeadsPage() {
     sev: 'success',
   })
 
+  const fetchUserPages = async (token: string, existingPages: any[] = []) => {
+    try {
+      const accountsRes = await axios.get('https://graph.facebook.com/me/accounts', {
+        params: { access_token: token, limit: 500 },
+      })
+      const rawPages = accountsRes.data?.data || []
+      if (rawPages.length > 0) {
+        // Map existing form project mappings so hard refresh doesn't lose mapped project IDs
+        const existingFormProjectMap: Record<string, string> = {}
+        existingPages.forEach((p: any) => {
+          ;(p.form_data || p.formData || []).forEach((f: any) => {
+            if (f.projectId || f.project_id) {
+              existingFormProjectMap[String(f.id)] = f.projectId || f.project_id
+            }
+          })
+        })
+
+        const pagesWithForms = await Promise.all(
+          rawPages.map(async (page: any) => {
+            try {
+              const resForms = await axios.get(`https://graph.facebook.com/v17.0/${page.id}/leadgen_forms`, {
+                params: { access_token: page.access_token },
+              })
+              const forms = (resForms.data?.data || []).map((form: any) => {
+                const mappedProj = existingFormProjectMap[String(form.id)] || form.projectId || form.project_id || ''
+                return {
+                  ...form,
+                  projectId: mappedProj,
+                  project_id: mappedProj,
+                }
+              })
+              return {
+                ...page,
+                formcount: forms.length,
+                form_data: forms,
+              }
+            } catch {
+              return { ...page, formcount: 0, form_data: [] }
+            }
+          })
+        )
+
+        setActivePages(pagesWithForms)
+        // Background sync to backend database so pages and forms are permanently stored
+        void api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
+        return pagesWithForms
+      } else {
+        if (existingPages.length === 0) {
+          setActivePages([])
+        }
+        return []
+      }
+    } catch (err) {
+      console.warn('Could not fetch user pages via Graph API:', err)
+      return []
+    }
+  }
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -70,13 +128,15 @@ export default function FacebookLeadsPage() {
 
       if (resConfig.data?.accessToken) {
         setLoginStatus(true)
-        // Set loaded active pages
-        const allPages = resConfig.data.facebookPages || []
-        const pageIds = (resConfig.data.pageId || []).map(String)
-        const filtered = allPages.filter((p: any) => pageIds.includes(String(p.id)))
-        setActivePages(filtered.length > 0 ? filtered : allPages)
+        // 1. Instantly display cached pages from DB for zero-latency UI
+        const dbPages = resConfig.data.facebookPages || []
+        if (dbPages.length > 0) {
+          const pageIds = (resConfig.data.pageId || []).map(String)
+          const filtered = dbPages.filter((p: any) => pageIds.includes(String(p.id)))
+          setActivePages(filtered.length > 0 ? filtered : dbPages)
+        }
 
-        // If user profile is saved in DB, restore it immediately for cross-browser support
+        // 2. Restore user profile
         if (resConfig.data.userName) {
           setUserData({
             name: resConfig.data.userName,
@@ -85,7 +145,10 @@ export default function FacebookLeadsPage() {
           })
         }
 
-        // Also fetch freshest user profile from Meta Graph API using stored token to verify token validity
+        // 3. ALWAYS fetch freshest pages from Facebook Graph API on hard refresh
+        void fetchUserPages(resConfig.data.accessToken, dbPages)
+
+        // 4. Verify token validity with Meta Graph API
         try {
           const userRes = await axios.get('https://graph.facebook.com/me', {
             params: {
@@ -194,34 +257,10 @@ export default function FacebookLeadsPage() {
       })
       setFbConfig(resSave.data)
 
-      // Fetch user accounts/pages directly using long-lived Graph API token
-      const accountsRes = await axios.get('https://graph.facebook.com/me/accounts', {
-        params: { access_token: longToken, limit: 500 },
-      })
+      // Fetch user pages and leadgen forms using fetchUserPages helper
+      const pagesWithForms = await fetchUserPages(longToken, fbConfig?.facebookPages || [])
 
-      const rawPages = accountsRes.data?.data || []
-      if (rawPages.length > 0) {
-        const pagesWithForms = await Promise.all(
-          rawPages.map(async (page: any) => {
-            try {
-              const resForms = await axios.get(`https://graph.facebook.com/v17.0/${page.id}/leadgen_forms`, {
-                params: { access_token: page.access_token },
-              })
-              return {
-                ...page,
-                formcount: resForms.data?.data?.length || 0,
-                form_data: resForms.data?.data || [],
-              }
-            } catch {
-              return { ...page, formcount: 0, form_data: [] }
-            }
-          })
-        )
-
-        // Save pages list to DB
-        const resPages = await api.put('/api-tokens/facebook/pages', { facebookPages: pagesWithForms })
-        setFbConfig(resPages.data)
-
+      if (pagesWithForms && pagesWithForms.length > 0) {
         // Subscribe all pages to leadgen Webhook
         const pageIds: string[] = []
         for (const page of pagesWithForms) {
@@ -242,10 +281,8 @@ export default function FacebookLeadsPage() {
         // Save active subscribed page ids to DB
         const resSubscribed = await api.put('/api-tokens/facebook/subscribe', { pageId: pageIds })
         setFbConfig(resSubscribed.data)
-        setActivePages(pagesWithForms)
         setToast({ open: true, msg: 'Facebook pages integrated successfully!', sev: 'success' })
       } else {
-        setActivePages([])
         setToast({ open: true, msg: 'No Facebook pages found for this account', sev: 'error' })
       }
     } catch (e: any) {
