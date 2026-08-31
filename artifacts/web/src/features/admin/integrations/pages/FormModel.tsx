@@ -103,8 +103,17 @@ export default function FormModel({
         />
       </Stack>
 
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, bgcolor: 'background.paper' }}>
-        <Table size="small">
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{
+          borderRadius: 1.5,
+          bgcolor: 'background.paper',
+          maxHeight: 460,
+          overflowY: 'auto',
+        }}
+      >
+        <Table size="small" stickyHeader>
           <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', py: 1.2 }}>Form ID</TableCell>

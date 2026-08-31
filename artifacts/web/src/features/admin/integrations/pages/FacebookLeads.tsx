@@ -269,13 +269,12 @@ export default function FacebookLeadsPage() {
         p: { xs: 2, sm: 3 },
         width: '100%',
         minWidth: 0,
-        flex: 1,
-        minHeight: 0,
         height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
         overflowY: 'auto',
         overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
