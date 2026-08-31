@@ -324,9 +324,11 @@ export default function FacebookLeadsPage() {
     <Box
       sx={{
         p: { xs: 2, sm: 3 },
+        pb: { xs: 8, sm: 12 },
         width: '100%',
         minWidth: 0,
-        height: '100%',
+        flex: 1,
+        minHeight: 0,
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
@@ -334,21 +336,6 @@ export default function FacebookLeadsPage() {
         flexDirection: 'column',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
-        <Link
-          component="button"
-          variant="body2"
-          onClick={() => navigate('/integrations')}
-          sx={{ color: 'text.secondary', textDecoration: 'underline' }}
-        >
-          Integrations
-        </Link>
-        <ArrowForwardIosIcon sx={{ fontSize: 10, color: 'text.secondary' }} />
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          Facebook
-        </Typography>
-      </Box>
-
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
       <AppCard title="Facebook Integration" subtitle="Manage connected Facebook business pages and capture Lead Ads automatically.">
@@ -512,8 +499,8 @@ export default function FacebookLeadsPage() {
               </Button>
             </Stack>
 
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto', maxWidth: '100%' }}>
+              <Table size="small" sx={{ minWidth: 680 }}>
                 <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', py: 1.5 }}>Page Name & Forms</TableCell>
