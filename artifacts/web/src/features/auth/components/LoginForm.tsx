@@ -19,12 +19,12 @@ interface LoginFormProps {
 
 export function LoginForm({ error, isSubmitting, onSubmit }: LoginFormProps) {
   const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: 'sales@rubixcrm.dev',
-    password: 'demo1234',
+    email: '',
+    password: '',
   })
 
   return (
-    <AppCard subtitle="Use the seeded demo credentials or enter your own." title="Welcome back">
+    <AppCard subtitle="Sign in to access your sales workspace" title="Welcome back">
       <Stack
         component="form"
         spacing={2.5}
@@ -37,6 +37,7 @@ export function LoginForm({ error, isSubmitting, onSubmit }: LoginFormProps) {
         <InputField
           label="Work email"
           type="email"
+          placeholder="name@company.com"
           value={credentials.email}
           onChange={(event) => {
             setCredentials((current) => ({
@@ -48,6 +49,7 @@ export function LoginForm({ error, isSubmitting, onSubmit }: LoginFormProps) {
         <InputField
           label="Password"
           type="password"
+          placeholder="Enter your password"
           value={credentials.password}
           onChange={(event) => {
             setCredentials((current) => ({
