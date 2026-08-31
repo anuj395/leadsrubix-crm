@@ -519,12 +519,20 @@ router.post('/facebook', async (req, res, next) => {
         );
 
         // Duplicate check
-        const organizationData = await Organization.findOne({ organizationId: tokenDoc.organizationId }).exec();
+        const orgId = tokenDoc.organization_id || tokenDoc.organizationId;
+        const organizationData = await Organization.findOne({
+          $or: [{ organization_id: orgId }, { organizationId: orgId }]
+        }).exec();
+
         if (organizationData && organizationData.allowDuplicateLeads === false) {
           const existing = await Contact.findOne({
-            organizationId: tokenDoc.organizationId,
+            $or: [
+              { organization_id: orgId },
+              { organizationId: orgId }
+            ],
             $or: [
               { contactNumber: phoneResult.contactNumber },
+              { contact_number: phoneResult.contactNumber },
               { alternateNo: phoneResult.contactNumber }
             ]
           }).exec();
@@ -546,9 +554,9 @@ router.post('/facebook', async (req, res, next) => {
 
         const { assignLeadByRules } = require('../services/leadDistributionService');
         const assignment = await assignLeadByRules({
-          organizationId: tokenDoc.organizationId,
-          industryId: tokenDoc.industryId || tokenDoc.industry_id,
-          workspaceId: tokenDoc.workspaceId || tokenDoc.workspace_id,
+          organizationId: orgId,
+          industryId: tokenDoc.industry_id || tokenDoc.industryId,
+          workspaceId: tokenDoc.workspace_id || tokenDoc.workspaceId,
           source: 'Facebook Ads',
           project: projectId,
           location: cityField || locationId,
@@ -563,19 +571,34 @@ router.post('/facebook', async (req, res, next) => {
 
         const contactPayload = {
           customerName: nameField || 'Facebook Lead',
+          customer_name: nameField || 'Facebook Lead',
           contactNumber: phoneResult.contactNumber,
+          contact_number: phoneResult.contactNumber,
           countryCode: phoneResult.countryCode,
+          country_code: phoneResult.countryCode,
           emailId: emailField,
+          email_id: emailField,
+          email: emailField,
           location: cityField || locationId || '',
           projectName: projectId,
+          project_name: projectId,
           budgetId: budgetId,
+          budget_id: budgetId,
           source: 'Facebook Ads',
           leadType: 'Leads',
+          lead_type: 'Leads',
           stage: 'FRESH',
-          organizationId: tokenDoc.organizationId || tokenDoc.organization_id || null,
-          industryId: tokenDoc.industryId || tokenDoc.industry_id || (ownerUser ? (ownerUser.industryId || ownerUser.industry_id) : null),
-          workspaceId: tokenDoc.workspaceId || tokenDoc.workspace_id || (ownerUser ? (ownerUser.workspaceId || ownerUser.workspace_id) : null),
+          organizationId: orgId,
+          organization_id: orgId,
+          industryId: tokenDoc.industry_id || tokenDoc.industryId || (ownerUser ? (ownerUser.industry_id || ownerUser.industryId) : null),
+          industry_id: tokenDoc.industry_id || tokenDoc.industryId || (ownerUser ? (ownerUser.industry_id || ownerUser.industryId) : null),
+          workspaceId: tokenDoc.workspace_id || tokenDoc.workspaceId || (ownerUser ? (ownerUser.workspace_id || ownerUser.workspaceId) : null),
+          workspace_id: tokenDoc.workspace_id || tokenDoc.workspaceId || (ownerUser ? (ownerUser.workspace_id || ownerUser.workspaceId) : null),
           uid: uid || null,
+          contactOwnerEmail: ownerUser ? ownerUser.email : '',
+          contact_owner_email: ownerUser ? ownerUser.email : '',
+          assignedTo: ownerUser ? ownerUser.email : '',
+          assigned_to: ownerUser ? ownerUser.email : '',
           ad_id: leadgenValue.ad_id || '',
           campaign: leadgenValue.campaign_id || '',
           adset: leadgenValue.adgroup_id || '',
@@ -587,7 +610,7 @@ router.post('/facebook', async (req, res, next) => {
         try {
           const { sendNotification } = require('../services/whatsappService');
           sendNotification({
-            organizationId: tokenDoc.organizationId,
+            organizationId: orgId,
             contact: createdContact,
             eventType: 'incoming'
           }).catch(err => console.error('[WhatsApp] Incoming Facebook lead notification dispatch error:', err));

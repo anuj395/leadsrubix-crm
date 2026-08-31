@@ -182,6 +182,8 @@ export const LoginScreen = ({ navigation }: any) => {
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
                   secureTextEntry={!showPassword}
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
