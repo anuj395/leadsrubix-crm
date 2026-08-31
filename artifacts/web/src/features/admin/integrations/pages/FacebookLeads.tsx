@@ -44,7 +44,7 @@ declare global {
 
 export default function FacebookLeadsPage() {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [loginStatus, setLoginStatus] = useState(false)
   const [tokenExpired, setTokenExpired] = useState(false)
   const [userData, setUserData] = useState<any>(null)
@@ -385,7 +385,14 @@ export default function FacebookLeadsPage() {
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
       <AppCard title="Facebook Integration" subtitle="Manage connected Facebook business pages and capture Lead Ads automatically.">
-        {loginStatus ? (
+        {loading ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 2 }}>
+            <CircularProgress size={36} />
+            <Typography variant="body2" color="text.secondary">
+              Loading Facebook configuration...
+            </Typography>
+          </Box>
+        ) : loginStatus ? (
           <Box sx={{ mt: 1 }}>
             {tokenExpired && (
               <Alert

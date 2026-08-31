@@ -403,7 +403,19 @@ router.get('/facebook', authenticate, async (req, res, next) => {
       : (req.user.organizationId || req.user.organization_id);
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
-    let doc = await ApiToken.findOne({ organization_id: orgId, source: { $regex: /^facebook$/i } }).exec();
+    let doc = await ApiToken.findOne({
+      organization_id: orgId,
+      source: { $regex: /^facebook$/i },
+      access_token: { $exists: true, $ne: '' }
+    }).sort({ updated_at: -1 }).exec();
+
+    if (!doc) {
+      doc = await ApiToken.findOne({
+        organization_id: orgId,
+        source: { $regex: /^facebook$/i }
+      }).sort({ updated_at: -1 }).exec();
+    }
+
     if (!doc) {
       const { industryId, workspaceId } = await resolveTenantFields(orgId);
       doc = await ApiToken.create({
