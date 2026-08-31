@@ -17,14 +17,14 @@ export const CompanyLogo: React.FC<CompanyLogoProps> = ({
       ? require('../../../assets/companylogo_white.png')
       : require('../../../assets/companylogo_dark.png');
 
-  // Aspect ratio for Leads Rubix company logo (approx ~4.2:1)
-  const width = height * 4.2;
+  // Aspect ratio for Leads Rubix company logo (exact 3.88:1)
+  const width = height * 3.88;
 
   return (
     <View style={styles.wrapper}>
       <Image
         source={logoSource}
-        style={[{ height, width, maxWidth: 240 }, style]}
+        style={[{ height, width, maxWidth: 260 }, style]}
         resizeMode="contain"
       />
     </View>

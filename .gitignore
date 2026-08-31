@@ -55,3 +55,7 @@ scratch/
 
 
 
+*.aab
+*.apk
+*.ipa
+artifacts/app/store_assets/
