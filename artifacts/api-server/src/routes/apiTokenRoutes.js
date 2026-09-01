@@ -393,6 +393,26 @@ router.post('/facebook/exchange', authenticate, async (req, res, next) => {
   }
 });
 
+function getPossibleOrgIds(req) {
+  const ids = [
+    req.query?.organizationId,
+    req.body?.organizationId,
+    req.user?.organizationId,
+    req.user?.organization_id,
+  ].filter(Boolean).map(String);
+  return Array.from(new Set(ids));
+}
+
+function buildFacebookOrgQuery(possibleOrgIds) {
+  return {
+    $or: [
+      { organization_id: { $in: possibleOrgIds } },
+      { organizationId: { $in: possibleOrgIds } }
+    ],
+    source: { $regex: /^facebook$/i }
+  };
+}
+
 router.get('/facebook', authenticate, async (req, res, next) => {
   try {
     const role = String(req.user?.role || '').toLowerCase();
@@ -400,18 +420,11 @@ router.get('/facebook', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.query.organizationId || req.body?.organizationId || req.user.organizationId || req.user.organization_id;
+    const possibleOrgIds = getPossibleOrgIds(req);
+    const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
-    const orgQuery = {
-      $or: [
-        { organization_id: orgId },
-        { organizationId: orgId },
-        { organization_id: String(orgId) },
-        { organizationId: String(orgId) }
-      ],
-      source: { $regex: /^facebook$/i }
-    };
+    const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
     let doc = await ApiToken.findOne({
       ...orgQuery,
@@ -446,21 +459,14 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    const possibleOrgIds = getPossibleOrgIds(req);
+    const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { accessToken, appId, appSecret, userName, userPicture, fbUserId, facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     
-    const orgQuery = {
-      $or: [
-        { organization_id: orgId },
-        { organizationId: orgId },
-        { organization_id: String(orgId) },
-        { organizationId: String(orgId) }
-      ],
-      source: { $regex: /^facebook$/i }
-    };
+    const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
     let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
 
@@ -518,21 +524,14 @@ router.put('/facebook/pages', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    const possibleOrgIds = getPossibleOrgIds(req);
+    const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
 
-    const orgQuery = {
-      $or: [
-        { organization_id: orgId },
-        { organizationId: orgId },
-        { organization_id: String(orgId) },
-        { organizationId: String(orgId) }
-      ],
-      source: { $regex: /^facebook$/i }
-    };
+    const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
     let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
 
@@ -574,22 +573,15 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    const possibleOrgIds = getPossibleOrgIds(req);
+    const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     const ids = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
 
-    const orgQuery = {
-      $or: [
-        { organization_id: orgId },
-        { organizationId: orgId },
-        { organization_id: String(orgId) },
-        { organizationId: String(orgId) }
-      ],
-      source: { $regex: /^facebook$/i }
-    };
+    const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
     let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
 
@@ -625,19 +617,12 @@ router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    const possibleOrgIds = getPossibleOrgIds(req);
+    const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { pageId } = req.body;
-    const orgQuery = {
-      $or: [
-        { organization_id: orgId },
-        { organizationId: orgId },
-        { organization_id: String(orgId) },
-        { organizationId: String(orgId) }
-      ],
-      source: { $regex: /^facebook$/i }
-    };
+    const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
     const doc = await ApiToken.findOne(orgQuery).exec();
 
@@ -661,18 +646,11 @@ router.delete('/facebook/token', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    const possibleOrgIds = getPossibleOrgIds(req);
+    const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
-    const orgQuery = {
-      $or: [
-        { organization_id: orgId },
-        { organizationId: orgId },
-        { organization_id: String(orgId) },
-        { organizationId: String(orgId) }
-      ],
-      source: { $regex: /^facebook$/i }
-    };
+    const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
     const doc = await ApiToken.findOne(orgQuery).exec();
 
