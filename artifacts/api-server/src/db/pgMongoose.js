@@ -879,6 +879,15 @@ function createModel(modelName, schema) {
       return true;
     }
 
+    async deleteOne() {
+      await pool.query(`DELETE FROM ${tableName} WHERE _id = $1`, [this._id]);
+      return { acknowledged: true, deletedCount: 1 };
+    }
+
+    async remove() {
+      return this.deleteOne();
+    }
+
     markModified(path) {
       // Dummy implementation for compatibility
     }
