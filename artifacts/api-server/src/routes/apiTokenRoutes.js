@@ -410,7 +410,7 @@ function buildFacebookOrgQuery(possibleOrgIds) {
       { organization_id: { $in: possibleOrgIds } },
       { organizationId: { $in: possibleOrgIds } }
     ],
-    source: { $regex: /^facebook$/i }
+    source: { $in: ['Facebook', 'facebook', 'FACEBOOK'] }
   };
 }
 

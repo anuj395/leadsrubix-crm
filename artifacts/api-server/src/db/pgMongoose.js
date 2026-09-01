@@ -286,10 +286,14 @@ function compileQuery(query, params = [], schema = null) {
         } else if (op === '$regex') {
           let pattern = opVal;
           let flags = '';
+          if (opVal instanceof RegExp) {
+            pattern = opVal.source;
+            flags = opVal.flags || '';
+          }
           if (val.$options) flags = val.$options;
           const isCaseInsensitive = flags.includes('i');
           const pgOp = isCaseInsensitive ? '~*' : '~';
-          params.push(pattern);
+          params.push(String(pattern));
           parts.push(isId ? `_id ${pgOp} $${params.length}` : `data->>'${key}' ${pgOp} $${params.length}`);
         }
       }
