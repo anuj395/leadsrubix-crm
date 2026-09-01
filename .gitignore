@@ -60,3 +60,4 @@ scratch/
 *.ipa
 artifacts/app/store_assets/
 *.xlsx
+*.zip

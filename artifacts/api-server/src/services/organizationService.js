@@ -67,29 +67,29 @@ function pickAllowed(payload, allowedFieldDefs, isCreate = false) {
   
   const allowedMap = {};
   allowedFieldDefs.forEach(f => {
-    const camel = (f.field_key || f.fieldKey || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    const rawKey = f.field_key || f.fieldKey || '';
+    const camel = rawKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
     allowedMap[camel] = f;
+    allowedMap[rawKey] = f;
   });
 
-  const normalizedPayload = {};
-  // First pass: copy camelCase keys (stale/initial values)
+  // 1. First process camelCase keys (direct user form inputs)
   for (const [k, v] of Object.entries(payload || {})) {
     if (!k.includes('_')) {
-      normalizedPayload[k] = v;
+      const camelKey = k;
+      if (allowedMap[camelKey]) {
+        cleaned[camelKey] = v;
+      }
     }
   }
-  // Second pass: copy snake_case keys (actual updated input fields) to overwrite stale ones
+
+  // 2. Only process snake_case keys if the camelCase version is not already provided
   for (const [k, v] of Object.entries(payload || {})) {
     if (k.includes('_')) {
       const camelKey = k.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-      normalizedPayload[camelKey] = v;
-    }
-  }
-
-  for (const [camelKey, v] of Object.entries(normalizedPayload)) {
-    const fieldDef = allowedMap[camelKey];
-    if (fieldDef) {
-      cleaned[camelKey] = v;
+      if ((allowedMap[camelKey] || allowedMap[k]) && cleaned[camelKey] === undefined) {
+        cleaned[camelKey] = v;
+      }
     }
   }
 
@@ -785,6 +785,30 @@ exports.update = async ({ id, payload, authedUser }) => {
       { organization_id: existing.organizationId || existing._id.toString() },
       { $set: { organization_name: patch.organizationName } }
     );
+  }
+
+  // 3b. Sync SuperAdmin direct organization license cost & seats updates to organization-scoped PricingPlan
+  if (patch.costPerLicense !== undefined || patch.numEmployees !== undefined) {
+    try {
+      const PricingPlan = mongoose.model('PricingPlan');
+      const orgIdStr = existing.organizationId || existing.organization_id || String(existing._id);
+      const planUpdate = {};
+      if (patch.costPerLicense !== undefined) planUpdate.licenses_cost = Number(patch.costPerLicense);
+      if (patch.numEmployees !== undefined) planUpdate.trial_period_licenses = Number(patch.numEmployees);
+      await PricingPlan.updateMany(
+        {
+          $or: [
+            { organization_id: orgIdStr },
+            { organizationId: orgIdStr },
+            { organization_id: existing.organizationName },
+            { organizationId: existing.organizationName }
+          ]
+        },
+        { $set: planUpdate }
+      ).exec();
+    } catch (err) {
+      console.error('[organizationService] Failed to sync PricingPlan:', err);
+    }
   }
 
   let newActive = undefined;

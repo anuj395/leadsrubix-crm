@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Stack from '@mui/material/Stack'
@@ -25,6 +25,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/services/api'
 
 interface ReceiptRecord {
   _id: string
@@ -39,43 +40,50 @@ interface ReceiptRecord {
   status: string
 }
 
-const MOCK_RECEIPTS: ReceiptRecord[] = Array.from({ length: 24 }, (_, i) => {
-  const num = 24 - i
-  const year = num > 12 ? '2026' : '2025'
-  const monthNum = num > 12 ? num - 12 : num
-  const monthStr = monthNum < 10 ? `0${monthNum}` : `${monthNum}`
-  const isPlatinum = i % 4 === 0
-  const totalVal = isPlatinum ? 9999 : 4999
-  const gstVal = Math.round(totalVal * 0.18)
-  const subtotalVal = totalVal - gstVal
-  const recNo = `REC-LR-${year}${monthStr}${500 + i}`
-
-  return {
-    _id: recNo,
-    receiptNo: recNo,
-    invoiceId: `INV-${year}-${monthStr}`,
-    date: `${year}-${monthStr}-01`,
-    planDescription: isPlatinum ? 'Enterprise Platinum Plan (Monthly)' : 'Enterprise Gold Plan (Monthly)',
-    subtotal: `₹${subtotalVal.toLocaleString()}.00`,
-    gst: `₹${gstVal.toLocaleString()}.00`,
-    totalPaid: `₹${totalVal.toLocaleString()}.00`,
-    paymentMethod: 'Visa ending in 4242',
-    status: 'Paid',
-  }
-})
-
 export default function ReceiptsHistoryPage() {
   const { user } = useAuth()
   const orgName = (user as any)?.organizationName || (user as any)?.organization_name || 'Leads Rubix Client'
   const adminEmail = user?.email || 'admin@leadsrubix.com'
 
-  const [receipts] = useState<ReceiptRecord[]>(MOCK_RECEIPTS)
+  const [receipts, setReceipts] = useState<ReceiptRecord[]>([])
+  const [totalGstPaid, setTotalGstPaid] = useState('₹0.00')
+  const [loading, setLoading] = useState(true)
   const [yearFilter, setYearFilter] = useState('ALL')
 
   // Email Modal
   const [emailModalOpen, setEmailModalOpen] = useState(false)
   const [targetReceipt, setTargetReceipt] = useState<ReceiptRecord | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({ open: false, msg: '', sev: 'success' })
+
+  useEffect(() => {
+    const fetchReceipts = async () => {
+      try {
+        setLoading(true)
+        const res = await api.get('/invoices/receipts')
+        if (res.data) {
+          const list = res.data.receipts || []
+          setReceipts(list.map((r: any) => ({
+            _id: r._id,
+            receiptNo: r.receiptNo,
+            invoiceId: r.linkedInvoice,
+            date: r.date,
+            planDescription: r.description,
+            subtotal: r.subtotal,
+            gst: r.gst,
+            totalPaid: r.totalPaid,
+            paymentMethod: r.paymentMethod || r.payment_method || 'Online / Razorpay',
+            status: r.status || 'Paid',
+          })))
+          setTotalGstPaid(res.data.totalGstPaid || '₹0.00')
+        }
+      } catch (err) {
+        console.error('Failed to load receipts:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchReceipts()
+  }, [])
 
   // Filter Logic
   const filtered = useMemo(() => {
@@ -369,7 +377,7 @@ export default function ReceiptsHistoryPage() {
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing="0.01em">Total GST Paid (18%)</Typography>
-                <Typography variant="h6" fontWeight={700}>₹26,096.00</Typography>
+                <Typography variant="h6" fontWeight={700}>{totalGstPaid}</Typography>
               </Box>
             </Stack>
           </Paper>

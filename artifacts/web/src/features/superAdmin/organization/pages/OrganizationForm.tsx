@@ -26,9 +26,18 @@ function toFormValues(row: Organization): Record<string, FormValue> {
   const out: Record<string, FormValue> = {}
   for (const [k, v] of Object.entries(row)) {
     if (k.startsWith('_') || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy') continue
-    if (v === null) { out[k] = null; continue }
+    const camelKey = k.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+    const snakeKey = k.replace(/([A-Z])/g, '_$1').toLowerCase()
+    if (v === null) {
+      out[camelKey] = null
+      out[snakeKey] = null
+      continue
+    }
     const t = typeof v
-    if (t === 'string' || t === 'number' || t === 'boolean') out[k] = v as FormValue
+    if (t === 'string' || t === 'number' || t === 'boolean') {
+      out[camelKey] = v as FormValue
+      out[snakeKey] = v as FormValue
+    }
   }
   return out
 }

@@ -7,9 +7,9 @@ const pricingPlanSchema = new mongoose.Schema(
     organization_id: { type: String, default: null, alias: 'organizationId' },
     industry_id: { type: String, default: null, alias: 'industryId' },
     licenses_cost: { type: Number, default: 1000, alias: 'licensesCost' },
-    trial_period_licenses: { type: Number, default: 20, alias: 'trialPeriodLicenses' },
+    trial_period_licenses: { type: Number, default: 10, alias: 'trialPeriodLicenses' },
     grace_period_days: { type: Number, default: 7, alias: 'gracePeriodDays' },
-    trial_period_days: { type: Number, default: 30, alias: 'trialPeriodDays' },
+    trial_period_days: { type: Number, default: 7, alias: 'trialPeriodDays' },
   },
   { 
     timestamps: true,

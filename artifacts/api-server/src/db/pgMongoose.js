@@ -549,7 +549,7 @@ function setupGettersSetters(doc, schema) {
 
   // Aliases
   for (const [key, val] of Object.entries(definition)) {
-    if (val && typeof val === 'object' && val.alias) {
+    if (val && typeof val === 'object' && val.alias && val.alias !== key) {
       const alias = val.alias;
       Object.defineProperty(doc, alias, {
         get() {
