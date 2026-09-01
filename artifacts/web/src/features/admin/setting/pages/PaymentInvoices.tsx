@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Stack from '@mui/material/Stack'
@@ -12,6 +12,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Chip from '@mui/material/Chip'
+import CircularProgress from '@mui/material/CircularProgress'
 import type { GridColDef } from '@mui/x-data-grid'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import PaymentsIcon from '@mui/icons-material/Payments'
@@ -24,6 +25,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/services/api'
 
 interface PaymentInvoice {
   _id: string
@@ -36,43 +38,41 @@ interface PaymentInvoice {
   method: string
   status: string
   txnId: string
+  rawAmount?: number
+  rawSubtotal?: number
+  rawGst?: number
+  seats?: number
+  tenureMonths?: number
 }
-
-const MOCK_PAYMENT_INVOICES: PaymentInvoice[] = Array.from({ length: 24 }, (_, i) => {
-  const num = 24 - i
-  const year = num > 12 ? '2026' : '2025'
-  const monthNum = num > 12 ? num - 12 : num
-  const monthStr = monthNum < 10 ? `0${monthNum}` : `${monthNum}`
-  const isPlatinum = i % 4 === 0
-  const amountVal = isPlatinum ? 9999 : 4999
-  const gstVal = Math.round(amountVal * 0.18)
-  const subtotalVal = amountVal - gstVal
-  const invId = `INV-${year}-${monthStr}`
-
-  return {
-    _id: invId,
-    id: invId,
-    date: `${year}-${monthStr}-01`,
-    amount: `₹${amountVal.toLocaleString()}.00`,
-    subtotal: `₹${subtotalVal.toLocaleString()}.00`,
-    gst: `₹${gstVal.toLocaleString()}.00`,
-    planName: isPlatinum ? 'Enterprise Platinum Plan' : 'Enterprise Gold Plan',
-    method: 'Visa ending in 4242',
-    status: i === 5 ? 'Pending' : 'Paid',
-    txnId: `TXN_LR_${year}${monthStr}${1000 + i}`,
-  }
-})
 
 export default function PaymentInvoicesPage() {
   const { user } = useAuth()
   const orgName = (user as any)?.organizationName || (user as any)?.organization_name || 'Leads Rubix Client'
 
-  const [invoices] = useState<PaymentInvoice[]>(MOCK_PAYMENT_INVOICES)
+  const [invoices, setInvoices] = useState<PaymentInvoice[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [yearFilter, setYearFilter] = useState('ALL')
 
   // Details Modal
   const [selectedInvoice, setSelectedInvoice] = useState<PaymentInvoice | null>(null)
+
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        setLoading(true)
+        const res = await api.get('/invoices')
+        if (Array.isArray(res.data)) {
+          setInvoices(res.data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch invoices:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchInvoices()
+  }, [])
 
   // Filter Logic
   const filtered = useMemo(() => {
@@ -82,6 +82,18 @@ export default function PaymentInvoicesPage() {
       return matchesStatus && matchesYear
     })
   }, [invoices, statusFilter, yearFilter])
+
+  const totalChargesPaid = useMemo(() => {
+    const sum = invoices.reduce((acc, inv) => {
+      const val = Number((inv as any).rawAmount ?? String(inv.amount).replace(/[^0-9.-]+/g, ''))
+      return acc + (isNaN(val) ? 0 : val)
+    }, 0)
+    return `₹${sum.toLocaleString('en-IN')}.00`
+  }, [invoices])
+
+  const paymentSource = useMemo(() => {
+    return invoices[0]?.method || 'Online / Razorpay'
+  }, [invoices])
 
   const generatePdfReceipt = (inv: PaymentInvoice) => {
     const adminEmail = user?.email || 'admin@leadsrubix.com'
@@ -349,7 +361,7 @@ export default function PaymentInvoicesPage() {
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing="0.01em">Total Charges Paid</Typography>
-                <Typography variant="h6" fontWeight={700}>₹144,976.00</Typography>
+                <Typography variant="h6" fontWeight={700}>{totalChargesPaid}</Typography>
               </Box>
             </Stack>
           </Paper>
@@ -371,7 +383,7 @@ export default function PaymentInvoicesPage() {
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing="0.01em">Payment Source</Typography>
-                <Typography variant="h6" fontWeight={700}>Visa •••• 4242</Typography>
+                <Typography variant="h6" fontWeight={700}>{paymentSource}</Typography>
               </Box>
             </Stack>
           </Paper>

@@ -487,7 +487,14 @@ export function DynamicForm({
   }, [fields, values.country, industry_code, values.organizationId, values.role])
 
   const setValue = (key: string, value: Value) => {
-    setValues((prev) => ({ ...prev, [key]: value }))
+    setValues((prev) => {
+      const next = { ...prev, [key]: value }
+      const camel = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+      const snake = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+      next[camel] = value
+      next[snake] = value
+      return next
+    })
     // Clear field-level error on change
     setErrors((prev) => (prev[key] ? { ...prev, [key]: '' } : prev))
   }
@@ -513,7 +520,9 @@ export function DynamicForm({
         if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
           continue
         }
-        const v = values[f.key]
+        const camel = f.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+        const snake = f.key.replace(/([A-Z])/g, '_$1').toLowerCase()
+        const v = values[f.key] ?? values[camel] ?? values[snake]
 
         if (f.required) {
           if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) {
@@ -635,7 +644,9 @@ export function DynamicForm({
           if (f.key === 'leadManagerUsers' && values.distributionType === 'Normal') {
             return null
           }
-          const value = values[f.key]
+          const camel = f.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+          const snake = f.key.replace(/([A-Z])/g, '_$1').toLowerCase()
+          const value = values[f.key] ?? values[camel] ?? values[snake]
           const err = errors[f.key] || ''
           const activeIndustry = industryCode || industry_code || (user as any)?.industryId || (user as any)?.industry_id
           const labelWithRequired = (

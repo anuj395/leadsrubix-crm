@@ -178,8 +178,6 @@ function compileQuery(query, params = [], schema = null) {
     return { where: '1=1', params };
   }
 
-  console.log('[pgMongoose debug] compileQuery normalized:', originalQuery, '->', query);
-
   const parts = [];
 
   for (const [key, val] of Object.entries(query)) {
@@ -551,7 +549,7 @@ function setupGettersSetters(doc, schema) {
 
   // Aliases
   for (const [key, val] of Object.entries(definition)) {
-    if (val && typeof val === 'object' && val.alias) {
+    if (val && typeof val === 'object' && val.alias && val.alias !== key) {
       const alias = val.alias;
       Object.defineProperty(doc, alias, {
         get() {

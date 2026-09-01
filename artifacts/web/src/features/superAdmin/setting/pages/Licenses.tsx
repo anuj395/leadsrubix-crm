@@ -11,7 +11,6 @@ import Alert from '@mui/material/Alert'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
-import CircularProgress from '@mui/material/CircularProgress'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import MenuItem from '@mui/material/MenuItem'
@@ -26,11 +25,6 @@ export interface PricingPlan {
   name: string
   organizationId?: string | null
   industryId?: string | null
-  costPerUser: number
-  billingCycle: string
-  maxLeads: string
-  integrationsCount: string
-  status: string
   description: string
   licensesCost: number
   trialPeriodLicenses: number
@@ -60,15 +54,23 @@ export default function LicensesPage() {
     sev: 'success',
   })
 
-  // Form state
-  const [form, setForm] = useState({
+  // Form state without artificial hardcoded fallbacks
+  const [form, setForm] = useState<{
+    name: string
+    industryId: string
+    organizationId: string
+    licensesCost: number | ''
+    trialPeriodLicenses: number | ''
+    gracePeriodDays: number | ''
+    trialPeriodDays: number | ''
+  }>({
     name: '',
     industryId: '',
     organizationId: '',
-    licensesCost: 1000,
-    trialPeriodLicenses: 20,
-    gracePeriodDays: 7,
-    trialPeriodDays: 30,
+    licensesCost: '',
+    trialPeriodLicenses: '',
+    gracePeriodDays: '',
+    trialPeriodDays: '',
   })
 
   const refreshPlans = async () => {
@@ -89,16 +91,11 @@ export default function LicensesPage() {
         name: p.name || `Plan ${idx + 1}`,
         organizationId: p.organization_id || p.organizationId || null,
         industryId: p.industry_id || p.industryId || null,
-        costPerUser: 0,
-        billingCycle: 'Monthly',
-        maxLeads: '—',
-        integrationsCount: '—',
-        status: 'Active',
         description: p.description || '',
-        licensesCost: p.licensesCost,
-        trialPeriodLicenses: p.trialPeriodLicenses,
-        gracePeriodDays: p.gracePeriodDays !== undefined ? p.gracePeriodDays : 7,
-        trialPeriodDays: p.trialPeriodDays !== undefined ? p.trialPeriodDays : 30,
+        licensesCost: Number(p.licenses_cost ?? p.licensesCost ?? 0),
+        trialPeriodLicenses: Number(p.trial_period_licenses ?? p.trialPeriodLicenses ?? 0),
+        gracePeriodDays: Number(p.grace_period_days ?? p.gracePeriodDays ?? 0),
+        trialPeriodDays: Number(p.trial_period_days ?? p.trialPeriodDays ?? 0),
       }))
       setItems(mapped)
     } catch (e: any) {
@@ -122,10 +119,10 @@ export default function LicensesPage() {
       name: `Plan ${items.length + 1}`,
       industryId: selectedIndustry !== 'all' ? selectedIndustry : '',
       organizationId: selectedOrg !== 'all' ? selectedOrg : '',
-      licensesCost: 1000,
-      trialPeriodLicenses: 20,
-      gracePeriodDays: 7,
-      trialPeriodDays: 30,
+      licensesCost: '',
+      trialPeriodLicenses: '',
+      gracePeriodDays: '',
+      trialPeriodDays: '',
     })
     setDialogOpen(true)
   }
@@ -136,10 +133,10 @@ export default function LicensesPage() {
       name: plan.name || '',
       industryId: plan.industryId || '',
       organizationId: plan.organizationId || '',
-      licensesCost: plan.licensesCost ?? 1000,
-      trialPeriodLicenses: plan.trialPeriodLicenses ?? 20,
-      gracePeriodDays: plan.gracePeriodDays ?? 7,
-      trialPeriodDays: plan.trialPeriodDays ?? 30,
+      licensesCost: plan.licensesCost,
+      trialPeriodLicenses: plan.trialPeriodLicenses,
+      gracePeriodDays: plan.gracePeriodDays,
+      trialPeriodDays: plan.trialPeriodDays,
     })
     setDialogOpen(true)
   }
@@ -166,13 +163,13 @@ export default function LicensesPage() {
   const handleSave = async () => {
     try {
       const payload = {
-        name: form.name,
+        name: form.name.trim() || `Plan ${items.length + 1}`,
         industryId: form.industryId || null,
         organizationId: form.organizationId || null,
-        licensesCost: form.licensesCost,
-        trialPeriodLicenses: form.trialPeriodLicenses,
-        gracePeriodDays: form.gracePeriodDays,
-        trialPeriodDays: form.trialPeriodDays,
+        licensesCost: form.licensesCost === '' ? 0 : Number(form.licensesCost),
+        trialPeriodLicenses: form.trialPeriodLicenses === '' ? 0 : Number(form.trialPeriodLicenses),
+        gracePeriodDays: form.gracePeriodDays === '' ? 0 : Number(form.gracePeriodDays),
+        trialPeriodDays: form.trialPeriodDays === '' ? 0 : Number(form.trialPeriodDays),
       }
 
       if (editing) {
@@ -208,7 +205,7 @@ export default function LicensesPage() {
         width: 160,
         renderCell: (p) => {
           if (!p.value) return 'Global (All)'
-          const ind = industries.find((i) => i.code === p.value || i._id === p.value)
+          const ind = industries.find((i) => i.code === p.value || i._id === p.value || (i as any).industry_id === p.value)
           return ind ? ind.name : p.value
         },
       },
@@ -218,7 +215,7 @@ export default function LicensesPage() {
         width: 180,
         renderCell: (p) => {
           if (!p.value) return 'Global (All)'
-          const org = filteredOrgs.find((o) => o.code === p.value)
+          const org = filteredOrgs.find((o) => o.code === p.value || (o as any)._id === p.value || (o as any).organization_id === p.value || (o as any).organizationId === p.value)
           return org ? org.name : p.value
         },
       },
@@ -226,25 +223,25 @@ export default function LicensesPage() {
         field: 'licensesCost',
         headerName: 'Licenses Cost',
         width: 150,
-        renderCell: (p) => `${p.value ?? ''}`,
+        renderCell: (p) => (p.value !== undefined && p.value !== null ? `₹${Number(p.value).toLocaleString('en-IN')}` : '—'),
       },
       {
         field: 'trialPeriodLicenses',
         headerName: 'Trial Period Licenses',
         width: 180,
-        renderCell: (p) => `${p.value ?? ''}`,
+        renderCell: (p) => `${p.value ?? 0}`,
       },
       {
         field: 'gracePeriodDays',
         headerName: 'Grace Period (Days)',
         width: 170,
-        renderCell: (p) => `${p.value ?? ''}`,
+        renderCell: (p) => `${p.value ?? 0}`,
       },
       {
         field: 'trialPeriodDays',
         headerName: 'Trial Period (Days)',
         width: 170,
-        renderCell: (p) => `${p.value ?? ''}`,
+        renderCell: (p) => `${p.value ?? 0}`,
       },
       {
         field: '__actions',
@@ -354,7 +351,7 @@ export default function LicensesPage() {
                   <em>Global (All Industries)</em>
                 </MenuItem>
                 {industries.filter((i) => i.code !== 'all').map((ind) => (
-                  <MenuItem key={ind._id} value={ind.code}>
+                  <MenuItem key={ind._id || ind.code} value={ind.code}>
                     {ind.name} ({ind.code})
                   </MenuItem>
                 ))}
@@ -373,7 +370,7 @@ export default function LicensesPage() {
                   <em>Global (All Organizations)</em>
                 </MenuItem>
                 {filteredOrgs.filter((o) => o.code !== 'all').map((org) => (
-                  <MenuItem key={org.code} value={org.code}>
+                  <MenuItem key={org.code || (org as any)._id} value={org.code || (org as any)._id}>
                     {org.name}
                   </MenuItem>
                 ))}
@@ -384,8 +381,9 @@ export default function LicensesPage() {
                 fullWidth
                 type="number"
                 label="Licenses Cost"
+                placeholder="Enter license cost (e.g. 500)"
                 value={form.licensesCost}
-                onChange={(e) => setForm({ ...form, licensesCost: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, licensesCost: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || 0) })}
                 required
               />
             </Box>
@@ -394,8 +392,9 @@ export default function LicensesPage() {
                 fullWidth
                 type="number"
                 label="Number of Licenses(trial period)"
+                placeholder="Enter trial licenses (e.g. 10)"
                 value={form.trialPeriodLicenses}
-                onChange={(e) => setForm({ ...form, trialPeriodLicenses: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, trialPeriodLicenses: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || 0) })}
                 required
               />
             </Box>
@@ -404,8 +403,9 @@ export default function LicensesPage() {
                 fullWidth
                 type="number"
                 label="Grace Period (Days)"
+                placeholder="Enter grace period in days (e.g. 7)"
                 value={form.gracePeriodDays}
-                onChange={(e) => setForm({ ...form, gracePeriodDays: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || 0) })}
                 required
                 helperText="Allowed duration extension before account suspension"
               />
@@ -415,8 +415,9 @@ export default function LicensesPage() {
                 fullWidth
                 type="number"
                 label="Trial Period (Days)"
+                placeholder="Enter trial period in days (e.g. 7)"
                 value={form.trialPeriodDays}
-                onChange={(e) => setForm({ ...form, trialPeriodDays: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, trialPeriodDays: e.target.value === '' ? '' : (parseInt(e.target.value, 10) || 0) })}
                 required
               />
             </Box>

@@ -12,6 +12,27 @@ export interface SubscriptionState {
   expiryDate: string | null
   reason: string
   organizationName?: string
+  planName?: string
+  numEmployees?: number
+  costPerLicense?: number
+  activeUsersCount?: number
+  registeredMethod?: string
+  validFrom?: string
+  validTill?: string
+  cardDetails?: {
+    cardholderName: string
+    last4: string
+    brand: string
+    expiry: string
+  }
+  billingDetails?: {
+    legalName: string
+    billingEmail: string
+    billingPhone: string
+    billingAddress: string
+    gstin: string
+    pan?: string
+  }
 }
 
 export function useSubscription() {
@@ -25,27 +46,24 @@ export function useSubscription() {
       return
     }
 
-    const role = user.role || (user as any).roleKey || (user as any).role_key
-    if (role === 'superAdmin') {
-      setSubscription({
-        status: 'SUPER_ADMIN',
-        isExpired: false,
-        isTrial: false,
-        isGracePeriod: false,
-        paymentStatus: true,
-        daysRemaining: 9999,
-        expiryDate: null,
-        reason: 'Super Admin access unlimited',
-      })
-      setLoading(false)
-      return
-    }
-
     try {
       const res = await api.get('/organizations/my-subscription')
       setSubscription(res.data)
     } catch (err: any) {
       console.error('[useSubscription] Failed to load subscription state:', err)
+      const role = user.role || (user as any).roleKey || (user as any).role_key
+      if (role === 'superAdmin') {
+        setSubscription({
+          status: 'SUPER_ADMIN',
+          isExpired: false,
+          isTrial: false,
+          isGracePeriod: false,
+          paymentStatus: true,
+          daysRemaining: 9999,
+          expiryDate: null,
+          reason: 'Super Admin access',
+        })
+      }
     } finally {
       setLoading(false)
     }

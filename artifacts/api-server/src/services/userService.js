@@ -553,7 +553,11 @@ exports.update = async ({ id, payload, authedUser }) => {
       const limit = limitVal !== null ? Number(limitVal) : null;
       if (limit !== null && limit !== undefined && !isNaN(limit)) {
         const activeCount = await userModel.User.countDocuments({
-          organizationId: targetOrgId,
+          $or: [
+            { organizationId: targetOrgId },
+            { organization_id: targetOrgId }
+          ],
+          _id: { $ne: target.id || target._id },
           isActive: true
         });
         if (activeCount >= limit) {

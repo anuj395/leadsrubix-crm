@@ -10,6 +10,11 @@ const router = express.Router();
 // hasn't been granted on the `organization` screen — same model as Contacts.
 router.get('/', authenticate, ctrl.list);
 router.get('/my-subscription', authenticate, ctrl.getMySubscription);
+router.post('/my-subscription/renew', authenticate, ctrl.renewSubscription);
+router.post('/my-subscription/upgrade-seats', authenticate, ctrl.upgradeSeats);
+router.post('/my-subscription/seats', authenticate, ctrl.updateSeats);
+router.post('/my-subscription/payment-method', authenticate, ctrl.updatePaymentMethod);
+router.post('/my-subscription/billing-details', authenticate, ctrl.updateBillingDetails);
 router.post('/my-subscription/upgrade', authenticate, ctrl.upgradeSubscription);
 router.get('/:id', authenticate, ctrl.getOne);
 router.post('/', authenticate, ctrl.create);

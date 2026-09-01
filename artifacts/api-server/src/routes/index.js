@@ -46,6 +46,8 @@ const webhookRoutes = require('./webhookRoutes');
 const workingDayRoutes = require('./workingDayRoutes');
 const drilldownRoutes = require('./drilldownRoutes');
 const notificationRoutes = require('./notificationRoutes');
+const invoiceRoutes = require('./invoiceRoutes');
+const paymentRoutes = require('./paymentRoutes');
 const screenController = require('../controllers/screenController');
 const { authenticate } = require('../middlewares/auth');
 
@@ -103,6 +105,9 @@ router.use('/lead-distribution', leadDistributionRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
 router.use('/webhook', webhookRoutes);
+router.use('/webhooks', webhookRoutes);
+router.use('/invoices', invoiceRoutes);
+router.use('/payments', paymentRoutes);
 router.use('/', drilldownRoutes);
 
 
