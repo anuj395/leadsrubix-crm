@@ -103,6 +103,7 @@ router.use('/lead-distribution', leadDistributionRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
 router.use('/webhook', webhookRoutes);
+router.use('/webhooks', webhookRoutes);
 router.use('/', drilldownRoutes);
 
 

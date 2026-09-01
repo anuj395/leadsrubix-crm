@@ -402,13 +402,14 @@ router.get('/facebook', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  const verifyToken = process.env.FB_VERIFY_TOKEN || 'leadsrubix_fb_webhook_token';
+  const verifyToken = process.env.FB_VERIFY_TOKEN;
 
   if (mode && token) {
     if (mode === 'subscribe' && token === verifyToken) {
       console.log('WEBHOOK_VERIFIED');
       res.status(200).send(challenge);
     } else {
+      console.warn('Webhook verification token mismatch:', token);
       res.sendStatus(403);
     }
   } else {
@@ -449,7 +450,7 @@ router.post('/facebook', async (req, res, next) => {
         if (!leadgenId) continue;
 
         // 1. Fetch the organization's Facebook ApiToken
-        const fbTokens = await ApiToken.find({ source: { $regex: /^facebook$/i } }).exec();
+        const fbTokens = await ApiToken.find({ source: { $in: ['Facebook', 'facebook', 'FACEBOOK'] } }).exec();
         const tokenDoc = fbTokens.find(t => {
           const pIds = (t.page_id || t.pageId || []).map(String);
           const fbPages = (t.facebook_pages || t.facebookPages || []).map(p => String(p.id));
@@ -526,14 +527,20 @@ router.post('/facebook', async (req, res, next) => {
 
         if (organizationData && organizationData.allowDuplicateLeads === false) {
           const existing = await Contact.findOne({
-            $or: [
-              { organization_id: orgId },
-              { organizationId: orgId }
-            ],
-            $or: [
-              { contactNumber: phoneResult.contactNumber },
-              { contact_number: phoneResult.contactNumber },
-              { alternateNo: phoneResult.contactNumber }
+            $and: [
+              {
+                $or: [
+                  { organization_id: orgId },
+                  { organizationId: orgId }
+                ]
+              },
+              {
+                $or: [
+                  { contactNumber: phoneResult.contactNumber },
+                  { contact_number: phoneResult.contactNumber },
+                  { alternateNo: phoneResult.contactNumber }
+                ]
+              }
             ]
           }).exec();
 
@@ -622,7 +629,7 @@ router.post('/facebook', async (req, res, next) => {
           const { notifyLeadAssignmentOrCreation } = require('../services/notificationService');
           await notifyLeadAssignmentOrCreation({
             contact: createdContact,
-            organizationId: tokenDoc.organizationId,
+            organizationId: orgId,
             title: 'New Facebook Lead Assigned',
             message: `A new Facebook lead "${createdContact.customerName || createdContact.name || 'Unnamed'}" has been assigned to you.`,
             type: 'LEAD_ASSIGNED'
