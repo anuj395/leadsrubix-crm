@@ -33,6 +33,7 @@ import DynamicFeedIcon from '@mui/icons-material/DynamicFeed'
 import { alpha } from '@mui/material/styles'
 import axios from 'axios'
 import { api } from '@/services/api'
+import { storage } from '@/services/storage'
 import { AppCard } from '@/components/ui/AppCard'
 import FormModel from './FormModel'
 
@@ -136,8 +137,11 @@ export default function FacebookLeadsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
+      const authSession = storage.getAuthSession()
+      const orgId = authSession?.user?.organizationId || ''
+
       const [resConfig, resProjects] = await Promise.all([
-        api.get('/api-tokens/facebook'),
+        api.get('/api-tokens/facebook', { params: { organizationId: orgId } }),
         api.get('/resources/resourceProjects'),
       ])
       setFbConfig(resConfig.data)
@@ -162,34 +166,14 @@ export default function FacebookLeadsPage() {
           })
         }
 
-        // 3. If DB pages are empty, await live fetch to avoid 0-pages flash. If cached, background refresh.
-        if (dbPages.length === 0) {
-          await fetchUserPages(resConfig.data.accessToken, dbPages)
-        } else {
-          void fetchUserPages(resConfig.data.accessToken, dbPages)
-        }
-
-        // 4. Verify token validity with Meta Graph API
-        try {
-          const userRes = await axios.get('https://graph.facebook.com/me', {
-            params: {
-              fields: 'name,picture',
-              access_token: resConfig.data.accessToken,
-            },
-          })
-          if (userRes.data) {
-            setUserData(userRes.data)
-            setTokenExpired(false)
-          }
-        } catch (fbErr: any) {
-          console.warn('Could not verify Facebook token validity:', fbErr)
-          const errCode = fbErr.response?.data?.error?.code
-          if (errCode === 190 || fbErr.response?.status === 400 || fbErr.response?.status === 401) {
-            setTokenExpired(true)
-          }
-        }
+        // 3. Live refresh pages & forms in background
+        void fetchUserPages(resConfig.data.accessToken, dbPages)
+      } else {
+        setLoginStatus(false)
+        setActivePages([])
       }
     } catch (e: any) {
+      console.error('loadData error:', e)
       setToast({ open: true, msg: 'Failed to load Facebook configuration', sev: 'error' })
     } finally {
       setLoading(false)
@@ -225,7 +209,7 @@ export default function FacebookLeadsPage() {
           void APICallAccessToken(response.authResponse)
         }
       },
-      { scope: permissions.join(',') }
+      { scope: permissions.join(','), return_scopes: true }
     )
   }
 
@@ -279,8 +263,12 @@ export default function FacebookLeadsPage() {
         }
       }
 
+      const authSession = storage.getAuthSession()
+      const orgId = authSession?.user?.organizationId || ''
+
       // Atomically save token, profile, pages and pageIds to backend DB
       const resSave = await api.put('/api-tokens/facebook/token', {
+        organizationId: orgId,
         accessToken: longToken,
         appId: '296542553118517',
         appSecret: '143f8ed7ddec986f25598654d8b686f6',
