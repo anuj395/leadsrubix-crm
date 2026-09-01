@@ -221,11 +221,7 @@ export default function FacebookLeadsPage() {
     window.FB.login(
       (response: any) => {
         if (response.authResponse) {
-          setLoginStatus(true)
           setLoading(true)
-          window.FB.api('/me', { fields: 'name,picture' }, (data: any) => {
-            setUserData(data)
-          })
           void APICallAccessToken(response.authResponse)
         }
       },
@@ -235,12 +231,20 @@ export default function FacebookLeadsPage() {
 
   const APICallAccessToken = async (authResponse: any) => {
     try {
-      const resExchange = await api.post('/api-tokens/facebook/exchange', {
-        shortToken: authResponse.accessToken,
-      })
-      const longToken = resExchange.data.longToken
+      setLoading(true)
+      let longToken = authResponse.accessToken
+      try {
+        const resExchange = await api.post('/api-tokens/facebook/exchange', {
+          shortToken: authResponse.accessToken,
+        })
+        if (resExchange.data?.longToken) {
+          longToken = resExchange.data.longToken
+        }
+      } catch (exErr) {
+        console.warn('Exchange failed, using token directly:', exErr)
+      }
 
-      // Fetch user profile from Meta Graph API using longToken
+      // Fetch user profile from Meta Graph API
       let fetchedUser: any = null
       try {
         const meRes = await axios.get('https://graph.facebook.com/me', {
@@ -248,7 +252,6 @@ export default function FacebookLeadsPage() {
         })
         if (meRes.data) {
           fetchedUser = meRes.data
-          setUserData(fetchedUser)
         }
       } catch (err) {
         console.warn('Could not fetch user profile during exchange:', err)
@@ -281,13 +284,18 @@ export default function FacebookLeadsPage() {
         accessToken: longToken,
         appId: '296542553118517',
         appSecret: '143f8ed7ddec986f25598654d8b686f6',
-        userName: fetchedUser?.name || userData?.name || 'Facebook User',
-        userPicture: fetchedUser?.picture?.data?.url || userData?.picture?.data?.url || '',
-        fbUserId: fetchedUser?.id || userData?.id || '',
+        userName: fetchedUser?.name || 'Facebook User',
+        userPicture: fetchedUser?.picture?.data?.url || '',
+        fbUserId: fetchedUser?.id || '',
         facebookPages: pagesWithForms || [],
         pageId: pageIds,
       })
+
       setFbConfig(resSave.data)
+      setLoginStatus(true)
+      if (fetchedUser) {
+        setUserData(fetchedUser)
+      }
       if (pagesWithForms && pagesWithForms.length > 0) {
         setActivePages(pagesWithForms)
         setToast({ open: true, msg: 'Facebook pages integrated successfully!', sev: 'success' })
@@ -296,7 +304,9 @@ export default function FacebookLeadsPage() {
       }
     } catch (e: any) {
       console.error('APICallAccessToken error:', e)
-      setToast({ open: true, msg: 'Token exchange failed', sev: 'error' })
+      setLoginStatus(false)
+      setActivePages([])
+      setToast({ open: true, msg: 'Failed to save Facebook configuration to database', sev: 'error' })
     } finally {
       setLoading(false)
     }
@@ -382,8 +392,6 @@ export default function FacebookLeadsPage() {
         flexDirection: 'column',
       }}
     >
-      {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
-
       <AppCard title="Facebook Integration" subtitle="Manage connected Facebook business pages and capture Lead Ads automatically.">
         {loading ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 2 }}>
