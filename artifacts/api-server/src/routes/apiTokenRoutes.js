@@ -404,14 +404,14 @@ router.get('/facebook', authenticate, async (req, res, next) => {
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     let doc = await ApiToken.findOne({
-      organization_id: orgId,
+      $or: [{ organization_id: orgId }, { organizationId: orgId }],
       source: { $regex: /^facebook$/i },
       access_token: { $exists: true, $ne: '' }
     }).sort({ updated_at: -1 }).exec();
 
     if (!doc) {
       doc = await ApiToken.findOne({
-        organization_id: orgId,
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
         source: { $regex: /^facebook$/i }
       }).sort({ updated_at: -1 }).exec();
     }
@@ -446,6 +446,7 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
     const { accessToken, appId, appSecret, userName, userPicture, fbUserId, facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     const updateFields = { 
+      organization_id: orgId,
       source: 'Facebook',
       status: 'ACTIVE'
     };
@@ -459,7 +460,10 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
     if (pageId !== undefined) updateFields.page_id = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
 
     const doc = await ApiToken.findOneAndUpdate(
-      { organization_id: orgId, source: { $regex: /^facebook$/i } },
+      { 
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
+        source: { $regex: /^facebook$/i } 
+      },
       { 
         $set: updateFields,
         $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), source: 'Facebook', status: 'ACTIVE' }
@@ -484,12 +488,15 @@ router.put('/facebook/pages', authenticate, async (req, res, next) => {
     
     const { facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
-    const updateFields = { facebook_pages: facebookPages, source: 'Facebook' };
+    const updateFields = { organization_id: orgId, facebook_pages: facebookPages, source: 'Facebook' };
     if (pageId !== undefined) {
       updateFields.page_id = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
     }
     const doc = await ApiToken.findOneAndUpdate(
-      { organization_id: orgId, source: { $regex: /^facebook$/i } },
+      { 
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
+        source: { $regex: /^facebook$/i } 
+      },
       { 
         $set: updateFields,
         $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), source: 'Facebook', status: 'ACTIVE' }
@@ -516,9 +523,12 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     const ids = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
     const doc = await ApiToken.findOneAndUpdate(
-      { organization_id: orgId, source: { $regex: /^facebook$/i } },
       { 
-        $set: { page_id: ids, source: 'Facebook' },
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
+        source: { $regex: /^facebook$/i } 
+      },
+      { 
+        $set: { organization_id: orgId, page_id: ids, source: 'Facebook' },
         $setOnInsert: { industry_id: industryId, workspace_id: workspaceId, api_key: generateApiKey(), source: 'Facebook', status: 'ACTIVE' }
       },
       { new: true, upsert: true }
@@ -540,12 +550,18 @@ router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
       : (req.user.organizationId || req.user.organization_id);
     
     const { pageId } = req.body;
-    const currentDoc = await ApiToken.findOne({ organization_id: orgId, source: { $regex: /^facebook$/i } }).exec();
+    const currentDoc = await ApiToken.findOne({ 
+      $or: [{ organization_id: orgId }, { organizationId: orgId }],
+      source: { $regex: /^facebook$/i } 
+    }).exec();
     const currentPages = (currentDoc?.page_id || []).map(String).filter(id => id !== String(pageId));
     const currentFbPages = (currentDoc?.facebook_pages || []).filter(p => String(p.id) !== String(pageId));
 
     const doc = await ApiToken.findOneAndUpdate(
-      { organization_id: orgId, source: { $regex: /^facebook$/i } },
+      { 
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
+        source: { $regex: /^facebook$/i } 
+      },
       { $set: { page_id: currentPages, facebook_pages: currentFbPages } },
       { new: true }
     );
@@ -566,7 +582,10 @@ router.delete('/facebook/token', authenticate, async (req, res, next) => {
       : (req.user.organizationId || req.user.organization_id);
     
     const doc = await ApiToken.findOneAndUpdate(
-      { organization_id: orgId, source: { $regex: /^facebook$/i } },
+      { 
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
+        source: { $regex: /^facebook$/i } 
+      },
       { access_token: '', facebook_pages: [], page_id: [], user_name: '', user_picture: '', fb_user_id: '' },
       { new: true }
     );
