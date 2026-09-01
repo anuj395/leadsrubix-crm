@@ -80,20 +80,84 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
 export default function IntegrationsPage() {
   const navigate = useNavigate()
   const [fbConnected, setFbConnected] = useState<boolean>(false)
+  const [activeTokens, setActiveTokens] = useState<any[]>([])
 
   useEffect(() => {
-    const checkFb = async () => {
+    const fetchStatus = async () => {
       try {
-        const res = await api.get('/api-tokens/facebook')
-        if (res.data?.accessToken) {
+        const [resFb, resTokens] = await Promise.allSettled([
+          api.get('/api-tokens/facebook'),
+          api.get('/api-tokens'),
+        ])
+
+        if (resFb.status === 'fulfilled' && resFb.value.data?.accessToken) {
           setFbConnected(true)
+        }
+
+        if (resTokens.status === 'fulfilled' && Array.isArray(resTokens.value.data)) {
+          setActiveTokens(resTokens.value.data)
         }
       } catch (err) {
         console.warn('Could not fetch integration status:', err)
       }
     }
-    void checkFb()
+    void fetchStatus()
   }, [])
+
+  const norm = (s: any) => String(s || '').toLowerCase().replace(/[\s\-_.]/g, '')
+
+  const isPortalConnected = (key: string) => {
+    if (key === 'facebook') {
+      return fbConnected || activeTokens.some((t: any) => 
+        norm(t.source).includes('facebook') && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.accessToken || t.access_token || t.apiKey || t.api_key)
+      )
+    }
+    if (key === '99acres') {
+      return activeTokens.some((t: any) => 
+        (norm(t.source).includes('99acre') || norm(t.source).includes('acres')) && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.apiKey || t.api_key)
+      )
+    }
+    if (key === 'magicbricks') {
+      return activeTokens.some((t: any) => 
+        norm(t.source).includes('magicbrick') && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.apiKey || t.api_key)
+      )
+    }
+    if (key === 'housing') {
+      return activeTokens.some((t: any) => 
+        norm(t.source).includes('housing') && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.apiKey || t.api_key)
+      )
+    }
+    if (key === 'justdial') {
+      return activeTokens.some((t: any) => 
+        norm(t.source).includes('justdial') && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.apiKey || t.api_key)
+      )
+    }
+    if (key === 'sulekha') {
+      return activeTokens.some((t: any) => 
+        norm(t.source).includes('sulekha') && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.apiKey || t.api_key)
+      )
+    }
+    if (key === 'website') {
+      return activeTokens.some((t: any) => 
+        norm(t.source).includes('website') && 
+        (t.status === 'ACTIVE' || t.status === 'Active') && 
+        (t.apiKey || t.api_key)
+      )
+    }
+    return false
+  }
 
   const handleConfigure = (key: string) => {
     if (key === 'facebook') {
@@ -133,8 +197,7 @@ export default function IntegrationsPage() {
       >
         <Grid container spacing={3} sx={{ mt: 1 }}>
           {INTEGRATION_ITEMS.map((item) => {
-            const isFb = item.key === 'facebook'
-            const isConnected = isFb && fbConnected
+            const isConnected = isPortalConnected(item.key)
 
             return (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.key}>
@@ -146,7 +209,7 @@ export default function IntegrationsPage() {
                     justifyContent: 'space-between',
                     borderRadius: 2,
                     boxShadow: 'rgba(100, 100, 111, 0.15) 0px 7px 29px 0px',
-                    border: isConnected ? '1.5px solid #1877F2' : '1px solid #f0f0f0',
+                    border: isConnected ? '1.5px solid #22C55E' : '1px solid #f0f0f0',
                     transition: 'transform 0.2s',
                     '&:hover': {
                       transform: 'translateY(-3px)',
@@ -201,7 +264,7 @@ export default function IntegrationsPage() {
                         sx={{
                           textTransform: 'none',
                           fontWeight: 700,
-                          color: isConnected ? '#1877F2' : undefined,
+                          color: isConnected ? '#16A34A' : undefined,
                         }}
                       >
                         {isConnected ? 'Connected' : 'Configure'}

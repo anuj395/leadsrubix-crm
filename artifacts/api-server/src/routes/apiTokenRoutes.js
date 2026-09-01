@@ -360,7 +360,11 @@ router.delete('/:id', authenticate, requireScreenAction('configApi', 'delete'), 
       }
     }
 
-    await doc.deleteOne();
+    if (typeof doc.deleteOne === 'function') {
+      await doc.deleteOne();
+    } else {
+      await ApiToken.findByIdAndDelete(id).exec();
+    }
     res.status(204).end();
   } catch (err) {
     next(err);
