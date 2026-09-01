@@ -60,6 +60,7 @@ function formatApiToken(t, orgMap = {}) {
     userName: t.user_name || t.userName || undefined,
     userPicture: t.user_picture || t.userPicture || undefined,
     fbUserId: t.fb_user_id || t.fbUserId || undefined,
+    fbssls: t.fbssls || t['fbssls_296542553118517'] || undefined,
   };
 }
 
@@ -426,13 +427,16 @@ router.get('/facebook', authenticate, async (req, res, next) => {
     
     const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
-    let doc = await ApiToken.findOne({
-      ...orgQuery,
-      access_token: { $exists: true, $ne: '', $ne: null }
-    }).sort({ updated_at: -1 }).exec();
+    const allDocs = await ApiToken.find(orgQuery).sort({ updated_at: -1 }).exec();
+    
+    // Find active token document
+    let doc = allDocs.find(d => {
+      const token = d.access_token || d.accessToken;
+      return token && String(token).trim() !== '' && String(token).trim() !== 'null' && String(token).trim() !== 'undefined';
+    });
 
-    if (!doc) {
-      doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
+    if (!doc && allDocs.length > 0) {
+      doc = allDocs[0];
     }
 
     if (!doc) {
@@ -446,6 +450,21 @@ router.get('/facebook', authenticate, async (req, res, next) => {
         status: 'ACTIVE',
       });
     }
+
+    // Auto-clean stale empty duplicate documents if an active document exists
+    if (doc && (doc.access_token || doc.accessToken)) {
+      const staleDocIds = allDocs
+        .filter(d => String(d._id) !== String(doc._id) && !(d.access_token || d.accessToken))
+        .map(d => d._id);
+      if (staleDocIds.length > 0) {
+        try {
+          await ApiToken.deleteMany({ _id: { $in: staleDocIds } }).exec();
+        } catch (delErr) {
+          console.warn('Could not delete stale tokens:', delErr);
+        }
+      }
+    }
+
     res.json(formatApiToken(doc));
   } catch (err) {
     next(err);
@@ -463,12 +482,16 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
     const orgId = possibleOrgIds[0];
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
-    const { accessToken, appId, appSecret, userName, userPicture, fbUserId, facebookPages, pageId } = req.body;
+    const { accessToken, appId, appSecret, userName, userPicture, fbUserId, facebookPages, pageId, fbssls } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     
     const orgQuery = buildFacebookOrgQuery(possibleOrgIds);
 
-    let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
+    const allDocs = await ApiToken.find(orgQuery).sort({ updated_at: -1 }).exec();
+    let doc = allDocs.find(d => {
+      const token = d.access_token || d.accessToken;
+      return token && String(token).trim() !== '';
+    }) || (allDocs.length > 0 ? allDocs[0] : null);
 
     const updateData = {
       organization_id: orgId,
@@ -481,7 +504,8 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
       user_picture: userPicture || '',
       fb_user_id: fbUserId || '',
       facebook_pages: facebookPages || [],
-      page_id: Array.isArray(pageId) ? pageId.map(String) : (pageId ? [String(pageId)] : [])
+      page_id: Array.isArray(pageId) ? pageId.map(String) : (pageId ? [String(pageId)] : []),
+      fbssls: fbssls || req.body?.['fbssls_296542553118517'] || undefined,
     };
 
     if (doc) {
@@ -497,13 +521,12 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
       });
     }
 
-    // Clean up duplicate empty Facebook docs for this organization
+    // Clean up duplicate documents for this organization
     try {
       if (doc && doc._id) {
         await ApiToken.deleteMany({
           ...orgQuery,
-          _id: { $ne: doc._id },
-          $or: [{ access_token: '' }, { access_token: null }, { access_token: { $exists: false } }]
+          _id: { $ne: doc._id }
         }).exec();
       }
     } catch (cleanErr) {

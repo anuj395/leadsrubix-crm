@@ -149,7 +149,26 @@ export default function FacebookLeadsPage() {
 
       if (resConfig.data?.accessToken) {
         setLoginStatus(true)
-        // 1. Instantly display cached pages from DB for zero-latency UI
+        // 1. Instantly restore Facebook JS SDK session in sessionStorage & cookie matching legacy app
+        try {
+          const fbsslsObj = resConfig.data.fbssls || {
+            authResponse: {
+              userID: resConfig.data.fbUserId || '',
+              expiresIn: 5184000,
+              accessToken: resConfig.data.accessToken,
+              graphDomain: 'facebook',
+            },
+            status: 'connected',
+            expiresAt: Date.now() + 5184000 * 1000,
+          }
+          const fbsslsStr = typeof fbsslsObj === 'object' ? JSON.stringify(fbsslsObj) : String(fbsslsObj)
+          sessionStorage.setItem('fbssls_296542553118517', fbsslsStr)
+          document.cookie = 'fblo_296542553118517=y; path=/; max-age=5184000; SameSite=Lax'
+        } catch (storageErr) {
+          console.warn('Could not set fbssls in sessionStorage:', storageErr)
+        }
+
+        // 2. Instantly display cached pages from DB for zero-latency UI
         const dbPages = resConfig.data.facebookPages || []
         if (dbPages.length > 0) {
           const pageIds = (resConfig.data.pageId || []).map(String)
@@ -157,7 +176,7 @@ export default function FacebookLeadsPage() {
           setActivePages(filtered.length > 0 ? filtered : dbPages)
         }
 
-        // 2. Restore user profile
+        // 3. Restore user profile
         if (resConfig.data.userName) {
           setUserData({
             name: resConfig.data.userName,
@@ -166,7 +185,7 @@ export default function FacebookLeadsPage() {
           })
         }
 
-        // 3. Live refresh pages & forms in background
+        // 4. Live refresh pages & forms in background
         void fetchUserPages(resConfig.data.accessToken, dbPages)
       } else {
         setLoginStatus(false)
@@ -266,7 +285,20 @@ export default function FacebookLeadsPage() {
       const authSession = storage.getAuthSession()
       const orgId = authSession?.user?.organizationId || ''
 
-      // Atomically save token, profile, pages and pageIds to backend DB
+      const storedFbssls = sessionStorage.getItem('fbssls_296542553118517') || {
+        authResponse: {
+          userID: authResponse?.userID || fetchedUser?.id || '',
+          expiresIn: authResponse?.expiresIn || 5184000,
+          accessToken: longToken,
+          signedRequest: authResponse?.signedRequest,
+          graphDomain: authResponse?.graphDomain || 'facebook',
+          data_access_expiration_time: authResponse?.data_access_expiration_time,
+        },
+        status: 'connected',
+        expiresAt: Date.now() + 5184000 * 1000,
+      }
+
+      // Atomically save token, profile, pages, fbssls and pageIds to backend DB
       const resSave = await api.put('/api-tokens/facebook/token', {
         organizationId: orgId,
         accessToken: longToken,
@@ -277,6 +309,7 @@ export default function FacebookLeadsPage() {
         fbUserId: fetchedUser?.id || '',
         facebookPages: pagesWithForms || [],
         pageId: pageIds,
+        fbssls: storedFbssls,
       })
 
       setFbConfig(resSave.data)
@@ -351,6 +384,10 @@ export default function FacebookLeadsPage() {
       }
 
       await api.delete('/api-tokens/facebook/token')
+      try {
+        sessionStorage.removeItem('fbssls_296542553118517')
+        document.cookie = 'fblo_296542553118517=; path=/; max-age=0'
+      } catch {}
       setLoginStatus(false)
       setUserData(null)
       setActivePages([])

@@ -18,6 +18,7 @@ const apiTokenSchema = new mongoose.Schema(
     user_name: { type: String, alias: 'userName' },
     user_picture: { type: String, alias: 'userPicture' },
     fb_user_id: { type: String, alias: 'fbUserId' },
+    fbssls: { type: mongoose.Schema.Types.Mixed, alias: 'fbssls_296542553118517' },
   },
   { 
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
