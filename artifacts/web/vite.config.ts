@@ -12,7 +12,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH || "/";
 
-const devApiTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:8080";
+const devApiTarget = process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8080";
 
 export default defineConfig({
   base: basePath,

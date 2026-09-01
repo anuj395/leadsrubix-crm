@@ -178,8 +178,6 @@ function compileQuery(query, params = [], schema = null) {
     return { where: '1=1', params };
   }
 
-  console.log('[pgMongoose debug] compileQuery normalized:', originalQuery, '->', query);
-
   const parts = [];
 
   for (const [key, val] of Object.entries(query)) {
