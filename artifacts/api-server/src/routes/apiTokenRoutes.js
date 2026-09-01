@@ -395,26 +395,31 @@ router.post('/facebook/exchange', authenticate, async (req, res, next) => {
 
 router.get('/facebook', authenticate, async (req, res, next) => {
   try {
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.user.role === 'superAdmin'
-      ? (req.query.organizationId || req.user.organizationId || req.user.organization_id)
-      : (req.user.organizationId || req.user.organization_id);
+    const orgId = req.query.organizationId || req.body?.organizationId || req.user.organizationId || req.user.organization_id;
     if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
+    const orgQuery = {
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ],
+      source: { $regex: /^facebook$/i }
+    };
+
     let doc = await ApiToken.findOne({
-      $or: [{ organization_id: orgId }, { organizationId: orgId }],
-      source: { $regex: /^facebook$/i },
-      access_token: { $exists: true, $ne: '' }
+      ...orgQuery,
+      access_token: { $exists: true, $ne: '', $ne: null }
     }).sort({ updated_at: -1 }).exec();
 
     if (!doc) {
-      doc = await ApiToken.findOne({
-        $or: [{ organization_id: orgId }, { organizationId: orgId }],
-        source: { $regex: /^facebook$/i }
-      }).sort({ updated_at: -1 }).exec();
+      doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
     }
 
     if (!doc) {
@@ -436,21 +441,28 @@ router.get('/facebook', authenticate, async (req, res, next) => {
 
 router.put('/facebook/token', authenticate, async (req, res, next) => {
   try {
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.user.role === 'superAdmin'
-      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
-      : (req.user.organizationId || req.user.organization_id);
+    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { accessToken, appId, appSecret, userName, userPicture, fbUserId, facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     
-    let doc = await ApiToken.findOne({
-      $or: [{ organization_id: orgId }, { organizationId: orgId }],
+    const orgQuery = {
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ],
       source: { $regex: /^facebook$/i }
-    }).sort({ updated_at: -1 }).exec();
+    };
+
+    let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
 
     const updateData = {
       organization_id: orgId,
@@ -479,6 +491,19 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
       });
     }
 
+    // Clean up duplicate empty Facebook docs for this organization
+    try {
+      if (doc && doc._id) {
+        await ApiToken.deleteMany({
+          ...orgQuery,
+          _id: { $ne: doc._id },
+          $or: [{ access_token: '' }, { access_token: null }, { access_token: { $exists: false } }]
+        }).exec();
+      }
+    } catch (cleanErr) {
+      console.warn('Could not clean duplicate empty facebook tokens:', cleanErr);
+    }
+
     res.json(formatApiToken(doc));
   } catch (err) {
     console.error('[PUT /facebook/token] Error:', err);
@@ -488,21 +513,28 @@ router.put('/facebook/token', authenticate, async (req, res, next) => {
 
 router.put('/facebook/pages', authenticate, async (req, res, next) => {
   try {
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.user.role === 'superAdmin'
-      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
-      : (req.user.organizationId || req.user.organization_id);
+    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { facebookPages, pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
 
-    let doc = await ApiToken.findOne({
-      $or: [{ organization_id: orgId }, { organizationId: orgId }],
+    const orgQuery = {
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ],
       source: { $regex: /^facebook$/i }
-    }).sort({ updated_at: -1 }).exec();
+    };
+
+    let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
 
     const ids = pageId !== undefined 
       ? (Array.isArray(pageId) ? pageId.map(String) : [String(pageId)])
@@ -537,22 +569,29 @@ router.put('/facebook/pages', authenticate, async (req, res, next) => {
 
 router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
   try {
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.user.role === 'superAdmin'
-      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
-      : (req.user.organizationId || req.user.organization_id);
+    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { pageId } = req.body;
     const { industryId, workspaceId } = await resolveTenantFields(orgId);
     const ids = Array.isArray(pageId) ? pageId.map(String) : [String(pageId)];
 
-    let doc = await ApiToken.findOne({
-      $or: [{ organization_id: orgId }, { organizationId: orgId }],
+    const orgQuery = {
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ],
       source: { $regex: /^facebook$/i }
-    }).sort({ updated_at: -1 }).exec();
+    };
+
+    let doc = await ApiToken.findOne(orgQuery).sort({ updated_at: -1 }).exec();
 
     if (doc) {
       doc.page_id = ids;
@@ -581,19 +620,26 @@ router.put('/facebook/subscribe', authenticate, async (req, res, next) => {
 
 router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
   try {
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.user.role === 'superAdmin'
-      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
-      : (req.user.organizationId || req.user.organization_id);
+    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
     const { pageId } = req.body;
-    const doc = await ApiToken.findOne({ 
-      $or: [{ organization_id: orgId }, { organizationId: orgId }],
-      source: { $regex: /^facebook$/i } 
-    }).exec();
+    const orgQuery = {
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ],
+      source: { $regex: /^facebook$/i }
+    };
+
+    const doc = await ApiToken.findOne(orgQuery).exec();
 
     if (doc) {
       doc.page_id = (doc.page_id || []).map(String).filter(id => id !== String(pageId));
@@ -610,18 +656,25 @@ router.put('/facebook/unsubscribe', authenticate, async (req, res, next) => {
 
 router.delete('/facebook/token', authenticate, async (req, res, next) => {
   try {
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Facebook integration is restricted to Admin and SuperAdmin only' });
     }
     const ApiToken = mongoose.model('ApiToken');
-    const orgId = req.user.role === 'superAdmin'
-      ? (req.body.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id)
-      : (req.user.organizationId || req.user.organization_id);
+    const orgId = req.body?.organizationId || req.query.organizationId || req.user.organizationId || req.user.organization_id;
+    if (!orgId) return res.status(400).json({ message: 'Organization not found' });
     
-    const doc = await ApiToken.findOne({ 
-      $or: [{ organization_id: orgId }, { organizationId: orgId }],
-      source: { $regex: /^facebook$/i } 
-    }).exec();
+    const orgQuery = {
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ],
+      source: { $regex: /^facebook$/i }
+    };
+
+    const doc = await ApiToken.findOne(orgQuery).exec();
 
     if (doc) {
       doc.access_token = '';
