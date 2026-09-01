@@ -8,5 +8,7 @@ export interface AuthenticatedUser {
   name: string
   role: UserRole
   industryId?: string
+  organizationId?: string
+  organization_id?: string
   needsPasswordChange?: boolean
 }
