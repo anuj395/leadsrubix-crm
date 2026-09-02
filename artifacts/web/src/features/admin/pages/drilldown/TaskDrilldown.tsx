@@ -28,7 +28,6 @@ interface Task {
 
 export default function TaskDrilldownPage() {
   const { user } = useAppSelector(selectAuth)
-  const industryId = user?.industryId
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -37,6 +36,8 @@ export default function TaskDrilldownPage() {
   const [totalCounts, setTotalCounts] = useState(0)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
   const [taskDrilldownData, setTaskDrilldownData] = useState<any>(null)
+
+  const industryId = taskDrilldownData?.industryId || user?.industryId
 
   // Load screen config using useTableConfig
   const { columns: dbColumns } = useTableConfig('tasks', industryId)
@@ -98,6 +99,16 @@ export default function TaskDrilldownPage() {
     void refresh()
   }, [taskDrilldownData, paginationModel.page, paginationModel.pageSize])
 
+  const taskTitle = useMemo(() => {
+    const tt = taskDrilldownData?.taskFilter?.taskType
+    if (Array.isArray(tt) && tt.length > 0) return tt[0]
+    if (typeof tt === 'string') return tt
+    const st = taskDrilldownData?.taskFilter?.status
+    if (Array.isArray(st) && st.length > 0) return st[0]
+    if (typeof st === 'string') return st
+    return ''
+  }, [taskDrilldownData])
+
   const gridColumns = useMemo<GridColDef<Task>[]>(() => {
     const dataCols = dbColumns.map((col): GridColDef<Task> => ({
       field: col.key,
@@ -105,8 +116,13 @@ export default function TaskDrilldownPage() {
       flex: 1,
       minWidth: 140,
       valueGetter: (_v: unknown, row: Task) => {
-        const val = row[col.key] || row[col.key.replace(/_([a-z])/g, (_m, c) => c.toUpperCase())]
-        return val === undefined ? '' : val
+        if (!row) return ''
+        if (row[col.key] !== undefined && row[col.key] !== null) return row[col.key]
+        const camel = col.key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+        if (row[camel] !== undefined && row[camel] !== null) return row[camel]
+        const snake = col.key.replace(/([A-Z])/g, '_$1').toLowerCase()
+        if (row[snake] !== undefined && row[snake] !== null) return row[snake]
+        return ''
       },
       renderCell: (p) => {
         const v = p.value
@@ -145,7 +161,7 @@ export default function TaskDrilldownPage() {
   return (
     <Stack spacing={3} sx={{ p: 3 }}>
       <Typography variant="h5" sx={{ fontWeight: 700 }}>
-        Task Drill Down Overview
+        Task Drill Down Overview {taskTitle ? `— ${taskTitle}` : ''}
       </Typography>
       <AppCard title="">
         <AppDataGrid

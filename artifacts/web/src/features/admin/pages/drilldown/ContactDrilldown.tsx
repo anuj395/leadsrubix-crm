@@ -32,7 +32,6 @@ interface Contact {
 
 export default function ContactDrilldownPage() {
   const { user } = useAppSelector(selectAuth)
-  const industryId = user?.industryId
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -41,6 +40,8 @@ export default function ContactDrilldownPage() {
   const [totalCounts, setTotalCounts] = useState(0)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
   const [drilldownData, setDrilldownData] = useState<any>(null)
+
+  const industryId = drilldownData?.industryId || user?.industryId
 
   // Load screen config using useTableConfig
   const { columns: dbColumns } = useTableConfig('contacts', industryId)
@@ -108,6 +109,13 @@ export default function ContactDrilldownPage() {
     void refresh()
   }, [drilldownData, paginationModel.page, paginationModel.pageSize])
 
+  const stageTitle = useMemo(() => {
+    const s = drilldownData?.leadFilter?.stage
+    if (Array.isArray(s) && s.length > 0) return s[0]
+    if (typeof s === 'string') return s
+    return ''
+  }, [drilldownData])
+
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
     const dataCols = dbColumns.map((col): GridColDef<Contact> => ({
       field: col.key,
@@ -115,8 +123,13 @@ export default function ContactDrilldownPage() {
       flex: 1,
       minWidth: 140,
       valueGetter: (_v: unknown, row: Contact) => {
-        const val = row[col.key] || row[col.key.replace(/_([a-z])/g, (_m, c) => c.toUpperCase())]
-        return val === undefined ? '' : val
+        if (!row) return ''
+        if (row[col.key] !== undefined && row[col.key] !== null) return row[col.key]
+        const camel = col.key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+        if (row[camel] !== undefined && row[camel] !== null) return row[camel]
+        const snake = col.key.replace(/([A-Z])/g, '_$1').toLowerCase()
+        if (row[snake] !== undefined && row[snake] !== null) return row[snake]
+        return ''
       },
       renderCell: (p) => {
         const v = p.value
@@ -141,7 +154,7 @@ export default function ContactDrilldownPage() {
       headerName: 'Stage',
       flex: 1,
       minWidth: 140,
-      valueGetter: (_v: unknown, row: Contact) => row.stage || row.status || '',
+      valueGetter: (_v: unknown, row: Contact) => row?.stage || row?.status || row?.lead_status || '',
       renderCell: (p) => {
         const v = p.value
         if (v == null || v === '') return <Box sx={{ color: 'text.secondary' }}>—</Box>
@@ -149,7 +162,7 @@ export default function ContactDrilldownPage() {
       }
     }
 
-    const emailIdx = dataCols.findIndex((col) => col.field === 'emailId')
+    const emailIdx = dataCols.findIndex((col) => col.field === 'emailId' || col.field === 'email_id' || col.field === 'email')
     if (emailIdx !== -1) {
       dataCols.splice(emailIdx + 1, 0, stageCol)
     } else {
@@ -175,7 +188,7 @@ export default function ContactDrilldownPage() {
   return (
     <Stack spacing={3} sx={{ p: 3 }}>
       <Typography variant="h5" sx={{ fontWeight: 700 }}>
-        Lead Drill Down Overview
+        Lead Drill Down Overview {stageTitle ? `— ${stageTitle}` : ''}
       </Typography>
       <AppCard title="">
         <AppDataGrid

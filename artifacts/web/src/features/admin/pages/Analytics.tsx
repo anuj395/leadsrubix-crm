@@ -214,6 +214,7 @@ export default function AnalyticsPage() {
   const handleCardClick = (label: string) => {
     const userAny = user as any
     const orgId = userAny?.organizationId || ''
+    const indId = userAny?.industryId || ''
     const targetUid = userAny?.uid || userAny?.id || ''
     const isSource = groupBy === 'source'
     const roleFlag = userAny?.role !== 'sales' && userAny?.role !== 'associate'
@@ -238,6 +239,7 @@ export default function AnalyticsPage() {
       const taskDrilldownData = {
         uid: targetUid,
         organizationId: orgId,
+        industryId: indId,
         taskFilter,
         leadFilter: {},
         source: isSource,
@@ -250,6 +252,7 @@ export default function AnalyticsPage() {
       const taskDrilldownData = {
         uid: targetUid,
         organizationId: orgId,
+        industryId: indId,
         taskFilter,
         leadFilter: {},
         source: isSource,
@@ -267,6 +270,7 @@ export default function AnalyticsPage() {
       const drilldownData = {
         uid: targetUid,
         organizationId: orgId,
+        industryId: indId,
         leadFilter,
         taskFilter: {},
         source: isSource,
