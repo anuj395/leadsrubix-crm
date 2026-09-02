@@ -74,7 +74,13 @@ const buildDrilldownQuery = async (req, bodyUid, bodyOrgId, filters, isLead, isT
   }
 
   if (orgId) {
-    query.organization_id = orgId;
+    query.$and = query.$and || [];
+    query.$and.push({
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId }
+      ]
+    });
   }
 
   // 2. Resolve target user and validate tenant isolation
@@ -126,11 +132,69 @@ const buildDrilldownQuery = async (req, bodyUid, bodyOrgId, filters, isLead, isT
       }
 
       if (isLead) {
+        if (key === 'stage' || key === 'status' || key === 'lead_status') {
+          const stageValues = Array.isArray(value) ? value : [value];
+          const allVariations = [];
+          stageValues.forEach(s => {
+            if (s) {
+              allVariations.push(s, s.toLowerCase(), s.toUpperCase());
+            }
+          });
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { stage: { $in: Array.from(new Set(allVariations)) } },
+              { status: { $in: Array.from(new Set(allVariations)) } },
+              { lead_status: { $in: Array.from(new Set(allVariations)) } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'associate_status' || key === 'associateStatus') {
+          const arr = Array.isArray(value) ? value : [value];
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { associate_status: { $in: arr } },
+              { associateStatus: { $in: arr } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'source_status' || key === 'sourceStatus') {
+          const arr = Array.isArray(value) ? value : [value];
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { source_status: { $in: arr } },
+              { sourceStatus: { $in: arr } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'transfer_status' || key === 'transferStatus') {
+          const arr = Array.isArray(value) ? value : [value];
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { transfer_status: { $in: arr } },
+              { transferStatus: { $in: arr } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'contact_owner_email' || key === 'contactOwnerEmail') {
+          const arr = Array.isArray(value) ? value : [value];
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { contact_owner_email: { $in: arr } },
+              { contactOwnerEmail: { $in: arr } }
+            ]
+          });
+          continue;
+        }
         if (key === 'lead_source') dbKey = 'source';
-        else if (key === 'contact_owner_email') dbKey = 'contactOwnerEmail';
-        else if (key === 'source_status') dbKey = 'sourceStatus';
-        else if (key === 'associate_status') dbKey = 'associateStatus';
-        else if (key === 'transfer_status') dbKey = 'transferStatus';
       } else if (isTask) {
         if (key === 'task_type') dbKey = 'taskType';
         else if (key === 'assigned_to') dbKey = 'assignedTo';

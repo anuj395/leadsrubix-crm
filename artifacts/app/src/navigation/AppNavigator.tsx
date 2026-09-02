@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Platform } from 'react-native';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { safeStorage } from '../utils/safeStorage';
@@ -49,6 +50,8 @@ type ScreenName =
 
 export const AppNavigator = () => {
   const { token, user, isLoading } = useAuth();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.select({ ios: 16, android: 12, default: 8 }));
 
   // Navigation stack & route state
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Dashboard');
@@ -228,7 +231,7 @@ export const AppNavigator = () => {
 
       {/* High-Legibility Executive 3D Bottom Navigation Dock */}
       {!hideTabBar && (
-        <View style={styles.tabBarDock}>
+        <View style={[styles.tabBarDock, { paddingBottom: bottomInset }]}>
           {tabs.map((tab) => {
             const active = isTabActive(tab.name);
             return (
@@ -241,11 +244,16 @@ export const AppNavigator = () => {
                 <View style={[styles.iconPill3D, active && styles.iconPill3DActive]}>
                   <Ionicons
                     name={active ? tab.iconActive : tab.icon}
-                    size={22}
+                    size={21}
                     color={active ? '#FFFFFF' : '#64748B'}
                   />
                 </View>
-                <Text style={[styles.tabLabelText, active && styles.tabLabelTextActive]}>{tab.label}</Text>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.tabLabelText, active && styles.tabLabelTextActive]}
+                >
+                  {tab.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -283,29 +291,29 @@ const styles = StyleSheet.create({
   },
   tabBarDock: {
     flexDirection: 'row',
-    height: Platform.OS === 'ios' ? 76 : 64,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 6,
+    paddingHorizontal: 6,
+    paddingTop: 8,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 10,
-    elevation: 8,
+    elevation: 16,
+    flexShrink: 0,
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    paddingVertical: 2,
   },
   iconPill3D: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
     borderRadius: 12,
   },
   iconPill3DActive: {

@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
   },
   filterTabBar: {
     flexDirection: 'row',

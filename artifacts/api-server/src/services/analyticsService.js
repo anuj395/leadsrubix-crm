@@ -19,12 +19,11 @@ function getDateRangeFilter(fieldName, startDate, endDate) {
 function getStatusCategory(status) {
   if (!status) return 'fresh';
   const s = String(status).toUpperCase().trim();
-  if (s === 'FRESH' || s === 'NEW' || s === 'ACTIVE' || s === 'PENDING') return 'fresh';
-  if (s === 'CALL BACK' || s === 'CALLBACK') return 'callBack';
-  if (s === 'INTERESTED') return 'interested';
-  if (s === 'CLOSED WON' || s === 'WON') return 'closedWon';
-  if (s === 'NOT INTERESTED') return 'notInterested';
-  if (s === 'CLOSED LOST' || s === 'LOST' || s === 'INACTIVE') return 'closedLost';
+  if (s.includes('LOST') || s.includes('REFUSED') || s.includes('INACTIVE')) return 'closedLost';
+  if (s.includes('NOT INTEREST') || s.includes('NOT_INTEREST') || s.includes('NOT-INTEREST')) return 'notInterested';
+  if (s.includes('WON') || s.includes('DEAL') || s.includes('BOOKED') || s.includes('CONVERT')) return 'closedWon';
+  if (s.includes('INTEREST') || s.includes('QUALIF') || s.includes('VISIT')) return 'interested';
+  if (s.includes('CALLBACK') || s.includes('CALL BACK') || s.includes('RESCHEDULE')) return 'callBack';
   return 'fresh';
 }
 
@@ -52,6 +51,55 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   const role = authedUser.role;
   const isSuperAdmin = role === 'superAdmin';
 
+  // 0. Non-SuperAdmin Access Check: Only organizations with show_analytics active can access Analytics
+  if (!isSuperAdmin) {
+    const userOrgId = authedUser.organizationId || authedUser.organization_id;
+    if (userOrgId) {
+      const orgDoc = await Organization.findOne({
+        $or: [
+          { organizationId: userOrgId },
+          { organization_id: userOrgId },
+          ...(mongoose.Types.ObjectId.isValid(userOrgId) ? [{ _id: userOrgId }] : [])
+        ]
+      }).lean().exec();
+
+      if (orgDoc && (orgDoc.show_analytics === false || orgDoc.showAnalytics === false)) {
+        return {
+          showAnalytics: false,
+          message: 'Analytics is disabled for your organization.',
+          organizationsList: [],
+          cards: {
+            totalLeads: 0,
+            fresh: 0,
+            callBack: 0,
+            interested: 0,
+            closedWon: 0,
+            notInterested: 0,
+            closedLost: 0,
+            completedVisits: 0,
+            scheduledVisits: 0
+          },
+          contacts: {
+            feedbackSummary: [],
+            callBackReasons: [],
+            callBackReasonsChart: [],
+            chartData: []
+          },
+          tasks: {
+            completedTasks: [],
+            completedChartData: [],
+            pendingTasks: [],
+            pendingChartData: []
+          },
+          callLogs: {
+            callingTrends: [],
+            callLogSummary: []
+          }
+        };
+      }
+    }
+  }
+
   // 1. Resolve organization/tenant/workspace filters
   let targetIndustry = null;
   let targetOrgId = null;
@@ -68,8 +116,9 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
       targetWorkspaceId = workspaceIdQuery;
     }
   } else {
-    targetIndustry = authedUser.industryId;
-    targetOrgId = authedUser.organizationId;
+    // Non-superAdmin (Role Admin, Team Lead, Sales, etc.) MUST strictly and ONLY see their own organization's data
+    targetOrgId = authedUser.organizationId || authedUser.organization_id || null;
+    targetIndustry = authedUser.industryId || null;
     targetWorkspaceId = workspaceIdQuery || authedUser.workspaceId || authedUser.workspace_id || null;
   }
 
@@ -84,8 +133,9 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
 
   let allowedOrgIds = [];
   if (targetOrgId) {
+    // Strictly isolate data to this organization only
     allowedOrgIds = [targetOrgId];
-  } else if (industryDoc) {
+  } else if (isSuperAdmin && industryDoc) {
     const orgOrFilter = [
       { industryId: industryDoc.code },
       { industry_code: industryDoc.code },
@@ -96,10 +146,28 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
       orgOrFilter.push({ industry_id: industryDoc._id });
     }
     const orgs = await Organization.find({ $or: orgOrFilter }).lean().exec();
-    allowedOrgIds = orgs.map(o => o.organizationId || o.organization_id).filter(Boolean);
+    allowedOrgIds = orgs
+      .filter(o => o.show_analytics !== false && o.showAnalytics !== false)
+      .map(o => o.organizationId || o.organization_id)
+      .filter(Boolean);
+  } else if (isSuperAdmin) {
+    // Global Super Admin aggregation across all organizations with active analytics
+    const orgs = await Organization.find({
+      $or: [
+        { isActive: { $ne: false } },
+        { is_active: { $ne: false } }
+      ]
+    }).lean().exec();
+    allowedOrgIds = orgs
+      .filter(o => o.show_analytics !== false && o.showAnalytics !== false)
+      .map(o => o.organizationId || o.organization_id)
+      .filter(Boolean);
+  } else {
+    // Non-superAdmin without an organization ID has NO access to any records
+    allowedOrgIds = ['__NO_ORG_ACCESS__'];
   }
 
-  // 2. Fetch list of organizations from the Organizations collection (Super Admin only)
+  // 2. Fetch list of organizations with active analytics for Super Admin dropdown
   let organizationsList = [];
   if (isSuperAdmin) {
     const orgDocs = await Organization.find({
@@ -108,14 +176,17 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
         { is_active: { $ne: false } }
       ]
     })
-      .select('organizationId organization_id organizationName organization_name industryId industry_id')
+      .select('organizationId organization_id organizationName organization_name industryId industry_id show_analytics showAnalytics')
       .lean()
       .exec();
-    organizationsList = orgDocs.map(o => ({
-      code: o.organizationId || o.organization_id,
-      name: o.organizationName || o.organization_name || 'Unnamed Organization',
-      industryId: String(o.industryId || o.industry_id || '')
-    }));
+    organizationsList = orgDocs
+      .filter(o => o.show_analytics !== false && o.showAnalytics !== false)
+      .map(o => ({
+        code: o.organizationId || o.organization_id,
+        name: o.organizationName || o.organization_name || 'Unnamed Organization',
+        industryId: String(o.industryId || o.industry_id || ''),
+        showAnalytics: true
+      }));
   }
 
   // 3. Resolve role-based visibility filter
@@ -127,9 +198,13 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   const callLogFilter = {};
 
   if (allowedOrgIds.length > 0) {
-    contactFilter.organization_id = { $in: allowedOrgIds };
-    taskFilter.organization_id = { $in: allowedOrgIds };
-    callLogFilter.organization_id = { $in: allowedOrgIds };
+    const orgOr = [
+      { organization_id: { $in: allowedOrgIds } },
+      { organizationId: { $in: allowedOrgIds } }
+    ];
+    contactFilter.$or = orgOr;
+    taskFilter.$or = orgOr;
+    callLogFilter.$or = orgOr;
   } else if (targetOrgId || targetIndustry) {
     // If a specific organization or industry was requested but resolved to no active orgs,
     // explicitly restrict to an empty set so we do not fall back to exposing all records.
@@ -138,10 +213,18 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     callLogFilter.organization_id = { $in: [] };
   }
 
-  if (targetWorkspaceId && targetWorkspaceId !== 'all') {
-    contactFilter.workspace_id = targetWorkspaceId;
-    taskFilter.workspace_id = targetWorkspaceId;
-    callLogFilter.workspace_id = targetWorkspaceId;
+  // Only filter workspace if explicitly requested in query parameters
+  if (workspaceIdQuery && workspaceIdQuery !== 'all') {
+    const wsOr = [
+      { workspace_id: workspaceIdQuery },
+      { workspaceId: workspaceIdQuery }
+    ];
+    contactFilter.$and = contactFilter.$and || [];
+    contactFilter.$and.push({ $or: wsOr });
+    taskFilter.$and = taskFilter.$and || [];
+    taskFilter.$and.push({ $or: wsOr });
+    callLogFilter.$and = callLogFilter.$and || [];
+    callLogFilter.$and.push({ $or: wsOr });
   }
 
   // Enforce hierarchical user permissions securely
@@ -206,13 +289,34 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     if (callLogDate.createdAt) callLogFilter.createdAt = callLogDate.createdAt;
   }
 
-  // Fetch all base data in parallel from tasks, calllogs, and contacts collections
-  const [contacts, tasks, callLogs, usersList] = await Promise.all([
-    Contact.find(contactFilter).lean().exec(),
-    Task.find(taskFilter).lean().exec(),
-    CallLog.find(callLogFilter).lean().exec(),
-    User.find(targetOrgId ? { organization_id: targetOrgId } : {}).select('_id uid name firstName lastName email role team').lean().exec()
+  // Fetch all base data in parallel from tasks, calllogs, contacts, and leads collections
+  const Lead = mongoose.model('Lead');
+  const [contacts, leadsList, tasks, callLogs, usersList] = await Promise.all([
+    Contact.find(contactFilter).lean().exec().catch(() => []),
+    Lead.find(contactFilter).lean().exec().catch(() => []),
+    Task.find(taskFilter).lean().exec().catch(() => []),
+    CallLog.find(callLogFilter).lean().exec().catch(() => []),
+    User.find(targetOrgId ? { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] } : {}).select('_id uid name firstName lastName email role team').lean().exec().catch(() => [])
   ]);
+
+  // Combine contacts and leads into a single cohesive list
+  const allLeadsMap = new Map();
+  for (const c of contacts) {
+    allLeadsMap.set(String(c._id || c.id), c);
+  }
+  for (const l of leadsList) {
+    const idStr = String(l._id || l.id);
+    if (!allLeadsMap.has(idStr)) {
+      allLeadsMap.set(idStr, {
+        ...l,
+        stage: l.lead_status || l.stage || l.status || 'FRESH',
+        status: l.lead_status || l.stage || l.status || 'FRESH',
+        customerName: l.name || `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Lead',
+        contactNumber: l.phone || l.contact_no || ''
+      });
+    }
+  }
+  const allLeads = Array.from(allLeadsMap.values());
 
   // Create lookups
   const userMap = new Map();
@@ -239,7 +343,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
 
   // ── KPI CARDS COMPUTATION ──────────────────────────────────────────────────
   const cards = {
-    totalLeads: contacts.length,
+    totalLeads: allLeads.length,
     fresh: 0,
     callBack: 0,
     interested: 0,
@@ -250,8 +354,8 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     scheduledVisits: 0
   };
 
-  contacts.forEach(c => {
-    const cat = getStatusCategory(c.stage || c.status);
+  allLeads.forEach(c => {
+    const cat = getStatusCategory(c.stage || c.status || c.lead_status || c.property_stage || c.propertyStage);
     if (cards[cat] !== undefined) {
       cards[cat] += 1;
     }
@@ -285,7 +389,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     scheduledVisits: 0
   });
 
-  contacts.forEach(c => {
+  allLeads.forEach(c => {
     let key = 'Unknown';
     if (groupBy === 'source') {
       key = c.source || c.lead_source || 'Unknown';
@@ -303,7 +407,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     const row = contactsGroupMap.get(key);
     row.total += 1;
 
-    const cat = getStatusCategory(c.stage || c.status);
+    const cat = getStatusCategory(c.stage || c.status || c.lead_status || c.property_stage || c.propertyStage);
     if (cat === 'fresh') row.fresh += 1;
     else if (cat === 'callBack') {
       row.callBack += 1;
@@ -494,6 +598,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   }
 
   return {
+    showAnalytics: true,
     organizationsList,
     cards,
     contacts: {
@@ -522,6 +627,20 @@ async function getDashboardConfig({ authedUser, industryIdQuery, organizationIdQ
 
   let orgId = authedUser.organizationId;
   let industryCode = authedUser.industryId || 'temp0001';
+
+  if (authedUser.role !== 'superAdmin' && orgId) {
+    const orgDoc = await Organization.findOne({
+      $or: [
+        { organizationId: orgId },
+        { organization_id: orgId },
+        ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+      ]
+    }).lean().exec();
+
+    if (orgDoc && (orgDoc.show_analytics === false || orgDoc.showAnalytics === false)) {
+      return { showAnalytics: false };
+    }
+  }
 
   // Super admin can request configuration for a specific organization/industry
   if (authedUser.role === 'superAdmin') {

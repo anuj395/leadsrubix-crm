@@ -17,7 +17,11 @@ interface MascotProps {
   avatarStyle?: object;
 }
 
-export const AIAdvisorMascot: React.FC<MascotProps> = ({
+export const AIAdvisorMascot: React.FC<MascotProps> = () => {
+  return null;
+};
+
+export const _AIAdvisorMascotDisabled: React.FC<MascotProps> = ({
   message,
   screenName = 'Dashboard',
 }) => {

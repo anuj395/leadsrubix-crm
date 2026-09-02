@@ -238,6 +238,23 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     if (usersParent) {
       usersParent.route = '/users';
     }
+  } else if (targetOrgId) {
+    try {
+      const Organization = mongoose.model('Organization');
+      const orgDoc = await Organization.findOne({
+        $or: [
+          { organization_id: targetOrgId },
+          { organizationId: targetOrgId },
+          ...(mongoose.Types.ObjectId.isValid(targetOrgId) ? [{ _id: targetOrgId }] : [])
+        ]
+      }).lean().exec();
+
+      if (orgDoc && (orgDoc.show_analytics === false || orgDoc.showAnalytics === false)) {
+        items = items.filter(it => it.key !== 'analytics' && !it.key.startsWith('analytics.') && it.route !== '/analytics');
+      }
+    } catch (err) {
+      console.error('[sidebarService] Failed to check organization show_analytics status:', err);
+    }
   }
 
   // Ensure child items have exact matching parent_id of the parent menu in the same response

@@ -626,6 +626,16 @@ exports.update = async ({ id, payload, authedUser }) => {
   if (payload.logoUrl !== undefined) patch.logoUrl = payload.logoUrl;
   if (payload.primaryColor !== undefined) patch.primaryColor = payload.primaryColor;
 
+  const incomingFields = payload?.fields ?? payload ?? {};
+  if (incomingFields.showAnalytics !== undefined) {
+    patch.showAnalytics = !!incomingFields.showAnalytics;
+    patch.show_analytics = !!incomingFields.showAnalytics;
+  }
+  if (incomingFields.show_analytics !== undefined) {
+    patch.showAnalytics = !!incomingFields.show_analytics;
+    patch.show_analytics = !!incomingFields.show_analytics;
+  }
+
   // 1a. Subdomain Format & Uniqueness Validation
   if (patch.subdomain !== undefined && patch.subdomain !== null && patch.subdomain !== '') {
     const cleanSub = String(patch.subdomain).toLowerCase().trim();

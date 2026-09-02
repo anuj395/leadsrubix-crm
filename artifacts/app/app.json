@@ -36,6 +36,11 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.leadsrubix.crm"
     },
+    "androidNavigationBar": {
+      "visible": "always",
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFFFF"
+    },
     "web": {
       "favicon": "./assets/favicon.png"
     },

@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../api/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { theme } from '../../theme/theme';
 
@@ -94,19 +93,11 @@ export const LoginScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.outerCanvas}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* Clean Solid #272944 Executive Header Banner (Zero Side Circles) */}
-      <View style={styles.fullBleedHeroHeader}>
-        <View style={styles.logoContainer}>
-          <CompanyLogo variant="white" height={38} />
-        </View>
-
-        <View style={styles.statusBadgePill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.statusBadgeText}>ENTERPRISE REAL ESTATE CRM</Text>
-        </View>
-      </View>
+      {/* Subtle Executive Ambient Glows */}
+      <View style={styles.ambientGlowTop} />
+      <View style={styles.ambientGlowBottom} />
 
       {/* Form Content Area */}
       <KeyboardAvoidingView
@@ -118,8 +109,17 @@ export const LoginScreen = ({ navigation }: any) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Animated AI Mascot Advisor Companion */}
-          <AIAdvisorMascot screenName="Login" message="Welcome! Sign in to access your sales workspace & site visits." />
+          {/* Executive Brand Identity Header */}
+          <View style={styles.brandHeroBlock}>
+            <View style={styles.logoContainer}>
+              <CompanyLogo variant="white" height={42} />
+            </View>
+
+            <View style={styles.statusBadgePill}>
+              <View style={styles.greenPulseDot} />
+              <Text style={styles.statusBadgeText}>ENTERPRISE REAL ESTATE CRM</Text>
+            </View>
+          </View>
 
           {/* 3D Framed White Form Card */}
           <View style={styles.framedFormCard3D}>
@@ -347,40 +347,53 @@ export const LoginScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   outerCanvas: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#151728',
+  },
+  ambientGlowTop: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(99, 102, 241, 0.16)',
+  },
+  ambientGlowBottom: {
+    position: 'absolute',
+    bottom: -80,
+    left: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(14, 165, 233, 0.14)',
   },
   flexOne: {
     flex: 1,
   },
-  fullBleedHeroHeader: {
-    width: '100%',
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 28,
+  scrollContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 68 : 48,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
+  },
+  brandHeroBlock: {
     alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
-    overflow: 'hidden',
+    marginBottom: 36,
   },
   logoContainer: {
-    marginBottom: 8,
+    alignItems: 'center',
   },
   statusBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 999,
-    marginTop: 4,
+    marginTop: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     gap: 6,
   },
   greenPulseDot: {
@@ -391,28 +404,23 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#F8FAFC',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     letterSpacing: 0.6,
   },
-  scrollContentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 32,
-  },
   framedFormCard3D: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: 24,
+    padding: 24,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderBottomWidth: 3,
     borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
   },
   headingTitle: {
     fontSize: 22,

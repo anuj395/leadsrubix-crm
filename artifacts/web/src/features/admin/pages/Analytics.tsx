@@ -20,6 +20,7 @@ import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
 import ClearAllOutlinedIcon from '@mui/icons-material/ClearAllOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
+import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined'
 
 import PeopleIcon from '@mui/icons-material/People'
 import AssignmentIcon from '@mui/icons-material/Assignment'
@@ -33,7 +34,6 @@ import EventIcon from '@mui/icons-material/Event'
 
 import { useAuth } from '@/hooks/useAuth'
 import axiosInstance from '@/services/axiosInstance'
-import { getIndustries, type Industry } from '@/services/sidebarAdminService'
 import { ThreeDDonutChart, ThreeDCylinderBarChart, ThreeDRoseChart, ThreeDAreaTrendChart } from '@/components/charts'
 
 // Types matching backend payload
@@ -100,6 +100,8 @@ interface TrendItem {
 }
 
 interface DashboardPayload {
+  showAnalytics?: boolean
+  message?: string
   organizationsList: { code: string; name: string }[]
   cards: CardMetrics
   contacts: {
@@ -123,103 +125,84 @@ export default function AnalyticsPage() {
   const theme = useTheme()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const isSuperAdmin = user?.role === 'superAdmin'
   const isDark = theme.palette.mode === 'dark'
 
-  const indCode = String(user?.industryId || '').toLowerCase().trim();
+  // General State
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<DashboardPayload | null>(null)
+  const [dashboardConfig, setDashboardConfig] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState(0)
 
+  // Filters State
+  const [groupBy, setGroupBy] = useState<'team' | 'source' | 'teamWise'>('team')
+  const [showDatePanel, setShowDatePanel] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
+  // Chart Interactive states
+  const [hoveredTrend, setHoveredTrend] = useState<{ date: string; calls: number; x: number; y: number } | null>(null)
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
+  const [hoveredTaskBar, setHoveredTaskBar] = useState<number | null>(null)
+  const [hoveredDonutSlice, setHoveredDonutSlice] = useState<{ name: string; value: number; percentage: number; color: string } | null>(null)
+
+  // Dynamic industry & tenant labels derived directly from dashboardConfig (Enterprise Multi-Tenant)
   const labels = useMemo(() => {
-    if (indCode === 'temp0002') { // E-Commerce
-      return {
-        completedVisits: 'Delivered Orders',
-        scheduledVisits: 'Scheduled Deliveries',
-        siteVisit: 'Delivery',
-        meeting: 'Demo Call',
-        visitsDesc: 'Deliveries',
-        completedVisitsTooltip: 'Delivered Orders:\nThe count of successfully delivered\ncustomer orders.',
-        scheduledVisitsTooltip: 'Scheduled Deliveries:\nCustomer deliveries scheduled\nfor the future.',
-        tasksAndMeetingsTab: 'Support Tickets & Deliveries',
-      };
+    let completedVisits = 'Completed Visits'
+    let scheduledVisits = 'Scheduled Visits'
+    let siteVisit = 'Site Visit'
+    let meeting = 'Meeting'
+    let visitsDesc = 'Visits'
+    let tasksAndMeetingsTab = 'Tasks & Meetings'
+
+    if (dashboardConfig?.tabs) {
+      for (const tab of dashboardConfig.tabs) {
+        if (tab.id === 1 && tab.label) {
+          tasksAndMeetingsTab = tab.label
+        }
+        if (tab.sections) {
+          for (const sec of tab.sections) {
+            if (sec.widgets) {
+              for (const w of sec.widgets) {
+                if (w.data_key === 'cards.completedVisits' && w.title) {
+                  completedVisits = w.title
+                }
+                if (w.data_key === 'cards.scheduledVisits' && w.title) {
+                  scheduledVisits = w.title
+                }
+                if (w.columns && Array.isArray(w.columns)) {
+                  const mv = w.columns.find((c: any) => c.key === 'meeting')
+                  if (mv?.label) meeting = mv.label
+                  const sv = w.columns.find((c: any) => c.key === 'siteVisit')
+                  if (sv?.label) {
+                    siteVisit = sv.label
+                    visitsDesc = sv.label
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
-    if (indCode === 'temp0003') { // Healthcare
-      return {
-        completedVisits: 'Completed Consultations',
-        scheduledVisits: 'Scheduled Consultations',
-        siteVisit: 'Consultation',
-        meeting: 'Appointment',
-        visitsDesc: 'Consultations',
-        completedVisitsTooltip: 'Completed Consultations:\nThe count of successfully finished\npatient consultations.',
-        scheduledVisitsTooltip: 'Scheduled Consultations:\nPatient consultations scheduled\nfor the future.',
-        tasksAndMeetingsTab: 'Consultations & Appointments',
-      };
-    }
-    if (indCode === 'temp0004') { // Education
-      return {
-        completedVisits: 'Completed Interviews',
-        scheduledVisits: 'Scheduled Interviews',
-        siteVisit: 'Campus Tour',
-        meeting: 'Admissions Call',
-        visitsDesc: 'Interviews',
-        completedVisitsTooltip: 'Completed Interviews:\nThe count of successfully finished\nstudent admission interviews.',
-        scheduledVisitsTooltip: 'Scheduled Interviews:\nStudent interviews scheduled\nfor the future.',
-        tasksAndMeetingsTab: 'Admissions & Campus Tours',
-      };
-    }
-    if (indCode === 'temp0005') { // Finance
-      return {
-        completedVisits: 'Completed Audits',
-        scheduledVisits: 'Scheduled Meetings',
-        siteVisit: 'Office Visit',
-        meeting: 'Portfolio Review',
-        visitsDesc: 'Meetings',
-        completedVisitsTooltip: 'Completed Audits:\nThe count of successfully finished\nportfolio or client audits.',
-        scheduledVisitsTooltip: 'Scheduled Meetings:\nAdvisory meetings scheduled\nfor the future.',
-        tasksAndMeetingsTab: 'Advisory Tasks & Audits',
-      };
-    }
-    if (indCode === 'temp0006') { // IT Services
-      return {
-        completedVisits: 'Completed Demos',
-        scheduledVisits: 'Scheduled RFPs',
-        siteVisit: 'Client Meetup',
-        meeting: 'Technical Call',
-        visitsDesc: 'Demos',
-        completedVisitsTooltip: 'Completed Demos:\nThe count of successfully finished\nclient project demos.',
-        scheduledVisitsTooltip: 'Scheduled RFPs:\nProject proposal reviews scheduled\nfor the future.',
-        tasksAndMeetingsTab: 'SLA Tasks & Demos',
-      };
-    }
-    if (indCode === 'temp0007') { // Manufacturing
-      return {
-        completedVisits: 'Completed Shipments',
-        scheduledVisits: 'Scheduled Audits',
-        siteVisit: 'Plant Visit',
-        meeting: 'Dealer Call',
-        visitsDesc: 'Shipments',
-        completedVisitsTooltip: 'Completed Shipments:\nThe count of successfully finished\nproduct shipments.',
-        scheduledVisitsTooltip: 'Scheduled Audits:\nPlant inspections or audits scheduled\nfor the future.',
-        tasksAndMeetingsTab: 'Production & Shipments',
-      };
-    }
-    // Default (Real Estate / temp0001)
+
     return {
-      completedVisits: 'Completed Visits',
-      scheduledVisits: 'Scheduled Visits',
-      siteVisit: 'Site Visit',
-      meeting: 'Meeting',
-      visitsDesc: 'Site Visits',
-      completedVisitsTooltip: 'Completed Visits:\nThe count of successfully finished\ncustomer property visits.',
-      scheduledVisitsTooltip: 'Scheduled Visits:\nProperty visits scheduled\nfor the future.',
-      tasksAndMeetingsTab: 'Tasks & Meetings',
-    };
-  }, [indCode]);
+      completedVisits,
+      scheduledVisits,
+      siteVisit,
+      meeting,
+      visitsDesc,
+      completedVisitsTooltip: `${completedVisits}:\nThe count of successfully completed\n${visitsDesc.toLowerCase()}.`,
+      scheduledVisitsTooltip: `${scheduledVisits}:\n${visitsDesc} scheduled\nfor the future.`,
+      tasksAndMeetingsTab,
+    }
+  }, [dashboardConfig]);
 
   const metricDescriptions = useMemo<Record<string, string>>(() => {
     return {
       'Total Leads': 'Total Leads:\nThe sum of all leads collected\nin the system.',
       'Fresh': 'Fresh Leads:\nNewly added leads that have\nnot yet been contacted.',
       'Call Back': 'Call Back:\nLeads scheduled for\na follow-up call.',
-      'Interested': 'Interested Leads:\nLeads who have shown interest\nin your project or offer.',
+      'Interested': 'Interested Leads:\nLeads who have shown interest\nin your offer.',
       'Closed Won': 'Closed Won:\nSuccessfully converted leads\nwho completed a deal.',
       'Not Interested': 'Not Interested:\nLeads who have stated\nthey are not interested.',
       'Closed Lost': 'Closed Lost:\nLeads that have been marked\nas lost or inactive.',
@@ -229,9 +212,9 @@ export default function AnalyticsPage() {
   }, [labels]);
 
   const handleCardClick = (label: string) => {
-    if (isSuperAdmin) return
     const userAny = user as any
-    const orgId = isSuperAdmin && selectedOrg !== 'all' ? selectedOrg : userAny?.organizationId || ''
+    const orgId = userAny?.organizationId || ''
+    const indId = userAny?.industryId || ''
     const targetUid = userAny?.uid || userAny?.id || ''
     const isSource = groupBy === 'source'
     const roleFlag = userAny?.role !== 'sales' && userAny?.role !== 'associate'
@@ -256,6 +239,7 @@ export default function AnalyticsPage() {
       const taskDrilldownData = {
         uid: targetUid,
         organizationId: orgId,
+        industryId: indId,
         taskFilter,
         leadFilter: {},
         source: isSource,
@@ -268,6 +252,7 @@ export default function AnalyticsPage() {
       const taskDrilldownData = {
         uid: targetUid,
         organizationId: orgId,
+        industryId: indId,
         taskFilter,
         leadFilter: {},
         source: isSource,
@@ -275,16 +260,17 @@ export default function AnalyticsPage() {
       }
       navigate('/task-drilldown-data', { state: { taskDrilldownData, ts: Date.now() } })
     } else {
-      if (label === 'Fresh') leadFilter.stage = ['FRESH']
-      else if (label === 'Call Back') leadFilter.stage = ['CALLBACK', 'CALL BACK']
-      else if (label === 'Interested') leadFilter.stage = ['INTERESTED']
-      else if (label === 'Closed Won') leadFilter.stage = ['WON', 'CLOSED WON']
-      else if (label === 'Not Interested') leadFilter.stage = ['NOT INTERESTED']
-      else if (label === 'Closed Lost') leadFilter.stage = ['LOST', 'CLOSED LOST']
+      if (label === 'Fresh') leadFilter.stage = ['FRESH', 'Fresh', 'fresh']
+      else if (label === 'Call Back') leadFilter.stage = ['CALLBACK', 'CALL BACK', 'Call Back', 'callback', 'Call back']
+      else if (label === 'Interested') leadFilter.stage = ['INTERESTED', 'Interested', 'interested']
+      else if (label === 'Closed Won') leadFilter.stage = ['WON', 'CLOSED WON', 'Closed Won', 'won', 'Closed won']
+      else if (label === 'Not Interested') leadFilter.stage = ['NOT INTERESTED', 'Not Interested', 'not interested', 'Not interested']
+      else if (label === 'Closed Lost') leadFilter.stage = ['LOST', 'CLOSED LOST', 'Closed Lost', 'lost', 'Closed lost']
 
       const drilldownData = {
         uid: targetUid,
         organizationId: orgId,
+        industryId: indId,
         leadFilter,
         taskFilter: {},
         source: isSource,
@@ -294,36 +280,13 @@ export default function AnalyticsPage() {
     }
   }
 
-  // General State
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<DashboardPayload | null>(null)
-  const [dashboardConfig, setDashboardConfig] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState(0)
-
-  // Filters State
-  const [groupBy, setGroupBy] = useState<'team' | 'source' | 'teamWise'>('team')
-  const [industries, setIndustries] = useState<Industry[]>([])
-  const [selectedIndustry, setSelectedIndustry] = useState('')
-  const [selectedOrg, setSelectedOrg] = useState('')
-  const [showDatePanel, setShowDatePanel] = useState(false)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-
-  // Chart Interactive states
-  const [hoveredTrend, setHoveredTrend] = useState<{ date: string; calls: number; x: number; y: number } | null>(null)
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
-  const [hoveredTaskBar, setHoveredTaskBar] = useState<number | null>(null)
-  const [hoveredDonutSlice, setHoveredDonutSlice] = useState<{ name: string; value: number; percentage: number; color: string } | null>(null)
-
-  // Fetch Dashboard data
+  // Fetch Dashboard data strictly for this organization
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       let url = `/analytics/dashboard?groupBy=${groupBy}`
-      if (isSuperAdmin) {
-        if (selectedIndustry) url += `&industryId=${selectedIndustry}`
-        if (selectedOrg) url += `&organizationId=${selectedOrg}`
-      }
+      const wsId = (user as any)?.workspaceId || (user as any)?.workspace_id
+      if (wsId) url += `&workspaceId=${wsId}`
       if (startDate) url += `&startDate=${startDate}`
       if (endDate) url += `&endDate=${endDate}`
 
@@ -338,71 +301,25 @@ export default function AnalyticsPage() {
 
   const fetchDashboardConfig = async () => {
     try {
-      let url = `/analytics/dashboard-config`
-      if (isSuperAdmin) {
-        const queryParams = []
-        if (selectedIndustry) queryParams.push(`industryId=${selectedIndustry}`)
-        if (selectedOrg) queryParams.push(`organizationId=${selectedOrg}`)
-        if (queryParams.length > 0) {
-          url += `?${queryParams.join('&')}`
-        }
-      }
-      const res = await axiosInstance.get(url)
+      let configUrl = '/analytics/dashboard-config'
+      const wsId = (user as any)?.workspaceId || (user as any)?.workspace_id
+      if (wsId) configUrl += `?workspaceId=${wsId}`
+      const res = await axiosInstance.get(configUrl)
       setDashboardConfig(res.data)
     } catch (err) {
       console.error('Failed to fetch dashboard config', err)
     }
   }
 
-  // Fetch industries on mount (if user is superAdmin)
-  useEffect(() => {
-    if (isSuperAdmin) {
-      getIndustries(true)
-        .then((list) => {
-          setIndustries(list)
-          if (list.length > 0) {
-            setSelectedIndustry(list[0].code || '')
-          }
-        })
-        .catch((err) => console.error('Failed to load industries', err))
-    }
-  }, [isSuperAdmin])
-
-  const filteredOrgs = useMemo(() => {
-    if (!data?.organizationsList) return []
-    if (!selectedIndustry) return data.organizationsList
-    return data.organizationsList.filter(org => {
-      const orgIndId = String((org as any).industryId || '').toLowerCase()
-      const selIndId = String(selectedIndustry).toLowerCase()
-      return orgIndId === selIndId
-    })
-  }, [data?.organizationsList, selectedIndustry])
-
-  // Automatically select the first organization for Super Admin when filteredOrgs changes
-  useEffect(() => {
-    if (isSuperAdmin && filteredOrgs.length > 0) {
-      const isValid = filteredOrgs.some(org => org.code === selectedOrg)
-      if (!isValid || !selectedOrg) {
-        setSelectedOrg(filteredOrgs[0].code)
-      }
-    } else if (isSuperAdmin) {
-      setSelectedOrg('')
-    }
-  }, [filteredOrgs, isSuperAdmin, selectedOrg])
-
   useEffect(() => {
     void fetchDashboardData()
     void fetchDashboardConfig()
-  }, [groupBy, selectedIndustry, selectedOrg, startDate, endDate])
+  }, [groupBy, startDate, endDate])
 
   const handleClearFilters = () => {
     setStartDate('')
     setEndDate('')
     setGroupBy('team')
-    if (isSuperAdmin && industries.length > 0) {
-      setSelectedIndustry(industries[0].code || '')
-    }
-    setSelectedOrg(isSuperAdmin && filteredOrgs.length > 0 ? filteredOrgs[0].code : '')
     setShowDatePanel(false)
   }
 
@@ -1005,9 +922,7 @@ export default function AnalyticsPage() {
               border: `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
             }}
           >
-            {user?.role === 'superAdmin'
-              ? 'Super Admin'
-              : user?.role === 'admin'
+            {user?.role === 'admin'
               ? 'Admin'
               : user?.role === 'leadManager'
               ? 'Lead Manager'
@@ -1015,13 +930,11 @@ export default function AnalyticsPage() {
               ? 'Team Lead'
               : user?.role === 'sales'
               ? 'Sales'
-              : user?.role || 'User'}
+              : user?.role || 'Admin'}
           </Box>
         </Stack>
         <Typography variant="body2" color="text.secondary">
-          {user?.role === 'superAdmin'
-            ? 'Global platform analytics across all registered organizations.'
-            : user?.role === 'admin'
+          {user?.role === 'admin'
             ? 'Performance metrics and activities for your organization.'
             : user?.role === 'leadManager'
             ? 'Analytics for your assigned teams and direct reports.'
@@ -1029,66 +942,57 @@ export default function AnalyticsPage() {
             ? 'Activity and lead tracking for your team members.'
             : user?.role === 'sales'
             ? 'Your personal sales activities, calling trends, and outcomes.'
-            : 'Track leads performance, team activities, and call duration analytics.'}
+            : 'Performance metrics and activities for your organization.'}
         </Typography>
       </Box>
 
-      {/* ── TOP CONTROL BAR (Unified inline dashboard filters) ─────────────────── */}
-      <Card
-        sx={{
-          p: 2,
-          borderRadius: '16px',
-          boxShadow: '0 4px 30px rgba(0,0,0,0.03)',
-          border: '1px solid',
-          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          backgroundColor: isDark ? 'rgba(30,30,40,0.7)' : 'rgba(255,255,255,0.8)',
-          backdropFilter: 'blur(10px)',
-          flexShrink: 0
-        }}
-      >
-        <Stack
-          direction={{ xs: 'column', lg: 'row' }}
-          spacing={2}
-          alignItems={{ xs: 'stretch', lg: 'center' }}
-          justifyContent="space-between"
-          flexWrap="wrap"
+      {data?.showAnalytics === false ? (
+        <Card
+          sx={{
+            p: 6,
+            textAlign: 'center',
+            borderRadius: '20px',
+            border: '1px dashed',
+            borderColor: theme.palette.divider,
+            backgroundColor: isDark ? 'rgba(30,30,40,0.5)' : 'rgba(255,255,255,0.7)',
+            backdropFilter: 'blur(10px)',
+            mt: 3
+          }}
         >
-          {/* Left Controls: Org Dropdown + Grouping Selection */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            {isSuperAdmin && industries.length > 0 && (
-              <TextField
-                select
-                size="small"
-                label="Industry"
-                value={selectedIndustry}
-                onChange={(e) => setSelectedIndustry(e.target.value)}
-                sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              >
-                {industries.map((ind) => (
-                  <MenuItem key={ind._id} value={ind.code}>
-                    {ind.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-
-            {isSuperAdmin && filteredOrgs.length > 0 && (
-              <TextField
-                select
-                size="small"
-                label="Organization"
-                value={selectedOrg}
-                onChange={(e) => setSelectedOrg(e.target.value)}
-                sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              >
-                {filteredOrgs.map((org) => (
-                  <MenuItem key={org.code} value={org.code}>
-                    {org.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-
+          <Box sx={{ maxWidth: 460, mx: 'auto' }}>
+            <AssessmentOutlinedIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Analytics Not Active
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Analytics is currently not enabled for your organization. Please contact your Super Administrator to activate the analytics module.
+            </Typography>
+          </Box>
+        </Card>
+      ) : (
+        <>
+          {/* ── TOP CONTROL BAR (Unified inline dashboard filters) ─────────────────── */}
+          <Card
+            sx={{
+              p: 2,
+              borderRadius: '16px',
+              boxShadow: '0 4px 30px rgba(0,0,0,0.03)',
+              border: '1px solid',
+              borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              backgroundColor: isDark ? 'rgba(30,30,40,0.7)' : 'rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(10px)',
+              flexShrink: 0
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', lg: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', lg: 'center' }}
+              justifyContent="space-between"
+              flexWrap="wrap"
+            >
+              {/* Left Controls: Grouping Selection */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
             {user?.role !== 'sales' ? (
               <Stack
                 direction="row"
@@ -1890,6 +1794,8 @@ export default function AnalyticsPage() {
           )}
             </>
           )}
+        </>
+      )}
         </>
       )}
     </Box>

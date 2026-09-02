@@ -60,38 +60,41 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+    <View style={styles.outerCanvas}>
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
+
+      {/* Subtle Executive Ambient Glows */}
+      <View style={styles.ambientGlowTop} />
+      <View style={styles.ambientGlowBottom} />
+
 
       <KeyboardAvoidingView
+        style={styles.flexOne}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardContainer}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollContentContainer}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
         >
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <View style={styles.topBackNavRow}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Login')}
-                style={styles.backButtonCircle}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+          {/* Executive Brand Identity Header */}
+          <View style={styles.brandHeroBlock}>
+            <View style={styles.logoContainer}>
+              <CompanyLogo variant="white" height={42} />
             </View>
 
-            <CompanyLogo variant="white" height={40} />
-            <Text style={styles.brandTagline}>{APP_CONFIG.tagline}</Text>
+            <View style={styles.statusBadgePill}>
+              <View style={styles.greenPulseDot} />
+              <Text style={styles.statusBadgeText}>ENTERPRISE REAL ESTATE CRM</Text>
+            </View>
           </View>
 
-          {/* Form Card */}
-          <View style={styles.authCard}>
-            <Text style={styles.cardTitle}>Reset password</Text>
-            <Text style={styles.cardSubtitle}>We'll send a reset link to your work email.</Text>
+          {/* 3D Framed White Form Card */}
+          <View style={styles.framedFormCard3D}>
+            <Text style={styles.headingTitle}>Reset password</Text>
+            <Text style={styles.headingSubtext}>
+              Enter your work email to receive password reset instructions.
+            </Text>
 
             {/* Error Alert */}
             {errorMessage ? (
@@ -106,20 +109,18 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
               <View style={styles.alertSuccess}>
                 <Ionicons name="checkmark-circle" size={22} color="#059669" />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.alertSuccessTitle}>Reset Email Sent</Text>
+                  <Text style={styles.alertSuccessTitle}>Reset Link Sent</Text>
                   <Text style={styles.alertSuccessText}>{successMessage}</Text>
                   <Text style={styles.alertSuccessHint}>
-                    Please check your inbox / spam folder and click the link to create your new password.
+                    Please check your inbox / spam folder and follow the instructions.
                   </Text>
                 </View>
               </View>
             ) : null}
 
             {/* Work Email Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.fieldLabel}>
-                Work email <Text style={styles.requiredAsterisk}>*</Text>
-              </Text>
+            <View style={styles.fieldBlock}>
+              <Text style={styles.fieldLabel}>WORK EMAIL</Text>
               <Pressable
                 style={[
                   styles.inputBox,
@@ -135,7 +136,7 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
                 >
                   <Ionicons
                     name="mail"
-                    size={15}
+                    size={16}
                     color={emailFocused ? '#FFFFFF' : theme.colors.brand700}
                   />
                 </View>
@@ -143,7 +144,7 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
                   ref={emailInputRef}
                   style={styles.textInputControl}
                   placeholder="name@company.com"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={theme.colors.textDisabled}
                   value={email}
                   onChangeText={(val) => {
                     setEmail(val);
@@ -161,7 +162,7 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
               </Pressable>
             </View>
 
-            {/* Submit Button */}
+            {/* 3D Primary Action Button (#272944) */}
             <TouchableOpacity
               style={styles.primaryCtaButton3D}
               onPress={handleSubmit}
@@ -177,34 +178,23 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
                 <View style={styles.ctaContentRow}>
                   <Text style={styles.ctaButtonText}>Send reset link</Text>
                   <View style={styles.ctaArrowCircle}>
-                    <Ionicons name="paper-plane" size={14} color={theme.colors.brand700} />
+                    <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
                   </View>
                 </View>
               )}
             </TouchableOpacity>
 
-            {/* Footer Navigation Links */}
+            {/* Card Footer Divider & Links */}
             <View style={styles.cardFooterDivider}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Login')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.backToSignInText}>Back to sign in</Text>
-              </TouchableOpacity>
-
-              <View style={styles.footerSeparatorDot} />
-
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Signup')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.signupLinkText}>Create account</Text>
+              <Text style={styles.footerPromptText}>Remember your password? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
+                <Text style={styles.signinLinkText}>Sign in</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Bottom Info */}
-          <AppVersionFooter />
+          {/* Footer Version Info */}
+          <AppVersionFooter textStyle={styles.footerVersionText} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -212,74 +202,96 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  outerCanvas: {
     flex: 1,
-    backgroundColor: '#1A1C30',
+    backgroundColor: '#151728',
   },
-  keyboardContainer: {
+  ambientGlowTop: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(99, 102, 241, 0.16)',
+  },
+  ambientGlowBottom: {
+    position: 'absolute',
+    bottom: -80,
+    left: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(14, 165, 233, 0.14)',
+  },
+  flexOne: {
     flex: 1,
-    width: '100%',
   },
-  scrollContent: {
+  scrollContentContainer: {
     flexGrow: 1,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 16 : 24,
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'ios' ? 68 : 48,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
+  },
+  brandHeroBlock: {
+    alignItems: 'center',
+    marginBottom: 36,
+  },
+  logoContainer: {
     alignItems: 'center',
   },
-  headerSection: {
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 20,
-  },
-  topBackNavRow: {
-    width: '100%',
+  statusBadgePill: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 10,
-  },
-  backButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    gap: 6,
   },
-  brandTagline: {
+  greenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
+  },
+  statusBadgeText: {
+    color: '#F8FAFC',
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 2,
-    marginTop: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    letterSpacing: 0.6,
   },
-  authCard: {
+  framedFormCard3D: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
-    width: '100%',
-    maxWidth: 440,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    borderBottomWidth: 3,
+    borderBottomColor: '#CBD5E1',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
   },
-  cardTitle: {
+  headingTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 4,
     letterSpacing: -0.4,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  cardSubtitle: {
+  headingSubtext: {
     fontSize: 13.5,
     color: '#64748B',
+    marginTop: 4,
     marginBottom: 20,
+    fontWeight: '400',
     lineHeight: 19,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
@@ -330,20 +342,16 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 16,
   },
-  inputGroup: {
-    marginBottom: 18,
+  fieldBlock: {
+    marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#334155',
-    marginBottom: 7,
-    letterSpacing: 0.1,
+    color: '#475569',
+    marginBottom: 6,
+    letterSpacing: 0.5,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  requiredAsterisk: {
-    color: '#EF4444',
-    fontWeight: '700',
   },
   inputBox: {
     flexDirection: 'row',
@@ -388,14 +396,14 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   primaryCtaButton3D: {
-    backgroundColor: theme.colors.brand700,
+    backgroundColor: '#272944',
     borderRadius: 14,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 3,
     borderBottomColor: '#16182B',
-    shadowColor: theme.colors.brand700,
+    shadowColor: '#272944',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
     shadowRadius: 8,
@@ -430,35 +438,22 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    gap: 12,
   },
-  footerSeparatorDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#CBD5E1',
-  },
-  backToSignInText: {
+  footerPromptText: {
     fontSize: 13,
-    color: theme.colors.brand700,
-    fontWeight: '600',
+    color: '#64748B',
+    fontWeight: '400',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  signupLinkText: {
+  signinLinkText: {
     fontSize: 13,
     color: theme.colors.brand700,
-    fontWeight: '600',
+    fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  bottomFooterInfo: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  bottomFooterText: {
+  footerVersionText: {
+    color: '#64748B',
     fontSize: 11,
-    color: '#94A3B8',
     fontWeight: '500',
-    letterSpacing: 0.4,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });
