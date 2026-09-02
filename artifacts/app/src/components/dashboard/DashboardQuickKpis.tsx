@@ -57,15 +57,17 @@ export const DashboardQuickKpis: React.FC<Props> = ({
       {kpiItems.map((item) => (
         <TouchableOpacity
           key={item.key}
-          style={styles.card}
+          style={[styles.card, { borderLeftColor: item.color }]}
           onPress={() => onSelectKpi(item.key, item.label)}
           activeOpacity={0.85}
         >
           <View style={styles.cardHeader}>
             <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
-              <Ionicons name={item.icon} size={15} color={item.color} />
+              <Ionicons name={item.icon} size={16} color={item.color} />
             </View>
-            <Ionicons name="arrow-forward-sharp" size={12} color="#94A3B8" />
+            <View style={styles.arrowCircle}>
+              <Ionicons name="chevron-forward-sharp" size={13} color="#94A3B8" />
+            </View>
           </View>
 
           <Text style={styles.kpiValue}>{item.value}</Text>
@@ -83,49 +85,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 14,
+    gap: 10,
+    marginBottom: 16,
   },
   card: {
-    width: '48.5%',
+    width: '48.4%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 2,
-    borderBottomColor: '#E2E8F0',
+    borderLeftWidth: 4,
+    borderBottomWidth: 3,
+    borderBottomColor: '#CBD5E1',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrowCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   kpiValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   kpiLabel: {
     fontSize: 11.5,
-    color: '#64748B',
+    color: '#475569',
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: 3,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

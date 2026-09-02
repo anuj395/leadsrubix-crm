@@ -72,24 +72,30 @@ export const DashboardActionCockpit: React.FC<Props> = ({
     },
   ];
 
+  const hasActiveActions = actions.some((a) => a.count > 0);
+
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.headerLeftGroup}>
-          <View style={styles.urgentDot} />
+          <View
+            style={[
+              styles.urgentDot,
+              { backgroundColor: hasActiveActions ? '#F43F5E' : '#94A3B8' },
+            ]}
+          />
           <Text style={styles.sectionTitle}>TODAY'S ACTION COCKPIT</Text>
         </View>
-        <Text style={styles.sectionSubtitle}>High-priority items</Text>
+        <Text style={styles.sectionSubtitle}>
+          {hasActiveActions ? 'Requires action today' : 'Up to date'}
+        </Text>
       </View>
 
       <View style={styles.cardsRow}>
         {actions.map((action) => (
           <TouchableOpacity
             key={action.id}
-            style={[
-              styles.actionCard,
-              { backgroundColor: '#FFFFFF', borderColor: action.borderColor },
-            ]}
+            style={[styles.actionCard, { borderBottomColor: action.color }]}
             onPress={action.onPress}
             activeOpacity={0.85}
           >
@@ -100,7 +106,7 @@ export const DashboardActionCockpit: React.FC<Props> = ({
                   { backgroundColor: action.bgGradient },
                 ]}
               >
-                <Ionicons name={action.icon} size={15} color={action.color} />
+                <Ionicons name={action.icon} size={16} color={action.color} />
               </View>
               <Text style={[styles.countText, { color: action.badgeColor }]}>
                 {action.count}
@@ -110,9 +116,11 @@ export const DashboardActionCockpit: React.FC<Props> = ({
             <Text style={styles.actionTitle} numberOfLines={1}>
               {action.title}
             </Text>
-            <Text style={styles.actionSubtitle} numberOfLines={1}>
-              {action.subtitle}
-            </Text>
+            <View style={styles.subtitleRow}>
+              <Text style={styles.actionSubtitle} numberOfLines={1}>
+                {action.subtitle}
+              </Text>
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -122,13 +130,14 @@ export const DashboardActionCockpit: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
+    paddingHorizontal: 2,
   },
   headerLeftGroup: {
     flexDirection: 'row',
@@ -136,70 +145,73 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   urgentDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E11D48',
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   sectionTitle: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#334155',
     letterSpacing: 0.8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   sectionSubtitle: {
     fontSize: 11,
     color: '#94A3B8',
-    fontWeight: '500',
+    fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   cardsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   actionCard: {
     flex: 1,
-    borderRadius: 14,
-    padding: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    borderBottomWidth: 2,
+    borderColor: '#E2E8F0',
+    borderBottomWidth: 3,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   countText: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   actionTitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.2,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
+  subtitleRow: {
+    marginTop: 2,
+  },
   actionSubtitle: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: '#64748B',
-    marginTop: 1,
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },

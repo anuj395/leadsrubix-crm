@@ -32,7 +32,7 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
       <View style={styles.headerRow}>
         <View style={styles.titleGroup}>
           <View style={styles.iconCircle}>
-            <Ionicons name="calendar-sharp" size={14} color="#D97706" />
+            <Ionicons name="calendar-sharp" size={15} color="#D97706" />
           </View>
           <View>
             <Text style={styles.title}>TODAY'S SCHEDULE & {semantics.visitsDesc.toUpperCase()}</Text>
@@ -50,8 +50,21 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
 
       {pendingTasks.length === 0 ? (
         <View style={styles.emptyBox}>
-          <Ionicons name="checkmark-circle-outline" size={24} color="#059669" />
-          <Text style={styles.emptyText}>No pending {semantics.visitsDesc.toLowerCase()} or follow-ups scheduled.</Text>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="checkmark-done-circle-sharp" size={26} color="#10B981" />
+          </View>
+          <Text style={styles.emptyTitle}>All Caught Up For Today</Text>
+          <Text style={styles.emptyText}>
+            No pending {semantics.visitsDesc.toLowerCase()} or follow-ups requiring immediate attention.
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyActionBtn}
+            onPress={onViewAll}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add-circle-outline" size={15} color="#272944" />
+            <Text style={styles.emptyActionBtnText}>Manage Schedule</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.list}>
@@ -110,48 +123,48 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 2,
-    borderBottomColor: '#E2E8F0',
+    borderBottomWidth: 3,
+    borderBottomColor: '#CBD5E1',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(217, 119, 6, 0.10)',
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#334155',
     letterSpacing: 0.8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   subtitle: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 12.5,
+    fontWeight: '700',
     color: '#0F172A',
     marginTop: 1,
     letterSpacing: -0.2,
@@ -160,7 +173,11 @@ const styles = StyleSheet.create({
   viewAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   viewAllText: {
     fontSize: 11.5,
@@ -176,7 +193,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -186,13 +203,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   priorityBar: {
-    width: 3.5,
-    height: 28,
+    width: 4,
+    height: 32,
     borderRadius: 2,
-    marginRight: 8,
+    marginRight: 10,
   },
   taskTitle: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
@@ -200,11 +217,11 @@ const styles = StyleSheet.create({
   taskMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 5,
+    marginTop: 3,
   },
   leadName: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#0284C7',
     fontWeight: '600',
   },
@@ -213,28 +230,71 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   timeText: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#64748B',
     fontWeight: '500',
   },
   callActionBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyBox: {
     alignItems: 'center',
-    paddingVertical: 14,
-    gap: 4,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  emptyIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   emptyText: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#64748B',
-    fontWeight: '500',
+    fontWeight: '400',
     textAlign: 'center',
+    lineHeight: 17,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    marginBottom: 12,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  emptyActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#272944',
   },
 });

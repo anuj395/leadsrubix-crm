@@ -89,24 +89,36 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#272944" />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
       {/* Zone 1: Executive Greeting & Hero Header */}
       <View style={styles.heroHeader}>
+        {/* Subtle Ambient Glows */}
+        <View style={styles.headerAmbientGlow} />
+
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
 
-          <TouchableOpacity
-            style={styles.notifBtnCircle}
-            onPress={() => navigation.navigate('Notifications')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="notifications-outline" size={17} color="#FFFFFF" />
-            <View style={styles.notifBadgeDot} />
-          </TouchableOpacity>
+          <View style={styles.topRightActions}>
+            <TouchableOpacity
+              style={styles.notifBtnCircle}
+              onPress={() => navigation.navigate('Notifications')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+              <View style={styles.notifBadgeDot} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.greetingRow}>
+          <View style={styles.userAvatarInitials}>
+            <Text style={styles.avatarInitialsText}>
+              {(user?.name || 'A').slice(0, 2).toUpperCase()}
+            </Text>
+            <View style={styles.avatarOnlineDot} />
+          </View>
+
           <View style={styles.greetingTextCol}>
             <Text style={styles.greetingLabel}>
               {getGreeting()}, {userDisplayName}
@@ -118,7 +130,7 @@ export const DashboardScreen = ({ navigation }: any) => {
 
           <View style={styles.headerTagPill}>
             <View style={styles.greenPulseDot} />
-            <Text style={styles.headerTagText}>WORKSPACE ACTIVE</Text>
+            <Text style={styles.headerTagText}>ACTIVE</Text>
           </View>
         </View>
       </View>
@@ -195,62 +207,107 @@ const styles = StyleSheet.create({
   },
   heroHeader: {
     width: '100%',
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 18,
-    paddingHorizontal: 18,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-    shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 6,
+    backgroundColor: '#151728',
+    paddingTop: Platform.OS === 'ios' ? 56 : 42,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  headerAmbientGlow: {
+    position: 'absolute',
+    top: -60,
+    right: -40,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
   },
   headerTopRow: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 16,
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   notifBtnCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   notifBadgeDot: {
     position: 'absolute',
     top: 7,
     right: 7,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E11D48',
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#F43F5E',
+    borderWidth: 1.5,
+    borderColor: '#151728',
   },
   greetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  userAvatarInitials: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#272944',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  avatarInitialsText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  avatarOnlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#151728',
+  },
   greetingTextCol: {
     flex: 1,
     marginRight: 10,
   },
   greetingLabel: {
-    fontSize: 16,
+    fontSize: 16.5,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.3,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   organizationLabel: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#94A3B8',
     marginTop: 2,
     fontWeight: '500',
@@ -259,22 +316,22 @@ const styles = StyleSheet.create({
   headerTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: 'rgba(16, 185, 129, 0.28)',
     gap: 5,
   },
   greenPulseDot: {
-    width: 5.5,
-    height: 5.5,
+    width: 6,
+    height: 6,
     borderRadius: 3,
-    backgroundColor: '#34D399',
+    backgroundColor: '#10B981',
   },
   headerTagText: {
-    color: '#FFFFFF',
+    color: '#34D399',
     fontSize: 9.5,
     fontWeight: '700',
     letterSpacing: 0.6,
