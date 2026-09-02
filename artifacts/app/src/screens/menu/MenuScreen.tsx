@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -280,10 +280,12 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 12,
   },
   menuCard3D: {
     width: '48%',
+    minWidth: 140,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
