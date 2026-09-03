@@ -5,6 +5,7 @@ const { authenticate } = require('../middlewares/auth');
 const router = express.Router();
 
 router.post('/convert', authenticate, ctrl.convert);
+router.post('/:id/transition', authenticate, ctrl.transition);
 router.get('/:id', authenticate, ctrl.retrieve);
 router.get('/', authenticate, ctrl.list);
 router.post('/', authenticate, ctrl.create);

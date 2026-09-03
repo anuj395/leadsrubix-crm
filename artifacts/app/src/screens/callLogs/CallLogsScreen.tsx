@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,48 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Platform,
   Linking,
   Modal,
   RefreshControl,
   ActivityIndicator,
   Alert,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
 import { callLogService, CallLogItem } from '../../services/callLogService';
-import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
-import { theme } from '../../theme/theme';
+import { getIndustrySemantics, getIndustryCallOutcomePresets } from '../../utils/industryLabels';
+import { CallDialerModal, PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
+import { openWhatsApp } from '../../utils/whatsappHelper';
 
-const OUTCOME_PRESETS = [
-  { label: 'Site Visit Confirmed', badgeColor: '#059669', bgColor: 'rgba(5, 150, 105, 0.12)' },
-  { label: 'Price Matrix Sent', badgeColor: '#0284C7', bgColor: 'rgba(2, 132, 199, 0.12)' },
-  { label: 'Callback Required', badgeColor: '#D97706', bgColor: 'rgba(217, 119, 6, 0.12)' },
-  { label: 'Not Interested', badgeColor: '#E11D48', bgColor: 'rgba(225, 29, 72, 0.12)' },
-];
+type FilterType = 'ALL' | 'ANSWERED' | 'MISSED' | 'INBOUND' | 'OUTBOUND';
 
-export const CallLogsScreen = () => {
+interface CallLogsScreenProps {
+  navigation?: any;
+}
+
+export const CallLogsScreen: React.FC<CallLogsScreenProps> = ({ navigation }) => {
+  const { user } = useAuth();
+  const semantics = useMemo(() => getIndustrySemantics(user?.industryId), [user?.industryId]);
+
   const [callLogs, setCallLogs] = useState<CallLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('ALL');
 
-  // Auto Post-Call Outcome Modal State
+  // Telephony & Post-Call State
+  const [dialerModalVisible, setDialerModalVisible] = useState(false);
   const [postCallModalVisible, setPostCallModalVisible] = useState(false);
-  const [activeCallBuyer, setActiveCallBuyer] = useState<{ name: string; phone: string; project: string } | null>(null);
+  const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
 
   const fetchCallLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await callLogService.getCallLogs();
+      const userAny = user as any;
+      const data = await callLogService.getCallLogs(userAny?.id || userAny?._id, user?.role);
       setCallLogs(data);
     } catch (err) {
       console.error('Failed to load call logs:', err);
@@ -47,7 +55,7 @@ export const CallLogsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchCallLogs();
@@ -58,182 +66,335 @@ export const CallLogsScreen = () => {
     fetchCallLogs();
   };
 
-  // Trigger Phone Dialer & Open Auto Post-Call Outcome Popup
+  // Trigger Phone Dialer & Open Auto Post-Call Disposition
   const handleInitiateCall = (buyerName: string, phone: string, project: string) => {
-    Linking.openURL(`tel:${phone}`);
-    setActiveCallBuyer({ name: buyerName, phone, project });
+    if (!phone) {
+      Alert.alert('No Phone Number', 'This contact does not have a valid phone number.');
+      return;
+    }
+    Linking.openURL(`tel:${phone}`).catch(() => {
+      // Note: Simulator has no cellular dialer hardware
+      console.log(`[Telephony] Native dialer not available on simulator for ${phone}`);
+    });
+    setActiveCaller({ customerName: buyerName, phone, project });
 
     // Open Auto Post-Call Outcome Overlay after slight delay
     setTimeout(() => {
       setPostCallModalVisible(true);
-    }, 1200);
+    }, 1000);
   };
 
-  const handleSelectOutcome = (preset: typeof OUTCOME_PRESETS[0]) => {
-    if (!activeCallBuyer) return;
-
-    const newLog: CallLogItem = {
-      id: Date.now().toString(),
-      buyerName: activeCallBuyer.name,
-      phone: activeCallBuyer.phone,
-      project: activeCallBuyer.project,
-      type: 'Outbound Call',
-      duration: '1m 30s',
-      timestamp: 'Just now',
-      outcome: preset.label,
-      badgeColor: preset.badgeColor,
-      bgColor: preset.bgColor,
-    };
-
-    setCallLogs((prev) => [newLog, ...prev]);
-    setPostCallModalVisible(false);
-    setActiveCallBuyer(null);
-
-    Alert.alert('Call Outcome Logged', `Recorded outcome: ${preset.label}`);
+  const handleOpenWhatsApp = (phone?: string, name?: string) => {
+    const message = `Hello ${name || 'Sir/Madam'}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you today?`;
+    openWhatsApp(phone, message);
   };
+
+  // Compute exact Web CRM counts
+  const stats = useMemo(() => {
+    const total = callLogs.length;
+    const answered = callLogs.filter(
+      (l) =>
+        (l.status || l.outcome || '').toLowerCase() === 'answered' ||
+        (l.status || l.outcome || '').toLowerCase().includes('site') ||
+        (l.status || l.outcome || '').toLowerCase().includes('won') ||
+        (l.status || l.outcome || '').toLowerCase().includes('sent') ||
+        (l.status || l.outcome || '').toLowerCase().includes('consult') ||
+        (l.status || l.outcome || '').toLowerCase().includes('booked')
+    ).length;
+    const missed = callLogs.filter(
+      (l) =>
+        (l.status || l.outcome || '').toLowerCase() === 'missed' ||
+        (l.status || l.outcome || '').toLowerCase().includes('no answer') ||
+        (l.status || l.outcome || '').toLowerCase().includes('lost') ||
+        (l.status || l.outcome || '').toLowerCase().includes('dropped')
+    ).length;
+    const inbound = callLogs.filter((l) => (l.type || '').toLowerCase().includes('inbound')).length;
+    const outbound = callLogs.filter((l) => (l.type || '').toLowerCase().includes('outbound')).length;
+
+    return { total, answered, missed, inbound, outbound };
+  }, [callLogs]);
+
+  const filteredLogs = useMemo(() => {
+    return callLogs.filter((log) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (log.buyerName && log.buyerName.toLowerCase().includes(q)) ||
+        (log.phone && log.phone.includes(q)) ||
+        (log.outcome && log.outcome.toLowerCase().includes(q)) ||
+        (log.agent && log.agent.toLowerCase().includes(q)) ||
+        (log.project && log.project.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+
+      if (selectedFilter === 'ANSWERED') {
+        return (
+          (log.status || log.outcome || '').toLowerCase() === 'answered' ||
+          (log.status || log.outcome || '').toLowerCase().includes('site') ||
+          (log.status || log.outcome || '').toLowerCase().includes('won') ||
+          (log.status || log.outcome || '').toLowerCase().includes('sent') ||
+          (log.status || log.outcome || '').toLowerCase().includes('consult') ||
+          (log.status || log.outcome || '').toLowerCase().includes('booked')
+        );
+      }
+      if (selectedFilter === 'MISSED') {
+        return (
+          (log.status || log.outcome || '').toLowerCase() === 'missed' ||
+          (log.status || log.outcome || '').toLowerCase().includes('no answer') ||
+          (log.status || log.outcome || '').toLowerCase().includes('lost') ||
+          (log.status || log.outcome || '').toLowerCase().includes('dropped')
+        );
+      }
+      if (selectedFilter === 'INBOUND') {
+        return (log.type || '').toLowerCase().includes('inbound');
+      }
+      if (selectedFilter === 'OUTBOUND') {
+        return (log.type || '').toLowerCase().includes('outbound');
+      }
+
+      return true;
+    });
+  }, [callLogs, searchQuery, selectedFilter]);
+
+  const filterTabs: { key: FilterType; label: string; count: number }[] = [
+    { key: 'ALL', label: 'ALL', count: stats.total },
+    { key: 'ANSWERED', label: 'ANSWERED', count: stats.answered },
+    { key: 'MISSED', label: 'MISSED', count: stats.missed },
+    { key: 'INBOUND', label: 'INBOUND', count: stats.inbound },
+    { key: 'OUTBOUND', label: 'OUTBOUND', count: stats.outbound },
+  ];
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* Clean Executive #272944 Hero Header Banner */}
-      <View style={styles.hero3DHeader}>
-        <View style={styles.headerLogoRow}>
-          <CompanyLogo variant="white" height={34} />
+      {/* ─── Zone 1: Luxury #151728 Midnight Header ─── */}
+      <View style={styles.luxuryHeader}>
+        <View style={styles.headerTopRow}>
+          <CompanyLogo variant="white" height={28} />
+
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              style={styles.headerDialerTrigger}
+              onPress={() => setDialerModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="keypad" size={14} color="#38BDF8" />
+              <Text style={styles.headerDialerTriggerText}>Dialer</Text>
+            </TouchableOpacity>
+
+            <View style={styles.statusPill}>
+              <View style={styles.greenPulseDot} />
+              <Text style={styles.statusPillText}>ACTIVE</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.headerTagPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.headerTagText}>AUTO-LOGGING TELEPHONY & CALL ACTIVITY</Text>
+        {/* Integrated Dynamic Search Bar */}
+        <View style={styles.searchBarBox}>
+          <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInputControl}
+            placeholder={`Search ${semantics.leadEntitySingular.toLowerCase()}, number, ${semantics.agentEntity.toLowerCase()}, notes...`}
+            placeholderTextColor="#64748B"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#151728" />}
       >
-        {/* Animated AI Mascot Advisor Companion */}
-        <AIAdvisorMascot
-          screenName="CallLogs"
-          message="Tap any call button to dial out — the auto post-call popup will prompt you for 1-tap outcome logging!"
-        />
+        {/* ─── Zone 2: Filter Chips ─── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.statusFilterBar}
+          contentContainerStyle={styles.statusFilterContent}
+        >
+          {filterTabs.map((tab) => {
+            const isSelected = selectedFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.statusChip, isSelected && styles.statusChipSelected]}
+                onPress={() => setSelectedFilter(tab.key)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.statusChipText, isSelected && styles.statusChipTextSelected]}>
+                  {tab.label}
+                </Text>
+                <View style={[styles.chipBadgeCircle, isSelected && styles.chipBadgeCircleSelected]}>
+                  <Text style={[styles.chipBadgeText, isSelected && styles.chipBadgeTextSelected]}>
+                    {tab.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>RECENT CALL ACTIVITY</Text>
-          <InfoGuideBadge
-            title="Auto Post-Call Telephony"
-            description="Initiate calls directly. As soon as you dial out, the post-call popup automatically prompts you to select a 1-tap outcome."
-          />
-        </View>
-
+        {/* ─── Zone 3: Call History Cards (Multi-Tenant Adaptive) ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Loading call logs & telephony records...</Text>
+            <ActivityIndicator size="small" color="#151728" />
+            <Text style={styles.loadingText}>Fetching telephony & dialer logs...</Text>
+          </View>
+        ) : filteredLogs.length === 0 ? (
+          <View style={styles.emptyCard3D}>
+            <View style={styles.emptyIconBadge}>
+              <Ionicons name="call-outline" size={26} color="#059669" />
+            </View>
+            <Text style={styles.emptyTitle}>No Call Logs Found</Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? `No call logs match "${searchQuery}". Try a different keyword.`
+                : `No calls currently recorded in ${selectedFilter} category.`}
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCTA}
+              onPress={() => (navigation?.navigate ? navigation.navigate('Leads') : null)}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="people-sharp" size={18} color="#FFFFFF" />
+              <Text style={styles.emptyCTAText}>View {semantics.leadEntityPlural} Pipeline</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          callLogs.map((log) => (
-            <View key={log.id} style={styles.callCard3D}>
-              <View style={styles.cardHeaderRow}>
-                <View style={[styles.callTypeBadge, { backgroundColor: log.bgColor }]}>
-                  <Ionicons
-                    name={
-                      log.type.includes('Outbound')
-                        ? 'call-outline'
-                        : log.type.includes('Inbound')
-                        ? 'arrow-down-circle-outline'
-                        : 'close-circle-outline'
-                    }
-                    size={20}
-                    color={log.badgeColor}
-                  />
+          filteredLogs.map((log) => {
+            const isOut = (log.type || log.direction || '').toLowerCase().includes('out');
+            return (
+              <View key={log.id} style={styles.callCard3D}>
+                <View style={styles.callCardTopRow}>
+                  <View style={styles.callCardAvatarGroup}>
+                    <View style={[styles.callTypeIconCircle, { backgroundColor: isOut ? '#EFF6FF' : '#F0FDF4' }]}>
+                      <Ionicons
+                        name={isOut ? 'call' : 'call-outline'}
+                        size={16}
+                        color={isOut ? '#2563EB' : '#16A34A'}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.callerNameText} numberOfLines={1}>
+                        {log.buyerName}
+                      </Text>
+                      <View style={styles.callerPhoneRow}>
+                        <Text style={styles.callerPhoneText}>{log.phone}</Text>
+                        {log.project ? (
+                          <Text style={styles.callerProjectText} numberOfLines={1}>
+                            • {log.project}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={[styles.statusBadgePill, { backgroundColor: log.bgColor }]}>
+                    <Text style={[styles.statusBadgePillText, { color: log.badgeColor }]}>
+                      {log.outcome || log.status}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.buyerInfoGroup}>
-                  <Text style={styles.buyerNameText}>{log.buyerName}</Text>
-                  <Text style={styles.buyerPhoneText}>
-                    {log.phone} • {log.project}
-                  </Text>
+                {/* Meta details (Duration, Time, Agent) */}
+                <View style={styles.callCardMetaRow}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="time-outline" size={13} color="#64748B" />
+                    <Text style={styles.metaItemText}>{log.duration}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="calendar-outline" size={13} color="#64748B" />
+                    <Text style={styles.metaItemText}>{log.timestamp}</Text>
+                  </View>
+                  {log.agent ? (
+                    <View style={styles.metaItem}>
+                      <Ionicons name="person-outline" size={13} color="#64748B" />
+                      <Text style={styles.metaItemText} numberOfLines={1}>
+                        {log.agent}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
 
-                <View style={[styles.outcomePill, { backgroundColor: log.bgColor }]}>
-                  <Text style={[styles.outcomePillText, { color: log.badgeColor }]}>
-                    {log.outcome}
-                  </Text>
-                </View>
-              </View>
+                {/* Notes if available */}
+                {log.notes ? (
+                  <View style={styles.callNotesBox}>
+                    <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                    <Text style={styles.callNotesText} numberOfLines={2}>
+                      {log.notes}
+                    </Text>
+                  </View>
+                ) : null}
 
-              {/* Call Details Strip & 1-Tap Redial Trigger */}
-              <View style={styles.cardFooterRow}>
-                <Text style={styles.durationText}>
-                  {log.type} • {log.duration} • {log.timestamp}
-                </Text>
-
-                <TouchableOpacity
-                  style={styles.redialBtn}
-                  onPress={() => handleInitiateCall(log.buyerName, log.phone, log.project)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="call" size={12} color="#FFFFFF" />
-                  <Text style={styles.redialBtnText}>Call Buyer</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-
-        {/* Auto Post-Call Outcome Popup Modal */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={postCallModalVisible}
-          onRequestClose={() => setPostCallModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard3D}>
-              <View style={styles.modalHeaderRow}>
-                <View style={styles.telephonyIconBadge}>
-                  <Ionicons name="call" size={20} color={theme.colors.brand700} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>Auto Post-Call Logger</Text>
-                  <Text style={styles.modalSubtitle}>
-                    Select 1-tap outcome for call with {activeCallBuyer?.name}:
-                  </Text>
-                </View>
-              </View>
-
-              {/* Outcome Option Buttons */}
-              <View style={styles.outcomeOptionsGrid}>
-                {OUTCOME_PRESETS.map((preset, idx) => (
+                {/* Cockpit Action Buttons */}
+                <View style={styles.cardActionsRow}>
                   <TouchableOpacity
-                    key={idx}
-                    style={[styles.outcomeOptionBtn, { borderColor: preset.badgeColor }]}
-                    onPress={() => handleSelectOutcome(preset)}
-                    activeOpacity={0.8}
+                    style={styles.redialCockpitBtn}
+                    onPress={() => handleInitiateCall(log.buyerName, log.phone, log.project)}
+                    activeOpacity={0.85}
                   >
-                    <View style={[styles.outcomeDot, { backgroundColor: preset.badgeColor }]} />
-                    <Text style={styles.outcomeOptionText}>{preset.label}</Text>
+                    <Ionicons name="call-sharp" size={13} color="#FFFFFF" />
+                    <Text style={styles.callCockpitText}>Redial Contact</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
 
-              <TouchableOpacity
-                style={styles.dismissBtn}
-                onPress={() => {
-                  setPostCallModalVisible(false);
-                  setActiveCallBuyer(null);
-                }}
-              >
-                <Text style={styles.dismissBtnText}>Skip Logging</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+                  {log.phone ? (
+                    <TouchableOpacity
+                      style={styles.whatsappCockpitBtn}
+                      onPress={() => handleOpenWhatsApp(log.phone, log.buyerName)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="logo-whatsapp" size={14} color="#15803D" />
+                      <Text style={styles.whatsappCockpitText}>WhatsApp</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
+
+      {/* Floating Action Button (FAB) to Open Dialer */}
+      <TouchableOpacity
+        style={styles.fabDialerBtn}
+        onPress={() => setDialerModalVisible(true)}
+        activeOpacity={0.88}
+      >
+        <Ionicons name="keypad" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* In-App Numeric Call Dialer Modal */}
+      <CallDialerModal
+        visible={dialerModalVisible}
+        onClose={() => setDialerModalVisible(false)}
+        onCallInitiated={(caller) => {
+          setActiveCaller(caller);
+          setTimeout(() => {
+            setPostCallModalVisible(true);
+          }, 1000);
+        }}
+      />
+
+      {/* Post-Call Disposition & Logging Modal */}
+      <PostCallDispositionModal
+        visible={postCallModalVisible}
+        onClose={() => {
+          setPostCallModalVisible(false);
+          setActiveCaller(null);
+        }}
+        caller={activeCaller}
+        onSuccess={() => {
+          fetchCallLogs();
+        }}
+      />
     </View>
   );
 };
@@ -243,34 +404,50 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  hero3DHeader: {
-    width: '100%',
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
+  luxuryHeader: {
+    backgroundColor: '#151728',
+    paddingTop: Platform.OS === 'ios' ? 56 : 38,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
   },
-  headerLogoRow: {
-    marginBottom: 8,
-  },
-  headerTagPill: {
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginTop: 4,
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerDialerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+    gap: 5,
+  },
+  headerDialerTriggerText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.4,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     gap: 6,
   },
   greenPulseDot: {
@@ -279,189 +456,294 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#34D399',
   },
-  headerTagText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+  statusPillText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#34D399',
+    letterSpacing: 0.5,
   },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  sectionHeaderRow: {
+  searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 42,
   },
-  sectionTitle: {
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInputControl: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0F172A',
+    paddingVertical: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  contentContainer: {
+    paddingTop: 12,
+    paddingBottom: 120,
+    paddingHorizontal: 16,
+  },
+  statusFilterBar: {
+    marginBottom: 14,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  statusFilterContent: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  statusChipSelected: {
+    backgroundColor: '#151728',
+    borderColor: '#151728',
+  },
+  statusChipText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 0.6,
+  },
+  statusChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  chipBadgeCircle: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  chipBadgeCircleSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  chipBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  chipBadgeTextSelected: {
+    color: '#FFFFFF',
   },
   loadingBox: {
+    paddingVertical: 40,
     alignItems: 'center',
-    paddingVertical: 32,
     gap: 8,
   },
   loadingText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  callCard3D: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  callTypeBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  buyerInfoGroup: {
-    flex: 1,
-  },
-  buyerNameText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  buyerPhoneText: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 1,
   },
-  outcomePill: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  outcomePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  cardFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyCard3D: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 24,
     alignItems: 'center',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  durationText: {
-    fontSize: 11,
+  emptyIconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 11.5,
     color: '#64748B',
-    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
   },
-  redialBtn: {
+  emptyCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.brand700,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
+    backgroundColor: '#151728',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 6,
   },
-  redialBtnText: {
-    fontSize: 11,
+  emptyCTAText: {
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 16, 30, 0.65)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard3D: {
+  callCard3D: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  modalHeaderRow: {
+  callCardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  callCardAvatarGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
     gap: 10,
   },
-  telephonyIconBadge: {
-    width: 40,
-    height: 40,
+  callTypeIconCircle: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+  callerNameText: {
+    fontSize: 13.5,
+    fontWeight: '800',
     color: '#0F172A',
   },
-  modalSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  outcomeOptionsGrid: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  outcomeOptionBtn: {
+  callerPhoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1.5,
-    gap: 10,
+    marginTop: 2,
+    gap: 4,
   },
-  outcomeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  outcomeOptionText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  dismissBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  dismissBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
+  callerPhoneText: {
+    fontSize: 11,
     color: '#64748B',
+    fontWeight: '600',
+  },
+  callerProjectText: {
+    fontSize: 11,
+    color: '#0EA5E9',
+    fontWeight: '600',
+  },
+  statusBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+  },
+  statusBadgePillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  callCardMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaItemText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  callNotesBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+    gap: 6,
+    marginBottom: 10,
+  },
+  callNotesText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  redialCockpitBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#151728',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 5,
+  },
+  callCockpitText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  whatsappCockpitBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  whatsappCockpitText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  fabDialerBtn: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 90 : 76,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#16A34A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });

@@ -9,13 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../api/apiClient';
 import { taskService } from '../../services/taskService';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
-import { theme } from '../../theme/theme';
+import { CompanyLogo } from '../../components/ui/CompanyLogo';
+import { CalendarDatePickerModal } from '../../components/ui/CalendarDatePickerModal';
 
 interface TaskFormField {
   key: string;
@@ -28,7 +30,7 @@ interface TaskFormField {
 const DEFAULT_TASK_FIELDS: TaskFormField[] = [
   { key: 'title', label: 'Task Title', type: 'text', isRequired: true, placeholder: 'e.g. Schedule Follow-up Call' },
   { key: 'leadName', label: 'Lead / Client Name', type: 'text', isRequired: false, placeholder: 'Enter contact name' },
-  { key: 'dueDate', label: 'Due Date & Time', type: 'text', isRequired: false, placeholder: 'e.g. Today, 4:00 PM' },
+  { key: 'dueDate', label: 'Due Date & Time', type: 'datetime', isRequired: false, placeholder: 'Select due date & time' },
   { key: 'project', label: 'Project / Department', type: 'text', isRequired: false, placeholder: 'Enter project or specialty' },
 ];
 
@@ -48,6 +50,7 @@ export const TaskFormScreen = ({ navigation }: any) => {
   const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('High');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Dynamically resolve task form schema from backend API
   useEffect(() => {
@@ -58,7 +61,8 @@ export const TaskFormScreen = ({ navigation }: any) => {
       .post('/screens/resolve', {
         screenKey: 'task',
         industryCode: user?.industryId || 'real_estate',
-        roleKey: 'sales',
+        roleKey: user?.role || 'sales',
+        organizationId: user?.organizationId,
       })
       .then((res) => {
         if (!isMounted) return;
@@ -130,17 +134,36 @@ export const TaskFormScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back-sharp" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>SCHEDULE {semantics.taskEntitySingular.toUpperCase()}</Text>
-        <View style={{ width: 34 }} />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
+
+      {/* Luxury #151728 Midnight Header */}
+      <View style={styles.luxuryHeader}>
+        <View style={styles.headerTopRow}>
+          <CompanyLogo variant="white" height={28} />
+          <TouchableOpacity
+            style={styles.headerBackBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.88}
+          >
+            <Ionicons name="chevron-back" size={15} color="#FFFFFF" />
+            <Text style={styles.headerBackBtnText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.headerBannerBox}>
+          <View style={styles.headerTitleGroup}>
+            <View style={styles.headerIconCircle}>
+              <Ionicons name="calendar-sharp" size={15} color="#0284C7" />
+            </View>
+            <Text style={styles.headerTitleText}>
+              Schedule New {semantics.taskEntitySingular}
+            </Text>
+          </View>
+          <View style={styles.headerStatusPill}>
+            <View style={styles.headerGreenPulseDot} />
+            <Text style={styles.headerStatusPillText}>ENTRY</Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView
@@ -151,13 +174,47 @@ export const TaskFormScreen = ({ navigation }: any) => {
         <View style={styles.cardContainer}>
           {loadingSchema ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="small" color={theme.colors.brand700} />
+              <ActivityIndicator size="small" color="#272944" />
               <Text style={styles.loadingText}>Loading dynamic task schema…</Text>
             </View>
           ) : (
             fields.map((field) => {
               const isFocused = focusedField === field.key;
               const val = formValues[field.key] || '';
+              const isDate =
+                field.key.toLowerCase().includes('date') ||
+                field.key.toLowerCase().includes('time') ||
+                field.type === 'date' ||
+                field.type === 'datetime';
+
+              if (isDate) {
+                return (
+                  <View key={field.key} style={styles.fieldGroup}>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.fieldLabel}>{field.label}</Text>
+                      {field.isRequired && <Text style={styles.requiredStar}>*</Text>}
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.input, styles.dateTriggerBox]}
+                      onPress={() => setShowDatePicker(true)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.datePickerLeft}>
+                        <Ionicons name="calendar-outline" size={17} color="#0284C7" />
+                        <Text
+                          style={[
+                            styles.dateTriggerText,
+                            !val && styles.datePlaceholderText,
+                          ]}
+                        >
+                          {val || field.placeholder || 'Select date & time...'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-down" size={15} color="#64748B" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
 
               return (
                 <View key={field.key} style={styles.fieldGroup}>
@@ -222,24 +279,38 @@ export const TaskFormScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Submit Button */}
+          {/* Submit Action Button */}
           <TouchableOpacity
-            style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+            style={styles.submitBtn}
             onPress={handleSubmit}
             disabled={submitting}
-            activeOpacity={0.85}
+            activeOpacity={0.88}
           >
             {submitting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <>
-                <Ionicons name="checkmark-circle-sharp" size={17} color="#FFFFFF" />
-                <Text style={styles.submitBtnText}>SAVE {semantics.taskEntitySingular.toUpperCase()}</Text>
-              </>
+              <View style={styles.submitBtnContent}>
+                <Ionicons name="checkmark-circle-sharp" size={18} color="#FFFFFF" />
+                <Text style={styles.submitBtnText}>
+                  Schedule {semantics.taskEntitySingular}
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Calendar Date Picker Modal */}
+      <CalendarDatePickerModal
+        visible={showDatePicker}
+        title="Schedule Due Date"
+        currentValue={formValues.dueDate}
+        includeTime={true}
+        onClose={() => setShowDatePicker(false)}
+        onSelectDate={(formatted) => {
+          handleValueChange('dueDate', formatted);
+        }}
+      />
     </View>
   );
 };
@@ -249,31 +320,95 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  header: {
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 56 : 40,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+  luxuryHeader: {
+    backgroundColor: '#151728',
+    paddingTop: Platform.OS === 'ios' ? 56 : 42,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    marginBottom: 14,
   },
-  backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  headerBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 4,
+  },
+  headerBackBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  headerBannerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 9,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  headerTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 13.5,
+  headerTitleText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.6,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  headerStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 5,
+  },
+  headerGreenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  headerStatusPillText: {
+    color: '#059669',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   scrollContent: {
     padding: 16,
@@ -281,10 +416,15 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   loadingBox: {
     alignItems: 'center',
@@ -297,38 +437,65 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   fieldGroup: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 6,
     gap: 2,
   },
   fieldLabel: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
     color: '#475569',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   requiredStar: {
     fontSize: 12,
-    color: '#E11D48',
-    fontWeight: '700',
+    color: '#EF4444',
+    fontWeight: '900',
   },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
+    height: 48,
+    fontSize: 13.5,
     color: '#0F172A',
+    fontWeight: '600',
+    justifyContent: 'center',
   },
   inputFocused: {
-    borderColor: theme.colors.brand700,
+    borderColor: '#0284C7',
     backgroundColor: '#FFFFFF',
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  dateTriggerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  datePickerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  dateTriggerText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  datePlaceholderText: {
+    color: '#94A3B8',
+    fontWeight: '400',
   },
   priorityRow: {
     flexDirection: 'row',
@@ -340,7 +507,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -353,27 +520,32 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   priorityText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#475569',
   },
   submitBtn: {
-    flexDirection: 'row',
+    backgroundColor: '#272944',
+    borderRadius: 14,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#272944',
-    borderRadius: 12,
-    paddingVertical: 13,
     marginTop: 10,
-    gap: 6,
+    shadowColor: '#272944',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  submitBtnDisabled: {
-    opacity: 0.7,
+  submitBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   submitBtnText: {
-    fontSize: 12.5,
-    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.4,
+    fontSize: 14.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
 });

@@ -4,12 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { TaskItem } from '../../services/taskService';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { theme } from '../../theme/theme';
+import { openWhatsApp } from '../../utils/whatsappHelper';
 
 interface Props {
   tasks: TaskItem[];
   industryId?: string;
   onViewAll: () => void;
   onTaskPress: (task: TaskItem) => void;
+  onCallTask?: (task: TaskItem) => void;
 }
 
 export const DashboardTodayAgenda: React.FC<Props> = ({
@@ -17,14 +19,25 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
   industryId,
   onViewAll,
   onTaskPress,
+  onCallTask,
 }) => {
   const semantics = getIndustrySemantics(industryId);
   const pendingTasks = tasks.filter((t) => !t.isCompleted).slice(0, 3);
 
-  const handleCall = (phone?: string) => {
+  const handleCall = (task: TaskItem) => {
+    if (onCallTask) {
+      onCallTask(task);
+      return;
+    }
+    const phone = task.phone || (task as any).contactNumber;
     if (phone) {
       Linking.openURL(`tel:${phone}`).catch(() => {});
     }
+  };
+
+  const handleWhatsApp = (phone?: string, name?: string) => {
+    const text = `Hi ${name || 'Sir/Madam'}, connecting regarding your scheduled appointment / follow-up from Leads Rubix.`;
+    openWhatsApp(phone, text);
   };
 
   return (
@@ -102,13 +115,23 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
               </View>
 
               {t.phone ? (
-                <TouchableOpacity
-                  style={styles.callActionBtn}
-                  onPress={() => handleCall(t.phone)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="call" size={13} color="#FFFFFF" />
-                </TouchableOpacity>
+                <View style={styles.actionsGroup}>
+                  <TouchableOpacity
+                    style={styles.whatsappBtn}
+                    onPress={() => handleWhatsApp(t.phone, t.leadName)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.callBtn}
+                    onPress={() => handleCall(t)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="call" size={13} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <Ionicons name="chevron-forward-sharp" size={14} color="#94A3B8" />
               )}
@@ -234,11 +257,24 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
-  callActionBtn: {
+  actionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  whatsappBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#059669',
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#272944',
     alignItems: 'center',
     justifyContent: 'center',
   },

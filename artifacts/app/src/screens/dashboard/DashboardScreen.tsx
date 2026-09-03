@@ -9,6 +9,8 @@ import {
   Platform,
   RefreshControl,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -22,9 +24,9 @@ import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { LicenseTrialBanner } from '../../components/ui/LicenseTrialBanner';
 import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { DashboardActionCockpit } from '../../components/dashboard/DashboardActionCockpit';
-import { DashboardQuickKpis } from '../../components/dashboard/DashboardQuickKpis';
 import { DashboardTodayAgenda } from '../../components/dashboard/DashboardTodayAgenda';
 import { DashboardRecentLeads } from '../../components/dashboard/DashboardRecentLeads';
+import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 import { theme } from '../../theme/theme';
 
 export const DashboardScreen = ({ navigation }: any) => {
@@ -34,6 +36,10 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Post-Call Telephony Disposition State
+  const [postCallModalVisible, setPostCallModalVisible] = useState(false);
+  const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -73,16 +79,44 @@ export const DashboardScreen = ({ navigation }: any) => {
     fetchDashboardData(true);
   };
 
-  const handleKpiSelect = (kpiKey: string, label: string) => {
-    if (kpiKey === 'completedVisits' || kpiKey === 'scheduledVisits') {
-      navigation.navigate('Tasks', { filter: kpiKey, title: label });
-    } else {
-      navigation.navigate('Leads', { filter: kpiKey, title: label });
+  const handleCockpitAction = (screen: 'Leads' | 'Tasks', params?: any) => {
+    navigation.navigate(screen, params);
+  };
+
+  const handleCallLead = (targetLead: LeadItem) => {
+    const phone = targetLead.phone || targetLead.contactNo;
+    if (phone) {
+      Linking.openURL(`tel:${phone}`).catch(() => {});
+      setActiveCaller({
+        contactId: targetLead.id,
+        leadId: targetLead.id,
+        customerName: targetLead.name || targetLead.firstName || 'Lead',
+        phone: phone,
+        project: targetLead.project || '',
+        stage: targetLead.stage || targetLead.status || '',
+      });
+      setTimeout(() => {
+        setPostCallModalVisible(true);
+      }, 1000);
     }
   };
 
-  const handleCockpitAction = (screen: 'Leads' | 'Tasks', params?: any) => {
-    navigation.navigate(screen, params);
+  const handleCallTask = (task: TaskItem) => {
+    const phone = task.phone || (task as any).contactNumber;
+    if (phone) {
+      Linking.openURL(`tel:${phone}`).catch(() => {});
+      setActiveCaller({
+        contactId: task.contactId || task.leadId,
+        leadId: task.leadId || task.contactId,
+        customerName: task.leadName || (task as any).customerName || 'Task Client',
+        phone: phone,
+        project: task.project || '',
+        stage: 'Answered',
+      });
+      setTimeout(() => {
+        setPostCallModalVisible(true);
+      }, 1000);
+    }
   };
 
   const userDisplayName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Executive';
@@ -167,27 +201,38 @@ export const DashboardScreen = ({ navigation }: any) => {
         ) : (
           data && (
             <>
-              {/* Zone 4: 4-Card Quick KPI Overview */}
-              <DashboardQuickKpis
-                metrics={data.cards}
-                industryId={user?.industryId || data.industryId}
-                onSelectKpi={handleKpiSelect}
-              />
-
-              {/* Zone 5: Today's Schedule & Actionable Follow-up List */}
+              {/* Zone 4: Today's Schedule & Actionable Follow-up List */}
               <DashboardTodayAgenda
                 tasks={tasks}
                 industryId={user?.industryId || data.industryId}
                 onViewAll={() => navigation.navigate('Tasks')}
-                onTaskPress={(t) => navigation.navigate('Tasks')}
+                onTaskPress={(t) => {
+                  if (t.leadId) {
+                    navigation.navigate('LeadDetail', {
+                      leadId: t.leadId,
+                      id: t.leadId,
+                      lead: { id: t.leadId, name: t.leadName, phone: t.phone, email: t.email, source: t.source },
+                    });
+                  } else {
+                    navigation.navigate('Tasks');
+                  }
+                }}
+                onCallTask={handleCallTask}
               />
 
-              {/* Zone 6: Fresh Incoming Leads Queue */}
+              {/* Zone 5: Fresh Incoming Leads Queue */}
               <DashboardRecentLeads
                 leads={leads}
                 industryId={user?.industryId || data.industryId}
                 onViewAll={() => navigation.navigate('Leads')}
-                onLeadPress={(l) => navigation.navigate('LeadDetail', { id: l.id })}
+                onLeadPress={(l) =>
+                  navigation.navigate('LeadDetail', {
+                    leadId: l.id,
+                    id: l.id,
+                    lead: l,
+                  })
+                }
+                onCallLead={handleCallLead}
               />
             </>
           )
@@ -196,6 +241,19 @@ export const DashboardScreen = ({ navigation }: any) => {
         {/* Zone 7: Standard App Version Footer */}
         <AppVersionFooter />
       </ScrollView>
+
+      {/* Post-Call Disposition & Logging Modal */}
+      <PostCallDispositionModal
+        visible={postCallModalVisible}
+        onClose={() => {
+          setPostCallModalVisible(false);
+          setActiveCaller(null);
+        }}
+        caller={activeCaller}
+        onSuccess={() => {
+          fetchDashboardData();
+        }}
+      />
     </View>
   );
 };

@@ -1319,3 +1319,39 @@ Organization: Heath
 Username / Email: care@gmail.com
 Temp Password: RRYFkXeV
 ========================================
+
+========================================
+Timestamp: 2026-09-03T08:18:40.675Z
+To: ddddd@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Fffff
+Username / Email: ddddd@gmail.com
+Temp Password: oruGTj0C
+========================================
+
+========================================
+Timestamp: 2026-09-03T09:03:36.747Z
+To: eeedd@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Fff
+Username / Email: eeedd@gmail.com
+Temp Password: dELENiMN
+========================================
+
+========================================
+Timestamp: 2026-09-03T09:22:03.642Z
+To: demo@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: dsd
+Username / Email: demo@gmail.com
+Temp Password: Tq7xmfAA
+========================================
+
+========================================
+Timestamp: 2026-09-03T10:59:31.751Z
+To: dasdnad@gnmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dasdnad@gnmail.com
+Temp Password: BeBZv4cp
+========================================

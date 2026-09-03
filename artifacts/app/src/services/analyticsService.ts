@@ -1,4 +1,5 @@
 import { analyticsRepository, AnalyticsQueryParams } from '../repositories/analyticsRepository';
+import { getIndustrySemantics } from '../utils/industryLabels';
 
 export interface CardMetrics {
   totalLeads: number;
@@ -46,7 +47,18 @@ export interface FeedbackRow {
   scheduledVisits: number;
 }
 
+export interface TaskAnalyticsRow {
+  sNo: number;
+  associate: string;
+  total: number;
+  meeting: number;
+  callBack: number;
+  siteVisit: number;
+}
+
 export interface AnalyticsDashboardState {
+  showAnalytics?: boolean;
+  message?: string;
   cards: CardMetrics;
   revenue: string;
   conversionRate: string;
@@ -54,8 +66,25 @@ export interface AnalyticsDashboardState {
   callingTrends: CallingTrendItem[];
   callDurations: CallDurationBuckets;
   feedbackSummary: FeedbackRow[];
+  completedTasks: TaskAnalyticsRow[];
+  contacts?: {
+    feedbackSummary: any[];
+    callBackReasons: any[];
+    chartData: any[];
+  };
+  tasks?: {
+    completedTasks: any[];
+    pendingTasks: any[];
+    completedChartData: any[];
+    pendingChartData: any[];
+  };
+  callLogs?: {
+    callingTrends: any[];
+    callLogSummary: any[];
+  };
   industryId?: string;
   organizationName?: string;
+  [key: string]: any;
 }
 
 export type AnalyticsData = AnalyticsDashboardState;
@@ -64,6 +93,37 @@ export const analyticsService = {
   async getAnalyticsData(params?: AnalyticsQueryParams): Promise<AnalyticsDashboardState> {
     try {
       const data = await analyticsRepository.fetchRawAnalyticsOverview(params);
+
+      if (data?.showAnalytics === false) {
+        return {
+          showAnalytics: false,
+          message: data?.message || 'Analytics is disabled for your organization.',
+          cards: {
+            totalLeads: 0,
+            fresh: 0,
+            callBack: 0,
+            interested: 0,
+            closedWon: 0,
+            notInterested: 0,
+            closedLost: 0,
+            completedVisits: 0,
+            scheduledVisits: 0,
+          },
+          revenue: '$0',
+          conversionRate: '0.0%',
+          funnelStages: [],
+          callingTrends: [],
+          callDurations: {
+            duration0: 0,
+            duration0_30: 0,
+            duration31_60: 0,
+            duration61_120: 0,
+            durationAbove120: 0,
+          },
+          feedbackSummary: [],
+          completedTasks: [],
+        };
+      }
 
       const cards: CardMetrics = {
         totalLeads: Number(data?.cards?.totalLeads || data?.summary?.totalLeads || 0),
@@ -82,10 +142,11 @@ export const analyticsService = {
         ? ((cards.closedWon / cards.totalLeads) * 100).toFixed(1)
         : '0.0';
 
+      const semantics = getIndustrySemantics(params?.industryId);
       const totalF = Math.max(cards.totalLeads, 1);
       const funnelStages: FunnelStage[] = [
         {
-          stage: 'Fresh Inquiries',
+          stage: `Fresh ${semantics.leadEntityPlural}`,
           count: cards.fresh,
           pct: `${Math.round((cards.fresh / totalF) * 100)}%`,
           color: '#0284C7',
@@ -97,13 +158,13 @@ export const analyticsService = {
           color: '#D97706',
         },
         {
-          stage: 'Site Visits / Qualified',
+          stage: `${semantics.visitsDesc} / Qualified`,
           count: cards.completedVisits + cards.scheduledVisits,
           pct: `${Math.round(((cards.completedVisits + cards.scheduledVisits) / totalF) * 100)}%`,
           color: '#7C3AED',
         },
         {
-          stage: 'Deals Closed Won',
+          stage: `${semantics.wonLabel} Won`,
           count: cards.closedWon,
           pct: `${convPct}%`,
           color: '#059669',
@@ -143,14 +204,43 @@ export const analyticsService = {
         scheduledVisits: Number(row.scheduledVisits || 0),
       }));
 
+      // Tasks breakdown by Associate
+      const completedTaskList: TaskAnalyticsRow[] = (data?.tasks?.completedTasks || []).map(
+        (row: any, idx: number) => ({
+          sNo: row.sNo || idx + 1,
+          associate: row.associate || 'Sales Advisor',
+          total: Number(row.total || 0),
+          meeting: Number(row.meeting || 0),
+          callBack: Number(row.callBack || 0),
+          siteVisit: Number(row.siteVisit || 0),
+        })
+      );
+
       return {
+        ...data,
         cards,
-        revenue: data.revenue || (cards.closedWon > 0 ? `₹${(cards.closedWon * 2.5).toFixed(1)} Cr` : '₹0.0 Cr'),
+        contacts: {
+          feedbackSummary: data?.contacts?.feedbackSummary || feedbackList,
+          callBackReasons: data?.contacts?.callBackReasons || [],
+          chartData: data?.contacts?.chartData || [],
+        },
+        tasks: {
+          completedTasks: data?.tasks?.completedTasks || completedTaskList,
+          pendingTasks: data?.tasks?.pendingTasks || [],
+          completedChartData: data?.tasks?.completedChartData || [],
+          pendingChartData: data?.tasks?.pendingChartData || [],
+        },
+        callLogs: {
+          callingTrends: data?.callLogs?.callingTrends || [],
+          callLogSummary: data?.callLogs?.callLogSummary || [],
+        },
+        revenue: data?.revenue || (cards.closedWon > 0 ? `₹${(cards.closedWon * 2.5).toFixed(1)} Cr` : '₹0.0 Cr'),
         conversionRate: `${convPct}%`,
         funnelStages,
         callingTrends: data?.callLogs?.callingTrends || [],
         callDurations: durations,
-        feedbackSummary: feedbackList,
+        feedbackSummary: data?.contacts?.feedbackSummary || feedbackList,
+        completedTasks: data?.tasks?.completedTasks || completedTaskList,
         industryId: data?.industryId,
         organizationName: data?.organizationName,
       };
@@ -185,7 +275,18 @@ export const analyticsService = {
           durationAbove120: 0,
         },
         feedbackSummary: [],
+        completedTasks: [],
       };
+    }
+  },
+
+  async getDashboardConfig(params?: AnalyticsQueryParams): Promise<any> {
+    try {
+      const config = await analyticsRepository.fetchDashboardConfig(params);
+      return config;
+    } catch (err) {
+      console.warn('Failed to load dashboard config from backend:', err);
+      return null;
     }
   },
 };

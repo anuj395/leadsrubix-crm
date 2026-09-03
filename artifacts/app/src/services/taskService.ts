@@ -8,11 +8,19 @@ export interface TaskItem {
   priority: 'High' | 'Medium' | 'Low';
   isCompleted: boolean;
   completed?: boolean;
+  leadId?: string;
+  contactId?: string;
   leadName?: string;
+  customerName?: string;
   phone?: string;
+  contactNumber?: string;
+  email?: string;
   project?: string;
   projectName?: string;
   type?: string;
+  source?: string;
+  notes?: string;
+  status?: string;
 }
 
 export const taskService = {
@@ -51,11 +59,14 @@ export const taskService = {
           isCompleted:
             String(t.status || '').toUpperCase() === 'COMPLETED' ||
             Boolean(t.isCompleted || t.completed),
+          leadId: t.leadId || t.lead_id || t.lead?._id || t.lead?.id || t.customer_id || t.customerId || t._id || t.id,
           leadName: t.customerName || t.customer_name || t.leadName || 'Client',
           phone: t.contactNumber || t.contact_number || t.phone || '',
+          email: t.email || t.leadEmail || t.lead_email || t.lead?.email || '',
           project: t.projectName || t.project_name || t.project || '',
           projectName: t.projectName || t.project_name || t.project || '',
           type: t.type || t.taskType || '',
+          source: t.source || t.leadSource || t.lead_source || t.lead?.source || t.lead?.lead_source || 'Self Generated',
         };
       });
     } catch (err) {

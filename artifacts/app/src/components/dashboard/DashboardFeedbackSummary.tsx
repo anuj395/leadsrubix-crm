@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FeedbackRow } from '../../services/analyticsService';
 import { InfoGuideBadge } from '../ui/InfoGuideBadge';
 import { theme } from '../../theme/theme';
+import { getIndustrySemantics } from '../../utils/industryLabels';
 
 export type GroupByMode = 'team' | 'source' | 'teamWise';
 
@@ -12,6 +13,7 @@ interface Props {
   groupBy: GroupByMode;
   onGroupByChange: (mode: GroupByMode) => void;
   onItemPress?: (item: FeedbackRow) => void;
+  industryId?: string;
 }
 
 const GROUP_OPTIONS: { key: GroupByMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -25,7 +27,9 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
   groupBy,
   onGroupByChange,
   onItemPress,
+  industryId,
 }) => {
+  const semantics = getIndustrySemantics(industryId);
   const getGroupTitle = () => {
     switch (groupBy) {
       case 'source':
@@ -121,7 +125,7 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
                       <Ionicons
                         name={getIconForGroup(row.associate) as any}
                         size={16}
-                        color={theme.colors.brand700}
+                        color="#1D4ED8"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -135,45 +139,45 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
                   </View>
 
                   <View style={styles.totalBadge}>
-                    <Text style={styles.totalBadgeText}>{row.total} Leads</Text>
+                    <Text style={styles.totalBadgeText}>{row.total} {semantics.leadEntityPlural}</Text>
                   </View>
                 </View>
 
                 {/* Metrics Pill Grid */}
                 <View style={styles.metricsPillRow}>
-                  <View style={[styles.miniPill, { backgroundColor: 'rgba(2, 132, 199, 0.08)' }]}>
-                    <Text style={[styles.miniPillLabel, { color: '#0284C7' }]}>
+                  <View style={[styles.miniPill, { backgroundColor: '#EFF6FF' }]}>
+                    <Text style={[styles.miniPillLabel, { color: '#1D4ED8' }]}>
                       Fresh <Text style={styles.miniPillVal}>{row.fresh}</Text>
                     </Text>
                   </View>
 
-                  <View style={[styles.miniPill, { backgroundColor: 'rgba(217, 119, 6, 0.08)' }]}>
-                    <Text style={[styles.miniPillLabel, { color: '#D97706' }]}>
+                  <View style={[styles.miniPill, { backgroundColor: '#FFFBEB' }]}>
+                    <Text style={[styles.miniPillLabel, { color: '#B45309' }]}>
                       Callback <Text style={styles.miniPillVal}>{row.callBack}</Text>
                     </Text>
                   </View>
 
-                  <View style={[styles.miniPill, { backgroundColor: 'rgba(124, 58, 237, 0.08)' }]}>
-                    <Text style={[styles.miniPillLabel, { color: '#7C3AED' }]}>
+                  <View style={[styles.miniPill, { backgroundColor: '#F5F3FF' }]}>
+                    <Text style={[styles.miniPillLabel, { color: '#6D28D9' }]}>
                       Interested <Text style={styles.miniPillVal}>{row.interested}</Text>
                     </Text>
                   </View>
 
-                  <View style={[styles.miniPill, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
-                    <Text style={[styles.miniPillLabel, { color: '#059669' }]}>
+                  <View style={[styles.miniPill, { backgroundColor: '#ECFDF5' }]}>
+                    <Text style={[styles.miniPillLabel, { color: '#047857' }]}>
                       Won <Text style={styles.miniPillVal}>{row.won}</Text>
                     </Text>
                   </View>
 
-                  <View style={[styles.miniPill, { backgroundColor: 'rgba(225, 29, 72, 0.08)' }]}>
-                    <Text style={[styles.miniPillLabel, { color: '#E11D48' }]}>
+                  <View style={[styles.miniPill, { backgroundColor: '#FFF1F2' }]}>
+                    <Text style={[styles.miniPillLabel, { color: '#BE123C' }]}>
                       Lost <Text style={styles.miniPillVal}>{row.lost}</Text>
                     </Text>
                   </View>
 
-                  <View style={[styles.miniPill, { backgroundColor: 'rgba(13, 148, 136, 0.08)' }]}>
-                    <Text style={[styles.miniPillLabel, { color: '#0D9488' }]}>
-                      Visits <Text style={styles.miniPillVal}>{row.completedVisits + row.scheduledVisits}</Text>
+                  <View style={[styles.miniPill, { backgroundColor: '#F0FDFA' }]}>
+                    <Text style={[styles.miniPillLabel, { color: '#0F766E' }]}>
+                      {semantics.visitsDesc} <Text style={styles.miniPillVal}>{row.completedVisits + row.scheduledVisits}</Text>
                     </Text>
                   </View>
                 </View>
@@ -189,17 +193,15 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 2,
-    borderBottomColor: '#E2E8F0',
+    borderColor: 'rgba(226, 232, 240, 0.85)',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   headerRow: {
@@ -225,8 +227,10 @@ const styles = StyleSheet.create({
   },
   groupSwitcher: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     padding: 3,
     marginBottom: 14,
   },
@@ -235,14 +239,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 7,
+    borderRadius: 9,
   },
   switcherBtnActive: {
-    backgroundColor: theme.colors.brand700,
-    shadowColor: theme.colors.brand700,
+    backgroundColor: '#1E2238',
+    shadowColor: '#1E2238',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.18,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -261,8 +265,8 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 13,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -280,30 +284,30 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   associateName: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#0F172A',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   winRateText: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#059669',
     fontWeight: '600',
     marginTop: 1,
   },
   totalBadge: {
-    backgroundColor: theme.colors.brand700,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    backgroundColor: '#1E2238',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   totalBadgeText: {
     fontSize: 11,
@@ -317,11 +321,11 @@ const styles = StyleSheet.create({
   },
   miniPill: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 3.5,
     borderRadius: 6,
   },
   miniPillLabel: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '500',
   },
   miniPillVal: {

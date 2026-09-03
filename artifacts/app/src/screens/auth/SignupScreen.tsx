@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../api/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
-import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
 import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { theme } from '../../theme/theme';
 
@@ -77,25 +75,14 @@ const STATE_OPTIONS = [
   { value: 'Kerala', label: 'Kerala' },
 ];
 
-const EMPLOYEE_COUNT_OPTIONS = [
-  { value: '1-10', label: '1-10 Employees' },
-  { value: '11-50', label: '11-50 Employees' },
-  { value: '51-200', label: '51-200 Employees' },
-  { value: '201-500', label: '201-500 Employees' },
-  { value: '500+', label: '500+ Employees' },
-];
-
 export const SignupScreen = ({ navigation }: any) => {
   const { logout } = useAuth();
 
-  // Step 1: Industry Selection (Only Launched Industries Matching Web)
+  // Step 1: Industry Selection (Only Launched Industries Matching Web CRM)
   const [industries, setIndustries] = useState<IndustryOption[]>([]);
   const [loadingIndustries, setLoadingIndustries] = useState(true);
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
-
-  // Mandatory Subdomain Input State
-  const [subdomainSlug, setSubdomainSlug] = useState<string>('');
 
   // Dialing Code & Dropdown State
   const [dialCode, setDialCode] = useState('+91');
@@ -109,48 +96,50 @@ export const SignupScreen = ({ navigation }: any) => {
   const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>(COUNTRY_OPTIONS);
   const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>(STATE_OPTIONS);
 
-  // Form Field Values State
+  // Form Field Values State (Matching Web Form Keys - All empty by default, only Industry ID auto-filled)
   const [formValues, setFormValues] = useState<Record<string, string>>({
     organizationName: '',
-    subdomain: '',
     firstName: '',
     lastName: '',
-    contactNo: '',
     contactNumber: '',
     emailId: '',
-    country: 'India',
-    state: 'Haryana',
-    city: 'Gurugram',
-    pincode: '122002',
+    country: '',
+    state: '',
+    city: '',
+    pincode: '',
     industryId: '',
-    numberOfEmployees: '',
     numEmployees: '',
     address: '',
-    password: '',
   });
 
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Auto-generate subdomain slug from Organization Name
-  const handleOrgNameChange = (val: string) => {
-    handleValueChange('organizationName', val);
-    if (!subdomainSlug) {
-      const slug = val.toLowerCase().replace(/[^a-z0-9]/g, '');
-      setSubdomainSlug(slug);
-      handleValueChange('subdomain', slug);
-    }
+  const selectedIndustryObj = useMemo(
+    () => industries.find((i) => i.code === selectedIndustry),
+    [industries, selectedIndustry]
+  );
+
+  const handleValueChange = (key: string, val: string) => {
+    setFormValues((prev) => {
+      const next: Record<string, any> = { ...prev, [key]: val };
+      if (
+        key === 'numEmployees' ||
+        key === 'num_employees' ||
+        key === 'numberOfEmployees' ||
+        key === 'number_of_employees'
+      ) {
+        next.numEmployees = val;
+        next.num_employees = val;
+        next.numberOfEmployees = val;
+        next.number_of_employees = val;
+      }
+      return next;
+    });
   };
 
-  const handleSubdomainChange = (val: string) => {
-    const clean = val.toLowerCase().replace(/[^a-z0-9]/g, '');
-    setSubdomainSlug(clean);
-    handleValueChange('subdomain', clean);
-  };
-
-  // Load Only Launched Industries on mount (Matching Web)
+  // Load Launched Industries on mount
   useEffect(() => {
     let isMounted = true;
     setLoadingIndustries(true);
@@ -190,7 +179,7 @@ export const SignupScreen = ({ navigation }: any) => {
           { code: 'temp0004', name: 'Education' },
           { code: 'temp0005', name: 'Financial Services' },
           { code: 'temp0006', name: 'IT & Tech Services' },
-          { code: 'temp0007', name: 'Manufacturing' }
+          { code: 'temp0007', name: 'Manufacturing' },
         ]);
         setLoadingIndustries(false);
       });
@@ -225,7 +214,7 @@ export const SignupScreen = ({ navigation }: any) => {
       .catch(() => {});
   }, [formValues.country]);
 
-  // Resolve Dynamic Screen Fields for Industry
+  // Resolve Dynamic Screen Fields for Industry (Exact Parity with Web CRM)
   useEffect(() => {
     if (!selectedIndustry) {
       setResolvedFields([]);
@@ -236,7 +225,7 @@ export const SignupScreen = ({ navigation }: any) => {
     setErrorMessage(null);
 
     const indName = industries.find((i) => i.code === selectedIndustry)?.name || selectedIndustry;
-    setFormValues((prev) => ({ ...prev, industryId: selectedIndustry }));
+    setFormValues((prev) => ({ ...prev, industryId: selectedIndustry, industry_id: selectedIndustry }));
 
     apiClient
       .post('/screens/resolve', {
@@ -250,26 +239,37 @@ export const SignupScreen = ({ navigation }: any) => {
           const mapped: DynamicFormField[] = rawFields
             .filter((f: any) => {
               const k = f.key || f.fieldKey || f.field_key;
-              return k !== 'costPerLicense' && k !== 'validTill' && k !== 'cost_per_license' && k !== 'valid_till';
+              return (
+                k !== 'costPerLicense' &&
+                k !== 'validTill' &&
+                k !== 'cost_per_license' &&
+                k !== 'valid_till' &&
+                k !== 'subdomain'
+              );
             })
             .map((f: any) => {
               const k = f.key || f.fieldKey || f.field_key;
               let opts = f.options ? f.options.map((o: any) => (typeof o === 'string' ? { value: o, label: o } : o)) : [];
-              
+
               if (k === 'country' && opts.length === 0) opts = countryOptions;
               if (k === 'state' && opts.length === 0) opts = stateOptions;
-              if (k === 'industryId') opts = [{ value: selectedIndustry, label: indName }];
+              if (k === 'industryId' || k === 'industry_id') opts = [{ value: selectedIndustry, label: indName }];
 
-              const isSelect = k === 'country' || k === 'state' || k === 'industryId' || f.type === 'select';
+              // If numEmployees, it is rendered as text/number input matching Web CRM
+              const isSelect =
+                k !== 'numEmployees' &&
+                k !== 'numberOfEmployees' &&
+                k !== 'number_of_employees' &&
+                (k === 'country' || k === 'state' || k === 'industryId' || k === 'industry_id' || f.type === 'select');
 
               return {
                 key: k,
                 label: f.label || f.name || f.key,
-                type: isSelect ? 'select' : (f.type || 'text'),
+                type: isSelect ? 'select' : f.type || 'text',
                 isRequired: f.isRequired ?? f.is_required ?? f.required ?? true,
                 options: opts,
-                defaultValue: k === 'industryId' ? indName : undefined,
-                readOnly: k === 'industryId',
+                defaultValue: k === 'industryId' || k === 'industry_id' ? indName : undefined,
+                readOnly: k === 'industryId' || k === 'industry_id',
               };
             });
           setResolvedFields(mapped.length > 0 ? mapped : getWebExactOrganizationFields(indName));
@@ -296,14 +296,9 @@ export const SignupScreen = ({ navigation }: any) => {
     { key: 'city', label: 'City', type: 'text', isRequired: true },
     { key: 'pincode', label: 'Pincode', type: 'text', isRequired: true },
     { key: 'industryId', label: 'Industry ID', type: 'select', isRequired: true, readOnly: true, defaultValue: industryName, options: [{ value: selectedIndustry, label: industryName }] },
-    { key: 'numEmployees', label: 'Number of Employees(Licenses)', type: 'number', isRequired: true, options: EMPLOYEE_COUNT_OPTIONS },
+    { key: 'numEmployees', label: 'Number of Employees(Licenses)', type: 'number', isRequired: true },
     { key: 'address', label: 'Address', type: 'textarea', isRequired: true },
-    { key: 'password', label: 'Password', type: 'password', isRequired: true },
   ];
-
-  const handleValueChange = (key: string, val: string) => {
-    setFormValues((prev) => ({ ...prev, [key]: val }));
-  };
 
   const handleSelectIndustry = (ind: IndustryOption) => {
     setSelectedIndustry(ind.code);
@@ -320,19 +315,21 @@ export const SignupScreen = ({ navigation }: any) => {
     }
 
     const orgName = formValues.organizationName || formValues.organization_name || '';
-    const subSlug = subdomainSlug.trim();
+    const subSlug = orgName.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'workspace';
     const firstName = formValues.firstName || formValues.first_name || '';
     const email = formValues.emailId || formValues.email_id || formValues.email || '';
-    const pwd = formValues.password || '';
     const contact = formValues.contactNumber || formValues.contactNo || formValues.contact_number || formValues.contact_no || '';
-    const numEmp = formValues.numEmployees || formValues.numberOfEmployees || formValues.number_of_employees || '11-50';
+
+    const rawNum =
+      formValues.numEmployees ||
+      formValues.numberOfEmployees ||
+      formValues.number_of_employees ||
+      formValues.num_employees ||
+      '10';
+    const numEmp = !isNaN(Number(rawNum)) && Number(rawNum) > 0 ? Number(rawNum) : 10;
 
     if (!orgName.trim()) {
       setErrorMessage('Please enter Organization Name.');
-      return;
-    }
-    if (!subSlug || subSlug.length < 3) {
-      setErrorMessage('Mandatory Workspace Subdomain is required (min 3 characters).');
       return;
     }
     if (!firstName.trim()) {
@@ -341,6 +338,10 @@ export const SignupScreen = ({ navigation }: any) => {
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setErrorMessage('Please enter a valid Email ID.');
+      return;
+    }
+    if (!contact.trim()) {
+      setErrorMessage('Please enter Contact Number.');
       return;
     }
 
@@ -357,8 +358,8 @@ export const SignupScreen = ({ navigation }: any) => {
           subdomainUrl: `https://${subSlug}.leadsrubix.com`,
           firstName: firstName.trim(),
           first_name: firstName.trim(),
-          lastName: (formValues.lastName || '').trim(),
-          last_name: (formValues.lastName || '').trim(),
+          lastName: (formValues.lastName || formValues.last_name || '').trim(),
+          last_name: (formValues.lastName || formValues.last_name || '').trim(),
           contactNo: fullContactPhone,
           contact_no: fullContactPhone,
           contactNumber: fullContactPhone,
@@ -375,9 +376,13 @@ export const SignupScreen = ({ navigation }: any) => {
           numberOfEmployees: numEmp,
           number_of_employees: numEmp,
           numEmployees: numEmp,
+          num_employees: numEmp,
           address: formValues.address || '',
         },
-        password: pwd,
+        numEmployees: numEmp,
+        num_employees: numEmp,
+        numberOfEmployees: numEmp,
+        number_of_employees: numEmp,
       };
 
       await apiClient.post('/auth/signup', payload);
@@ -387,8 +392,8 @@ export const SignupScreen = ({ navigation }: any) => {
       }
 
       Alert.alert(
-        'Workspace Registered Successfully!',
-        `Your workspace is live at https://${subSlug}.leadsrubix.com. Please sign in to access your sales CRM.`,
+        'Account Created Successfully!',
+        `Your workspace for ${orgName} is live. We have sent your login credentials and temporary password to ${email.trim()}. Please check your email to sign in.`,
         [
           {
             text: 'Sign In Now',
@@ -399,15 +404,13 @@ export const SignupScreen = ({ navigation }: any) => {
     } catch (err: any) {
       console.error('Mobile Signup Error:', err);
       const msg =
-        err.response?.data?.message || err.message || 'Unable to create workspace. Please try again.';
+        err.response?.data?.message || err.message || 'Unable to create account. Please try again.';
       setErrorMessage(msg);
       Alert.alert('Registration Failed', msg);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const selectedIndustryObj = industries.find((i) => i.code === selectedIndustry);
 
   return (
     <View style={styles.outerCanvas}>
@@ -417,36 +420,49 @@ export const SignupScreen = ({ navigation }: any) => {
       <View style={styles.ambientGlowTop} />
       <View style={styles.ambientGlowBottom} />
 
-
-      {/* FIXED Brand Hero Block (Identical to Login & ForgotPassword) */}
+      {/* FIXED Brand Hero Block (Never Scrolls, Always Fixed Top) */}
       <View style={styles.fixedBrandHeader}>
         <View style={styles.logoContainer}>
-          <CompanyLogo variant="white" height={42} />
+          <CompanyLogo variant="white" height={38} />
         </View>
 
         <View style={styles.statusBadgePill}>
           <View style={styles.greenPulseDot} />
-          <Text style={styles.statusBadgeText}>ENTERPRISE REAL ESTATE CRM</Text>
+          <Text style={styles.statusBadgeText}>
+            ENTERPRISE {selectedIndustryObj?.name?.toUpperCase() || 'MULTI-TENANT'} CRM
+          </Text>
         </View>
       </View>
 
-      {/* Form Card Area (Fills space between fixed header and fixed footer) */}
+      {/* Form Card Area (Centered when selecting industry, Full scroll when form loaded) */}
       <KeyboardAvoidingView
-        style={styles.formCardContainer}
+        style={[
+          styles.formCardContainer,
+          !selectedIndustry && styles.formCardContainerCentered,
+        ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.framedFormCard3D}>
+        <View
+          style={[
+            styles.framedFormCard3D,
+            !selectedIndustry && styles.framedFormCard3DAuto,
+          ]}
+        >
           <ScrollView
-            showsVerticalScrollIndicator={false}
+            style={selectedIndustry ? styles.innerScrollView : undefined}
+            contentContainerStyle={
+              selectedIndustry
+                ? styles.innerCardScrollContent
+                : styles.innerCardCompactContent
+            }
             keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled={true}
-            contentContainerStyle={styles.innerCardScrollContent}
+            showsVerticalScrollIndicator={!!selectedIndustry}
+            scrollEnabled={!!selectedIndustry}
           >
-            {/* Elegant Premium Refined Title & Subtext */}
             <Text style={styles.headingTitle}>Create Account</Text>
             <Text style={styles.headingSubtext}>
               {selectedIndustry
-                ? 'Enter your organization & mandatory workspace subdomain details.'
+                ? 'Enter your organization details to complete registration.'
                 : 'Select your industry vertical to get started.'}
             </Text>
 
@@ -484,7 +500,7 @@ export const SignupScreen = ({ navigation }: any) => {
                   />
                 </TouchableOpacity>
 
-                {/* Industry Options Dropdown List with Scroll */}
+                {/* Industry Options Dropdown List */}
                 {showIndustryDropdown && (
                   <View style={styles.dropdownScrollContainer}>
                     <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
@@ -538,17 +554,8 @@ export const SignupScreen = ({ navigation }: any) => {
                       const isFocused = focusedField === key;
                       const isRequired = field.isRequired;
 
-                      // Override Organization Name change to auto-fill subdomain
-                      const onTextChange = (text: string) => {
-                        if (key === 'organizationName') {
-                          handleOrgNameChange(text);
-                        } else {
-                          handleValueChange(key, text);
-                        }
-                      };
-
-                      // 1. Phone Field with Country Code Dialing Selector
-                      if (key === 'contactNo' || field.type === 'phone') {
+                      // 1. Phone Field
+                      if (key === 'contactNo' || key === 'contactNumber' || key === 'contact_number' || key === 'contact_no' || field.type === 'phone') {
                         return (
                           <View key={key} style={styles.fieldBlock}>
                             <Text style={styles.fieldLabel}>
@@ -578,6 +585,7 @@ export const SignupScreen = ({ navigation }: any) => {
                                   onFocus={() => setFocusedField(key)}
                                   onBlur={() => setFocusedField(null)}
                                   keyboardType="phone-pad"
+                                  autoCorrect={false}
                                 />
                               </View>
                             </View>
@@ -605,23 +613,25 @@ export const SignupScreen = ({ navigation }: any) => {
                         );
                       }
 
-                      // 2. Select Dropdown Fields
+                      // 2. Select Dropdown Fields (Country, State, Industry ID)
                       if (
                         field.type === 'select' ||
                         key === 'country' ||
                         key === 'state' ||
                         key === 'industryId' ||
-                        (field.options && field.options.length > 0 && field.type !== 'number' && key !== 'numEmployees')
+                        key === 'industry_id'
                       ) {
                         const isDropdownOpen = activeDropdownKey === key;
                         let opts = field.options && field.options.length > 0 ? field.options : [];
                         const currentIndName = selectedIndustryObj?.name || selectedIndustry;
                         if (key === 'country') opts = countryOptions;
                         if (key === 'state') opts = stateOptions;
-                        if (key === 'industryId') opts = [{ value: selectedIndustry, label: currentIndName }];
+                        if (key === 'industryId' || key === 'industry_id') opts = [{ value: selectedIndustry, label: currentIndName }];
 
-                        const selectedOpt = opts.find((o) => o.value === val || o.label === val || (key === 'industryId' && o.value === selectedIndustry));
-                        const displayLabel = selectedOpt?.label || (key === 'industryId' ? currentIndName : val) || `Select ${field.label}...`;
+                        const selectedOpt = opts.find(
+                          (o) => o.value === val || o.label === val || ((key === 'industryId' || key === 'industry_id') && o.value === selectedIndustry)
+                        );
+                        const displayLabel = selectedOpt?.label || (key === 'industryId' || key === 'industry_id' ? currentIndName : val) || `Select ${field.label}...`;
 
                         return (
                           <View key={key} style={styles.fieldBlock}>
@@ -669,7 +679,7 @@ export const SignupScreen = ({ navigation }: any) => {
                         );
                       }
 
-                      // 3. Textarea Field
+                      // 3. Textarea Field (Address)
                       if (field.type === 'textarea' || key === 'address') {
                         return (
                           <View key={key} style={styles.fieldBlock}>
@@ -682,50 +692,19 @@ export const SignupScreen = ({ navigation }: any) => {
                                 placeholder={`Enter ${field.label.toLowerCase()}...`}
                                 placeholderTextColor={theme.colors.textDisabled}
                                 value={val}
-                                onChangeText={onTextChange}
+                                onChangeText={(text) => handleValueChange(key, text)}
                                 multiline
                                 numberOfLines={3}
+                                autoCorrect={false}
                               />
                             </View>
                           </View>
                         );
                       }
 
-                      // 4. Password Field
-                      if (field.type === 'password' || key === 'password') {
-                        return (
-                          <View key={key} style={styles.fieldBlock}>
-                            <Text style={styles.fieldLabel}>
-                              {field.label.toUpperCase()} {isRequired ? '*' : ''}
-                            </Text>
-                            <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
-                              <TextInput
-                                style={styles.textInputControl}
-                                placeholder="••••••••"
-                                placeholderTextColor={theme.colors.textDisabled}
-                                value={val}
-                                onChangeText={onTextChange}
-                                onFocus={() => setFocusedField(key)}
-                                onBlur={() => setFocusedField(null)}
-                                secureTextEntry={!passwordVisible}
-                              />
-                              <TouchableOpacity
-                                onPress={() => setPasswordVisible(!passwordVisible)}
-                                style={styles.eyeBtn}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons
-                                  name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
-                                  size={18}
-                                  color="#64748B"
-                                />
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        );
-                      }
+                      // 5. Default Text / Number / Email Input (Matching Web Input Fields)
+                      const isNumber = field.type === 'number' || key === 'numEmployees' || key === 'numberOfEmployees' || key === 'number_of_employees' || key === 'pincode';
 
-                      // 5. Default Text / Email Input
                       return (
                         <View key={key} style={styles.fieldBlock}>
                           <Text style={styles.fieldLabel}>
@@ -743,11 +722,18 @@ export const SignupScreen = ({ navigation }: any) => {
                               placeholder={`${field.label}...`}
                               placeholderTextColor={theme.colors.textDisabled}
                               value={val}
-                              onChangeText={onTextChange}
+                              onChangeText={(text) => handleValueChange(key, text)}
                               onFocus={() => setFocusedField(key)}
                               onBlur={() => setFocusedField(null)}
                               editable={!field.readOnly}
-                              keyboardType={key.toLowerCase().includes('email') ? 'email-address' : 'default'}
+                              autoCorrect={false}
+                              keyboardType={
+                                isNumber
+                                  ? 'numeric'
+                                  : key.toLowerCase().includes('email')
+                                  ? 'email-address'
+                                  : 'default'
+                              }
                               autoCapitalize={key.toLowerCase().includes('email') ? 'none' : 'words'}
                             />
                           </View>
@@ -755,7 +741,7 @@ export const SignupScreen = ({ navigation }: any) => {
                       );
                     })}
 
-                    {/* Primary Executive #272944 Sign Up Button */}
+                    {/* Primary Executive Sign Up Button */}
                     <TouchableOpacity
                       style={styles.primaryCtaButton3D}
                       onPress={handleSignupSubmit}
@@ -789,7 +775,7 @@ export const SignupScreen = ({ navigation }: any) => {
         </View>
       </KeyboardAvoidingView>
 
-      {/* FIXED Bottom Footer Info (Identical to Login & ForgotPassword) */}
+      {/* FIXED Bottom Footer Info (Never Scrolls) */}
       <View style={styles.fixedBottomFooter}>
         <AppVersionFooter textStyle={styles.footerVersionText} />
       </View>
@@ -820,12 +806,9 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     backgroundColor: 'rgba(14, 165, 233, 0.14)',
   },
-  flexOne: {
-    flex: 1,
-  },
   fixedBrandHeader: {
-    paddingTop: Platform.OS === 'ios' ? 68 : 48,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 14,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
@@ -837,9 +820,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
-    marginTop: 12,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     gap: 6,
@@ -852,17 +835,20 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#F8FAFC',
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 0.6,
   },
   formCardContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+  },
+  formCardContainerCentered: {
     justifyContent: 'center',
   },
   framedFormCard3D: {
-    maxHeight: '100%',
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     borderWidth: 1,
@@ -876,163 +862,163 @@ const styles = StyleSheet.create({
     elevation: 10,
     overflow: 'hidden',
   },
+  framedFormCard3DAuto: {
+    flex: 0,
+    maxHeight: 460,
+  },
+  innerScrollView: {
+    flex: 1,
+  },
   innerCardScrollContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  innerCardCompactContent: {
     padding: 24,
+    paddingBottom: 24,
   },
   fixedBottomFooter: {
-    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
-    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    paddingTop: 6,
     alignItems: 'center',
   },
+  footerVersionText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+    letterSpacing: 0.4,
+  },
   headingTitle: {
-    fontSize: 21,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.4,
-    lineHeight: 26,
   },
   headingSubtext: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     marginTop: 3,
-    marginBottom: 16,
-    fontWeight: '400',
-    lineHeight: 18,
+    marginBottom: 14,
   },
   errorAlertBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(225, 29, 72, 0.1)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: '#FFF1F2',
     borderWidth: 1,
-    borderColor: 'rgba(225, 29, 72, 0.25)',
+    borderColor: '#FECDD3',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12,
     gap: 8,
   },
   errorAlertText: {
     flex: 1,
-    fontSize: 12,
-    color: '#E11D48',
+    fontSize: 11.5,
+    color: '#BE123C',
     fontWeight: '600',
+    lineHeight: 16,
   },
   loadingBox: {
+    paddingVertical: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
     gap: 8,
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
-    fontWeight: '500',
+  },
+  fieldBlock: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#475569',
+    marginBottom: 5,
+    letterSpacing: 0.3,
   },
   selectedIndustryBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: '#EEF2F6',
     borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
   },
   selectedIndustryLabel: {
-    fontSize: 13,
-    color: '#0F172A',
+    fontSize: 12,
     fontWeight: '600',
+    color: '#334155',
   },
   selectedIndustryValue: {
+    fontWeight: '800',
     color: '#272944',
-    fontWeight: '700',
   },
   changeBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '800',
     color: '#0284C7',
   },
-  dynamicFormGrid: {
-    gap: 4,
-  },
-  fieldBlock: {
-    marginBottom: 14,
-  },
-  subdomainLabelRow: {
+  selectTriggerBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  subdomainInputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CBD5E1',
-    height: 50,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
   },
-  subdomainControl: {
-    flex: 1,
-    height: 50,
-    color: '#0F172A',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  subdomainSuffixText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  subdomainPreviewText: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  inputBox: {
+  selectTriggerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CBD5E1',
-    height: 50,
+    gap: 8,
   },
-  inputBoxFlex: {
-    flex: 1,
-    flexDirection: 'row',
+  fieldIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#EEF2F6',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CBD5E1',
-    height: 50,
+    justifyContent: 'center',
   },
-  inputBoxFocused: {
-    borderColor: '#272944',
-    borderBottomColor: '#272944',
+  selectTriggerText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  dropdownScrollContainer: {
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    marginTop: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
   },
-  inputBoxDisabled: {
-    backgroundColor: '#F1F5F9',
+  dropdownOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  dropdownOptionText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#334155',
   },
   phoneInputRow: {
     flexDirection: 'row',
@@ -1042,184 +1028,153 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CBD5E1',
-    height: 50,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 46,
     gap: 4,
   },
   dialCodeFlag: {
-    fontSize: 16,
+    fontSize: 14,
   },
   dialCodeText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#0F172A',
   },
   dialCodeScrollContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginTop: 6,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    maxHeight: 220,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    marginTop: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 4,
     overflow: 'hidden',
   },
   dialCodeOption: {
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#F8FAFC',
   },
   dialCodeOptionText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#0F172A',
+    color: '#334155',
   },
-  selectTriggerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  inputBoxFlex: {
+    flex: 1,
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CBD5E1',
-    height: 50,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
+    justifyContent: 'center',
   },
-  selectTriggerLeft: {
+  inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
   },
-  fieldIconBadge: {
-    marginRight: 8,
-  },
-  selectTriggerText: {
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '500',
-  },
-  dropdownScrollContainer: {
+  inputBoxFocused: {
+    borderColor: '#0284C7',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    maxHeight: 220,
-    elevation: 4,
-    overflow: 'hidden',
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  dropdownOptionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  dropdownOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  textAreaBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CBD5E1',
-  },
-  textAreaControl: {
-    minHeight: 70,
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlignVertical: 'top',
+  inputBoxDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
   },
   textInputControl: {
     flex: 1,
-    height: 50,
+    height: '100%',
+    fontSize: 13,
     color: '#0F172A',
-    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+  textAreaBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    padding: 10,
+    minHeight: 70,
+  },
+  textAreaControl: {
+    fontSize: 12.5,
+    color: '#0F172A',
     fontWeight: '500',
+    textAlignVertical: 'top',
   },
   eyeBtn: {
     padding: 6,
   },
+  dynamicFormGrid: {
+    gap: 2,
+  },
   primaryCtaButton3D: {
-    backgroundColor: theme.colors.brand700,
+    backgroundColor: '#272944',
     borderRadius: 14,
-    height: 52,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: '#16182B',
-    shadowColor: theme.colors.brand700,
+    marginTop: 12,
+    shadowColor: '#272944',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
-    marginTop: 12,
   },
   ctaContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   ctaButtonText: {
-    fontSize: 15.5,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   ctaArrowCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardFooterDivider: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
-    paddingTop: 18,
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   existingPrompt: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
   },
   loginLinkText: {
-    fontSize: 13,
-    color: theme.colors.brand700,
-    fontWeight: '700',
-  },
-  bottomFooterInfo: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  bottomFooterText: {
     fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  footerVersionText: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '800',
+    color: '#0284C7',
   },
 });

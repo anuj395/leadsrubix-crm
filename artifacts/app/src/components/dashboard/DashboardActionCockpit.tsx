@@ -35,8 +35,7 @@ export const DashboardActionCockpit: React.FC<Props> = ({
       subtitle: '< 5m SLA',
       icon: 'flash-sharp' as const,
       color: '#0284C7',
-      bgGradient: 'rgba(2, 132, 199, 0.08)',
-      borderColor: 'rgba(2, 132, 199, 0.22)',
+      bgGradient: '#E0F2FE',
       badgeColor: '#0284C7',
       onPress: () =>
         onNavigateAction('Leads', { filter: 'fresh', title: semantics.freshLabel }),
@@ -48,8 +47,7 @@ export const DashboardActionCockpit: React.FC<Props> = ({
       subtitle: 'Scheduled',
       icon: 'calendar-sharp' as const,
       color: '#D97706',
-      bgGradient: 'rgba(217, 119, 6, 0.08)',
-      borderColor: 'rgba(217, 119, 6, 0.22)',
+      bgGradient: '#FEF3C7',
       badgeColor: '#D97706',
       onPress: () =>
         onNavigateAction('Tasks', {
@@ -64,8 +62,7 @@ export const DashboardActionCockpit: React.FC<Props> = ({
       subtitle: 'Queued',
       icon: 'call-sharp' as const,
       color: '#7C3AED',
-      bgGradient: 'rgba(124, 58, 237, 0.08)',
-      borderColor: 'rgba(124, 58, 237, 0.22)',
+      bgGradient: '#EDE9FE',
       badgeColor: '#7C3AED',
       onPress: () =>
         onNavigateAction('Leads', { filter: 'callBack', title: 'Follow-ups Due' }),
@@ -95,31 +92,36 @@ export const DashboardActionCockpit: React.FC<Props> = ({
         {actions.map((action) => (
           <TouchableOpacity
             key={action.id}
-            style={[styles.actionCard, { borderBottomColor: action.color }]}
+            style={styles.actionCard}
             onPress={action.onPress}
             activeOpacity={0.85}
           >
-            <View style={styles.cardTopRow}>
-              <View
-                style={[
-                  styles.iconCircle,
-                  { backgroundColor: action.bgGradient },
-                ]}
-              >
-                <Ionicons name={action.icon} size={16} color={action.color} />
-              </View>
-              <Text style={[styles.countText, { color: action.badgeColor }]}>
-                {action.count}
-              </Text>
-            </View>
+            {/* Top Accent Line */}
+            <View style={[styles.topAccentBar, { backgroundColor: action.color }]} />
 
-            <Text style={styles.actionTitle} numberOfLines={1}>
-              {action.title}
-            </Text>
-            <View style={styles.subtitleRow}>
-              <Text style={styles.actionSubtitle} numberOfLines={1}>
-                {action.subtitle}
+            <View style={styles.cardInnerPadding}>
+              <View style={styles.cardTopRow}>
+                <View
+                  style={[
+                    styles.iconCircle,
+                    { backgroundColor: action.bgGradient },
+                  ]}
+                >
+                  <Ionicons name={action.icon} size={15} color={action.color} />
+                </View>
+                <Text style={[styles.countText, { color: action.badgeColor }]}>
+                  {action.count}
+                </Text>
+              </View>
+
+              <Text style={styles.actionTitle} numberOfLines={1}>
+                {action.title}
               </Text>
+              <View style={styles.subtitleRow}>
+                <Text style={styles.actionSubtitle} numberOfLines={1}>
+                  {action.subtitle}
+                </Text>
+              </View>
             </View>
           </TouchableOpacity>
         ))}
@@ -170,15 +172,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  topAccentBar: {
+    height: 3,
+    width: '100%',
+  },
+  cardInnerPadding: {
+    padding: 12,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -187,9 +195,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -200,7 +208,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   actionTitle: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.2,

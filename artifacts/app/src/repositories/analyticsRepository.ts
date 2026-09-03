@@ -14,4 +14,9 @@ export const analyticsRepository = {
     const res = await apiClient.get('/analytics/dashboard', { params });
     return res.data;
   },
+
+  async fetchDashboardConfig(params?: AnalyticsQueryParams) {
+    const res = await apiClient.get('/analytics/dashboard-config', { params });
+    return res.data;
+  },
 };
