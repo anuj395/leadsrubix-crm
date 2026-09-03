@@ -97,7 +97,8 @@ const migrateExistingWorkspaces = async () => {
     { coll: 'sidebar_menus', index: 'idx_menu_key' },
     { coll: 'sidebar_permissions', index: 'idx_perm_unique' },
     { coll: 'screens', index: 'idx_screen_key' },
-    { coll: 'screen_permissions', index: 'idx_screen_perm_unique' }
+    { coll: 'screen_permissions', index: 'idx_screen_perm_unique' },
+    { coll: 'role_action_permissions', index: 'idx_role_action_perm_unique' }
   ];
   for (const item of drops) {
     try {
@@ -113,6 +114,7 @@ const migrateExistingWorkspaces = async () => {
     mongoose.model('Role').syncIndexes(),
     mongoose.model('SidebarMenu').syncIndexes(),
     mongoose.model('Screen').syncIndexes(),
+    mongoose.model('RoleActionPermission').syncIndexes(),
   ]);
 
   // 1. Deduplicate SidebarPermission collection
