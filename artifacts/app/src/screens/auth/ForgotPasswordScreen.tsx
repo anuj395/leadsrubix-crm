@@ -68,135 +68,131 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
       <View style={styles.ambientGlowBottom} />
 
 
+      {/* FIXED Brand Hero Block (Never Scrolls, Always Fixed Top) */}
+      <View style={styles.fixedBrandHeader}>
+        <View style={styles.logoContainer}>
+          <CompanyLogo variant="white" height={42} />
+        </View>
+
+        <View style={styles.statusBadgePill}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.statusBadgeText}>ENTERPRISE MULTI-TENANT CRM</Text>
+        </View>
+      </View>
+
+      {/* Form Card Area (Centered Vertically) */}
       <KeyboardAvoidingView
-        style={styles.flexOne}
+        style={styles.formCardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContentContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Executive Brand Identity Header */}
-          <View style={styles.brandHeroBlock}>
-            <View style={styles.logoContainer}>
-              <CompanyLogo variant="white" height={42} />
+        <View style={styles.framedFormCard3D}>
+          <Text style={styles.headingTitle}>Reset password</Text>
+          <Text style={styles.headingSubtext}>
+            Enter your work email to receive password reset instructions.
+          </Text>
+
+          {/* Error Alert */}
+          {errorMessage ? (
+            <View style={styles.alertError}>
+              <Ionicons name="alert-circle" size={18} color="#E11D48" />
+              <Text style={styles.alertErrorText}>{errorMessage}</Text>
             </View>
+          ) : null}
 
-            <View style={styles.statusBadgePill}>
-              <View style={styles.greenPulseDot} />
-              <Text style={styles.statusBadgeText}>ENTERPRISE REAL ESTATE CRM</Text>
-            </View>
-          </View>
-
-          {/* 3D Framed White Form Card */}
-          <View style={styles.framedFormCard3D}>
-            <Text style={styles.headingTitle}>Reset password</Text>
-            <Text style={styles.headingSubtext}>
-              Enter your work email to receive password reset instructions.
-            </Text>
-
-            {/* Error Alert */}
-            {errorMessage ? (
-              <View style={styles.alertError}>
-                <Ionicons name="alert-circle" size={18} color="#E11D48" />
-                <Text style={styles.alertErrorText}>{errorMessage}</Text>
+          {/* Success Alert */}
+          {successMessage ? (
+            <View style={styles.alertSuccess}>
+              <Ionicons name="checkmark-circle" size={22} color="#059669" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.alertSuccessTitle}>Reset Link Sent</Text>
+                <Text style={styles.alertSuccessText}>{successMessage}</Text>
+                <Text style={styles.alertSuccessHint}>
+                  Please check your inbox / spam folder and follow the instructions.
+                </Text>
               </View>
-            ) : null}
-
-            {/* Success Alert */}
-            {successMessage ? (
-              <View style={styles.alertSuccess}>
-                <Ionicons name="checkmark-circle" size={22} color="#059669" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.alertSuccessTitle}>Reset Link Sent</Text>
-                  <Text style={styles.alertSuccessText}>{successMessage}</Text>
-                  <Text style={styles.alertSuccessHint}>
-                    Please check your inbox / spam folder and follow the instructions.
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            {/* Work Email Field */}
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>WORK EMAIL</Text>
-              <Pressable
-                style={[
-                  styles.inputBox,
-                  emailFocused && styles.inputBoxFocused,
-                ]}
-                onPress={() => emailInputRef.current?.focus()}
-              >
-                <View
-                  style={[
-                    styles.fieldIconBadge,
-                    emailFocused && styles.fieldIconBadgeFocused,
-                  ]}
-                >
-                  <Ionicons
-                    name="mail"
-                    size={16}
-                    color={emailFocused ? '#FFFFFF' : theme.colors.brand700}
-                  />
-                </View>
-                <TextInput
-                  ref={emailInputRef}
-                  style={styles.textInputControl}
-                  placeholder="name@company.com"
-                  placeholderTextColor={theme.colors.textDisabled}
-                  value={email}
-                  onChangeText={(val) => {
-                    setEmail(val);
-                    if (errorMessage) setErrorMessage(null);
-                  }}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoCorrect={false}
-                  editable={!loading}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSubmit}
-                />
-              </Pressable>
             </View>
+          ) : null}
 
-            {/* 3D Primary Action Button (#272944) */}
-            <TouchableOpacity
-              style={styles.primaryCtaButton3D}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.88}
+          {/* Work Email Field */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>WORK EMAIL</Text>
+            <Pressable
+              style={[
+                styles.inputBox,
+                emailFocused && styles.inputBoxFocused,
+              ]}
+              onPress={() => emailInputRef.current?.focus()}
             >
-              {loading ? (
-                <View style={styles.ctaContentRow}>
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                  <Text style={styles.ctaButtonText}>Sending link…</Text>
-                </View>
-              ) : (
-                <View style={styles.ctaContentRow}>
-                  <Text style={styles.ctaButtonText}>Send reset link</Text>
-                  <View style={styles.ctaArrowCircle}>
-                    <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
-                  </View>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Card Footer Divider & Links */}
-            <View style={styles.cardFooterDivider}>
-              <Text style={styles.footerPromptText}>Remember your password? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
-                <Text style={styles.signinLinkText}>Sign in</Text>
-              </TouchableOpacity>
-            </View>
+              <View
+                style={[
+                  styles.fieldIconBadge,
+                  emailFocused && styles.fieldIconBadgeFocused,
+                ]}
+              >
+                <Ionicons
+                  name="mail"
+                  size={16}
+                  color={emailFocused ? '#FFFFFF' : theme.colors.brand700}
+                />
+              </View>
+              <TextInput
+                ref={emailInputRef}
+                style={styles.textInputControl}
+                placeholder="name@company.com"
+                placeholderTextColor={theme.colors.textDisabled}
+                value={email}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+                editable={!loading}
+                returnKeyType="send"
+                onSubmitEditing={handleSubmit}
+              />
+            </Pressable>
           </View>
 
-          {/* Footer Version Info */}
-          <AppVersionFooter textStyle={styles.footerVersionText} />
-        </ScrollView>
+          {/* 3D Primary Action Button (#272944) */}
+          <TouchableOpacity
+            style={styles.primaryCtaButton3D}
+            onPress={handleSubmit}
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            {loading ? (
+              <View style={styles.ctaContentRow}>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.ctaButtonText}>Sending link…</Text>
+              </View>
+            ) : (
+              <View style={styles.ctaContentRow}>
+                <Text style={styles.ctaButtonText}>Send reset link</Text>
+                <View style={styles.ctaArrowCircle}>
+                  <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Card Footer Divider & Links */}
+          <View style={styles.cardFooterDivider}>
+            <Text style={styles.footerPromptText}>Remember your password? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
+              <Text style={styles.signinLinkText}>Sign in</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </KeyboardAvoidingView>
+
+      {/* FIXED Bottom Footer Info (Never Scrolls) */}
+      <View style={styles.fixedBottomFooter}>
+        <AppVersionFooter textStyle={styles.footerVersionText} />
+      </View>
     </View>
   );
 };
@@ -224,19 +220,11 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     backgroundColor: 'rgba(14, 165, 233, 0.14)',
   },
-  flexOne: {
-    flex: 1,
-  },
-  scrollContentContainer: {
-    flexGrow: 1,
-    justifyContent: 'space-between',
+  fixedBrandHeader: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 14,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 68 : 48,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
-  },
-  brandHeroBlock: {
     alignItems: 'center',
-    marginBottom: 36,
   },
   logoContainer: {
     alignItems: 'center',
@@ -246,9 +234,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
-    marginTop: 12,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     gap: 6,
@@ -261,9 +249,14 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#F8FAFC',
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 0.6,
+  },
+  formCardContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
   },
   framedFormCard3D: {
     backgroundColor: '#FFFFFF',
@@ -278,6 +271,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 24,
     elevation: 10,
+  },
+  fixedBottomFooter: {
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    paddingTop: 6,
+    alignItems: 'center',
+  },
+  footerVersionText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+    letterSpacing: 0.4,
   },
   headingTitle: {
     fontSize: 22,
@@ -450,10 +454,5 @@ const styles = StyleSheet.create({
     color: theme.colors.brand700,
     fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  footerVersionText: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '500',
   },
 });

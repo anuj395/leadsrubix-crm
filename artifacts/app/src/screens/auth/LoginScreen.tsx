@@ -30,13 +30,6 @@ export const LoginScreen = ({ navigation }: any) => {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
-  // Forgot Password State
-  const [forgotModalVisible, setForgotModalVisible] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
-  const [forgotError, setForgotError] = useState<string | null>(null);
-
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Required Fields', 'Please enter your work email and password.');
@@ -66,31 +59,6 @@ export const LoginScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleForgotPasswordSubmit = async () => {
-    if (!forgotEmail.trim()) {
-      setForgotError('Please enter your registered work email.');
-      return;
-    }
-    try {
-      setForgotLoading(true);
-      setForgotError(null);
-      setForgotSuccess(null);
-
-      const res = await apiClient.post('/auth/forgot-password', {
-        email: forgotEmail.trim().toLowerCase(),
-      });
-
-      setForgotSuccess(res.data?.message || 'Password reset link sent to your email.');
-    } catch (err: any) {
-      console.error('Forgot password error:', err);
-      const msg =
-        err.response?.data?.message || err.message || 'Unable to send password reset link.';
-      setForgotError(msg);
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
   return (
     <View style={styles.outerCanvas}>
       <StatusBar barStyle="light-content" backgroundColor="#151728" />
@@ -99,247 +67,148 @@ export const LoginScreen = ({ navigation }: any) => {
       <View style={styles.ambientGlowTop} />
       <View style={styles.ambientGlowBottom} />
 
-      {/* Form Content Area */}
+      {/* FIXED Brand Hero Block (Never Scrolls, Always Fixed Top) */}
+      <View style={styles.fixedBrandHeader}>
+        <View style={styles.logoContainer}>
+          <CompanyLogo variant="white" height={42} />
+        </View>
+
+        <View style={styles.statusBadgePill}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.statusBadgeText}>ENTERPRISE MULTI-TENANT CRM</Text>
+        </View>
+      </View>
+
+      {/* Form Card Area (Centered Vertically) */}
       <KeyboardAvoidingView
-        style={styles.flexOne}
+        style={styles.formCardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContentContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Executive Brand Identity Header */}
-          <View style={styles.brandHeroBlock}>
-            <View style={styles.logoContainer}>
-              <CompanyLogo variant="white" height={42} />
-            </View>
+        <View style={styles.framedFormCard3D}>
+          <Text style={styles.headingTitle}>Welcome back</Text>
+          <Text style={styles.headingSubtext}>Sign in to access your sales workspace</Text>
 
-            <View style={styles.statusBadgePill}>
-              <View style={styles.greenPulseDot} />
-              <Text style={styles.statusBadgeText}>ENTERPRISE REAL ESTATE CRM</Text>
-            </View>
-          </View>
-
-          {/* 3D Framed White Form Card */}
-          <View style={styles.framedFormCard3D}>
-            <Text style={styles.headingTitle}>Welcome back</Text>
-            <Text style={styles.headingSubtext}>Sign in to access your sales workspace</Text>
-
-            {/* Work Email Field */}
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>WORK EMAIL</Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  emailFocused && styles.inputBoxFocused,
-                ]}
-              >
-                <View style={[styles.fieldIconBadge, emailFocused && styles.fieldIconBadgeFocused]}>
-                  <Ionicons
-                    name="mail"
-                    size={16}
-                    color={emailFocused ? '#FFFFFF' : theme.colors.brand700}
-                  />
-                </View>
-                <TextInput
-                  style={styles.textInputControl}
-                  placeholder="name@company.com"
-                  placeholderTextColor={theme.colors.textDisabled}
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
-
-            {/* Password Field */}
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>PASSWORD</Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  passwordFocused && styles.inputBoxFocused,
-                ]}
-              >
-                <View style={[styles.fieldIconBadge, passwordFocused && styles.fieldIconBadgeFocused]}>
-                  <Ionicons
-                    name="lock-closed"
-                    size={16}
-                    color={passwordFocused ? '#FFFFFF' : theme.colors.brand700}
-                  />
-                </View>
-                <TextInput
-                  style={styles.textInputControl}
-                  placeholder="••••••••"
-                  placeholderTextColor={theme.colors.textDisabled}
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                  secureTextEntry={!showPassword}
-                  returnKeyType="go"
-                  onSubmitEditing={handleLogin}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeBtn}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={theme.colors.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Forgot Password Row */}
-            <View style={styles.forgotRow}>
-              <TouchableOpacity
-                onPress={() => {
-                  navigation.navigate('ForgotPassword', { email: email.trim() });
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.forgotLink}>Forgot password?</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* 3D Primary Sign In Button (#272944) */}
-            <TouchableOpacity
-              style={styles.primaryCtaButton3D}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.88}
+          {/* Work Email Field */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>WORK EMAIL</Text>
+            <View
+              style={[
+                styles.inputBox,
+                emailFocused && styles.inputBoxFocused,
+              ]}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <View style={styles.ctaContentRow}>
-                  <Text style={styles.ctaButtonText}>Sign in</Text>
-                  <View style={styles.ctaArrowCircle}>
-                    <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
-                  </View>
-                </View>
-              )}
-            </TouchableOpacity>
+              <View style={[styles.fieldIconBadge, emailFocused && styles.fieldIconBadgeFocused]}>
+                <Ionicons
+                  name="mail"
+                  size={16}
+                  color={emailFocused ? '#FFFFFF' : theme.colors.brand700}
+                />
+              </View>
+              <TextInput
+                style={styles.textInputControl}
+                placeholder="name@company.com"
+                placeholderTextColor={theme.colors.textDisabled}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+                editable={!loading}
+                returnKeyType="next"
+              />
+            </View>
+          </View>
 
-            {/* Card Footer Section */}
-            <View style={styles.cardFooterDivider}>
-              <Text style={styles.newAccountPrompt}>New to Leads Rubix? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')} activeOpacity={0.7}>
-                <Text style={styles.signupLinkText}>Create an account</Text>
+          {/* Password Field */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>PASSWORD</Text>
+            <View
+              style={[
+                styles.inputBox,
+                passwordFocused && styles.inputBoxFocused,
+              ]}
+            >
+              <View style={[styles.fieldIconBadge, passwordFocused && styles.fieldIconBadgeFocused]}>
+                <Ionicons
+                  name="lock-closed"
+                  size={16}
+                  color={passwordFocused ? '#FFFFFF' : theme.colors.brand700}
+                />
+              </View>
+              <TextInput
+                style={styles.textInputControl}
+                placeholder="••••••••"
+                placeholderTextColor={theme.colors.textDisabled}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                returnKeyType="go"
+                onSubmitEditing={handleLogin}
+              />
+              <TouchableOpacity
+                style={styles.eyeToggleBtn}
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color="#64748B"
+                />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Footer Version Info */}
-          <AppVersionFooter />
-        </ScrollView>
+          {/* Inline Forgot Password Link */}
+          <View style={styles.forgotRow}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.forgotLink}>Forgot password?</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Sign In CTA Button */}
+          <TouchableOpacity
+            style={styles.primaryCtaButton3D}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <View style={styles.ctaContentRow}>
+                <Text style={styles.ctaButtonText}>Sign in</Text>
+                <View style={styles.ctaArrowCircle}>
+                  <Ionicons name="arrow-forward-sharp" size={16} color={theme.colors.brand700} />
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Card Footer Section */}
+          <View style={styles.cardFooterDivider}>
+            <Text style={styles.newAccountPrompt}>New to Leads Rubix? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')} activeOpacity={0.7}>
+              <Text style={styles.signupLinkText}>Create an account</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </KeyboardAvoidingView>
 
-      {/* Forgot Password SMTP Email Modal */}
-      <Modal
-        visible={forgotModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setForgotModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalCardWrapper}
-          >
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalHeadingTitle}>Reset Password</Text>
-                <TouchableOpacity
-                  onPress={() => setForgotModalVisible(false)}
-                  style={styles.modalCloseCircle}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={18} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalSubheadingText}>
-                We will send a secure password reset link to your registered work email via SMTP.
-              </Text>
-
-              {forgotError && (
-                <View style={styles.modalAlertError}>
-                  <Ionicons name="alert-circle" size={16} color="#E11D48" />
-                  <Text style={styles.modalAlertErrorText}>{forgotError}</Text>
-                </View>
-              )}
-
-              {forgotSuccess && (
-                <View style={styles.modalAlertSuccess}>
-                  <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                  <Text style={styles.modalAlertSuccessText}>{forgotSuccess}</Text>
-                </View>
-              )}
-
-              {!forgotSuccess && (
-                <>
-                  <View style={styles.fieldBlock}>
-                    <Text style={styles.fieldLabel}>WORK EMAIL *</Text>
-                    <View style={styles.inputBox}>
-                      <View style={styles.fieldIconBadge}>
-                        <Ionicons name="mail" size={16} color={theme.colors.brand700} />
-                      </View>
-                      <TextInput
-                        style={styles.textInputControl}
-                        placeholder="name@company.com"
-                        placeholderTextColor={theme.colors.textDisabled}
-                        value={forgotEmail}
-                        onChangeText={setForgotEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.primaryCtaButton3D}
-                    onPress={handleForgotPasswordSubmit}
-                    disabled={forgotLoading}
-                    activeOpacity={0.88}
-                  >
-                    {forgotLoading ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      <View style={styles.ctaContentRow}>
-                        <Text style={styles.ctaButtonText}>Send Reset Link</Text>
-                        <View style={styles.ctaArrowCircle}>
-                          <Ionicons name="mail-unread-sharp" size={16} color={theme.colors.brand700} />
-                        </View>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {forgotSuccess && (
-                <TouchableOpacity
-                  style={[styles.primaryCtaButton3D, { marginTop: 16 }]}
-                  onPress={() => setForgotModalVisible(false)}
-                  activeOpacity={0.88}
-                >
-                  <Text style={styles.ctaButtonText}>Back to Sign In</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+      {/* FIXED Bottom Footer Info (Never Scrolls) */}
+      <View style={styles.fixedBottomFooter}>
+        <AppVersionFooter textStyle={styles.footerVersionText} />
+      </View>
     </View>
   );
 };
@@ -367,19 +236,11 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     backgroundColor: 'rgba(14, 165, 233, 0.14)',
   },
-  flexOne: {
-    flex: 1,
-  },
-  scrollContentContainer: {
-    flexGrow: 1,
-    justifyContent: 'space-between',
+  fixedBrandHeader: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 14,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 68 : 48,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
-  },
-  brandHeroBlock: {
     alignItems: 'center',
-    marginBottom: 36,
   },
   logoContainer: {
     alignItems: 'center',
@@ -389,9 +250,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
-    marginTop: 12,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     gap: 6,
@@ -404,9 +265,14 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#F8FAFC',
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 0.6,
+  },
+  formCardContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
   },
   framedFormCard3D: {
     backgroundColor: '#FFFFFF',
@@ -421,6 +287,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 24,
     elevation: 10,
+  },
+  eyeToggleBtn: {
+    padding: 8,
+    marginRight: 4,
+  },
+  fixedBottomFooter: {
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    paddingTop: 6,
+    alignItems: 'center',
+  },
+  footerVersionText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+    letterSpacing: 0.4,
   },
   headingTitle: {
     fontSize: 22,

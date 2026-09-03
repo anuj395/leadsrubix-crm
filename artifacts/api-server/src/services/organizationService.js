@@ -302,7 +302,8 @@ exports.create = async ({ payload, authedUser }) => {
   }
 
   // Validate that Number of Employees does not exceed trialPeriodLicenses
-  const numEmployeesVal = Number(cleaned.numEmployees || cleaned.num_employees || payload.fields?.numEmployees || payload.fields?.num_employees || payload.numEmployees || 0);
+  const rawNum = cleaned.numEmployees || cleaned.num_employees || cleaned.numberOfEmployees || cleaned.number_of_employees || payload.fields?.numEmployees || payload.fields?.num_employees || payload.fields?.numberOfEmployees || payload.fields?.number_of_employees || payload.numEmployees;
+  const numEmployeesVal = (rawNum !== undefined && rawNum !== null && rawNum !== '' && !isNaN(Number(rawNum))) ? Number(rawNum) : trialPeriodLicenses;
   if (numEmployeesVal > trialPeriodLicenses) {
     const err = new Error(`Number of Employees(Licenses) (${numEmployeesVal}) cannot exceed the trial period licenses limit (${trialPeriodLicenses}).`);
     err.status = 400;
@@ -336,6 +337,8 @@ exports.create = async ({ payload, authedUser }) => {
 
   const orgDoc = await organizationModel.create({
     ...mergedWithDefaults,
+    num_employees: numEmployeesVal,
+    numEmployees: numEmployeesVal,
     costPerLicense: licensesCost,
     orgTrialPeriodUsersLicenses: trialPeriodLicenses,
     gracePeriodDays: gracePeriodDays,
