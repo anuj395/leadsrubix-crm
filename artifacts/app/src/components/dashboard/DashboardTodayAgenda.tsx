@@ -27,6 +27,16 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
     }
   };
 
+  const handleWhatsApp = (phone?: string, name?: string) => {
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const text = encodeURIComponent(`Hi ${name || ''}, connecting regarding your scheduled visit/follow-up.`);
+      Linking.openURL(`whatsapp://send?phone=${cleanPhone}&text=${text}`).catch(() => {
+        Linking.openURL(`https://wa.me/${cleanPhone}`).catch(() => {});
+      });
+    }
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
@@ -102,13 +112,23 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
               </View>
 
               {t.phone ? (
-                <TouchableOpacity
-                  style={styles.callActionBtn}
-                  onPress={() => handleCall(t.phone)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="call" size={13} color="#FFFFFF" />
-                </TouchableOpacity>
+                <View style={styles.actionsGroup}>
+                  <TouchableOpacity
+                    style={styles.whatsappBtn}
+                    onPress={() => handleWhatsApp(t.phone, t.leadName)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.callBtn}
+                    onPress={() => handleCall(t.phone)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="call" size={13} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <Ionicons name="chevron-forward-sharp" size={14} color="#94A3B8" />
               )}
@@ -234,11 +254,24 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
-  callActionBtn: {
+  actionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  whatsappBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#059669',
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#272944',
     alignItems: 'center',
     justifyContent: 'center',
   },

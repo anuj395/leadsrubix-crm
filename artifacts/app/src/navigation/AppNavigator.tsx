@@ -23,11 +23,10 @@ import { TaskFormScreen } from '../screens/tasks/TaskFormScreen';
 import { CallLogsScreen } from '../screens/callLogs/CallLogsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { AnalyticsScreen } from '../screens/analytics/AnalyticsScreen';
-import { ProjectsScreen } from '../screens/projects/ProjectsScreen';
-import { IntegrationsScreen } from '../screens/integrations/IntegrationsScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { MenuScreen } from '../screens/menu/MenuScreen';
+import { UpdatePasswordScreen } from '../screens/account/UpdatePasswordScreen';
 
 type ScreenName =
   | 'Onboarding'
@@ -40,10 +39,9 @@ type ScreenName =
   | 'CallLogs'
   | 'Profile'
   | 'Analytics'
-  | 'Projects'
-  | 'Integrations'
   | 'Notifications'
   | 'Settings'
+  | 'UpdatePassword'
   | 'Menu'
   | 'Login'
   | 'Signup';
@@ -57,18 +55,12 @@ export const AppNavigator = () => {
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Dashboard');
   const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');
   const [routeParams, setRouteParams] = useState<any>({});
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
 
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
-        const val = await safeStorage.getItem('@has_seen_onboarding');
-        if (!val) {
-          setAuthScreen('Onboarding');
-          setHasSeenOnboarding(false);
-        } else {
-          setHasSeenOnboarding(true);
-        }
+        setHasSeenOnboarding(true);
       } catch (e) {
         setHasSeenOnboarding(true);
       }
@@ -133,7 +125,8 @@ export const AppNavigator = () => {
         | 'AnalyticsTab'
         | 'MenuTab'
         | 'CallLogsTab'
-        | 'ProfileTab',
+        | 'ProfileTab'
+        | 'LeadDetails',
       params?: any
     ) => {
       let target = screen as ScreenName;
@@ -144,6 +137,7 @@ export const AppNavigator = () => {
       if (screen === 'MenuTab') target = 'Menu';
       if (screen === 'CallLogsTab') target = 'CallLogs';
       if (screen === 'ProfileTab') target = 'Profile';
+      if (screen === 'LeadDetails' || screen === 'LeadDetail') target = 'LeadDetail';
 
       setRouteParams(params || {});
       setCurrentScreen(target);
@@ -155,8 +149,6 @@ export const AppNavigator = () => {
         setCurrentScreen('Tasks');
       } else if (
         currentScreen === 'CallLogs' ||
-        currentScreen === 'Projects' ||
-        currentScreen === 'Integrations' ||
         currentScreen === 'Notifications' ||
         currentScreen === 'Settings' ||
         currentScreen === 'Profile'
@@ -175,6 +167,7 @@ export const AppNavigator = () => {
       case 'Leads':
         return <LeadsListScreen navigation={navigation} />;
       case 'LeadDetail':
+      case 'LeadDetails' as any:
         return <LeadDetailScreen route={{ params: routeParams }} navigation={navigation} />;
       case 'LeadForm':
         return <LeadFormScreen route={{ params: routeParams }} navigation={navigation} />;
@@ -183,17 +176,15 @@ export const AppNavigator = () => {
       case 'TaskForm':
         return <TaskFormScreen route={{ params: routeParams }} navigation={navigation} />;
       case 'CallLogs':
-        return <CallLogsScreen />;
+        return <CallLogsScreen navigation={navigation} />;
       case 'Analytics':
         return <AnalyticsScreen />;
-      case 'Projects':
-        return <ProjectsScreen />;
-      case 'Integrations':
-        return <IntegrationsScreen />;
       case 'Notifications':
         return <NotificationsScreen />;
       case 'Settings':
         return <SettingsScreen />;
+      case 'UpdatePassword':
+        return <UpdatePasswordScreen navigation={navigation} />;
       case 'Profile':
         return <ProfileScreen />;
       case 'Menu':
@@ -204,13 +195,31 @@ export const AppNavigator = () => {
   };
 
   const isTabActive = (tabName: ScreenName) => {
-    if (tabName === 'Leads' && (currentScreen === 'Leads' || currentScreen === 'LeadDetail' || currentScreen === 'LeadForm')) return true;
+    if (
+      tabName === 'Leads' &&
+      (currentScreen === 'Leads' ||
+        currentScreen === 'LeadDetail' ||
+        (currentScreen as any) === 'LeadDetails' ||
+        currentScreen === 'LeadForm')
+    )
+      return true;
     if (tabName === 'Tasks' && (currentScreen === 'Tasks' || currentScreen === 'TaskForm')) return true;
-    if (tabName === 'Menu' && (currentScreen === 'Menu' || currentScreen === 'CallLogs' || currentScreen === 'Projects' || currentScreen === 'Integrations' || currentScreen === 'Notifications' || currentScreen === 'Settings' || currentScreen === 'Profile')) return true;
+    if (
+      tabName === 'Menu' &&
+      (currentScreen === 'Menu' ||
+        currentScreen === 'CallLogs' ||
+        currentScreen === 'Notifications' ||
+        currentScreen === 'Settings' ||
+        currentScreen === 'UpdatePassword' ||
+        currentScreen === 'Profile')
+    )
+      return true;
     return currentScreen === tabName;
   };
 
-  const hideTabBar = currentScreen === 'LeadForm' || currentScreen === 'TaskForm' || currentScreen === 'LeadDetail';
+  const hideTabBar =
+    currentScreen === 'LeadForm' ||
+    currentScreen === 'TaskForm';
 
   const semantics = getIndustrySemantics(user?.industryId);
 

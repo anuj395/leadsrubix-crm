@@ -7,17 +7,22 @@ export interface CallLogItem {
   phone: string;
   project: string;
   type: string;
+  direction?: 'Inbound' | 'Outbound';
   duration: string;
   timestamp: string;
   outcome: string;
+  status: string;
+  stage?: string;
+  agent?: string;
+  notes?: string;
   badgeColor: string;
   bgColor: string;
 }
 
 export const callLogService = {
-  async getCallLogs(): Promise<CallLogItem[]> {
+  async getCallLogs(userId?: string, role?: string): Promise<CallLogItem[]> {
     try {
-      const resData = await callLogRepository.fetchRawCallLogs();
+      const resData = await callLogRepository.fetchRawCallLogs(userId, role);
       const items = resData?.items || resData?.callLogs || (Array.isArray(resData) ? resData : []);
       if (!Array.isArray(items)) return [];
 
@@ -36,24 +41,49 @@ export const callLogService = {
         }
 
         const callerName =
-          item.buyerName ||
-          item.name ||
           item.customerName ||
           item.customer_name ||
+          item.buyerName ||
+          item.name ||
           'Contact';
+
+        const phone = item.contactNumber || item.contact_number || item.phone || item.contactNo || '';
+        const rawType = item.type || item.direction || 'Outbound';
+        const isOut = !String(rawType).toLowerCase().includes('inbound');
+
+        let durationStr = '0s';
+        if (typeof item.duration === 'number') {
+          const mins = Math.floor(item.duration / 60);
+          const secs = item.duration % 60;
+          durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        } else if (item.duration) {
+          durationStr = String(item.duration);
+        }
+
+        const status = item.status || item.stage || (isOut ? 'Answered' : 'Connected');
+        const notes = item.details || item.notes || '';
+        const agent = item.createdBy || item.created_by || item.agent || 'Sales Agent';
+
+        const isAnswered = status.toLowerCase() === 'answered' || status.toLowerCase().includes('won') || status.toLowerCase().includes('site');
+        const isMissed = status.toLowerCase() === 'missed' || status.toLowerCase().includes('no answer') || status.toLowerCase().includes('lost');
 
         return {
           id: item._id || item.id || Date.now().toString(),
           _id: item._id || item.id,
           buyerName: callerName,
-          phone: item.phone || item.contactNo || item.contact_number || '',
-          project: item.project || item.projectName || item.project_name || '',
-          type: item.type || item.callType || 'Call Log',
-          duration: item.duration || (item.durationSeconds ? `${item.durationSeconds}s` : '0s'),
+          phone,
+          project: item.projectName || item.project_name || item.project || '',
+          type: isOut ? 'Outbound' : 'Inbound',
+          direction: isOut ? 'Outbound' : 'Inbound',
+          duration: durationStr,
           timestamp: timeStr,
-          outcome: item.outcome || item.status || 'Connected',
-          badgeColor: '#059669',
-          bgColor: 'rgba(5, 150, 105, 0.12)',
+          outcome: status,
+          status,
+          stage: item.stage,
+          agent,
+          notes,
+          badgeColor: isAnswered ? '#047857' : isMissed ? '#BE123C' : '#1D4ED8',
+          bgColor: isAnswered ? '#ECFDF5' : isMissed ? '#FFF1F2' : '#EFF6FF',
         };
       });
     } catch (err) {

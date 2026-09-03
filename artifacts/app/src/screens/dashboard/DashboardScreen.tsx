@@ -22,7 +22,6 @@ import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { LicenseTrialBanner } from '../../components/ui/LicenseTrialBanner';
 import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { DashboardActionCockpit } from '../../components/dashboard/DashboardActionCockpit';
-import { DashboardQuickKpis } from '../../components/dashboard/DashboardQuickKpis';
 import { DashboardTodayAgenda } from '../../components/dashboard/DashboardTodayAgenda';
 import { DashboardRecentLeads } from '../../components/dashboard/DashboardRecentLeads';
 import { theme } from '../../theme/theme';
@@ -71,14 +70,6 @@ export const DashboardScreen = ({ navigation }: any) => {
   const onRefresh = () => {
     setRefreshing(true);
     fetchDashboardData(true);
-  };
-
-  const handleKpiSelect = (kpiKey: string, label: string) => {
-    if (kpiKey === 'completedVisits' || kpiKey === 'scheduledVisits') {
-      navigation.navigate('Tasks', { filter: kpiKey, title: label });
-    } else {
-      navigation.navigate('Leads', { filter: kpiKey, title: label });
-    }
   };
 
   const handleCockpitAction = (screen: 'Leads' | 'Tasks', params?: any) => {
@@ -167,14 +158,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         ) : (
           data && (
             <>
-              {/* Zone 4: 4-Card Quick KPI Overview */}
-              <DashboardQuickKpis
-                metrics={data.cards}
-                industryId={user?.industryId || data.industryId}
-                onSelectKpi={handleKpiSelect}
-              />
-
-              {/* Zone 5: Today's Schedule & Actionable Follow-up List */}
+              {/* Zone 4: Today's Schedule & Actionable Follow-up List */}
               <DashboardTodayAgenda
                 tasks={tasks}
                 industryId={user?.industryId || data.industryId}
@@ -182,7 +166,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                 onTaskPress={(t) => navigation.navigate('Tasks')}
               />
 
-              {/* Zone 6: Fresh Incoming Leads Queue */}
+              {/* Zone 5: Fresh Incoming Leads Queue */}
               <DashboardRecentLeads
                 leads={leads}
                 industryId={user?.industryId || data.industryId}

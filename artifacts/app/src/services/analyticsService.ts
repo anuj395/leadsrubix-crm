@@ -46,7 +46,18 @@ export interface FeedbackRow {
   scheduledVisits: number;
 }
 
+export interface TaskAnalyticsRow {
+  sNo: number;
+  associate: string;
+  total: number;
+  meeting: number;
+  callBack: number;
+  siteVisit: number;
+}
+
 export interface AnalyticsDashboardState {
+  showAnalytics?: boolean;
+  message?: string;
   cards: CardMetrics;
   revenue: string;
   conversionRate: string;
@@ -54,6 +65,7 @@ export interface AnalyticsDashboardState {
   callingTrends: CallingTrendItem[];
   callDurations: CallDurationBuckets;
   feedbackSummary: FeedbackRow[];
+  completedTasks: TaskAnalyticsRow[];
   industryId?: string;
   organizationName?: string;
 }
@@ -64,6 +76,37 @@ export const analyticsService = {
   async getAnalyticsData(params?: AnalyticsQueryParams): Promise<AnalyticsDashboardState> {
     try {
       const data = await analyticsRepository.fetchRawAnalyticsOverview(params);
+
+      if (data?.showAnalytics === false) {
+        return {
+          showAnalytics: false,
+          message: data?.message || 'Analytics is disabled for your organization.',
+          cards: {
+            totalLeads: 0,
+            fresh: 0,
+            callBack: 0,
+            interested: 0,
+            closedWon: 0,
+            notInterested: 0,
+            closedLost: 0,
+            completedVisits: 0,
+            scheduledVisits: 0,
+          },
+          revenue: '$0',
+          conversionRate: '0.0%',
+          funnelStages: [],
+          callingTrends: [],
+          callDurations: {
+            duration0: 0,
+            duration0_30: 0,
+            duration31_60: 0,
+            duration61_120: 0,
+            durationAbove120: 0,
+          },
+          feedbackSummary: [],
+          completedTasks: [],
+        };
+      }
 
       const cards: CardMetrics = {
         totalLeads: Number(data?.cards?.totalLeads || data?.summary?.totalLeads || 0),
@@ -143,6 +186,18 @@ export const analyticsService = {
         scheduledVisits: Number(row.scheduledVisits || 0),
       }));
 
+      // Tasks breakdown by Associate
+      const completedTaskList: TaskAnalyticsRow[] = (data?.tasks?.completedTasks || []).map(
+        (row: any, idx: number) => ({
+          sNo: row.sNo || idx + 1,
+          associate: row.associate || 'Sales Advisor',
+          total: Number(row.total || 0),
+          meeting: Number(row.meeting || 0),
+          callBack: Number(row.callBack || 0),
+          siteVisit: Number(row.siteVisit || 0),
+        })
+      );
+
       return {
         cards,
         revenue: data.revenue || (cards.closedWon > 0 ? `₹${(cards.closedWon * 2.5).toFixed(1)} Cr` : '₹0.0 Cr'),
@@ -151,6 +206,7 @@ export const analyticsService = {
         callingTrends: data?.callLogs?.callingTrends || [],
         callDurations: durations,
         feedbackSummary: feedbackList,
+        completedTasks: completedTaskList,
         industryId: data?.industryId,
         organizationName: data?.organizationName,
       };
@@ -185,6 +241,7 @@ export const analyticsService = {
           durationAbove120: 0,
         },
         feedbackSummary: [],
+        completedTasks: [],
       };
     }
   },

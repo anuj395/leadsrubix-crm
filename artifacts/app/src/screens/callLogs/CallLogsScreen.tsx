@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,25 +12,29 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
 import { callLogService, CallLogItem } from '../../services/callLogService';
-import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
-import { theme } from '../../theme/theme';
 
 const OUTCOME_PRESETS = [
-  { label: 'Site Visit Confirmed', badgeColor: '#059669', bgColor: 'rgba(5, 150, 105, 0.12)' },
-  { label: 'Price Matrix Sent', badgeColor: '#0284C7', bgColor: 'rgba(2, 132, 199, 0.12)' },
-  { label: 'Callback Required', badgeColor: '#D97706', bgColor: 'rgba(217, 119, 6, 0.12)' },
-  { label: 'Not Interested', badgeColor: '#E11D48', bgColor: 'rgba(225, 29, 72, 0.12)' },
+  { label: 'Site Visit Confirmed', badgeColor: '#047857', bgColor: '#ECFDF5' },
+  { label: 'Callback Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
+  { label: 'Price Matrix Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
+  { label: 'Not Interested / Lost', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
 ];
 
-export const CallLogsScreen = () => {
+type FilterType = 'ALL' | 'ANSWERED' | 'MISSED' | 'INBOUND' | 'OUTBOUND';
+
+export const CallLogsScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
   const [callLogs, setCallLogs] = useState<CallLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('ALL');
 
   // Auto Post-Call Outcome Modal State
   const [postCallModalVisible, setPostCallModalVisible] = useState(false);
@@ -39,7 +43,8 @@ export const CallLogsScreen = () => {
   const fetchCallLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await callLogService.getCallLogs();
+      const userAny = user as any;
+      const data = await callLogService.getCallLogs(userAny?.id || userAny?._id, user?.role);
       setCallLogs(data);
     } catch (err) {
       console.error('Failed to load call logs:', err);
@@ -47,7 +52,7 @@ export const CallLogsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchCallLogs();
@@ -60,13 +65,33 @@ export const CallLogsScreen = () => {
 
   // Trigger Phone Dialer & Open Auto Post-Call Outcome Popup
   const handleInitiateCall = (buyerName: string, phone: string, project: string) => {
-    Linking.openURL(`tel:${phone}`);
+    if (!phone) {
+      Alert.alert('No Phone Number', 'This contact does not have a valid phone number.');
+      return;
+    }
+    Linking.openURL(`tel:${phone}`).catch(() => {
+      Alert.alert('Error', 'Unable to launch phone dialer.');
+    });
     setActiveCallBuyer({ name: buyerName, phone, project });
 
     // Open Auto Post-Call Outcome Overlay after slight delay
     setTimeout(() => {
       setPostCallModalVisible(true);
     }, 1200);
+  };
+
+  const handleOpenWhatsApp = (phone?: string, name?: string) => {
+    if (!phone) {
+      Alert.alert('No Phone Number', 'No WhatsApp number available for this contact.');
+      return;
+    }
+    const clean = phone.replace(/[^0-9]/g, '');
+    const message = encodeURIComponent(
+      `Hello ${name || 'Sir/Madam'}, thank you for contacting Leads Rubix. How can I assist you today?`
+    );
+    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
+      Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
+    });
   };
 
   const handleSelectOutcome = (preset: typeof OUTCOME_PRESETS[0]) => {
@@ -77,10 +102,11 @@ export const CallLogsScreen = () => {
       buyerName: activeCallBuyer.name,
       phone: activeCallBuyer.phone,
       project: activeCallBuyer.project,
-      type: 'Outbound Call',
+      type: 'Outbound',
       duration: '1m 30s',
       timestamp: 'Just now',
       outcome: preset.label,
+      status: preset.label,
       badgeColor: preset.badgeColor,
       bgColor: preset.bgColor,
     };
@@ -92,148 +118,358 @@ export const CallLogsScreen = () => {
     Alert.alert('Call Outcome Logged', `Recorded outcome: ${preset.label}`);
   };
 
+  // Compute exact Web CRM counts
+  const stats = useMemo(() => {
+    const total = callLogs.length;
+    const answered = callLogs.filter(
+      (l) =>
+        (l.status || l.outcome || '').toLowerCase() === 'answered' ||
+        (l.status || l.outcome || '').toLowerCase().includes('site') ||
+        (l.status || l.outcome || '').toLowerCase().includes('won') ||
+        (l.status || l.outcome || '').toLowerCase().includes('sent')
+    ).length;
+    const missed = callLogs.filter(
+      (l) =>
+        (l.status || l.outcome || '').toLowerCase() === 'missed' ||
+        (l.status || l.outcome || '').toLowerCase().includes('no answer') ||
+        (l.status || l.outcome || '').toLowerCase().includes('lost')
+    ).length;
+    const inbound = callLogs.filter((l) => (l.type || '').toLowerCase().includes('inbound')).length;
+    const outbound = callLogs.filter((l) => (l.type || '').toLowerCase().includes('outbound')).length;
+
+    return { total, answered, missed, inbound, outbound };
+  }, [callLogs]);
+
+  const filteredLogs = useMemo(() => {
+    return callLogs.filter((log) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (log.buyerName && log.buyerName.toLowerCase().includes(q)) ||
+        (log.phone && log.phone.includes(q)) ||
+        (log.outcome && log.outcome.toLowerCase().includes(q)) ||
+        (log.agent && log.agent.toLowerCase().includes(q)) ||
+        (log.project && log.project.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+
+      if (selectedFilter === 'ANSWERED') {
+        return (
+          (log.status || log.outcome || '').toLowerCase() === 'answered' ||
+          (log.status || log.outcome || '').toLowerCase().includes('site') ||
+          (log.status || log.outcome || '').toLowerCase().includes('won') ||
+          (log.status || log.outcome || '').toLowerCase().includes('sent')
+        );
+      }
+      if (selectedFilter === 'MISSED') {
+        return (
+          (log.status || log.outcome || '').toLowerCase() === 'missed' ||
+          (log.status || log.outcome || '').toLowerCase().includes('no answer') ||
+          (log.status || log.outcome || '').toLowerCase().includes('lost')
+        );
+      }
+      if (selectedFilter === 'INBOUND') {
+        return (log.type || '').toLowerCase().includes('inbound');
+      }
+      if (selectedFilter === 'OUTBOUND') {
+        return (log.type || '').toLowerCase().includes('outbound');
+      }
+
+      return true;
+    });
+  }, [callLogs, searchQuery, selectedFilter]);
+
+  const filterTabs: { key: FilterType; label: string; count: number }[] = [
+    { key: 'ALL', label: 'ALL', count: stats.total },
+    { key: 'ANSWERED', label: 'ANSWERED', count: stats.answered },
+    { key: 'MISSED', label: 'MISSED', count: stats.missed },
+    { key: 'INBOUND', label: 'INBOUND', count: stats.inbound },
+    { key: 'OUTBOUND', label: 'OUTBOUND', count: stats.outbound },
+  ];
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* Clean Executive #272944 Hero Header Banner */}
-      <View style={styles.hero3DHeader}>
-        <View style={styles.headerLogoRow}>
-          <CompanyLogo variant="white" height={34} />
+      {/* ─── Zone 1: Luxury #151728 Midnight Header (Identical to Leads) ─── */}
+      <View style={styles.luxuryHeader}>
+        <View style={styles.headerTopRow}>
+          <CompanyLogo variant="white" height={28} />
+
+          <View style={styles.statusPill}>
+            <View style={styles.greenPulseDot} />
+            <Text style={styles.statusPillText}>ACTIVE</Text>
+          </View>
         </View>
 
-        <View style={styles.headerTagPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.headerTagText}>AUTO-LOGGING TELEPHONY & CALL ACTIVITY</Text>
+        {/* Integrated Search Bar */}
+        <View style={styles.searchBarBox}>
+          <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInputControl}
+            placeholder="Search customer, number, agent, notes..."
+            placeholderTextColor="#64748B"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#151728" />}
       >
-        {/* Animated AI Mascot Advisor Companion */}
-        <AIAdvisorMascot
-          screenName="CallLogs"
-          message="Tap any call button to dial out — the auto post-call popup will prompt you for 1-tap outcome logging!"
-        />
+        {/* ─── Zone 2: Filter Chips (Exact Leads & Tasks Match) ─── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.statusFilterBar}
+          contentContainerStyle={styles.statusFilterContent}
+        >
+          {filterTabs.map((tab) => {
+            const isSelected = selectedFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.statusChip, isSelected && styles.statusChipSelected]}
+                onPress={() => setSelectedFilter(tab.key)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.statusChipText, isSelected && styles.statusChipTextSelected]}>
+                  {tab.label}
+                </Text>
+                <View style={[styles.chipBadgeCircle, isSelected && styles.chipBadgeCircleSelected]}>
+                  <Text style={[styles.chipBadgeText, isSelected && styles.chipBadgeTextSelected]}>
+                    {tab.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>RECENT CALL ACTIVITY</Text>
-          <InfoGuideBadge
-            title="Auto Post-Call Telephony"
-            description="Initiate calls directly. As soon as you dial out, the post-call popup automatically prompts you to select a 1-tap outcome."
-          />
-        </View>
-
+        {/* ─── Zone 3: Call History Cards (Matching Web CRM Schema) ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Loading call logs & telephony records...</Text>
+            <ActivityIndicator size="small" color="#151728" />
+            <Text style={styles.loadingText}>Fetching telephony & dialer logs...</Text>
+          </View>
+        ) : filteredLogs.length === 0 ? (
+          <View style={styles.emptyCard3D}>
+            <View style={styles.emptyIconBadge}>
+              <Ionicons name="call-outline" size={26} color="#059669" />
+            </View>
+            <Text style={styles.emptyTitle}>No Call Logs Found</Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? `No call logs match "${searchQuery}". Try a different keyword.`
+                : `No calls currently recorded in ${selectedFilter} category.`}
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCTA}
+              onPress={() => (navigation?.navigate ? navigation.navigate('Leads') : null)}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="people-sharp" size={18} color="#FFFFFF" />
+              <Text style={styles.emptyCTAText}>View Leads Pipeline</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          callLogs.map((log) => (
-            <View key={log.id} style={styles.callCard3D}>
-              <View style={styles.cardHeaderRow}>
-                <View style={[styles.callTypeBadge, { backgroundColor: log.bgColor }]}>
-                  <Ionicons
-                    name={
-                      log.type.includes('Outbound')
-                        ? 'call-outline'
-                        : log.type.includes('Inbound')
-                        ? 'arrow-down-circle-outline'
-                        : 'close-circle-outline'
-                    }
-                    size={20}
-                    color={log.badgeColor}
-                  />
+          filteredLogs.map((log, index) => {
+            const isOutbound = (log.type || log.direction || '').toLowerCase().includes('outbound');
+            const initials = (log.buyerName || 'Contact')
+              .split(' ')
+              .map((n) => n.charAt(0))
+              .slice(0, 2)
+              .join('')
+              .toUpperCase();
+
+            return (
+              <View key={log.id || index} style={styles.leadCard}>
+                {/* Header Row: S.No + Avatar + Customer Name + Status Badge */}
+                <View style={styles.cardHeader}>
+                  <View style={styles.avatarSquircle}>
+                    <Text style={styles.avatarText}>{initials || 'CB'}</Text>
+                    <View
+                      style={[
+                        styles.directionDot,
+                        { backgroundColor: isOutbound ? '#1D4ED8' : '#047857' },
+                      ]}
+                    >
+                      <Ionicons
+                        name={isOutbound ? 'arrow-up-sharp' : 'arrow-down-sharp'}
+                        size={8}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.nameBlock}>
+                    <Text style={styles.leadName} numberOfLines={1}>
+                      {log.buyerName}
+                    </Text>
+                    <View style={styles.timeTagRow}>
+                      <Ionicons name="time-outline" size={11} color="#64748B" />
+                      <Text style={styles.timeTagText}>{log.timestamp}</Text>
+                      <Text style={styles.dotSep}>•</Text>
+                      <Text style={styles.durationTagText}>{log.duration}</Text>
+                    </View>
+                  </View>
+
+                  {/* Status / Outcome Badge */}
+                  <View style={[styles.stageBadge, { backgroundColor: log.bgColor || '#EFF6FF' }]}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: log.badgeColor || '#1D4ED8' },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.stageBadgeText,
+                        { color: log.badgeColor || '#1D4ED8' },
+                      ]}
+                    >
+                      {log.outcome || log.status || 'Completed'}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.buyerInfoGroup}>
-                  <Text style={styles.buyerNameText}>{log.buyerName}</Text>
-                  <Text style={styles.buyerPhoneText}>
-                    {log.phone} • {log.project}
-                  </Text>
+                {/* Specs / Metadata Badges (Phone + Agent + Dir) */}
+                <View style={styles.specsRow}>
+                  {log.phone ? (
+                    <View style={styles.specPill}>
+                      <Ionicons name="call-outline" size={11} color="#64748B" />
+                      <Text style={styles.specPillText}>{log.phone}</Text>
+                    </View>
+                  ) : null}
+
+                  {log.agent ? (
+                    <View style={styles.specPill}>
+                      <Ionicons name="person-outline" size={11} color="#64748B" />
+                      <Text style={styles.specPillText} numberOfLines={1}>
+                        Agent: {log.agent}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <View
+                    style={[
+                      styles.specPill,
+                      { backgroundColor: isOutbound ? '#EFF6FF' : '#ECFDF5' },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isOutbound ? 'call-outline' : 'arrow-down-circle-outline'}
+                      size={11}
+                      color={isOutbound ? '#1D4ED8' : '#047857'}
+                    />
+                    <Text
+                      style={[
+                        styles.specPillText,
+                        { color: isOutbound ? '#1D4ED8' : '#047857', fontWeight: '600' },
+                      ]}
+                    >
+                      {isOutbound ? 'Outbound' : 'Inbound'}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={[styles.outcomePill, { backgroundColor: log.bgColor }]}>
-                  <Text style={[styles.outcomePillText, { color: log.badgeColor }]}>
-                    {log.outcome}
-                  </Text>
+                {/* Notes / Call Summary Strip (if notes exist) */}
+                {log.notes ? (
+                  <View style={styles.notesBox}>
+                    <Ionicons name="document-text-outline" size={12} color="#64748B" />
+                    <Text style={styles.notesText} numberOfLines={2}>
+                      {log.notes}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Action Cockpit: Redial & WhatsApp */}
+                <View style={styles.actionCockpit}>
+                  <TouchableOpacity
+                    style={styles.callCockpitBtn}
+                    onPress={() => handleInitiateCall(log.buyerName, log.phone, log.project)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="call-sharp" size={13} color="#FFFFFF" />
+                    <Text style={styles.callCockpitText}>Redial Contact</Text>
+                  </TouchableOpacity>
+
+                  {log.phone ? (
+                    <TouchableOpacity
+                      style={styles.whatsappCockpitBtn}
+                      onPress={() => handleOpenWhatsApp(log.phone, log.buyerName)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="logo-whatsapp" size={14} color="#15803D" />
+                      <Text style={styles.whatsappCockpitText}>WhatsApp</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
+            );
+          })
+        )}
+      </ScrollView>
 
-              {/* Call Details Strip & 1-Tap Redial Trigger */}
-              <View style={styles.cardFooterRow}>
-                <Text style={styles.durationText}>
-                  {log.type} • {log.duration} • {log.timestamp}
+      {/* Auto Post-Call Outcome Popup Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={postCallModalVisible}
+        onRequestClose={() => setPostCallModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalIconBox}>
+                <Ionicons name="call" size={20} color="#1D4ED8" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Auto Post-Call Logger</Text>
+                <Text style={styles.modalSubtitle}>
+                  Select 1-tap outcome for call with {activeCallBuyer?.name}:
                 </Text>
+              </View>
+            </View>
 
+            {/* Outcome Option Buttons */}
+            <View style={styles.outcomeOptionsGrid}>
+              {OUTCOME_PRESETS.map((preset, idx) => (
                 <TouchableOpacity
-                  style={styles.redialBtn}
-                  onPress={() => handleInitiateCall(log.buyerName, log.phone, log.project)}
+                  key={idx}
+                  style={[styles.outcomeOptionBtn, { backgroundColor: preset.bgColor, borderColor: preset.badgeColor }]}
+                  onPress={() => handleSelectOutcome(preset)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="call" size={12} color="#FFFFFF" />
-                  <Text style={styles.redialBtnText}>Call Buyer</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-
-        {/* Auto Post-Call Outcome Popup Modal */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={postCallModalVisible}
-          onRequestClose={() => setPostCallModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard3D}>
-              <View style={styles.modalHeaderRow}>
-                <View style={styles.telephonyIconBadge}>
-                  <Ionicons name="call" size={20} color={theme.colors.brand700} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>Auto Post-Call Logger</Text>
-                  <Text style={styles.modalSubtitle}>
-                    Select 1-tap outcome for call with {activeCallBuyer?.name}:
+                  <View style={[styles.outcomeDot, { backgroundColor: preset.badgeColor }]} />
+                  <Text style={[styles.outcomeOptionText, { color: preset.badgeColor }]}>
+                    {preset.label}
                   </Text>
-                </View>
-              </View>
-
-              {/* Outcome Option Buttons */}
-              <View style={styles.outcomeOptionsGrid}>
-                {OUTCOME_PRESETS.map((preset, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.outcomeOptionBtn, { borderColor: preset.badgeColor }]}
-                    onPress={() => handleSelectOutcome(preset)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.outcomeDot, { backgroundColor: preset.badgeColor }]} />
-                    <Text style={styles.outcomeOptionText}>{preset.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={styles.dismissBtn}
-                onPress={() => {
-                  setPostCallModalVisible(false);
-                  setActiveCallBuyer(null);
-                }}
-              >
-                <Text style={styles.dismissBtnText}>Skip Logging</Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
             </View>
+
+            <TouchableOpacity
+              style={styles.dismissBtn}
+              onPress={() => {
+                setPostCallModalVisible(false);
+                setActiveCallBuyer(null);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.dismissBtnText}>Skip Outcome Logging</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -243,34 +479,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  hero3DHeader: {
+  luxuryHeader: {
     width: '100%',
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
+    backgroundColor: '#151728',
+    paddingTop: Platform.OS === 'ios' ? 56 : 42,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
     elevation: 8,
   },
-  headerLogoRow: {
-    marginBottom: 8,
-  },
-  headerTagPill: {
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginTop: 4,
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(5, 150, 105, 0.16)',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
     gap: 6,
   },
   greenPulseDot: {
@@ -279,151 +516,365 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#34D399',
   },
-  headerTagText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+  statusPillText: {
+    color: '#34D399',
+    fontSize: 10.5,
+    fontWeight: '800',
     letterSpacing: 0.6,
   },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  sectionHeaderRow: {
+  searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  sectionTitle: {
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInputControl: {
+    flex: 1,
+    fontSize: 13.5,
+    color: '#0F172A',
+    padding: 0,
+    fontWeight: '500',
+  },
+  clearSearchBtn: {
+    padding: 2,
+  },
+  contentContainer: {
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
+  },
+  statusFilterBar: {
+    marginBottom: 12,
+  },
+  statusFilterContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  statusChipSelected: {
+    backgroundColor: '#1E2238',
+    borderColor: '#1E2238',
+  },
+  statusChipText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
+  },
+  statusChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  chipBadgeCircle: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: 'center',
+  },
+  chipBadgeCircleSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  chipBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  chipBadgeTextSelected: {
+    color: '#FFFFFF',
   },
   loadingBox: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 40,
     gap: 8,
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     fontWeight: '500',
   },
-  callCard3D: {
+  emptyCard3D: {
+    marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
+    borderRadius: 18,
+    padding: 24,
     alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.85)',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    marginTop: 8,
   },
-  callTypeBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  emptyIconBadge: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginBottom: 12,
   },
-  buyerInfoGroup: {
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 12.5,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+  },
+  emptyCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E2238',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  emptyCTAText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  leadCard: {
+    marginHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.85)',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: 12,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  avatarSquircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    position: 'relative',
+  },
+  avatarText: {
+    color: '#1D4ED8',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  directionDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  nameBlock: {
     flex: 1,
+    marginRight: 8,
   },
-  buyerNameText: {
+  leadName: {
     fontSize: 15,
     fontWeight: '700',
     color: '#0F172A',
+    letterSpacing: -0.2,
   },
-  buyerPhoneText: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  outcomePill: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  outcomePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  cardFooterRow: {
+  timeTagRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  timeTagText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  dotSep: {
+    color: '#CBD5E1',
+    fontSize: 10,
+  },
+  durationTagText: {
+    fontSize: 11,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  stageBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    gap: 5,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stageBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  specsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  specPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  specPillText: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  notesBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 10,
+    gap: 6,
+  },
+  notesText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#475569',
+    fontStyle: 'italic',
+  },
+  actionCockpit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  durationText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  redialBtn: {
+  callCockpitBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.brand700,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
+    justifyContent: 'center',
+    backgroundColor: '#1E2238',
+    paddingVertical: 8.5,
+    borderRadius: 10,
+    gap: 6,
   },
-  redialBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
+  callCockpitText: {
     color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  whatsappCockpitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    paddingVertical: 8.5,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    gap: 6,
+  },
+  whatsappCockpitText: {
+    color: '#15803D',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 16, 30, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
-  modalCard3D: {
+  modalCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 8,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 16,
-    gap: 10,
   },
-  telephonyIconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+  modalIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
   },
@@ -433,35 +884,33 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   outcomeOptionsGrid: {
-    gap: 10,
+    gap: 8,
     marginBottom: 16,
   },
   outcomeOptionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
     padding: 12,
-    borderWidth: 1.5,
+    borderRadius: 12,
+    borderWidth: 1,
     gap: 10,
   },
   outcomeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   outcomeOptionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
   },
   dismissBtn: {
     alignItems: 'center',
     paddingVertical: 10,
   },
   dismissBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748B',
+    fontSize: 12.5,
+    color: '#94A3B8',
+    fontWeight: '600',
   },
 });

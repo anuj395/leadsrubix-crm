@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,27 +11,45 @@ import {
   RefreshControl,
   ActivityIndicator,
   Linking,
+  Modal,
+  Alert,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { leadService, LeadItem } from '../../services/leadService';
+import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { theme } from '../../theme/theme';
 
-export const LeadsListScreen = ({ navigation }: any) => {
+export const LeadsListScreen = ({ navigation, route }: any) => {
+  const { user } = useAuth();
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [filterScrollProgress, setFilterScrollProgress] = useState(0);
 
-  const statusFilters = ['ALL', 'Fresh', 'Contacted', 'Qualified', 'Won', 'Lost'];
+  // Sync filter when navigating from Analytics or other screens
+  useEffect(() => {
+    if (route?.params?.filter) {
+      const f = String(route.params.filter).toLowerCase();
+      if (f.includes('fresh')) setSelectedStatus('Fresh');
+      else if (f.includes('callback') || f.includes('call_back')) setSelectedStatus('Callbacks');
+      else if (f.includes('interested') && !f.includes('not')) setSelectedStatus('Interested');
+      else if (f.includes('won') || f.includes('converted') || f.includes('closedwon')) setSelectedStatus('Converted');
+      else if (f.includes('lost') || f.includes('notinterested') || f.includes('not_interested') || f.includes('closedlost')) setSelectedStatus('Lost');
+    }
+  }, [route?.params?.filter]);
+
+  // Exact 6 Web CRM Stages
+  const statusFilters = ['ALL', 'Fresh', 'Callbacks', 'Interested', 'Converted', 'Lost'];
 
   const fetchLeadsData = useCallback(async () => {
     try {
       setLoading(true);
       const data = await leadService.getLeads({
-        status: selectedStatus === 'ALL' ? undefined : selectedStatus,
         q: searchQuery.trim() || undefined,
       });
       setLeads(data);
@@ -41,7 +59,7 @@ export const LeadsListScreen = ({ navigation }: any) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedStatus, searchQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchLeadsData();
@@ -52,64 +70,284 @@ export const LeadsListScreen = ({ navigation }: any) => {
     fetchLeadsData();
   };
 
-  const handleCall = (phone?: string) => {
-    if (phone) Linking.openURL(`tel:${phone}`);
-  };
+  // Metrics computation synchronized with Web CRM stages
+  const counts = useMemo(() => {
+    let fresh = 0;
+    let callbacks = 0;
+    let interested = 0;
+    let converted = 0;
+    let lost = 0;
 
-  const handleWhatsApp = (phone?: string) => {
-    if (phone) {
-      const clean = phone.replace(/[^0-9]/g, '');
-      Linking.openURL(`whatsapp://send?phone=${clean}`);
+    leads.forEach((l) => {
+      const st = (l.stage || l.status || '').toUpperCase().trim();
+      const isDeal =
+        st.includes('DEAL') ||
+        st.includes('WON') ||
+        st.includes('BOOKED') ||
+        st.includes('CONVERT');
+      if (isDeal) {
+        converted++;
+      } else if (
+        st.includes('CALLBACK') ||
+        st.includes('RESCHEDULE') ||
+        st.includes('CALL_BACK') ||
+        st.includes('CONTACT')
+      ) {
+        callbacks++;
+      } else if (
+        (st.includes('INTEREST') && !st.includes('NOT')) ||
+        st.includes('QUALIF') ||
+        st.includes('VISIT')
+      ) {
+        interested++;
+      } else if (
+        st.includes('LOST') ||
+        st.includes('NOT_INTEREST') ||
+        st.includes('REFUSED')
+      ) {
+        lost++;
+      } else {
+        fresh++;
+      }
+    });
+
+    return { total: leads.length, fresh, callbacks, interested, converted, lost };
+  }, [leads]);
+
+  // Dynamic filter matching Web CRM tabs
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+
+    if (selectedStatus !== 'ALL') {
+      result = result.filter((l) => {
+        const st = (l.stage || l.status || '').toUpperCase().trim();
+        const isDeal =
+          st.includes('DEAL') ||
+          st.includes('WON') ||
+          st.includes('BOOKED') ||
+          st.includes('CONVERT');
+
+        if (selectedStatus === 'Converted') return isDeal;
+        if (selectedStatus === 'Callbacks') {
+          return (
+            st.includes('CALLBACK') ||
+            st.includes('RESCHEDULE') ||
+            st.includes('CALL_BACK') ||
+            st.includes('CONTACT')
+          );
+        }
+        if (selectedStatus === 'Interested') {
+          return (
+            (st.includes('INTEREST') && !st.includes('NOT')) ||
+            st.includes('QUALIF') ||
+            st.includes('VISIT')
+          );
+        }
+        if (selectedStatus === 'Lost') {
+          return (
+            st.includes('LOST') ||
+            st.includes('NOT_INTEREST') ||
+            st.includes('REFUSED')
+          );
+        }
+        if (selectedStatus === 'Fresh') {
+          return (
+            !isDeal &&
+            !st.includes('CALLBACK') &&
+            !st.includes('RESCHEDULE') &&
+            !st.includes('INTEREST') &&
+            !st.includes('LOST') &&
+            !st.includes('CONTACT') &&
+            !st.includes('QUALIF')
+          );
+        }
+        return true;
+      });
     }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (l) =>
+          (l.name && l.name.toLowerCase().includes(q)) ||
+          (l.phone && l.phone.includes(q)) ||
+          (l.alternateNo && l.alternateNo.includes(q)) ||
+          (l.project && l.project.toLowerCase().includes(q)) ||
+          (l.location && l.location.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [leads, selectedStatus, searchQuery]);
+
+  const handleCall = (phone?: string) => {
+    if (!phone) {
+      Alert.alert('No Phone Number', 'No contact number available for this buyer.');
+      return;
+    }
+    Linking.openURL(`tel:${phone}`).catch(() => {
+      Alert.alert('Error', 'Unable to launch phone dialer.');
+    });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+  const handleWhatsApp = (phone?: string, name?: string) => {
+    if (!phone) {
+      Alert.alert('No Phone Number', 'No WhatsApp number available for this buyer.');
+      return;
+    }
+    const clean = phone.replace(/[^0-9]/g, '');
+    const message = encodeURIComponent(
+      `Hello ${name || 'Sir/Madam'}, thank you for contacting Leads Rubix. How can I assist you with your property inquiry today?`
+    );
+    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
+      Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
+    });
+  };
+
+  const handleEmail = (email?: string) => {
+    if (!email) {
+      Alert.alert('No Email Address', 'No email address available for this buyer.');
+      return;
+    }
+    Linking.openURL(`mailto:${email}`).catch(() => {
+      Alert.alert('Error', 'Unable to launch email client.');
+    });
+  };
+
+  const formatSource = (src?: string) => {
+    if (!src) return 'Direct';
+    const s = src.toLowerCase();
+    if (s.includes('facebook') || s.includes('fb')) return 'Facebook';
+    if (s.includes('google')) return 'Google';
+    if (s.includes('website') || s.includes('web')) return 'Website';
+    if (s.includes('instagram') || s.includes('insta')) return 'Instagram';
+    if (s.includes('self')) return 'Self Gen';
+    if (s.includes('walk')) return 'Walk-in';
+    if (s.includes('referral') || s.includes('refer')) return 'Referral';
+    return src.length > 9 ? src.substring(0, 8) + '..' : src;
+  };
+
+  const getStageMeta = (status: string) => {
+    const st = (status || '').toUpperCase().trim();
+    if (
+      st.includes('DEAL') ||
+      st.includes('WON') ||
+      st.includes('BOOKED') ||
+      st.includes('CONVERT')
+    ) {
+      return {
+        bg: '#ECFDF5',
+        border: '#A7F3D0',
+        text: '#047857',
+        avatarBg: '#ECFDF5',
+        avatarText: '#047857',
+        dot: '#10B981',
+        label: 'CONVERTED',
+      };
+    }
+    if (
+      st.includes('CALLBACK') ||
+      st.includes('RESCHEDULE') ||
+      st.includes('CALL_BACK') ||
+      st.includes('CONTACT')
+    ) {
+      return {
+        bg: '#FFFBEB',
+        border: '#FDE68A',
+        text: '#B45309',
+        avatarBg: '#FFFBEB',
+        avatarText: '#B45309',
+        dot: '#F59E0B',
+        label: 'CALLBACK',
+      };
+    }
+    if (
+      (st.includes('INTEREST') && !st.includes('NOT')) ||
+      st.includes('QUALIF') ||
+      st.includes('VISIT')
+    ) {
+      return {
+        bg: '#F5F3FF',
+        border: '#DDD6FE',
+        text: '#6D28D9',
+        avatarBg: '#F5F3FF',
+        avatarText: '#6D28D9',
+        dot: '#8B5CF6',
+        label: 'INTERESTED',
+      };
+    }
+    if (
+      st.includes('LOST') ||
+      st.includes('NOT_INTEREST') ||
+      st.includes('REFUSED')
+    ) {
+      return {
+        bg: '#FFF1F2',
+        border: '#FECDD3',
+        text: '#BE123C',
+        avatarBg: '#FFF1F2',
+        avatarText: '#BE123C',
+        dot: '#F43F5E',
+        label: 'LOST',
+      };
+    }
+    return {
+      bg: '#EFF6FF',
+      border: '#BFDBFE',
+      text: '#1D4ED8',
+      avatarBg: '#EFF6FF',
+      avatarText: '#1D4ED8',
+      dot: '#3B82F6',
+      label: 'FRESH',
+    };
+  };
+
+  const getStageCount = (st: string) => {
+    switch (st.toLowerCase()) {
+      case 'all':
+        return counts.total;
       case 'fresh':
-        return { bg: 'rgba(2, 132, 199, 0.12)', text: '#0284C7' };
-      case 'contacted':
-        return { bg: 'rgba(217, 119, 6, 0.12)', text: '#D97706' };
-      case 'qualified':
-        return { bg: 'rgba(124, 58, 237, 0.12)', text: '#7C3AED' };
-      case 'won':
-        return { bg: 'rgba(5, 150, 105, 0.12)', text: '#059669' };
+        return counts.fresh;
+      case 'callbacks':
+        return counts.callbacks;
+      case 'interested':
+        return counts.interested;
+      case 'converted':
+        return counts.converted;
       case 'lost':
-        return { bg: 'rgba(225, 29, 72, 0.12)', text: '#E11D48' };
+        return counts.lost;
       default:
-        return { bg: 'rgba(71, 85, 105, 0.12)', text: '#475569' };
+        return 0;
     }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* Clean Executive #272944 Hero Header Banner */}
-      <View style={styles.hero3DHeader}>
+      {/* ─── Zone 1: Luxury #151728 Midnight Header ─── */}
+      <View style={styles.luxuryHeader}>
+        {/* Top Branding Row (Pixel-identical to Dashboard) */}
         <View style={styles.headerTopRow}>
-          <CompanyLogo variant="white" height={34} />
+          <CompanyLogo variant="white" height={28} />
+
           <TouchableOpacity
-            style={styles.addBtn3D}
+            style={styles.newLeadCTA}
             onPress={() => navigation.navigate('LeadForm')}
             activeOpacity={0.88}
           >
-            <Ionicons name="add-sharp" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>New Lead</Text>
+            <Ionicons name="add-sharp" size={15} color="#FFFFFF" />
+            <Text style={styles.newLeadCTAText}>Add Lead</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.headerTagPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.headerTagText}>REAL ESTATE BUYER LEADS PIPELINE</Text>
-        </View>
-
-        {/* Search Input Bar */}
+        {/* Search Bar */}
         <View style={styles.searchBarBox}>
-          <Ionicons name="search-sharp" size={18} color="#64748B" style={styles.searchIcon} />
+          <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInputControl}
-            placeholder="Search leads by buyer name, phone, project..."
-            placeholderTextColor="#94A3B8"
+            placeholder="Search name, phone, project, location..."
+            placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -125,21 +363,40 @@ export const LeadsListScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.brand700}
+          />
         }
       >
-        {/* Animated AI Mascot Companion */}
-        <AIAdvisorMascot screenName="LeadsList" />
+        {/* ─── Pipeline Stage Filter Chips (Exact Web CRM Match) ─── */}
+        <View style={styles.filterSectionHeader}>
+          <Text style={styles.filterSectionTitle}>PIPELINE STAGES</Text>
+          <View style={styles.swipeHintPill}>
+            <Ionicons name="swap-horizontal" size={11} color="#0284C7" />
+            <Text style={styles.swipeHintText}>Swipe for more</Text>
+          </View>
+        </View>
 
-        {/* Horizontal Status Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.statusFilterBar}
           contentContainerStyle={styles.statusFilterContent}
+          onScroll={(e) => {
+            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+            const maxScroll = contentSize.width - layoutMeasurement.width;
+            if (maxScroll > 0) {
+              setFilterScrollProgress(Math.min(1, Math.max(0, contentOffset.x / maxScroll)));
+            }
+          }}
+          scrollEventThrottle={16}
         >
           {statusFilters.map((st) => {
-            const isSelected = selectedStatus === st;
+            const isSelected = selectedStatus.toLowerCase() === st.toLowerCase();
+            const count = getStageCount(st);
+
             return (
               <TouchableOpacity
                 key={st}
@@ -150,96 +407,155 @@ export const LeadsListScreen = ({ navigation }: any) => {
                 <Text style={[styles.statusChipText, isSelected && styles.statusChipTextSelected]}>
                   {st.toUpperCase()}
                 </Text>
+                <View style={[styles.chipBadgeCircle, isSelected && styles.chipBadgeCircleSelected]}>
+                  <Text style={[styles.chipBadgeText, isSelected && styles.chipBadgeTextSelected]}>
+                    {count}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        {/* Lead List Items */}
+        {/* Micro Track Bar Indicator */}
+        <View style={styles.scrollTrackContainer}>
+          <View style={styles.scrollTrackBg}>
+            <View
+              style={[
+                styles.scrollTrackThumb,
+                { left: `${filterScrollProgress * 65}%` },
+              ]}
+            />
+          </View>
+        </View>
+
+        {/* ─── Zone 4: Lead List Items ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Fetching buyer leads pipeline...</Text>
+            <ActivityIndicator size="small" color="#151728" />
+            <Text style={styles.loadingText}>Fetching buyer inquiries & leads...</Text>
           </View>
-        ) : leads.length === 0 ? (
+        ) : filteredLeads.length === 0 ? (
           <View style={styles.emptyCard3D}>
             <View style={styles.emptyIconBadge}>
-              <Ionicons name="people-outline" size={28} color={theme.colors.brand700} />
+              <Ionicons name="checkmark-done-sharp" size={26} color="#059669" />
             </View>
-            <Text style={styles.emptyTitle}>No Buyer Leads Found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your search query or status filter.</Text>
+            <Text style={styles.emptyTitle}>Pipeline is Clear</Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? `No inquiries match "${searchQuery}". Try a different keyword.`
+                : `No buyer inquiries currently in ${selectedStatus.toUpperCase()} stage.`}
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCTA}
+              onPress={() => navigation.navigate('LeadForm')}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.emptyCTAText}>Create New Lead</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          leads.map((lead) => {
-            const stColor = getStatusColor(lead.status);
+          filteredLeads.map((lead) => {
+            const meta = getStageMeta(lead.stage || lead.status);
 
             return (
-              <View key={lead.id} style={styles.leadCard3D}>
-                <View style={styles.cardHeaderRow}>
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarText}>{(lead.name || 'B').charAt(0).toUpperCase()}</Text>
-                  </View>
-
-                  <View style={styles.leadInfoGroup}>
-                    <Text style={styles.leadNameText}>{lead.name}</Text>
-                    <Text style={styles.leadProjectText} numberOfLines={1}>
-                      {lead.project} • {lead.createdAt}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.statusPill, { backgroundColor: stColor.bg }]}>
-                    <Text style={[styles.statusPillText, { color: stColor.text }]}>
-                      {lead.status.toUpperCase()}
-                    </Text>
-                  </View>
+              <View key={lead.id} style={styles.leadCardRow}>
+                {/* Left Vertical Source Badge */}
+                <View style={styles.sourceVerticalContainer}>
+                  <Text style={styles.sourceVerticalText} numberOfLines={1}>
+                    {formatSource(lead.source)}
+                  </Text>
                 </View>
 
-                {/* Lead Specifications Strip */}
-                <View style={styles.leadSpecStrip}>
-                  <View style={styles.specItem}>
-                    <Text style={styles.specLabel}>BUDGET</Text>
-                    <Text style={[styles.specValue, theme.typography.tabularNumbers]}>{lead.budget}</Text>
+                {/* Main Card Body (Tap opens Lead Details) */}
+                <TouchableOpacity
+                  style={styles.leadCardBody}
+                  onPress={() => navigation.navigate('LeadDetail', { leadId: lead.id, lead })}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.leadInfoSection}>
+                    <View style={styles.nameHeaderRow}>
+                      <Text style={styles.leadNameText} numberOfLines={1}>
+                        {lead.name}
+                      </Text>
+                      <View
+                        style={[
+                          styles.miniStatusPill,
+                          { backgroundColor: meta.bg, borderColor: meta.border },
+                        ]}
+                      >
+                        <View style={[styles.miniStatusDot, { backgroundColor: meta.dot }]} />
+                        <Text style={[styles.miniStatusText, { color: meta.text }]}>
+                          {meta.label}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {lead.phone ? (
+                      <View style={styles.contactItemRow}>
+                        <Ionicons name="call" size={11} color="#272944" />
+                        <Text style={styles.phoneText} numberOfLines={1}>
+                          {lead.phone}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {lead.email ? (
+                      <View style={styles.contactItemRow}>
+                        <Ionicons name="mail-outline" size={11} color="#64748B" />
+                        <Text style={styles.emailText} numberOfLines={1}>
+                          {lead.email}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {!lead.phone && !lead.email ? (
+                      <Text style={styles.leadSubDetailText} numberOfLines={1}>
+                        {lead.project ? `${lead.project} • ` : ''}{lead.createdAt}
+                      </Text>
+                    ) : null}
                   </View>
 
-                  <View style={styles.specItem}>
-                    <Text style={styles.specLabel}>PROPERTY TYPE</Text>
-                    <Text style={styles.specValue} numberOfLines={1}>{lead.propertyType}</Text>
+                  {/* Right Quick Action Icons Cockpit (Call | Email | WhatsApp) */}
+                  <View style={styles.rightActionCockpit}>
+                    {lead.phone ? (
+                      <TouchableOpacity
+                        style={styles.circleActionBtnCall}
+                        onPress={() => handleCall(lead.phone)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="call" size={14} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {lead.email ? (
+                      <>
+                        <View style={styles.actionDividerLine} />
+                        <TouchableOpacity
+                          style={styles.circleActionBtnMail}
+                          onPress={() => handleEmail(lead.email)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="mail" size={14} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </>
+                    ) : null}
+
+                    {lead.phone ? (
+                      <>
+                        <View style={styles.actionDividerLine} />
+                        <TouchableOpacity
+                          style={styles.circleActionBtnWhatsApp}
+                          onPress={() => handleWhatsApp(lead.phone, lead.name)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="logo-whatsapp" size={15} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </>
+                    ) : null}
                   </View>
-
-                  <View style={styles.specItem}>
-                    <Text style={styles.specLabel}>SOURCE</Text>
-                    <Text style={styles.specValue} numberOfLines={1}>{lead.source}</Text>
-                  </View>
-                </View>
-
-                {/* One-Tap Contact Buttons */}
-                <View style={styles.actionFooterRow}>
-                  <TouchableOpacity
-                    style={styles.callBtn}
-                    onPress={() => handleCall(lead.phone)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="call" size={14} color="#FFFFFF" />
-                    <Text style={styles.actionBtnText}>Call Buyer</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.whatsappBtn}
-                    onPress={() => handleWhatsApp(lead.phone)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
-                    <Text style={styles.actionBtnText}>WhatsApp</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.detailsBtn}
-                    onPress={() => navigation.navigate('LeadDetails', { leadId: lead.id })}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-forward-sharp" size={14} color={theme.colors.brand700} />
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               </View>
             );
           })
@@ -254,66 +570,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  hero3DHeader: {
-    width: '100%',
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+  // ─── Zone 1: Midnight Luxury Header ───
+  luxuryHeader: {
+    backgroundColor: '#151728',
+    paddingTop: Platform.OS === 'ios' ? 56 : 42,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#0F101E',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
     shadowRadius: 18,
     elevation: 8,
+    overflow: 'hidden',
   },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 14,
   },
-  addBtn3D: {
+  headerStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-    gap: 4,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  headerTagPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(5, 150, 105, 0.16)',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    marginBottom: 12,
+    paddingVertical: 4.5,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
     gap: 6,
   },
-  greenPulseDot: {
+  headerGreenPulseDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#34D399',
   },
-  headerTagText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '700',
+  headerStatusPillText: {
+    color: '#34D399',
+    fontSize: 10.5,
+    fontWeight: '800',
     letterSpacing: 0.6,
+  },
+  newLeadCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    gap: 5,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  newLeadCTAText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   searchBarBox: {
     flexDirection: 'row',
@@ -321,216 +642,340 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     paddingHorizontal: 12,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInputControl: {
     flex: 1,
-    height: 48,
-    fontSize: 13,
+    fontSize: 13.5,
     color: '#0F172A',
+    padding: 0,
     fontWeight: '500',
   },
   clearSearchBtn: {
-    padding: 4,
+    padding: 2,
   },
+
+  // ─── Scrollable Body ───
   contentContainer: {
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
+    paddingTop: 16,
+    paddingBottom: 90,
+  },
+
+  // ─── Pipeline Stage Filter Chips ───
+  filterSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  filterSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.6,
+  },
+  swipeHintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 10,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  swipeHintText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#0369A1',
+    letterSpacing: 0.2,
   },
   statusFilterBar: {
-    marginBottom: 14,
+    marginBottom: 6,
   },
   statusFilterContent: {
+    paddingHorizontal: 16,
     gap: 8,
-    paddingRight: 16,
+  },
+  scrollTrackContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    marginTop: 2,
+  },
+  scrollTrackBg: {
+    width: 42,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#E2E8F0',
+    position: 'relative',
+  },
+  scrollTrackThumb: {
+    width: 15,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#0284C7',
+    position: 'absolute',
+    top: 0,
   },
   statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 999,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
+    gap: 6,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   statusChipSelected: {
-    backgroundColor: theme.colors.brand700,
-    borderColor: theme.colors.brand700,
+    backgroundColor: '#151728',
+    borderColor: '#151728',
   },
   statusChipText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
+    letterSpacing: 0.3,
   },
   statusChipTextSelected: {
     color: '#FFFFFF',
   },
-  loadingBox: {
+  chipBadgeCircle: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  chipBadgeCircleSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.20)',
+  },
+  chipBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  chipBadgeTextSelected: {
+    color: '#FFFFFF',
+  },
+
+  // ─── Reference Compact Horizontal Lead Card ───
+  leadCardRow: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    minHeight: 70,
+  },
+  sourceVerticalContainer: {
+    backgroundColor: '#272944',
+    borderTopLeftRadius: 13,
+    borderBottomLeftRadius: 13,
+    width: 32,
     alignItems: 'center',
-    paddingVertical: 32,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  sourceVerticalText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    transform: [{ rotate: '-90deg' }],
+    width: 75,
+    textAlign: 'center',
+  },
+  leadCardBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     gap: 8,
   },
-  loadingText: {
-    fontSize: 13,
+  leadInfoSection: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nameHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  leadNameText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+    maxWidth: 150,
+  },
+  miniStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 3.5,
+  },
+  miniStatusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  miniStatusText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  contactItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    marginTop: 2.5,
+  },
+  phoneText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: -0.1,
+  },
+  emailText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#64748B',
+    maxWidth: 165,
+  },
+  leadSubDetailText: {
+    fontSize: 12,
     color: '#64748B',
     fontWeight: '500',
+    marginTop: 2,
   },
+  rightActionCockpit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  circleActionBtnCall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#272944',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnMail: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0284C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnWhatsApp: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionDividerLine: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#CBD5E1',
+    marginHorizontal: 1,
+  },
+
+  // ─── Empty State ───
   emptyCard3D: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 32,
+    borderRadius: 18,
+    marginHorizontal: 16,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    marginTop: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   emptyIconBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(5, 150, 105, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: '#0F172A',
+    marginBottom: 6,
   },
   emptySubtext: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 4,
-    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
   },
-  leadCard3D: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  cardHeaderRow: {
+  emptyCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: '#151728',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
   },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+  emptyCTAText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // ─── Loading ───
+  loadingBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(39, 41, 68, 0.18)',
+    paddingVertical: 40,
+    gap: 10,
   },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.brand700,
-  },
-  leadInfoGroup: {
-    flex: 1,
-  },
-  leadNameText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  leadProjectText: {
+  loadingText: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 1,
-  },
-  statusPill: {
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  statusPillText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
-  leadSpecStrip: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  specItem: {
-    flex: 1,
-  },
-  specLabel: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  specValue: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  actionFooterRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  callBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.brand700,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 6,
-  },
-  whatsappBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#25D366',
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 6,
-  },
-  detailsBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: -0.1,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    fontWeight: '500',
   },
 });

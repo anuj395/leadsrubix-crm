@@ -9,13 +9,18 @@ export interface LeadItem {
   email?: string;
   phone?: string;
   contactNo?: string;
+  alternateNo?: string;
   status: string;
   stage?: string;
+  leadType?: string;
+  location?: string;
   source?: string;
   budget?: string;
   propertyType?: string;
   project?: string;
   projectName?: string;
+  notes?: string;
+  contactOwnerEmail?: string;
   createdAt?: string;
 }
 
@@ -68,13 +73,18 @@ export const leadService = {
           lastName: item.lastName || item.last_name || fullName.split(' ')[1] || '',
           email: item.email || item.emailId || item.user_email || '',
           phone: item.phone || item.contactNo || item.contact_number || item.phone_number || '',
-          status: item.stage || item.status || 'Fresh',
-          stage: item.stage || item.status || 'Fresh',
+          alternateNo: item.alternateNo || item.alternate_no || '',
+          status: item.stage || item.status || 'FRESH',
+          stage: item.stage || item.status || 'FRESH',
+          leadType: item.leadType || item.lead_type || 'Buyer',
+          location: item.location || '',
           source: item.source || item.lead_source || 'Direct',
           budget: item.budget || '',
           propertyType: item.propertyType || item.inventoryType || '',
           project: item.projectName || item.project_name || item.project || '',
           projectName: item.projectName || item.project_name || item.project || '',
+          notes: item.notes || item.description || '',
+          contactOwnerEmail: item.contactOwnerEmail || item.contact_owner_email || '',
           createdAt: createdFormatted,
         };
       });
@@ -91,6 +101,16 @@ export const leadService = {
     } catch (err) {
       console.error('[leadService] Failed to create lead:', err);
       return null;
+    }
+  },
+
+  async transitionLead(id: string, stage: string, remarks?: string): Promise<boolean> {
+    try {
+      await leadRepository.transitionRawLeadStage(id, { stage, remarks });
+      return true;
+    } catch (err) {
+      console.error('[leadService] Failed to transition lead:', err);
+      return false;
     }
   },
 };

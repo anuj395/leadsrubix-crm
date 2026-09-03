@@ -1,26 +1,38 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StatusBar,
   Platform,
   RefreshControl,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { taskService, TaskItem } from '../../services/taskService';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { AIAdvisorMascot } from '../../components/ui/AIAdvisorMascot';
 import { theme } from '../../theme/theme';
 
-export const TasksScreen = ({ navigation }: any) => {
+export const TasksScreen = ({ navigation, route }: any) => {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Handle route params (e.g. if navigated from Analytics KPI cards)
+  useEffect(() => {
+    if (route?.params?.filter) {
+      const f = String(route.params.filter).toLowerCase();
+      if (f.includes('completed')) setActiveFilter('COMPLETED');
+      else if (f.includes('scheduled') || f.includes('pending')) setActiveFilter('PENDING');
+    }
+  }, [route?.params?.filter]);
 
   const fetchTasksData = useCallback(async () => {
     try {
@@ -52,34 +64,125 @@ export const TasksScreen = ({ navigation }: any) => {
     await taskService.toggleTaskCompletion(task.id, nextState);
   };
 
-  const filteredTasks = tasks.filter((t) => {
-    if (activeFilter === 'PENDING') return !t.isCompleted;
-    if (activeFilter === 'COMPLETED') return t.isCompleted;
-    return true;
-  });
+  const handleCall = (phone?: string) => {
+    if (!phone) {
+      Alert.alert('No Contact Number', 'No phone number available for this task client.');
+      return;
+    }
+    Linking.openURL(`tel:${phone}`).catch(() => {
+      Alert.alert('Error', 'Unable to launch phone dialer.');
+    });
+  };
+
+  const handleWhatsApp = (phone?: string, name?: string) => {
+    if (!phone) {
+      Alert.alert('No Contact Number', 'No WhatsApp number available for this task client.');
+      return;
+    }
+    const clean = phone.replace(/[^0-9]/g, '');
+    const message = encodeURIComponent(
+      `Hello ${name || 'Sir/Madam'}, this is regarding our scheduled appointment / site visit from Leads Rubix.`
+    );
+    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
+      Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
+    });
+  };
+
+  const counts = useMemo(() => {
+    let pending = 0;
+    let completed = 0;
+    tasks.forEach((t) => {
+      if (t.isCompleted) completed++;
+      else pending++;
+    });
+    return { total: tasks.length, pending, completed };
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    let result = tasks.filter((t) => {
+      if (activeFilter === 'PENDING') return !t.isCompleted;
+      if (activeFilter === 'COMPLETED') return t.isCompleted;
+      return true;
+    });
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (t) =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.leadName && t.leadName.toLowerCase().includes(q)) ||
+          (t.project && t.project.toLowerCase().includes(q)) ||
+          (t.phone && t.phone.includes(q)) ||
+          (t.type && t.type.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [tasks, activeFilter, searchQuery]);
+
+  const getTaskIcon = (type?: string, title?: string) => {
+    const s = `${type || ''} ${title || ''}`.toLowerCase();
+    if (s.includes('visit') || s.includes('site')) {
+      return { name: 'location' as const, color: '#7C3AED', bg: '#F5F3FF' };
+    }
+    if (s.includes('call') || s.includes('phone')) {
+      return { name: 'call' as const, color: '#0284C7', bg: '#EFF6FF' };
+    }
+    if (s.includes('meet') || s.includes('demo') || s.includes('consult')) {
+      return { name: 'calendar' as const, color: '#D97706', bg: '#FFFBEB' };
+    }
+    return { name: 'checkmark-circle' as const, color: '#059669', bg: '#ECFDF5' };
+  };
+
+  const formatSource = (src?: string) => {
+    if (!src) return 'Direct';
+    const s = src.toLowerCase();
+    if (s.includes('facebook') || s.includes('fb')) return 'Facebook';
+    if (s.includes('google')) return 'Google';
+    if (s.includes('website') || s.includes('web')) return 'Website';
+    if (s.includes('instagram') || s.includes('insta')) return 'Instagram';
+    if (s.includes('self')) return 'Self Gen';
+    if (s.includes('walk')) return 'Walk-in';
+    if (s.includes('referral') || s.includes('refer')) return 'Referral';
+    return src.length > 9 ? src.substring(0, 8) + '..' : src;
+  };
+
+  const getPriorityMeta = (priority?: string) => {
+    const p = (priority || '').toLowerCase();
+    if (p === 'high') {
+      return { bg: '#FFF1F2', border: '#FECDD3', text: '#BE123C' };
+    }
+    if (p === 'medium') {
+      return { bg: '#FFFBEB', border: '#FDE68A', text: '#B45309' };
+    }
+    return { bg: '#F1F5F9', border: '#E2E8F0', text: '#475569' };
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* Clean Executive #272944 Hero Header Banner */}
-      <View style={styles.hero3DHeader}>
+      {/* ─── Zone 1: Luxury Midnight #151728 Header ─── */}
+      <View style={styles.luxuryHeader}>
         <View style={styles.headerTopRow}>
-          <CompanyLogo variant="white" height={34} />
-
-          <TouchableOpacity
-            style={styles.addBtn3D}
-            onPress={() => navigation.navigate('TaskForm')}
-            activeOpacity={0.88}
-          >
-            <Ionicons name="add-sharp" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>New Task</Text>
-          </TouchableOpacity>
+          <CompanyLogo variant="white" height={28} />
         </View>
 
-        <View style={styles.headerTagPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.headerTagText}>SITE VISITS & BUYER FOLLOW-UPS</Text>
+        {/* Search Bar */}
+        <View style={styles.searchBarBox}>
+          <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInputControl}
+            placeholder="Search tasks, client, project..."
+            placeholderTextColor="#64748B"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
@@ -87,98 +190,179 @@ export const TasksScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand700} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.brand700}
+          />
         }
       >
-        {/* Animated AI Mascot Advisor Companion */}
-        <AIAdvisorMascot
-          screenName="Tasks"
-          message="Schedule follow-up tasks & site visits to keep your buyer deals moving forward!"
-        />
-
-        {/* Filter Tab Bar */}
-        <View style={styles.filterTabBar}>
+        {/* ─── Task Filter Chips (Matching Leads / Web CRM) ─── */}
+        <View style={styles.filterBarContainer}>
           {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => {
-            const isActive = activeFilter === filter;
+            const isSelected = activeFilter === filter;
+            const count =
+              filter === 'ALL'
+                ? counts.total
+                : filter === 'PENDING'
+                ? counts.pending
+                : counts.completed;
+
             return (
               <TouchableOpacity
                 key={filter}
-                style={[styles.filterTabItem, isActive && styles.filterTabItemActive]}
+                style={[styles.statusChip, isSelected && styles.statusChipSelected]}
                 onPress={() => setActiveFilter(filter)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                <Text style={[styles.statusChipText, isSelected && styles.statusChipTextSelected]}>
                   {filter}
                 </Text>
+                <View style={[styles.chipBadgeCircle, isSelected && styles.chipBadgeCircleSelected]}>
+                  <Text style={[styles.chipBadgeText, isSelected && styles.chipBadgeTextSelected]}>
+                    {count}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
         </View>
 
+        {/* ─── Task List Items ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Fetching tasks & follow-up schedule...</Text>
+            <ActivityIndicator size="small" color="#151728" />
+            <Text style={styles.loadingText}>Fetching follow-up tasks & schedule...</Text>
           </View>
         ) : filteredTasks.length === 0 ? (
           <View style={styles.emptyCard3D}>
             <View style={styles.emptyIconBadge}>
-              <Ionicons name="calendar-outline" size={28} color={theme.colors.brand700} />
+              <Ionicons name="calendar-outline" size={28} color="#059669" />
             </View>
-            <Text style={styles.emptyTitle}>No Tasks Scheduled</Text>
-            <Text style={styles.emptySubtext}>Create a new follow-up task or site visit to stay organized.</Text>
+            <Text style={styles.emptyTitle}>No Tasks Found</Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? `No tasks match "${searchQuery}". Try a different keyword.`
+                : activeFilter === 'COMPLETED'
+                ? 'No completed tasks yet. Finish pending visits and follow-ups to track history.'
+                : 'All scheduled visits & buyer follow-ups are up to date.'}
+            </Text>
           </View>
         ) : (
-          filteredTasks.map((item) => (
-            <View key={item.id} style={styles.taskCard3D}>
-              <TouchableOpacity
-                style={styles.checkbox3D}
-                onPress={() => handleToggleTask(item)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={item.isCompleted ? 'checkmark-circle-sharp' : 'ellipse-outline'}
-                  size={24}
-                  color={item.isCompleted ? '#059669' : '#94A3B8'}
-                />
-              </TouchableOpacity>
+          filteredTasks.map((item) => {
+            const priorityMeta = getPriorityMeta(item.priority);
 
-              <View style={styles.taskDetailsGroup}>
-                <Text
-                  style={[styles.taskTitleText, item.isCompleted && styles.taskTitleCompleted]}
-                  numberOfLines={2}
-                >
-                  {item.title}
-                </Text>
-                <Text style={styles.taskSubtext}>
-                  {item.leadName} • {item.dueDate}
-                </Text>
-              </View>
+            return (
+              <View key={item.id} style={styles.taskCardRow}>
+                {/* Left Vertical Source Badge */}
+                <View style={styles.sourceVerticalContainer}>
+                  <Text style={styles.sourceVerticalText} numberOfLines={1}>
+                    {formatSource(item.source)}
+                  </Text>
+                </View>
 
-              <View
-                style={[
-                  styles.priorityBadgePill,
-                  {
-                    backgroundColor:
-                      item.priority === 'High'
-                        ? 'rgba(225, 29, 72, 0.12)'
-                        : 'rgba(217, 119, 6, 0.12)',
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.priorityBadgeText,
-                    {
-                      color: item.priority === 'High' ? '#E11D48' : '#D97706',
-                    },
-                  ]}
+                {/* Main Card Body (Press opens Lead Details) */}
+                <TouchableOpacity
+                  style={styles.taskCardBody}
+                  onPress={() => {
+                    navigation.navigate('LeadDetail', {
+                      leadId: item.leadId || item.id,
+                      lead: {
+                        id: item.leadId || item.id,
+                        name: item.leadName,
+                        phone: item.phone,
+                        email: item.email,
+                        project: item.project,
+                        source: item.source,
+                      },
+                    });
+                  }}
+                  activeOpacity={0.75}
                 >
-                  {item.priority}
-                </Text>
+                  <View style={styles.taskInfoSection}>
+                    <View style={styles.nameHeaderRow}>
+                      <Text
+                        style={[styles.taskTitleText, item.isCompleted && styles.taskTitleCompleted]}
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                      <View
+                        style={[
+                          styles.miniStatusPill,
+                          {
+                            backgroundColor: item.isCompleted ? '#ECFDF5' : '#FFFBEB',
+                            borderColor: item.isCompleted ? '#A7F3D0' : '#FDE68A',
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.miniStatusDot,
+                            { backgroundColor: item.isCompleted ? '#10B981' : '#F59E0B' },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.miniStatusText,
+                            { color: item.isCompleted ? '#047857' : '#B45309' },
+                          ]}
+                        >
+                          {item.isCompleted ? 'DONE' : 'PENDING'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {item.leadName ? (
+                      <View style={styles.contactItemRow}>
+                        <Ionicons name="person" size={11} color="#272944" />
+                        <Text style={styles.clientText} numberOfLines={1}>
+                          {item.leadName}
+                          {item.phone ? `  •  ${item.phone}` : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {item.dueDate ? (
+                      <View style={styles.contactItemRow}>
+                        <Ionicons name="time-outline" size={11} color="#64748B" />
+                        <Text style={styles.dueDateText} numberOfLines={1}>
+                          {item.dueDate}
+                          {item.project ? `  •  ${item.project}` : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Right Quick Action Icons Cockpit (Call | WhatsApp) */}
+                  <View style={styles.rightActionCockpit}>
+                    {item.phone ? (
+                      <TouchableOpacity
+                        style={styles.circleActionBtnCall}
+                        onPress={() => handleCall(item.phone)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="call" size={14} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {item.phone ? (
+                      <>
+                        <View style={styles.actionDividerLine} />
+                        <TouchableOpacity
+                          style={styles.circleActionBtnWhatsApp}
+                          onPress={() => handleWhatsApp(item.phone, item.leadName)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="logo-whatsapp" size={15} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -190,54 +374,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  hero3DHeader: {
+  luxuryHeader: {
     width: '100%',
-    backgroundColor: '#272944',
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
+    backgroundColor: '#151728',
+    paddingTop: Platform.OS === 'ios' ? 56 : 42,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#0F101E',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
     elevation: 8,
   },
   headerTopRow: {
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 14,
   },
-  addBtn3D: {
+  newTaskCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: '#2563EB',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     gap: 4,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  addBtnText: {
+  newTaskCTAText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  headerTagPill: {
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginTop: 4,
+    backgroundColor: 'rgba(5, 150, 105, 0.16)',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
     gap: 6,
   },
   greenPulseDot: {
@@ -246,128 +433,292 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#34D399',
   },
-  headerTagText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+  statusPillText: {
+    color: '#34D399',
+    fontSize: 10.5,
+    fontWeight: '800',
     letterSpacing: 0.6,
   },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
+  searchBarBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  filterTabBar: {
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInputControl: {
+    flex: 1,
+    fontSize: 13.5,
+    color: '#0F172A',
+    padding: 0,
+    fontWeight: '500',
+  },
+  clearSearchBtn: {
+    padding: 2,
+  },
+  contentContainer: {
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+
+  // ─── Filter Pills ───
+  filterBarContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 16,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 7.5,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 7,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+  statusChipSelected: {
+    backgroundColor: '#1E2238',
+    borderColor: '#1E2238',
+    shadowColor: '#1E2238',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  statusChipText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.3,
+  },
+  statusChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  chipBadgeCircle: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6.5,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  chipBadgeCircleSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  chipBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  chipBadgeTextSelected: {
+    color: '#FFFFFF',
+  },
+
+  // ─── Reference Compact Horizontal Task Card ───
+  taskCardRow: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 4,
-    marginBottom: 16,
+    marginHorizontal: 16,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    minHeight: 70,
   },
-  filterTabItem: {
-    flex: 1,
-    paddingVertical: 8,
+  sourceVerticalContainer: {
+    backgroundColor: '#272944',
+    borderTopLeftRadius: 13,
+    borderBottomLeftRadius: 13,
+    width: 32,
     alignItems: 'center',
-    borderRadius: 10,
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  filterTabItemActive: {
-    backgroundColor: theme.colors.brand700,
-  },
-  filterTabText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  filterTabTextActive: {
+  sourceVerticalText: {
     color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    transform: [{ rotate: '-90deg' }],
+    width: 75,
+    textAlign: 'center',
   },
-  loadingBox: {
+  taskCardBody: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 32,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     gap: 8,
   },
-  loadingText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
+  taskInfoSection: {
+    flex: 1,
+    justifyContent: 'center',
   },
+  nameHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  taskTitleText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+    maxWidth: 150,
+  },
+  taskTitleCompleted: {
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  miniStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 3.5,
+  },
+  miniStatusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  miniStatusText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  contactItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    marginTop: 2.5,
+  },
+  clientText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: -0.1,
+  },
+  dueDateText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#64748B',
+    maxWidth: 165,
+  },
+  rightActionCockpit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  circleActionBtnCall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#272944',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnWhatsApp: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnToggleCompleted: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  actionDividerLine: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#CBD5E1',
+    marginHorizontal: 1,
+  },
+
+  // ─── Empty State ───
   emptyCard3D: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 32,
+    borderRadius: 18,
+    marginHorizontal: 16,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   emptyIconBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(39, 41, 68, 0.08)',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(5, 150, 105, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: '#0F172A',
+    marginBottom: 6,
   },
   emptySubtext: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 4,
     textAlign: 'center',
-    fontWeight: '500',
+    lineHeight: 18,
+    marginBottom: 16,
   },
-  taskCard3D: {
-    flexDirection: 'row',
+
+  // ─── Loading ───
+  loadingBox: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 10,
   },
-  checkbox3D: {
-    marginRight: 12,
-  },
-  taskDetailsGroup: {
-    flex: 1,
-  },
-  taskTitleText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  taskTitleCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#94A3B8',
-  },
-  taskSubtext: {
+  loadingText: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 2,
     fontWeight: '500',
-  },
-  priorityBadgePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  priorityBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
 });

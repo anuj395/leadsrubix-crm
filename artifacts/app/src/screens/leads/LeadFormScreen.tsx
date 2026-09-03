@@ -28,13 +28,16 @@ export interface LeadFormField {
 }
 
 const DEFAULT_LEAD_FIELDS: LeadFormField[] = [
-  { key: 'name', label: 'Buyer Full Name', type: 'text', isRequired: true },
-  { key: 'email', label: 'Email Address', type: 'email', isRequired: true },
+  { key: 'name', label: 'Customer / Buyer Name', type: 'text', isRequired: true },
   { key: 'phone', label: 'Contact Phone Number', type: 'phone', isRequired: true },
-  { key: 'budget', label: 'Target Budget Range', type: 'text', isRequired: true },
-  { key: 'propertyType', label: 'Property Type', type: 'text', isRequired: true },
-  { key: 'source', label: 'Lead Inquiry Source', type: 'text', isRequired: true },
-  { key: 'project', label: 'Interested Development Project', type: 'text', isRequired: true },
+  { key: 'alternateNo', label: 'Alternate Contact Number', type: 'phone', isRequired: false },
+  { key: 'email', label: 'Email ID', type: 'email', isRequired: false },
+  { key: 'leadType', label: 'Lead Type (e.g. Buyer, Investor)', type: 'text', isRequired: false },
+  { key: 'location', label: 'Location / Micro-Market', type: 'text', isRequired: false },
+  { key: 'project', label: 'Project Name', type: 'text', isRequired: false },
+  { key: 'budget', label: 'Target Budget Range', type: 'text', isRequired: false },
+  { key: 'propertyType', label: 'Property Type', type: 'text', isRequired: false },
+  { key: 'source', label: 'Lead Inquiry Source', type: 'text', isRequired: false },
 ];
 
 export const LeadFormScreen = ({ navigation }: any) => {
@@ -43,12 +46,15 @@ export const LeadFormScreen = ({ navigation }: any) => {
 
   const [formValues, setFormValues] = useState<Record<string, string>>({
     name: '',
-    email: '',
     phone: '',
-    budget: '₹2.5 Cr - ₹3.5 Cr',
-    propertyType: '3 BHK Luxury Apartment',
-    source: '',
-    project: 'Grand Horizon Towers',
+    alternateNo: '',
+    email: '',
+    leadType: 'Buyer',
+    location: '',
+    project: '',
+    budget: '',
+    propertyType: '',
+    source: 'Mobile App',
   });
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -104,7 +110,7 @@ export const LeadFormScreen = ({ navigation }: any) => {
     const email = formValues.email || formValues.emailId || '';
 
     if (!name.trim()) {
-      Alert.alert('Required Field', 'Please enter Buyer Full Name.');
+      Alert.alert('Required Field', 'Please enter Customer / Buyer Name.');
       return;
     }
     if (!phone.trim()) {
@@ -117,12 +123,16 @@ export const LeadFormScreen = ({ navigation }: any) => {
       await leadService.createLead({
         name: name.trim(),
         phone: phone.trim(),
+        alternateNo: formValues.alternateNo ? formValues.alternateNo.trim() : '',
         email: email.trim(),
-        budget: formValues.budget || '₹2.5 Cr',
-        propertyType: formValues.propertyType || '3 BHK Apartment',
-        source: formValues.source || 'Direct Call',
-        project: formValues.project || 'Grand Horizon Towers',
-        status: 'Fresh',
+        leadType: formValues.leadType || 'Buyer',
+        location: formValues.location || '',
+        budget: formValues.budget || '',
+        propertyType: formValues.propertyType || '',
+        source: formValues.source || 'Mobile Lead',
+        project: formValues.project || '',
+        status: 'FRESH',
+        stage: 'FRESH',
       });
 
       Alert.alert(

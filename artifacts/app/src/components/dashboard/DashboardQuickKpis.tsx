@@ -24,7 +24,7 @@ export const DashboardQuickKpis: React.FC<Props> = ({
       value: metrics.totalLeads,
       icon: 'people-sharp' as const,
       color: '#272944',
-      bg: 'rgba(39, 41, 68, 0.08)',
+      bg: '#EEF2FF',
     },
     {
       key: 'callBack',
@@ -32,7 +32,7 @@ export const DashboardQuickKpis: React.FC<Props> = ({
       value: metrics.callBack + metrics.interested,
       icon: 'sync-sharp' as const,
       color: '#D97706',
-      bg: 'rgba(217, 119, 6, 0.08)',
+      bg: '#FEF3C7',
     },
     {
       key: 'completedVisits',
@@ -40,7 +40,7 @@ export const DashboardQuickKpis: React.FC<Props> = ({
       value: metrics.completedVisits + metrics.scheduledVisits,
       icon: 'calendar-sharp' as const,
       color: '#7C3AED',
-      bg: 'rgba(124, 58, 237, 0.08)',
+      bg: '#EDE9FE',
     },
     {
       key: 'closedWon',
@@ -48,7 +48,7 @@ export const DashboardQuickKpis: React.FC<Props> = ({
       value: metrics.closedWon,
       icon: 'trophy-sharp' as const,
       color: '#059669',
-      bg: 'rgba(5, 150, 105, 0.08)',
+      bg: '#D1FAE5',
     },
   ];
 
@@ -57,23 +57,28 @@ export const DashboardQuickKpis: React.FC<Props> = ({
       {kpiItems.map((item) => (
         <TouchableOpacity
           key={item.key}
-          style={[styles.card, { borderLeftColor: item.color }]}
+          style={styles.card}
           onPress={() => onSelectKpi(item.key, item.label)}
           activeOpacity={0.85}
         >
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
-              <Ionicons name={item.icon} size={16} color={item.color} />
-            </View>
-            <View style={styles.arrowCircle}>
-              <Ionicons name="chevron-forward-sharp" size={13} color="#94A3B8" />
-            </View>
-          </View>
+          {/* Top Accent Strip */}
+          <View style={[styles.topAccentBar, { backgroundColor: item.color }]} />
 
-          <Text style={styles.kpiValue}>{item.value}</Text>
-          <Text style={styles.kpiLabel} numberOfLines={1}>
-            {item.label}
-          </Text>
+          <View style={styles.cardInnerPadding}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
+                <Ionicons name={item.icon} size={16} color={item.color} />
+              </View>
+              <View style={styles.arrowCircle}>
+                <Ionicons name="chevron-forward-sharp" size={12} color="#94A3B8" />
+              </View>
+            </View>
+
+            <Text style={styles.kpiValue}>{item.value}</Text>
+            <Text style={styles.kpiLabel} numberOfLines={1}>
+              {item.label}
+            </Text>
+          </View>
         </TouchableOpacity>
       ))}
     </View>
@@ -92,17 +97,21 @@ const styles = StyleSheet.create({
     width: '48.4%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderLeftWidth: 4,
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  topAccentBar: {
+    height: 3.5,
+    width: '100%',
+  },
+  cardInnerPadding: {
+    padding: 13,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -124,6 +133,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   kpiValue: {
     fontSize: 22,
@@ -134,7 +145,7 @@ const styles = StyleSheet.create({
   },
   kpiLabel: {
     fontSize: 11.5,
-    color: '#475569',
+    color: '#64748B',
     fontWeight: '600',
     marginTop: 3,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
