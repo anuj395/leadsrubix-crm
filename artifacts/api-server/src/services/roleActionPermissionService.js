@@ -102,7 +102,12 @@ const CORE_OPERATIONAL_SCREENS = new Set([
   'callback',
   'callLogs',
   'deals',
+  'notes',
+  'interested',
   'accounts',
+]);
+
+const SUPPORT_TOOLS_SCREENS = new Set([
   'news',
   'faq',
   'calculator',
@@ -112,14 +117,22 @@ const CORE_OPERATIONAL_SCREENS = new Set([
 
 function getDefaultRoleActionPermission(role, screen_key, action) {
   const normKey = String(screen_key || '').trim();
+  const normRole = String(role || '').trim();
+  if (normRole === 'superAdmin' || normRole === 'admin') return true;
+
   if (CORE_OPERATIONAL_SCREENS.has(normKey)) {
     if (action === 'view' || action === 'add' || action === 'edit') {
       return true;
     }
     if (action === 'delete') {
-      return ['leadManager', 'teamLead'].includes(role);
+      return ['leadManager', 'teamLead'].includes(normRole);
     }
   }
+
+  if (SUPPORT_TOOLS_SCREENS.has(normKey)) {
+    return action === 'view';
+  }
+
   return false;
 }
 

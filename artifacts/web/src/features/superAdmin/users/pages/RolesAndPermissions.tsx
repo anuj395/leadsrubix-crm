@@ -119,6 +119,50 @@ const emptyFieldForm: FieldFormState = {
   options: '',
 }
 
+const CORE_OPERATIONAL_SCREENS = new Set([
+  'contacts',
+  'inquiries',
+  'tasks',
+  'callback',
+  'callLogs',
+  'deals',
+  'notes',
+  'interested',
+  'accounts',
+])
+
+const SUPPORT_TOOLS_SCREENS = new Set([
+  'news',
+  'faq',
+  'calculator',
+  'areaConverter',
+  'emiCalculator',
+])
+
+function getDefaultPermissionState(roleKey: string | undefined, screenKey: string | undefined) {
+  const normScreen = String(screenKey || '').trim()
+  const normRole = String(roleKey || '').trim()
+
+  if (normRole === 'superAdmin' || normRole === 'admin') {
+    return { can_view: true, can_add: true, can_edit: true, can_delete: true }
+  }
+
+  if (CORE_OPERATIONAL_SCREENS.has(normScreen)) {
+    if (normRole === 'leadManager' || normRole === 'teamLead') {
+      return { can_view: true, can_add: true, can_edit: true, can_delete: true }
+    }
+    if (normRole === 'sales') {
+      return { can_view: true, can_add: true, can_edit: true, can_delete: false }
+    }
+  }
+
+  if (SUPPORT_TOOLS_SCREENS.has(normScreen)) {
+    return { can_view: true, can_add: false, can_edit: false, can_delete: false }
+  }
+
+  return { can_view: false, can_add: false, can_edit: false, can_delete: false }
+}
+
 export default function RolesAndPermissionsPage() {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -504,12 +548,15 @@ export default function RolesAndPermissionsPage() {
     action: 'view' | 'add' | 'edit' | 'delete',
   ) => {
     if (!actionRoleId || !selectedIndustry || isPrivilegedRole) return
+    const sObj = screens.find((s) => s._id === screenId)
     const cur = actionByScreen.get(screenId)
+    const def = getDefaultPermissionState(selectedRoleObj?.key, sObj?.key)
+
     const next = {
-      can_view: cur?.can_view ?? false,
-      can_add: cur?.can_add ?? false,
-      can_edit: cur?.can_edit ?? false,
-      can_delete: cur?.can_delete ?? false,
+      can_view: cur !== undefined ? cur.can_view : def.can_view,
+      can_add: cur !== undefined ? cur.can_add : def.can_add,
+      can_edit: cur !== undefined ? cur.can_edit : def.can_edit,
+      can_delete: cur !== undefined ? cur.can_delete : def.can_delete,
     }
     next[`can_${action}` as const] = !next[`can_${action}` as const]
     setActionSaving(screenId)
@@ -677,11 +724,13 @@ export default function RolesAndPermissionsPage() {
           renderCell: (p: GridRenderCellParams<Screen>) => {
             const s = p.row
             const row = actionByScreen.get(s._id)
+            const def = getDefaultPermissionState(selectedRoleObj?.key, s.key)
+            const isChecked = row !== undefined ? !!row[`can_${a}` as const] : def[`can_${a}` as const]
             const busy = actionSaving === s._id
             return (
               <Checkbox
                 size="small"
-                checked={!!row?.[`can_${a}` as const]}
+                checked={isChecked}
                 disabled={busy || isPrivilegedRole}
                 onChange={() => toggleAction(s._id, a)}
               />
