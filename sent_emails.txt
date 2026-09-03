@@ -1346,3 +1346,12 @@ Organization: dsd
 Username / Email: demo@gmail.com
 Temp Password: Tq7xmfAA
 ========================================
+
+========================================
+Timestamp: 2026-09-03T10:59:31.751Z
+To: dasdnad@gnmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dasdnad@gnmail.com
+Temp Password: BeBZv4cp
+========================================

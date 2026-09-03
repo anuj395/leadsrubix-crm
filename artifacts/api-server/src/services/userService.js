@@ -402,10 +402,10 @@ exports.create = async ({ payload, authedUser }) => {
     const manager = await userModel.findById(payload.reportingTo || payload.reporting_to);
     if (manager) {
       const allowedManagers = {
-        sales: ['teamLead', 'leadManager'],
+        sales: ['teamLead', 'leadManager', 'admin'],
         teamLead: ['leadManager', 'admin'],
         leadManager: ['admin'],
-        admin: ['superAdmin']
+        admin: ['superAdmin'],
       };
       const allowed = allowedManagers[role];
       if (allowed && !allowed.includes(manager.role)) {
@@ -588,10 +588,10 @@ exports.update = async ({ id, payload, authedUser }) => {
     const manager = await userModel.findById(nextReportingTo);
     if (manager) {
       const allowedManagers = {
-        sales: ['teamLead', 'leadManager'],
+        sales: ['teamLead', 'leadManager', 'admin'],
         teamLead: ['leadManager', 'admin'],
         leadManager: ['admin'],
-        admin: ['superAdmin']
+        admin: ['superAdmin'],
       };
       const allowed = allowedManagers[nextRole];
       if (allowed && !allowed.includes(manager.role)) {

@@ -80,7 +80,7 @@ const MANAGER_OF = {
   sales: ['teamLead', 'leadManager', 'admin'],
   teamLead: ['leadManager', 'admin'],
   leadManager: ['admin'],
-  admin: ['admin'],
+  admin: ['superAdmin'],
 };
 
 async function listManagerCandidates({ role, industryId, organizationId }) {
