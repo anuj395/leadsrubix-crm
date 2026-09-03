@@ -22,7 +22,7 @@ export const DashboardKpiGrid: React.FC<Props> = ({
   const kpis = [
     {
       key: 'totalLeads',
-      label: 'TOTAL LEADS',
+      label: `TOTAL ${semantics.leadEntityPlural.toUpperCase()}`,
       value: metrics.totalLeads,
       icon: 'people' as const,
       color: '#272944',
@@ -30,7 +30,7 @@ export const DashboardKpiGrid: React.FC<Props> = ({
     },
     {
       key: 'fresh',
-      label: 'FRESH',
+      label: semantics.freshLabel.toUpperCase(),
       value: metrics.fresh,
       icon: 'sparkles' as const,
       color: '#0284C7',

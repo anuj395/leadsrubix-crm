@@ -17,8 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { taskService, TaskItem } from '../../services/taskService';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { theme } from '../../theme/theme';
+import { useAuth } from '../../context/AuthContext';
+import { getIndustrySemantics } from '../../utils/industryLabels';
 
 export const TasksScreen = ({ navigation, route }: any) => {
+  const { user } = useAuth();
+  const semantics = getIndustrySemantics(user?.industryId);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,6 +170,11 @@ export const TasksScreen = ({ navigation, route }: any) => {
       <View style={styles.luxuryHeader}>
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
+
+          <View style={styles.statusPill}>
+            <View style={styles.greenPulseDot} />
+            <Text style={styles.statusPillText}>SCHEDULE</Text>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -173,7 +182,7 @@ export const TasksScreen = ({ navigation, route }: any) => {
           <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInputControl}
-            placeholder="Search tasks, client, project..."
+            placeholder={`Search ${semantics.taskEntityPlural.toLowerCase()}, ${semantics.leadEntitySingular.toLowerCase()}, notes...`}
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -232,20 +241,20 @@ export const TasksScreen = ({ navigation, route }: any) => {
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color="#151728" />
-            <Text style={styles.loadingText}>Fetching follow-up tasks & schedule...</Text>
+            <Text style={styles.loadingText}>Fetching {semantics.taskEntityPlural.toLowerCase()} & schedule...</Text>
           </View>
         ) : filteredTasks.length === 0 ? (
           <View style={styles.emptyCard3D}>
             <View style={styles.emptyIconBadge}>
               <Ionicons name="calendar-outline" size={28} color="#059669" />
             </View>
-            <Text style={styles.emptyTitle}>No Tasks Found</Text>
+            <Text style={styles.emptyTitle}>No {semantics.taskEntityPlural} Found</Text>
             <Text style={styles.emptySubtext}>
               {searchQuery
-                ? `No tasks match "${searchQuery}". Try a different keyword.`
+                ? `No ${semantics.taskEntityPlural.toLowerCase()} match "${searchQuery}". Try a different keyword.`
                 : activeFilter === 'COMPLETED'
-                ? 'No completed tasks yet. Finish pending visits and follow-ups to track history.'
-                : 'All scheduled visits & buyer follow-ups are up to date.'}
+                ? `No completed ${semantics.taskEntityPlural.toLowerCase()} yet.`
+                : `All scheduled ${semantics.taskEntityPlural.toLowerCase()} are up to date.`}
             </Text>
           </View>
         ) : (
@@ -397,24 +406,22 @@ const styles = StyleSheet.create({
   newTaskCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#0284C7',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderRadius: 14,
     gap: 4,
-    shadowColor: '#2563EB',
+    shadowColor: '#0284C7',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
     elevation: 3,
   },
   newTaskCTAText: {
     color: '#FFFFFF',
     fontSize: 12.5,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
   statusPill: {
     flexDirection: 'row',

@@ -163,7 +163,17 @@ export const DashboardScreen = ({ navigation }: any) => {
                 tasks={tasks}
                 industryId={user?.industryId || data.industryId}
                 onViewAll={() => navigation.navigate('Tasks')}
-                onTaskPress={(t) => navigation.navigate('Tasks')}
+                onTaskPress={(t) => {
+                  if (t.leadId) {
+                    navigation.navigate('LeadDetail', {
+                      leadId: t.leadId,
+                      id: t.leadId,
+                      lead: { id: t.leadId, name: t.leadName, phone: t.phone, email: t.email, source: t.source },
+                    });
+                  } else {
+                    navigation.navigate('Tasks');
+                  }
+                }}
               />
 
               {/* Zone 5: Fresh Incoming Leads Queue */}
@@ -171,7 +181,13 @@ export const DashboardScreen = ({ navigation }: any) => {
                 leads={leads}
                 industryId={user?.industryId || data.industryId}
                 onViewAll={() => navigation.navigate('Leads')}
-                onLeadPress={(l) => navigation.navigate('LeadDetail', { id: l.id })}
+                onLeadPress={(l) =>
+                  navigation.navigate('LeadDetail', {
+                    leadId: l.id,
+                    id: l.id,
+                    lead: l,
+                  })
+                }
               />
             </>
           )

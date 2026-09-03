@@ -11,6 +11,7 @@ export interface UserProfile {
   email: string;
   role: string;
   organizationId?: string;
+  organizationName?: string;
   industryId?: string;
 }
 

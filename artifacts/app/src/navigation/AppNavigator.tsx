@@ -178,7 +178,7 @@ export const AppNavigator = () => {
       case 'CallLogs':
         return <CallLogsScreen navigation={navigation} />;
       case 'Analytics':
-        return <AnalyticsScreen />;
+        return <AnalyticsScreen navigation={navigation} />;
       case 'Notifications':
         return <NotificationsScreen />;
       case 'Settings':
@@ -217,9 +217,7 @@ export const AppNavigator = () => {
     return currentScreen === tabName;
   };
 
-  const hideTabBar =
-    currentScreen === 'LeadForm' ||
-    currentScreen === 'TaskForm';
+  const hideTabBar = false;
 
   const semantics = getIndustrySemantics(user?.industryId);
 

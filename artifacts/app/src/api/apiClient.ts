@@ -20,7 +20,7 @@ export const apiClient = axios.create({
   },
 });
 
-// Request Interceptor: Inject Auth Token & HMAC Signature Header
+// Request Interceptor: Inject Auth Token, Multi-tenant Organization ID & HMAC Signature Header
 apiClient.interceptors.request.use(
   async (config) => {
     try {
@@ -29,12 +29,23 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
 
+      // Multi-Tenant Isolation: Inject active organization ID
+      const storedUserData = await safeStorage.getItem('@user_data');
+      if (storedUserData) {
+        try {
+          const parsed = JSON.parse(storedUserData);
+          if (parsed?.organizationId) {
+            config.headers['x-organization-id'] = parsed.organizationId;
+          }
+        } catch {}
+      }
+
       // Security Signature Header
       const timestamp = Date.now().toString();
       config.headers['X-Request-Timestamp'] = timestamp;
       config.headers['X-Signature'] = `sig_${timestamp.slice(-6)}`;
     } catch (error) {
-      console.warn('[apiClient] Token injection warning:', error);
+      console.warn('[apiClient] Token / Org injection warning:', error);
     }
     return config;
   },

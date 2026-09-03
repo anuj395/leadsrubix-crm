@@ -625,8 +625,8 @@ async function getDashboardConfig({ authedUser, industryIdQuery, organizationIdQ
   const Industry = mongoose.model('Industry');
   const Organization = mongoose.model('Organization');
 
-  let orgId = authedUser.organizationId;
-  let industryCode = authedUser.industryId || 'temp0001';
+  let orgId = organizationIdQuery || authedUser.organizationId || authedUser.organization_id;
+  let industryCode = industryIdQuery || authedUser.industryId || authedUser.industry_id || 'temp0001';
 
   if (authedUser.role !== 'superAdmin' && orgId) {
     const orgDoc = await Organization.findOne({
@@ -674,15 +674,23 @@ async function getDashboardConfig({ authedUser, industryIdQuery, organizationIdQ
   }
 
   // 2. Try to find industry-specific config
-  let industryDoc = await Industry.findOne({ code: industryCode }).lean().exec();
-  if (!industryDoc && mongoose.Types.ObjectId.isValid(industryCode)) {
-    industryDoc = await Industry.findById(industryCode).lean().exec();
+  let industryDoc = await Industry.findOne({
+    $or: [
+      { code: industryCode },
+      { id: industryCode },
+      ...(mongoose.Types.ObjectId.isValid(industryCode) ? [{ _id: industryCode }] : [])
+    ]
+  }).lean().exec();
+
+  const indIds = [industryCode];
+  if (industryDoc) {
+    indIds.push(String(industryDoc._id));
+    if (industryDoc.code) indIds.push(industryDoc.code);
+    if (industryDoc.id) indIds.push(industryDoc.id);
   }
 
-  if (industryDoc) {
-    const indConfig = await AnalyticsConfig.findOne({ industry_id: String(industryDoc._id) }).lean().exec();
-    if (indConfig) return indConfig;
-  }
+  const indConfig = await AnalyticsConfig.findOne({ industry_id: { $in: indIds } }).lean().exec();
+  if (indConfig) return indConfig;
 
   // 3. Fallback to default Real Estate config
   const fallback = await AnalyticsConfig.findOne({ organization_id: null }).lean().exec();

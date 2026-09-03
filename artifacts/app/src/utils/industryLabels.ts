@@ -4,6 +4,9 @@ export interface IndustrySemantics {
   leadEntityPlural: string;
   taskEntitySingular: string;
   taskEntityPlural: string;
+  agentEntity: string;
+  agentEntityPlural: string;
+  projectEntity: string;
   freshLabel: string;
   inPipelineLabel: string;
   completedVisits: string;
@@ -17,6 +20,12 @@ export interface IndustrySemantics {
   tasksAndMeetingsTab: string;
   recentLeadsHeader: string;
   recentLeadsSub: string;
+}
+
+export interface CallOutcomePreset {
+  label: string;
+  badgeColor: string;
+  bgColor: string;
 }
 
 export function getIndustrySemantics(industryInput?: string): IndustrySemantics {
@@ -39,6 +48,9 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       leadEntityPlural: 'Patients',
       taskEntitySingular: 'Consultation',
       taskEntityPlural: 'Consultations',
+      agentEntity: 'Doctor',
+      agentEntityPlural: 'Doctors',
+      projectEntity: 'Department / Specialty',
       freshLabel: 'Patient Inquiries',
       inPipelineLabel: 'Active Triage',
       completedVisits: 'Completed Consultations',
@@ -70,6 +82,9 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       leadEntityPlural: 'Students',
       taskEntitySingular: 'Interview',
       taskEntityPlural: 'Interviews',
+      agentEntity: 'Counselor',
+      agentEntityPlural: 'Counselors',
+      projectEntity: 'Course / Program',
       freshLabel: 'Student Inquiries',
       inPipelineLabel: 'Admissions Queue',
       completedVisits: 'Completed Interviews',
@@ -100,6 +115,9 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       leadEntityPlural: 'Orders',
       taskEntitySingular: 'Delivery',
       taskEntityPlural: 'Deliveries',
+      agentEntity: 'Support Agent',
+      agentEntityPlural: 'Support Agents',
+      projectEntity: 'Category / Brand',
       freshLabel: 'Pending Orders',
       inPipelineLabel: 'Processing',
       completedVisits: 'Delivered Orders',
@@ -130,6 +148,9 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       leadEntityPlural: 'Clients',
       taskEntitySingular: 'Audit',
       taskEntityPlural: 'Audits',
+      agentEntity: 'Advisor',
+      agentEntityPlural: 'Advisors',
+      projectEntity: 'Portfolio / Fund',
       freshLabel: 'Portfolio Inquiries',
       inPipelineLabel: 'Under Review',
       completedVisits: 'Completed Audits',
@@ -160,6 +181,9 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       leadEntityPlural: 'Prospects',
       taskEntitySingular: 'Demo',
       taskEntityPlural: 'Demos',
+      agentEntity: 'Consultant',
+      agentEntityPlural: 'Consultants',
+      projectEntity: 'Solution / Stack',
       freshLabel: 'RFP Inquiries',
       inPipelineLabel: 'SOW Scoping',
       completedVisits: 'Completed Demos',
@@ -190,6 +214,9 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       leadEntityPlural: 'Dealers',
       taskEntitySingular: 'Shipment',
       taskEntityPlural: 'Shipments',
+      agentEntity: 'Manager',
+      agentEntityPlural: 'Managers',
+      projectEntity: 'Product Line',
       freshLabel: 'RFQ Inquiries',
       inPipelineLabel: 'Production Queue',
       completedVisits: 'Completed Shipments',
@@ -198,21 +225,24 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
       siteVisit: 'Plant Visit',
       meeting: 'Dealer Call',
       visitsDesc: 'Shipments',
-      completedVisitsTooltip: 'Completed Shipments:\nThe count of successfully finished product shipments.',
-      scheduledVisitsTooltip: 'Scheduled Audits:\nPlant inspections or audits scheduled for the future.',
-      tasksAndMeetingsTab: 'Production & Shipments',
+      completedVisitsTooltip: 'Completed Shipments:\nThe count of successfully finished dealer shipments.',
+      scheduledVisitsTooltip: 'Scheduled Audits:\nPlant inspections scheduled for the future.',
+      tasksAndMeetingsTab: 'Plant Audits & Shipments',
       recentLeadsHeader: 'FRESH DEALER INQUIRIES',
-      recentLeadsSub: 'Recent plant RFQs assigned to distributor queue',
+      recentLeadsSub: 'Recent distributor RFQs assigned to territory manager',
     };
   }
 
-  // 7. Default (Real Estate: temp0001, realestate, property, builder, construction)
+  // 7. Default: Real Estate (temp0001)
   return {
     industryName: 'Real Estate',
     leadEntitySingular: 'Lead',
     leadEntityPlural: 'Leads',
-    taskEntitySingular: 'Task',
-    taskEntityPlural: 'Tasks',
+    taskEntitySingular: 'Site Visit',
+    taskEntityPlural: 'Site Visits',
+    agentEntity: 'Associate',
+    agentEntityPlural: 'Associates',
+    projectEntity: 'Project',
     freshLabel: 'Fresh Leads',
     inPipelineLabel: 'In Follow-up',
     completedVisits: 'Completed Visits',
@@ -222,9 +252,60 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
     meeting: 'Meeting',
     visitsDesc: 'Site Visits',
     completedVisitsTooltip: 'Completed Visits:\nThe count of successfully finished customer property visits.',
-    scheduledVisitsTooltip: 'Scheduled Visits:\nProperty visits scheduled for the future.',
-    tasksAndMeetingsTab: 'Tasks & Meetings',
-    recentLeadsHeader: 'FRESH INCOMING INQUIRIES',
-    recentLeadsSub: 'Recent leads assigned to your queue',
+    scheduledVisitsTooltip: 'Scheduled Visits:\nCustomer property visits scheduled for the future.',
+    tasksAndMeetingsTab: 'Site Visits & Meetings',
+    recentLeadsHeader: 'FRESH LEADS INQUIRIES',
+    recentLeadsSub: 'Recent buyers assigned to sales queue',
   };
+}
+
+export function getIndustryCallOutcomePresets(industryInput?: string): CallOutcomePreset[] {
+  const normalized = String(industryInput || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[\s\-_]+/g, '');
+
+  if (normalized === 'temp0003' || normalized.includes('health') || normalized.includes('medic')) {
+    return [
+      { label: 'Consultation Booked', badgeColor: '#047857', bgColor: '#ECFDF5' },
+      { label: 'Follow-up Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
+      { label: 'Prescription / Report Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
+      { label: 'Not Interested / Lost', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
+    ];
+  }
+
+  if (normalized === 'temp0004' || normalized.includes('edu')) {
+    return [
+      { label: 'Campus Tour Scheduled', badgeColor: '#047857', bgColor: '#ECFDF5' },
+      { label: 'Counseling Call Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
+      { label: 'Application Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
+      { label: 'Not Interested / Dropped', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
+    ];
+  }
+
+  if (normalized === 'temp0005' || normalized.includes('finan')) {
+    return [
+      { label: 'Portfolio Review Booked', badgeColor: '#047857', bgColor: '#ECFDF5' },
+      { label: 'Audit Follow-up Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
+      { label: 'Proposal Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
+      { label: 'Not Interested / Declined', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
+    ];
+  }
+
+  if (normalized === 'temp0006' || normalized.includes('tech') || normalized.includes('it')) {
+    return [
+      { label: 'Demo Confirmed', badgeColor: '#047857', bgColor: '#ECFDF5' },
+      { label: 'Technical Call Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
+      { label: 'SOW / Quote Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
+      { label: 'Not Interested / Disqualified', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
+    ];
+  }
+
+  // Default Real Estate
+  return [
+    { label: 'Site Visit Confirmed', badgeColor: '#047857', bgColor: '#ECFDF5' },
+    { label: 'Callback Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
+    { label: 'Price Matrix Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
+    { label: 'Not Interested / Lost', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
+  ];
 }

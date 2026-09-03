@@ -1,4 +1,5 @@
 import { analyticsRepository, AnalyticsQueryParams } from '../repositories/analyticsRepository';
+import { getIndustrySemantics } from '../utils/industryLabels';
 
 export interface CardMetrics {
   totalLeads: number;
@@ -66,8 +67,24 @@ export interface AnalyticsDashboardState {
   callDurations: CallDurationBuckets;
   feedbackSummary: FeedbackRow[];
   completedTasks: TaskAnalyticsRow[];
+  contacts?: {
+    feedbackSummary: any[];
+    callBackReasons: any[];
+    chartData: any[];
+  };
+  tasks?: {
+    completedTasks: any[];
+    pendingTasks: any[];
+    completedChartData: any[];
+    pendingChartData: any[];
+  };
+  callLogs?: {
+    callingTrends: any[];
+    callLogSummary: any[];
+  };
   industryId?: string;
   organizationName?: string;
+  [key: string]: any;
 }
 
 export type AnalyticsData = AnalyticsDashboardState;
@@ -125,10 +142,11 @@ export const analyticsService = {
         ? ((cards.closedWon / cards.totalLeads) * 100).toFixed(1)
         : '0.0';
 
+      const semantics = getIndustrySemantics(params?.industryId);
       const totalF = Math.max(cards.totalLeads, 1);
       const funnelStages: FunnelStage[] = [
         {
-          stage: 'Fresh Inquiries',
+          stage: `Fresh ${semantics.leadEntityPlural}`,
           count: cards.fresh,
           pct: `${Math.round((cards.fresh / totalF) * 100)}%`,
           color: '#0284C7',
@@ -140,13 +158,13 @@ export const analyticsService = {
           color: '#D97706',
         },
         {
-          stage: 'Site Visits / Qualified',
+          stage: `${semantics.visitsDesc} / Qualified`,
           count: cards.completedVisits + cards.scheduledVisits,
           pct: `${Math.round(((cards.completedVisits + cards.scheduledVisits) / totalF) * 100)}%`,
           color: '#7C3AED',
         },
         {
-          stage: 'Deals Closed Won',
+          stage: `${semantics.wonLabel} Won`,
           count: cards.closedWon,
           pct: `${convPct}%`,
           color: '#059669',
@@ -199,14 +217,30 @@ export const analyticsService = {
       );
 
       return {
+        ...data,
         cards,
-        revenue: data.revenue || (cards.closedWon > 0 ? `₹${(cards.closedWon * 2.5).toFixed(1)} Cr` : '₹0.0 Cr'),
+        contacts: {
+          feedbackSummary: data?.contacts?.feedbackSummary || feedbackList,
+          callBackReasons: data?.contacts?.callBackReasons || [],
+          chartData: data?.contacts?.chartData || [],
+        },
+        tasks: {
+          completedTasks: data?.tasks?.completedTasks || completedTaskList,
+          pendingTasks: data?.tasks?.pendingTasks || [],
+          completedChartData: data?.tasks?.completedChartData || [],
+          pendingChartData: data?.tasks?.pendingChartData || [],
+        },
+        callLogs: {
+          callingTrends: data?.callLogs?.callingTrends || [],
+          callLogSummary: data?.callLogs?.callLogSummary || [],
+        },
+        revenue: data?.revenue || (cards.closedWon > 0 ? `₹${(cards.closedWon * 2.5).toFixed(1)} Cr` : '₹0.0 Cr'),
         conversionRate: `${convPct}%`,
         funnelStages,
         callingTrends: data?.callLogs?.callingTrends || [],
         callDurations: durations,
-        feedbackSummary: feedbackList,
-        completedTasks: completedTaskList,
+        feedbackSummary: data?.contacts?.feedbackSummary || feedbackList,
+        completedTasks: data?.tasks?.completedTasks || completedTaskList,
         industryId: data?.industryId,
         organizationName: data?.organizationName,
       };
@@ -243,6 +277,16 @@ export const analyticsService = {
         feedbackSummary: [],
         completedTasks: [],
       };
+    }
+  },
+
+  async getDashboardConfig(params?: AnalyticsQueryParams): Promise<any> {
+    try {
+      const config = await analyticsRepository.fetchDashboardConfig(params);
+      return config;
+    } catch (err) {
+      console.warn('Failed to load dashboard config from backend:', err);
+      return null;
     }
   },
 };

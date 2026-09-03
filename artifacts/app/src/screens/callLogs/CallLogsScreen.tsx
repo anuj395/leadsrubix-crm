@@ -6,30 +6,31 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Platform,
   Linking,
   Modal,
   RefreshControl,
   ActivityIndicator,
   Alert,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { callLogService, CallLogItem } from '../../services/callLogService';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-
-const OUTCOME_PRESETS = [
-  { label: 'Site Visit Confirmed', badgeColor: '#047857', bgColor: '#ECFDF5' },
-  { label: 'Callback Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
-  { label: 'Price Matrix Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
-  { label: 'Not Interested / Lost', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
-];
+import { getIndustrySemantics, getIndustryCallOutcomePresets, CallOutcomePreset } from '../../utils/industryLabels';
 
 type FilterType = 'ALL' | 'ANSWERED' | 'MISSED' | 'INBOUND' | 'OUTBOUND';
 
-export const CallLogsScreen = ({ navigation }: any) => {
+interface CallLogsScreenProps {
+  navigation?: any;
+}
+
+export const CallLogsScreen: React.FC<CallLogsScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
+  const semantics = useMemo(() => getIndustrySemantics(user?.industryId), [user?.industryId]);
+  const outcomePresets = useMemo(() => getIndustryCallOutcomePresets(user?.industryId), [user?.industryId]);
+
   const [callLogs, setCallLogs] = useState<CallLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,14 +88,14 @@ export const CallLogsScreen = ({ navigation }: any) => {
     }
     const clean = phone.replace(/[^0-9]/g, '');
     const message = encodeURIComponent(
-      `Hello ${name || 'Sir/Madam'}, thank you for contacting Leads Rubix. How can I assist you today?`
+      `Hello ${name || 'Sir/Madam'}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you today?`
     );
     Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
       Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
     });
   };
 
-  const handleSelectOutcome = (preset: typeof OUTCOME_PRESETS[0]) => {
+  const handleSelectOutcome = (preset: CallOutcomePreset) => {
     if (!activeCallBuyer) return;
 
     const newLog: CallLogItem = {
@@ -126,13 +127,16 @@ export const CallLogsScreen = ({ navigation }: any) => {
         (l.status || l.outcome || '').toLowerCase() === 'answered' ||
         (l.status || l.outcome || '').toLowerCase().includes('site') ||
         (l.status || l.outcome || '').toLowerCase().includes('won') ||
-        (l.status || l.outcome || '').toLowerCase().includes('sent')
+        (l.status || l.outcome || '').toLowerCase().includes('sent') ||
+        (l.status || l.outcome || '').toLowerCase().includes('consult') ||
+        (l.status || l.outcome || '').toLowerCase().includes('booked')
     ).length;
     const missed = callLogs.filter(
       (l) =>
         (l.status || l.outcome || '').toLowerCase() === 'missed' ||
         (l.status || l.outcome || '').toLowerCase().includes('no answer') ||
-        (l.status || l.outcome || '').toLowerCase().includes('lost')
+        (l.status || l.outcome || '').toLowerCase().includes('lost') ||
+        (l.status || l.outcome || '').toLowerCase().includes('dropped')
     ).length;
     const inbound = callLogs.filter((l) => (l.type || '').toLowerCase().includes('inbound')).length;
     const outbound = callLogs.filter((l) => (l.type || '').toLowerCase().includes('outbound')).length;
@@ -158,14 +162,17 @@ export const CallLogsScreen = ({ navigation }: any) => {
           (log.status || log.outcome || '').toLowerCase() === 'answered' ||
           (log.status || log.outcome || '').toLowerCase().includes('site') ||
           (log.status || log.outcome || '').toLowerCase().includes('won') ||
-          (log.status || log.outcome || '').toLowerCase().includes('sent')
+          (log.status || log.outcome || '').toLowerCase().includes('sent') ||
+          (log.status || log.outcome || '').toLowerCase().includes('consult') ||
+          (log.status || log.outcome || '').toLowerCase().includes('booked')
         );
       }
       if (selectedFilter === 'MISSED') {
         return (
           (log.status || log.outcome || '').toLowerCase() === 'missed' ||
           (log.status || log.outcome || '').toLowerCase().includes('no answer') ||
-          (log.status || log.outcome || '').toLowerCase().includes('lost')
+          (log.status || log.outcome || '').toLowerCase().includes('lost') ||
+          (log.status || log.outcome || '').toLowerCase().includes('dropped')
         );
       }
       if (selectedFilter === 'INBOUND') {
@@ -191,7 +198,7 @@ export const CallLogsScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* ─── Zone 1: Luxury #151728 Midnight Header (Identical to Leads) ─── */}
+      {/* ─── Zone 1: Luxury #151728 Midnight Header ─── */}
       <View style={styles.luxuryHeader}>
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
@@ -202,12 +209,12 @@ export const CallLogsScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* Integrated Search Bar */}
+        {/* Integrated Dynamic Search Bar */}
         <View style={styles.searchBarBox}>
           <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInputControl}
-            placeholder="Search customer, number, agent, notes..."
+            placeholder={`Search ${semantics.leadEntitySingular.toLowerCase()}, number, ${semantics.agentEntity.toLowerCase()}, notes...`}
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -225,7 +232,7 @@ export const CallLogsScreen = ({ navigation }: any) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#151728" />}
       >
-        {/* ─── Zone 2: Filter Chips (Exact Leads & Tasks Match) ─── */}
+        {/* ─── Zone 2: Filter Chips ─── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -254,7 +261,7 @@ export const CallLogsScreen = ({ navigation }: any) => {
           })}
         </ScrollView>
 
-        {/* ─── Zone 3: Call History Cards (Matching Web CRM Schema) ─── */}
+        {/* ─── Zone 3: Call History Cards (Multi-Tenant Adaptive) ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color="#151728" />
@@ -277,7 +284,7 @@ export const CallLogsScreen = ({ navigation }: any) => {
               activeOpacity={0.88}
             >
               <Ionicons name="people-sharp" size={18} color="#FFFFFF" />
-              <Text style={styles.emptyCTAText}>View Leads Pipeline</Text>
+              <Text style={styles.emptyCTAText}>View {semantics.leadEntityPlural} Pipeline</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -341,7 +348,7 @@ export const CallLogsScreen = ({ navigation }: any) => {
                   </View>
                 </View>
 
-                {/* Specs / Metadata Badges (Phone + Agent + Dir) */}
+                {/* Specs / Metadata Badges (Phone + Agent + Project/Dept + Dir) */}
                 <View style={styles.specsRow}>
                   {log.phone ? (
                     <View style={styles.specPill}>
@@ -354,7 +361,16 @@ export const CallLogsScreen = ({ navigation }: any) => {
                     <View style={styles.specPill}>
                       <Ionicons name="person-outline" size={11} color="#64748B" />
                       <Text style={styles.specPillText} numberOfLines={1}>
-                        Agent: {log.agent}
+                        {semantics.agentEntity}: {log.agent}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {log.project ? (
+                    <View style={styles.specPill}>
+                      <Ionicons name="business-outline" size={11} color="#64748B" />
+                      <Text style={styles.specPillText} numberOfLines={1}>
+                        {log.project}
                       </Text>
                     </View>
                   ) : null}
@@ -419,7 +435,7 @@ export const CallLogsScreen = ({ navigation }: any) => {
         )}
       </ScrollView>
 
-      {/* Auto Post-Call Outcome Popup Modal */}
+      {/* Dynamic Auto Post-Call Outcome Popup Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -435,14 +451,14 @@ export const CallLogsScreen = ({ navigation }: any) => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Auto Post-Call Logger</Text>
                 <Text style={styles.modalSubtitle}>
-                  Select 1-tap outcome for call with {activeCallBuyer?.name}:
+                  Select 1-tap outcome for call with {activeCallBuyer?.name || semantics.leadEntitySingular}:
                 </Text>
               </View>
             </View>
 
-            {/* Outcome Option Buttons */}
+            {/* Outcome Option Buttons (Industry Presets) */}
             <View style={styles.outcomeOptionsGrid}>
-              {OUTCOME_PRESETS.map((preset, idx) => (
+              {outcomePresets.map((preset, idx) => (
                 <TouchableOpacity
                   key={idx}
                   style={[styles.outcomeOptionBtn, { backgroundColor: preset.bgColor, borderColor: preset.badgeColor }]}
@@ -457,15 +473,16 @@ export const CallLogsScreen = ({ navigation }: any) => {
               ))}
             </View>
 
+            {/* Dismiss Modal Button */}
             <TouchableOpacity
-              style={styles.dismissBtn}
+              style={styles.modalCloseBtn}
               onPress={() => {
                 setPostCallModalVisible(false);
                 setActiveCallBuyer(null);
               }}
               activeOpacity={0.8}
             >
-              <Text style={styles.dismissBtnText}>Skip Outcome Logging</Text>
+              <Text style={styles.modalCloseText}>Skip & Log Later</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -480,18 +497,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   luxuryHeader: {
-    width: '100%',
     backgroundColor: '#151728',
-    paddingTop: Platform.OS === 'ios' ? 56 : 42,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 38,
+    paddingBottom: 16,
     paddingHorizontal: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 16,
-    elevation: 8,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -502,61 +513,58 @@ const styles = StyleSheet.create({
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.16)',
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
     paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 20,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(5, 150, 105, 0.3)',
     gap: 6,
   },
   greenPulseDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#34D399',
+    backgroundColor: '#10B981',
   },
   statusPillText: {
-    color: '#34D399',
     fontSize: 10.5,
     fontWeight: '800',
-    letterSpacing: 0.6,
+    color: '#34D399',
+    letterSpacing: 0.5,
   },
   searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    height: 42,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInputControl: {
     flex: 1,
-    fontSize: 13.5,
+    fontSize: 13,
     color: '#0F172A',
-    padding: 0,
-    fontWeight: '500',
+    paddingVertical: 0,
   },
   clearSearchBtn: {
-    padding: 2,
+    padding: 4,
   },
   contentContainer: {
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
+    paddingBottom: 120,
+    paddingHorizontal: 16,
   },
   statusFilterBar: {
-    marginBottom: 12,
+    marginBottom: 14,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
   },
   statusFilterContent: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
     gap: 8,
   },
   statusChip: {
@@ -564,40 +572,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingVertical: 6,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     gap: 6,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
   },
   statusChipSelected: {
-    backgroundColor: '#1E2238',
-    borderColor: '#1E2238',
+    backgroundColor: '#151728',
+    borderColor: '#151728',
   },
   statusChipText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
-    letterSpacing: 0.4,
   },
   statusChipTextSelected: {
     color: '#FFFFFF',
+    fontWeight: '800',
   },
   chipBadgeCircle: {
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 6,
-    paddingVertical: 1.5,
+    paddingVertical: 1,
     borderRadius: 10,
-    minWidth: 18,
-    alignItems: 'center',
   },
   chipBadgeCircleSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   chipBadgeText: {
     fontSize: 10,
@@ -608,80 +609,76 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   loadingBox: {
-    alignItems: 'center',
     paddingVertical: 40,
+    alignItems: 'center',
     gap: 8,
   },
   loadingText: {
     fontSize: 12,
     color: '#64748B',
-    fontWeight: '500',
   },
   emptyCard3D: {
-    marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 24,
     alignItems: 'center',
+    marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.85)',
+    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
-    marginTop: 8,
   },
   emptyIconBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0F172A',
     marginBottom: 4,
   },
   emptySubtext: {
-    fontSize: 12.5,
+    fontSize: 11.5,
     color: '#64748B',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
     marginBottom: 16,
-    paddingHorizontal: 12,
   },
   emptyCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E2238',
+    backgroundColor: '#151728',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 6,
   },
   emptyCTAText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   leadCard: {
-    marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.85)',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -689,28 +686,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avatarSquircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: '#EFF6FF',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#EEF2F6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
     position: 'relative',
   },
   avatarText: {
-    color: '#1D4ED8',
-    fontSize: 15,
+    fontSize: 12.5,
     fontWeight: '800',
-    letterSpacing: -0.2,
+    color: '#272944',
   },
   directionDot: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -718,32 +714,31 @@ const styles = StyleSheet.create({
   },
   nameBlock: {
     flex: 1,
-    marginRight: 8,
   },
   leadName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.2,
+    marginBottom: 2,
   },
   timeTagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
   },
   timeTagText: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#64748B',
+    fontWeight: '600',
   },
   dotSep: {
-    color: '#CBD5E1',
     fontSize: 10,
+    color: '#CBD5E1',
   },
   durationTagText: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: '600',
+    fontSize: 10.5,
+    color: '#0EA5E9',
+    fontWeight: '700',
   },
   stageBadge: {
     flexDirection: 'row',
@@ -751,17 +746,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 8,
-    gap: 5,
+    gap: 4,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   stageBadgeText: {
     fontSize: 10.5,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   specsRow: {
     flexDirection: 'row',
@@ -777,35 +771,34 @@ const styles = StyleSheet.create({
     paddingVertical: 3.5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#F1F5F9',
     gap: 4,
   },
   specPillText: {
     fontSize: 11,
     color: '#475569',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   notesBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    alignItems: 'flex-start',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
     borderRadius: 8,
-    marginBottom: 10,
     gap: 6,
+    marginBottom: 10,
   },
   notesText: {
     flex: 1,
     fontSize: 11,
-    color: '#475569',
-    fontStyle: 'italic',
+    color: '#64748B',
+    lineHeight: 15,
   },
   actionCockpit: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
@@ -814,103 +807,105 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1E2238',
-    paddingVertical: 8.5,
-    borderRadius: 10,
-    gap: 6,
+    backgroundColor: '#151728',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 5,
   },
   callCockpitText: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   whatsappCockpitBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F0FDF4',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 5,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    paddingVertical: 8.5,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    gap: 6,
+    borderColor: '#DCFCE7',
   },
   whatsappCockpitText: {
-    color: '#15803D',
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '700',
+    color: '#15803D',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalCard: {
     width: '100%',
+    maxWidth: 380,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
     elevation: 8,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: 10,
+    marginBottom: 14,
   },
   modalIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0F172A',
   },
   modalSubtitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#64748B',
-    marginTop: 2,
+    marginTop: 1,
   },
   outcomeOptionsGrid: {
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   outcomeOptionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    gap: 10,
+    gap: 8,
   },
   outcomeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   outcomeOptionText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
   },
-  dismissBtn: {
+  modalCloseBtn: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
-  dismissBtnText: {
-    fontSize: 12.5,
-    color: '#94A3B8',
+  modalCloseText: {
+    fontSize: 12,
+    color: '#64748B',
     fontWeight: '600',
   },
 });

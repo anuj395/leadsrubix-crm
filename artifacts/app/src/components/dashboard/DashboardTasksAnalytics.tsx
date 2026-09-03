@@ -40,7 +40,7 @@ export const DashboardTasksAnalytics: React.FC<Props> = ({
       <View style={styles.card}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.title}>COMPLETED TASKS BY ASSOCIATE</Text>
+            <Text style={styles.title}>COMPLETED {semantics.taskEntityPlural.toUpperCase()} BY ASSOCIATE</Text>
             <Text style={styles.subtitle}>Execution volume per team member</Text>
           </View>
           <InfoGuideBadge
@@ -52,8 +52,8 @@ export const DashboardTasksAnalytics: React.FC<Props> = ({
         {tasks.length === 0 ? (
           <View style={styles.emptyBox}>
             <Ionicons name="clipboard-outline" size={28} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>No Completed Tasks</Text>
-            <Text style={styles.emptySub}>No completed tasks recorded for this timeframe.</Text>
+            <Text style={styles.emptyTitle}>No Completed {semantics.taskEntityPlural}</Text>
+            <Text style={styles.emptySub}>No completed {semantics.taskEntityPlural.toLowerCase()} recorded for this timeframe.</Text>
           </View>
         ) : (
           <View style={styles.list}>
@@ -87,7 +87,7 @@ export const DashboardTasksAnalytics: React.FC<Props> = ({
                   <View style={[styles.pill, { backgroundColor: 'rgba(16, 185, 129, 0.10)' }]}>
                     <Ionicons name="people" size={11} color="#059669" />
                     <Text style={[styles.pillText, { color: '#059669' }]}>
-                      Meeting: {row.meeting}
+                      {semantics.meeting}: {row.meeting}
                     </Text>
                   </View>
 

@@ -20,10 +20,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { leadService, LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
+import { getIndustrySemantics } from '../../utils/industryLabels';
 import { theme } from '../../theme/theme';
 
 export const LeadsListScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
+  const semantics = getIndustrySemantics(user?.industryId);
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,13 +40,13 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
       if (f.includes('fresh')) setSelectedStatus('Fresh');
       else if (f.includes('callback') || f.includes('call_back')) setSelectedStatus('Callbacks');
       else if (f.includes('interested') && !f.includes('not')) setSelectedStatus('Interested');
-      else if (f.includes('won') || f.includes('converted') || f.includes('closedwon')) setSelectedStatus('Converted');
+      else if (f.includes('won') || f.includes('converted') || f.includes('closedwon')) setSelectedStatus(semantics.wonLabel || 'Converted');
       else if (f.includes('lost') || f.includes('notinterested') || f.includes('not_interested') || f.includes('closedlost')) setSelectedStatus('Lost');
     }
-  }, [route?.params?.filter]);
+  }, [route?.params?.filter, semantics.wonLabel]);
 
-  // Exact 6 Web CRM Stages
-  const statusFilters = ['ALL', 'Fresh', 'Callbacks', 'Interested', 'Converted', 'Lost'];
+  // Exact Web CRM Stages with dynamic Won/Converted label
+  const statusFilters = ['ALL', 'Fresh', 'Callbacks', 'Interested', semantics.wonLabel || 'Converted', 'Lost'];
 
   const fetchLeadsData = useCallback(async () => {
     try {
@@ -242,7 +244,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
         avatarBg: '#ECFDF5',
         avatarText: '#047857',
         dot: '#10B981',
-        label: 'CONVERTED',
+        label: (semantics.wonLabel || 'CONVERTED').toUpperCase(),
       };
     }
     if (
@@ -298,34 +300,26 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
       avatarBg: '#EFF6FF',
       avatarText: '#1D4ED8',
       dot: '#3B82F6',
-      label: 'FRESH',
+      label: (semantics.freshLabel.split(' ')[0] || 'FRESH').toUpperCase(),
     };
   };
 
   const getStageCount = (st: string) => {
-    switch (st.toLowerCase()) {
-      case 'all':
-        return counts.total;
-      case 'fresh':
-        return counts.fresh;
-      case 'callbacks':
-        return counts.callbacks;
-      case 'interested':
-        return counts.interested;
-      case 'converted':
-        return counts.converted;
-      case 'lost':
-        return counts.lost;
-      default:
-        return 0;
-    }
+    const s = st.toLowerCase();
+    if (s === 'all') return counts.total;
+    if (s === 'fresh') return counts.fresh;
+    if (s === 'callbacks') return counts.callbacks;
+    if (s === 'interested') return counts.interested;
+    if (s === 'converted' || s === (semantics.wonLabel || '').toLowerCase()) return counts.converted;
+    if (s === 'lost') return counts.lost;
+    return 0;
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* ─── Zone 1: Luxury #151728 Midnight Header ─── */}
+      {/* ─── Hero Luxury Header (Matching Dashboard Aesthetic) ─── */}
       <View style={styles.luxuryHeader}>
         {/* Top Branding Row (Pixel-identical to Dashboard) */}
         <View style={styles.headerTopRow}>
@@ -337,7 +331,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
             activeOpacity={0.88}
           >
             <Ionicons name="add-sharp" size={15} color="#FFFFFF" />
-            <Text style={styles.newLeadCTAText}>Add Lead</Text>
+            <Text style={styles.newLeadCTAText}>Add {semantics.leadEntitySingular}</Text>
           </TouchableOpacity>
         </View>
 
@@ -346,7 +340,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
           <Ionicons name="search-sharp" size={18} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInputControl}
-            placeholder="Search name, phone, project, location..."
+            placeholder={`Search name, phone, ${semantics.leadEntitySingular.toLowerCase()}, project...`}
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -433,7 +427,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color="#151728" />
-            <Text style={styles.loadingText}>Fetching buyer inquiries & leads...</Text>
+            <Text style={styles.loadingText}>Fetching {semantics.leadEntityPlural.toLowerCase()} & inquiries...</Text>
           </View>
         ) : filteredLeads.length === 0 ? (
           <View style={styles.emptyCard3D}>
@@ -443,8 +437,8 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
             <Text style={styles.emptyTitle}>Pipeline is Clear</Text>
             <Text style={styles.emptySubtext}>
               {searchQuery
-                ? `No inquiries match "${searchQuery}". Try a different keyword.`
-                : `No buyer inquiries currently in ${selectedStatus.toUpperCase()} stage.`}
+                ? `No ${semantics.leadEntityPlural.toLowerCase()} match "${searchQuery}". Try a different keyword.`
+                : `No ${semantics.leadEntityPlural.toLowerCase()} currently in ${selectedStatus.toUpperCase()} stage.`}
             </Text>
             <TouchableOpacity
               style={styles.emptyCTA}
@@ -452,7 +446,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
               activeOpacity={0.88}
             >
               <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.emptyCTAText}>Create New Lead</Text>
+              <Text style={styles.emptyCTAText}>Create New {semantics.leadEntitySingular}</Text>
             </TouchableOpacity>
           </View>
         ) : (

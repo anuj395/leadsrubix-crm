@@ -15,16 +15,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
+import { CalendarDatePickerModal } from '../../components/ui/CalendarDatePickerModal';
 import { theme } from '../../theme/theme';
 import { apiClient } from '../../api/apiClient';
 import { leadService, LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
+import { getIndustrySemantics } from '../../utils/industryLabels';
 
 type DetailTabType = 'timeline' | 'profile' | 'deals' | 'notes';
 type TimelineFilterType = 'all' | 'calls' | 'tasks';
 
 export const LeadDetailScreen = ({ route, navigation }: any) => {
   const { user } = useAuth();
+  const semantics = getIndustrySemantics(user?.industryId);
   const initialLead: LeadItem = route?.params?.lead || {};
   const leadId = initialLead.id || initialLead._id || route?.params?.leadId || route?.params?.id || '';
 
@@ -53,8 +56,9 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
   // 1. Call Back Modal Form
   const [callBackReason, setCallBackReason] = useState('Busy in Meeting');
-  const [callBackDate, setCallBackDate] = useState('12/09/2026');
+  const [callBackDate, setCallBackDate] = useState('2026-09-05, 10:00 AM');
   const [callBackNote, setCallBackNote] = useState('');
+  const [showCallBackDatePicker, setShowCallBackDatePicker] = useState(false);
 
   // 2. Not Interested Modal Form
   const [notInterestedReason, setNotInterestedReason] = useState('Budget Mismatch');
@@ -233,7 +237,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
     }
     const cleanNum = phone.replace(/[^0-9]/g, '');
     const msg = encodeURIComponent(
-      `Hello ${leadName}, thank you for contacting Leads Rubix. How can I assist you with your property inquiry today?`
+      `Hello ${leadName}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you with your ${semantics.leadEntitySingular.toLowerCase()} inquiry today?`
     );
     Linking.openURL(`whatsapp://send?phone=${cleanNum}&text=${msg}`).catch(() => {
       Alert.alert('WhatsApp Error', 'Please verify WhatsApp is installed on your device.');
@@ -826,8 +830,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               <View style={styles.cardInnerPadding}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleGroup}>
-                    <Ionicons name="home-outline" size={16} color="#2563EB" />
-                    <Text style={styles.cardSectionTitle}>PROPERTY PREFERENCES</Text>
+                    <Ionicons name="business-outline" size={16} color="#2563EB" />
+                    <Text style={styles.cardSectionTitle}>{semantics.projectEntity.toUpperCase()} PREFERENCES</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.sectionActionPill}
@@ -841,28 +845,28 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
                 <View style={styles.profileGrid}>
                   <View style={styles.profileField}>
-                    <Text style={styles.fieldLabel}>PROJECT NAME</Text>
+                    <Text style={styles.fieldLabel}>{semantics.projectEntity.toUpperCase()}</Text>
                     <Text style={styles.fieldValue}>
-                      {lead.project || lead.projectName || 'Test Project'}
+                      {lead.project || lead.projectName || 'General Inquiry'}
                     </Text>
                   </View>
 
                   <View style={styles.profileField}>
                     <Text style={styles.fieldLabel}>BUDGET RANGE</Text>
                     <Text style={[styles.fieldValue, { color: '#059669', fontWeight: '700' }]}>
-                      {lead.budget || 'Rs.40 Lacs - Rs.50 Lacs'}
+                      {lead.budget || 'Standard'}
                     </Text>
                   </View>
 
                   <View style={styles.profileField}>
                     <Text style={styles.fieldLabel}>LOCATION / AREA</Text>
-                    <Text style={styles.fieldValue}>{lead.location || 'Noida Sector 18'}</Text>
+                    <Text style={styles.fieldValue}>{lead.location || 'Not Specified'}</Text>
                   </View>
 
                   <View style={styles.profileField}>
-                    <Text style={styles.fieldLabel}>PROPERTY TYPE</Text>
+                    <Text style={styles.fieldLabel}>{semantics.projectEntity.toUpperCase()} TYPE</Text>
                     <Text style={styles.fieldValue}>
-                      {lead.propertyType || 'Residential Properties'}
+                      {lead.propertyType || 'Standard'}
                     </Text>
                   </View>
                 </View>
@@ -1075,13 +1079,19 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
             </View>
 
             <Text style={styles.modalInputLabel}>Next Follow Up Date *</Text>
-            <TextInput
-              style={styles.modalTextInput}
-              value={callBackDate}
-              onChangeText={setCallBackDate}
-              placeholder="dd/mm/yyyy"
-              placeholderTextColor="#94A3B8"
-            />
+            <TouchableOpacity
+              style={[styles.modalTextInput, styles.dateTriggerBox]}
+              onPress={() => setShowCallBackDatePicker(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.datePickerLeft}>
+                <Ionicons name="calendar-sharp" size={17} color="#0284C7" />
+                <Text style={styles.dateTriggerText}>
+                  {callBackDate || 'Select follow up date & time...'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={15} color="#64748B" />
+            </TouchableOpacity>
 
             <Text style={styles.modalInputLabel}>Note</Text>
             <TextInput
@@ -1475,6 +1485,18 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           </View>
         </View>
       </Modal>
+
+      {/* Calendar Date Picker Modal for Call Back Date */}
+      <CalendarDatePickerModal
+        visible={showCallBackDatePicker}
+        title="Select Follow Up Date"
+        currentValue={callBackDate}
+        includeTime={true}
+        onClose={() => setShowCallBackDatePicker(false)}
+        onSelectDate={(formatted) => {
+          setCallBackDate(formatted);
+        }}
+      />
     </View>
   );
 };
@@ -2102,6 +2124,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 13,
+    color: '#0F172A',
+  },
+  dateTriggerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  datePickerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  dateTriggerText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: '#0F172A',
   },
   modalPickerContainer: {

@@ -1,92 +1,113 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  Platform,
   RefreshControl,
+  TouchableOpacity,
   ActivityIndicator,
+  StatusBar,
   Alert,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  analyticsService,
-  AnalyticsDashboardState,
-} from '../../services/analyticsService';
 import { useAuth } from '../../context/AuthContext';
+import { analyticsService } from '../../services/analyticsService';
+import { DynamicAnalyticsRenderer } from '../../components/dashboard/DynamicAnalyticsRenderer';
+import { CalendarDatePickerModal } from '../../components/ui/CalendarDatePickerModal';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
-import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
-import { DashboardKpiGrid } from '../../components/dashboard/DashboardKpiGrid';
-import { DashboardFunnelChart } from '../../components/dashboard/DashboardFunnelChart';
-import { DashboardCallingTrends } from '../../components/dashboard/DashboardCallingTrends';
-import {
-  DashboardFeedbackSummary,
-  GroupByMode,
-} from '../../components/dashboard/DashboardFeedbackSummary';
-import { DashboardTasksAnalytics } from '../../components/dashboard/DashboardTasksAnalytics';
 import { theme } from '../../theme/theme';
 
-export type TimeFilterType = 'all' | '7d' | '30d' | 'today';
-export type AnalyticsTabType = 'contacts' | 'tasks' | 'calling';
+type TimeFilterType = '7d' | '30d' | 'today' | 'all' | 'custom';
 
-export const AnalyticsScreen = ({ navigation }: any) => {
+interface AnalyticsScreenProps {
+  navigation?: any;
+}
+
+export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
-  const [data, setData] = useState<AnalyticsDashboardState | null>(null);
-  const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
-  const [groupBy, setGroupBy] = useState<GroupByMode>('team');
-  const [activeTab, setActiveTab] = useState<AnalyticsTabType>('contacts');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const calculateDateRange = (filter: TimeFilterType) => {
-    const now = new Date();
-    if (filter === 'today') {
-      const todayStr = now.toISOString().split('T')[0];
-      return { startDate: todayStr, endDate: todayStr };
-    }
-    if (filter === '7d') {
-      const past = new Date();
-      past.setDate(now.getDate() - 7);
-      return {
-        startDate: past.toISOString().split('T')[0],
-        endDate: now.toISOString().split('T')[0],
-      };
-    }
-    if (filter === '30d') {
-      const past = new Date();
-      past.setDate(now.getDate() - 30);
-      return {
-        startDate: past.toISOString().split('T')[0],
-        endDate: now.toISOString().split('T')[0],
-      };
-    }
-    return {};
-  };
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
+  const [groupBy, setGroupBy] = useState<'team' | 'source' | 'teamWise'>('team');
+
+  // Filter Modal State
+  const [filterModalVisible, setFilterModalVisible] = useState<boolean>(false);
+
+  // Custom date selection
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [datePickerTarget, setDatePickerTarget] = useState<'startDate' | 'endDate' | null>(null);
+
+  // Dynamic config & data state
+  const [dashboardConfig, setDashboardConfig] = useState<any>(null);
+  const [data, setData] = useState<any>(null);
 
   const fetchAnalytics = useCallback(
-    async (filter: TimeFilterType, group: GroupByMode, isPullRefresh = false) => {
+    async (filter: TimeFilterType, group: 'team' | 'source' | 'teamWise', isRefresh = false) => {
+      if (!isRefresh) setLoading(true);
+
       try {
-        if (!isPullRefresh) setLoading(true);
-        const dateParams = calculateDateRange(filter);
-        const res = await analyticsService.getAnalyticsData({
-          ...dateParams,
-          groupBy: group,
-          industryId: user?.industryId,
-          organizationId: user?.organizationId,
-        });
-        setData(res);
+        let dateParams: { startDate?: string; endDate?: string } = {};
+
+        if (filter === 'today') {
+          const now = new Date();
+          const todayStr = now.toISOString().split('T')[0];
+          dateParams = { startDate: todayStr, endDate: todayStr };
+        } else if (filter === '7d') {
+          const now = new Date();
+          const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateParams = { startDate: past.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+        } else if (filter === '30d') {
+          const now = new Date();
+          const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          dateParams = { startDate: past.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+        } else if (filter === 'custom' && (startDate || endDate)) {
+          dateParams = { startDate: startDate || undefined, endDate: endDate || undefined };
+        }
+
+        const [dashData, configData] = await Promise.all([
+          analyticsService.getAnalyticsData({
+            ...dateParams,
+            groupBy: group,
+            industryId: user?.industryId,
+            organizationId: user?.organizationId,
+          }),
+          analyticsService.getDashboardConfig({
+            industryId: user?.industryId,
+            organizationId: user?.organizationId,
+          }),
+        ]);
+
+        setData(dashData);
+        setDashboardConfig(configData);
       } catch (err) {
-        console.error('Failed to load analytics data:', err);
+        console.error('[AnalyticsScreen] fetch error:', err);
+        setData({
+          cards: {
+            totalLeads: 0,
+            fresh: 0,
+            callBack: 0,
+            interested: 0,
+            closedWon: 0,
+            notInterested: 0,
+            closedLost: 0,
+            completedVisits: 0,
+            scheduledVisits: 0,
+          },
+          contacts: { feedbackSummary: [], callBackReasons: [], chartData: [] },
+          tasks: { completedTasks: [], pendingTasks: [], completedChartData: [], pendingChartData: [] },
+          callLogs: { callLogSummary: [], callingTrends: [] },
+        });
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [user]
+    [user, startDate, endDate]
   );
 
   useEffect(() => {
@@ -98,65 +119,71 @@ export const AnalyticsScreen = ({ navigation }: any) => {
     fetchAnalytics(timeFilter, groupBy, true);
   };
 
-  const handleKpiSelect = (kpiKey: string, label: string) => {
-    if (kpiKey === 'scheduledVisits' || kpiKey === 'completedVisits') {
-      navigation?.navigate('Tasks', { filter: kpiKey, title: label });
-    } else {
-      navigation?.navigate('Leads', { filter: kpiKey, title: label });
+  // Human-readable active filter label
+  const activeFilterLabel = useMemo(() => {
+    if (startDate && endDate) return `${startDate} ~ ${endDate}`;
+    if (startDate) return `From ${startDate}`;
+    if (timeFilter === '7d') return '7 Days';
+    if (timeFilter === '30d') return '30 Days';
+    if (timeFilter === 'today') return 'Today';
+    return 'All Time';
+  }, [timeFilter, startDate, endDate]);
+
+  const selectFilterOption = (optKey: TimeFilterType) => {
+    if (optKey === 'custom') {
+      setFilterModalVisible(false);
+      setDatePickerTarget('startDate');
+      return;
     }
+    setTimeFilter(optKey);
+    setStartDate('');
+    setEndDate('');
+    setFilterModalVisible(false);
   };
 
-  const handleExportReport = () => {
-    Alert.alert(
-      'Export Executive BI Report',
-      'Full workspace conversion metrics, channel attribution, and talk-time duration reports exported to CSV / Excel dataset.',
-      [{ text: 'OK' }]
-    );
+  const handleResetFilter = () => {
+    setTimeFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setFilterModalVisible(false);
   };
-
-  const timeFilterOptions: { key: TimeFilterType; label: string }[] = [
-    { key: '7d', label: '7 Days' },
-    { key: '30d', label: '30 Days' },
-    { key: 'today', label: 'Today' },
-    { key: 'all', label: 'All Time' },
-  ];
-
-  const tabs: { key: AnalyticsTabType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { key: 'contacts', label: 'Contacts', icon: 'people-outline' },
-    { key: 'tasks', label: 'Tasks & Visits', icon: 'calendar-outline' },
-    { key: 'calling', label: 'Calling BI', icon: 'call-outline' },
-  ];
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#151728" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
-      {/* ─── Hero Header ─── */}
+      {/* ─── Hero Executive Header (Clean Without Top Export CSV) ─── */}
       <View style={styles.heroHeader}>
         <View style={styles.headerTopRow}>
-          <CompanyLogo variant="white" height={28} />
+          <CompanyLogo variant="white" height={26} />
 
-          <View style={styles.topRightRow}>
-            <TouchableOpacity
-              style={styles.exportBtn}
-              onPress={handleExportReport}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="download-outline" size={14} color="#FFFFFF" />
-              <Text style={styles.exportBtnText}>Export CSV</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Filter Action Trigger Button */}
+          <TouchableOpacity
+            style={[styles.headerFilterBtn, (timeFilter !== 'all' || startDate !== '') && styles.headerFilterBtnActive]}
+            onPress={() => setFilterModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="funnel-outline"
+              size={12}
+              color={(timeFilter !== 'all' || startDate !== '') ? '#38BDF8' : '#FFFFFF'}
+            />
+            <Text style={[styles.headerFilterBtnText, (timeFilter !== 'all' || startDate !== '') && styles.headerFilterBtnTextActive]}>
+              {activeFilterLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={12} color="#94A3B8" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.titleRow}>
           <View style={styles.titleWithBadge}>
             <Text style={styles.headerTitle}>Analytics Overview</Text>
             <View style={styles.adminBadge}>
-              <Text style={styles.adminBadgeText}>ADMIN</Text>
+              <Text style={styles.adminBadgeText}>{(user?.role || 'ADMIN').toUpperCase()}</Text>
             </View>
           </View>
           <Text style={styles.headerSub}>
-            Performance metrics and activities for your organization.
+            Real-time business intelligence & conversion funnel metrics
           </Text>
         </View>
       </View>
@@ -172,135 +199,137 @@ export const AnalyticsScreen = ({ navigation }: any) => {
           />
         }
       >
-        {/* ─── Top Controls & Filter Segment Bar ─── */}
-        <View style={styles.controlsBar}>
-          {/* Time range pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timePillsScroll}>
-            {timeFilterOptions.map((opt) => {
-              const isActive = timeFilter === opt.key;
-              return (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.filterPill, isActive && styles.filterPillActive]}
-                  onPress={() => setTimeFilter(opt.key)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-
-            {timeFilter !== 'all' && (
-              <TouchableOpacity
-                style={styles.resetBtn}
-                onPress={() => setTimeFilter('all')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="refresh-outline" size={12} color="#64748B" />
-                <Text style={styles.resetBtnText}>Reset</Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* ─── Key Metrics Horizontal Overview ─── */}
-        {data && (
-          <DashboardKpiGrid
-            metrics={data.cards}
-            industryId={user?.industryId || data.industryId}
-            onSelectKpi={handleKpiSelect}
-          />
-        )}
-
-        {/* ─── 3 Web-Aligned Main Navigation Tabs ─── */}
-        <View style={styles.tabNavContainer}>
-          {tabs.map((t) => {
-            const isActive = activeTab === t.key;
-            return (
-              <TouchableOpacity
-                key={t.key}
-                style={[styles.tabBtn, isActive && styles.tabBtnActive]}
-                onPress={() => setActiveTab(t.key)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={t.icon}
-                  size={14}
-                  color={isActive ? '#FFFFFF' : '#64748B'}
-                />
-                <Text
-                  style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}
-                  numberOfLines={1}
-                >
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* ─── Tab Content Views ─── */}
         {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={theme.colors.brand700} />
-            <Text style={styles.loadingText}>Compiling analytics…</Text>
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color="#272944" />
+            <Text style={styles.loadingText}>Loading Analytics Engine...</Text>
           </View>
         ) : (
-          data && (
-            <View style={styles.tabContentArea}>
-              {/* Tab 1: Contacts Overview */}
-              {activeTab === 'contacts' && (
-                <>
-                  <DashboardFeedbackSummary
-                    feedbackList={data.feedbackSummary}
-                    groupBy={groupBy}
-                    onGroupByChange={(mode) => setGroupBy(mode)}
-                    onItemPress={(row) => {
-                      navigation?.navigate('Leads', {
-                        associate: row.associate,
-                        title: `${row.associate} Leads`,
-                      });
-                    }}
-                  />
-
-                  <DashboardFunnelChart
-                    stages={data.funnelStages}
-                    conversionRate={data.conversionRate}
-                    revenue={data.revenue}
-                  />
-                </>
-              )}
-
-              {/* Tab 2: Tasks & Meetings */}
-              {activeTab === 'tasks' && (
-                <DashboardTasksAnalytics
-                  tasks={data.completedTasks || []}
-                  industryId={user?.industryId || data.industryId}
-                  onAssociatePress={(associate) => {
-                    navigation?.navigate('Tasks', {
-                      associate,
-                      title: `${associate} Tasks`,
-                    });
-                  }}
-                />
-              )}
-
-              {/* Tab 3: Calling Analytics */}
-              {activeTab === 'calling' && (
-                <DashboardCallingTrends
-                  durations={data.callDurations}
-                  trends={data.callingTrends}
-                />
-              )}
-            </View>
-          )
+          <DynamicAnalyticsRenderer
+            dashboardConfig={dashboardConfig}
+            data={data}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            industryId={user?.industryId || 'temp0001'}
+            onNavigateToLeads={(filterParams) => {
+              if (navigation?.navigate) {
+                navigation.navigate('Leads', { filter: filterParams });
+              }
+            }}
+            onNavigateToTasks={(filterParams) => {
+              if (navigation?.navigate) {
+                navigation.navigate('Tasks', { filter: filterParams });
+              }
+            }}
+          />
         )}
-
-        {/* Standard App Version Footer */}
-        <AppVersionFooter />
       </ScrollView>
+
+      {/* ─── Executive Time Filter Modal / Sheet ─── */}
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setFilterModalVisible(false)}
+        >
+          <View style={styles.filterSheetContainer}>
+            <View style={styles.filterSheetHeader}>
+              <View style={styles.filterSheetTitleRow}>
+                <Ionicons name="calendar-outline" size={18} color="#272944" />
+                <Text style={styles.filterSheetTitle}>Filter Time Range</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setFilterModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterOptionsList}>
+              {[
+                { key: 'all' as TimeFilterType, label: 'All Time', desc: 'Complete historical analytics', icon: 'flash-outline' },
+                { key: 'today' as TimeFilterType, label: 'Today', desc: 'Current calendar day activities', icon: 'today-outline' },
+                { key: '7d' as TimeFilterType, label: 'Last 7 Days', desc: 'Trailing 7 days performance', icon: 'time-outline' },
+                { key: '30d' as TimeFilterType, label: 'Last 30 Days', desc: 'Trailing 30 days performance', icon: 'calendar-number-outline' },
+                { key: 'custom' as TimeFilterType, label: 'Custom Date Range', desc: 'Pick start and end dates', icon: 'calendar-outline' },
+              ].map((item) => {
+                const isSelected = item.key === 'custom'
+                  ? (timeFilter === 'custom' || startDate !== '')
+                  : (timeFilter === item.key && !startDate);
+
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[styles.filterOptionRow, isSelected && styles.filterOptionRowActive]}
+                    onPress={() => selectFilterOption(item.key)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.filterOptionIconCircle, isSelected && styles.filterOptionIconCircleActive]}>
+                      <Ionicons
+                        name={item.icon as any}
+                        size={16}
+                        color={isSelected ? '#FFFFFF' : '#272944'}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.filterOptionLabel, isSelected && styles.filterOptionLabelActive]}>
+                        {item.label}
+                      </Text>
+                      <Text style={styles.filterOptionDesc}>{item.desc}</Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color="#272944" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Reset Filter Button */}
+            <TouchableOpacity
+              style={styles.resetFilterBtn}
+              onPress={handleResetFilter}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="refresh-outline" size={14} color="#EF4444" />
+              <Text style={styles.resetFilterBtnText}>Reset to All Time</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Date Pickers for Custom Range */}
+      {datePickerTarget === 'startDate' && (
+        <CalendarDatePickerModal
+          visible={true}
+          currentValue={startDate || new Date().toISOString().split('T')[0]}
+          onClose={() => setDatePickerTarget(null)}
+          onSelectDate={(d: string) => {
+            setStartDate(d);
+            setDatePickerTarget('endDate');
+            setTimeFilter('custom');
+          }}
+        />
+      )}
+
+      {datePickerTarget === 'endDate' && (
+        <CalendarDatePickerModal
+          visible={true}
+          currentValue={endDate || startDate || new Date().toISOString().split('T')[0]}
+          onClose={() => setDatePickerTarget(null)}
+          onSelectDate={(d: string) => {
+            setEndDate(d);
+            setDatePickerTarget(null);
+            setTimeFilter('custom');
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -311,47 +340,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   heroHeader: {
-    width: '100%',
-    backgroundColor: '#151728',
-    paddingTop: Platform.OS === 'ios' ? 56 : 42,
+    backgroundColor: '#0F172A',
+    paddingTop: Platform.OS === 'ios' ? 56 : 38,
     paddingBottom: 18,
     paddingHorizontal: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 16,
-    elevation: 8,
   },
   headerTopRow: {
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  topRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  exportBtn: {
+  headerFilterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 8,
+    gap: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    gap: 6,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  exportBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  headerFilterBtnActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderColor: '#38BDF8',
+  },
+  headerFilterBtnText: {
+    fontSize: 11.5,
     fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    color: '#FFFFFF',
+  },
+  headerFilterBtnTextActive: {
+    color: '#38BDF8',
+    fontWeight: '800',
   },
   titleRow: {
     marginTop: 2,
@@ -362,135 +386,141 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 21,
+    fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    letterSpacing: -0.3,
   },
   adminBadge: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: '#1E293B',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: '#334155',
   },
   adminBadgeText: {
-    color: '#38BDF8',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
+    color: '#38BDF8',
     letterSpacing: 0.5,
   },
   headerSub: {
     fontSize: 11.5,
     color: '#94A3B8',
     marginTop: 3,
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   scrollContent: {
-    paddingVertical: 12,
-    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
+    paddingTop: 14,
+    paddingBottom: 120,
   },
-  controlsBar: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  timePillsScroll: {
-    flexDirection: 'row',
+  centerBox: {
+    paddingVertical: 60,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 10,
   },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+  loadingText: {
+    fontSize: 12.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  filterSheetContainer: {
+    width: '100%',
+    maxWidth: 380,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  filterPillActive: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  filterPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  resetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    padding: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  resetBtnText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  tabNavContainer: {
+  filterSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 14,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-    gap: 4,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 10,
   },
-  tabBtn: {
-    flex: 1,
+  filterSheetTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterSheetTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  filterOptionsList: {
+    gap: 6,
+  },
+  filterOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    gap: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  filterOptionRowActive: {
+    backgroundColor: '#EEF2F6',
+    borderColor: '#272944',
+  },
+  filterOptionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EEF2F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterOptionIconCircleActive: {
+    backgroundColor: '#272944',
+  },
+  filterOptionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  filterOptionLabelActive: {
+    color: '#272944',
+    fontWeight: '800',
+  },
+  filterOptionDesc: {
+    fontSize: 10.5,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  resetFilterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8.5,
-    paddingHorizontal: 4,
-    borderRadius: 10,
     gap: 5,
-    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    marginTop: 12,
+    borderRadius: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
   },
-  tabBtnActive: {
-    backgroundColor: '#151728',
-  },
-  tabBtnText: {
+  resetFilterBtnText: {
     fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748B',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  tabBtnTextActive: {
-    color: '#FFFFFF',
     fontWeight: '700',
-  },
-  tabContentArea: {
-    paddingHorizontal: 16,
-  },
-  loadingBox: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    color: '#EF4444',
   },
 });

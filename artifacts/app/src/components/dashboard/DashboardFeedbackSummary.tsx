@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FeedbackRow } from '../../services/analyticsService';
 import { InfoGuideBadge } from '../ui/InfoGuideBadge';
 import { theme } from '../../theme/theme';
+import { getIndustrySemantics } from '../../utils/industryLabels';
 
 export type GroupByMode = 'team' | 'source' | 'teamWise';
 
@@ -12,6 +13,7 @@ interface Props {
   groupBy: GroupByMode;
   onGroupByChange: (mode: GroupByMode) => void;
   onItemPress?: (item: FeedbackRow) => void;
+  industryId?: string;
 }
 
 const GROUP_OPTIONS: { key: GroupByMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -25,7 +27,9 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
   groupBy,
   onGroupByChange,
   onItemPress,
+  industryId,
 }) => {
+  const semantics = getIndustrySemantics(industryId);
   const getGroupTitle = () => {
     switch (groupBy) {
       case 'source':
@@ -135,7 +139,7 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
                   </View>
 
                   <View style={styles.totalBadge}>
-                    <Text style={styles.totalBadgeText}>{row.total} Leads</Text>
+                    <Text style={styles.totalBadgeText}>{row.total} {semantics.leadEntityPlural}</Text>
                   </View>
                 </View>
 
@@ -173,7 +177,7 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
 
                   <View style={[styles.miniPill, { backgroundColor: '#F0FDFA' }]}>
                     <Text style={[styles.miniPillLabel, { color: '#0F766E' }]}>
-                      Visits <Text style={styles.miniPillVal}>{row.completedVisits + row.scheduledVisits}</Text>
+                      {semantics.visitsDesc} <Text style={styles.miniPillVal}>{row.completedVisits + row.scheduledVisits}</Text>
                     </Text>
                   </View>
                 </View>
