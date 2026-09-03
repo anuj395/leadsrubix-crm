@@ -156,9 +156,12 @@ export default function DealsListPage() {
       const activeInd = isSuperAdmin ? selectedIndustry || undefined : undefined
 
       const [pipes, contactsRes, usersRes] = await Promise.all([
-        listPipelines({ organizationId: activeOrg, industryId: activeInd }),
-        listContacts({ organizationId: activeOrg, industryId: activeInd }),
-        listUsers(activeOrg, true)
+        listPipelines({ organizationId: activeOrg, industryId: activeInd }).catch((err) => {
+          console.warn('[DealsList] Error loading pipelines:', err);
+          return [] as Pipeline[];
+        }),
+        listContacts({ organizationId: activeOrg, industryId: activeInd }).catch(() => [] as Contact[]),
+        listUsers(activeOrg, true).catch(() => [] as AdminUser[])
       ])
       setPipelines(pipes)
       setContacts(contactsRes)

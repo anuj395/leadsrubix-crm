@@ -20,11 +20,12 @@ exports.listPipelines = async (req, res, next) => {
 
     if (!pipelines || pipelines.length === 0) {
       const defaultStages = pipelineModel.getDefaultStagesForIndustry(indId);
+      const safeOrgId = (orgId && orgId !== 'all') ? String(orgId) : (req.user?.organization_id || req.user?.organizationId || 'default');
       const defaultPipeline = await pipelineModel.Pipeline.create({
         name: 'Standard Pipeline',
-        organization_id: (orgId && orgId !== 'all') ? orgId : null,
+        organization_id: safeOrgId,
         workspace_id: wsId,
-        industry_id: indId,
+        industry_id: indId ? String(indId) : 'temp0001',
         is_default: true,
         stages: defaultStages,
         created_by: req.user._id || req.user.id
