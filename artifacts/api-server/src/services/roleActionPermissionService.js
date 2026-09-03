@@ -95,6 +95,34 @@ exports.upsert = async ({ roleId, industryId, screenId, organizationId, organiza
   });
 };
 
+const CORE_OPERATIONAL_SCREENS = new Set([
+  'contacts',
+  'inquiries',
+  'tasks',
+  'callback',
+  'callLogs',
+  'deals',
+  'accounts',
+  'news',
+  'faq',
+  'calculator',
+  'areaConverter',
+  'emiCalculator',
+]);
+
+function getDefaultRoleActionPermission(role, screen_key, action) {
+  const normKey = String(screen_key || '').trim();
+  if (CORE_OPERATIONAL_SCREENS.has(normKey)) {
+    if (action === 'view' || action === 'add' || action === 'edit') {
+      return true;
+    }
+    if (action === 'delete') {
+      return ['leadManager', 'teamLead'].includes(role);
+    }
+  }
+  return false;
+}
+
 /**
  * Resolve whether the authenticated caller is allowed to perform `action` on
  * `screen_key`. SuperAdmin and admin always pass — they're the privileged
@@ -136,7 +164,8 @@ exports.userCan = async ({ authedUser, screen_key, action }) => {
   });
   if (globalRow) return !!globalRow[`can_${action}`];
 
-  return false;
+  // 3. Fallback to default operational role permissions
+  return getDefaultRoleActionPermission(authedUser.role, screen_key, action);
 };
 
 exports.getEffectiveForScreen = async ({ authedUser, screen_key }) => {
