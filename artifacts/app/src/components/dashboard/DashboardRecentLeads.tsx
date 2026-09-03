@@ -10,6 +10,7 @@ interface Props {
   industryId?: string;
   onViewAll: () => void;
   onLeadPress: (lead: LeadItem) => void;
+  onCallLead?: (lead: LeadItem) => void;
 }
 
 export const DashboardRecentLeads: React.FC<Props> = ({
@@ -17,11 +18,17 @@ export const DashboardRecentLeads: React.FC<Props> = ({
   industryId,
   onViewAll,
   onLeadPress,
+  onCallLead,
 }) => {
   const semantics = getIndustrySemantics(industryId);
   const recentList = leads.slice(0, 3);
 
-  const handleCall = (phone?: string) => {
+  const handleCall = (lead: LeadItem) => {
+    if (onCallLead) {
+      onCallLead(lead);
+      return;
+    }
+    const phone = lead.phone || lead.contactNo;
     if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
   };
 
@@ -105,7 +112,7 @@ export const DashboardRecentLeads: React.FC<Props> = ({
 
                 <TouchableOpacity
                   style={styles.callBtn}
-                  onPress={() => handleCall(lead.phone)}
+                  onPress={() => handleCall(lead)}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="call" size={13} color="#FFFFFF" />

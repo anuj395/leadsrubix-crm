@@ -9,6 +9,8 @@ import {
   Platform,
   RefreshControl,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -24,6 +26,7 @@ import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { DashboardActionCockpit } from '../../components/dashboard/DashboardActionCockpit';
 import { DashboardTodayAgenda } from '../../components/dashboard/DashboardTodayAgenda';
 import { DashboardRecentLeads } from '../../components/dashboard/DashboardRecentLeads';
+import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 import { theme } from '../../theme/theme';
 
 export const DashboardScreen = ({ navigation }: any) => {
@@ -33,6 +36,10 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Post-Call Telephony Disposition State
+  const [postCallModalVisible, setPostCallModalVisible] = useState(false);
+  const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -74,6 +81,42 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   const handleCockpitAction = (screen: 'Leads' | 'Tasks', params?: any) => {
     navigation.navigate(screen, params);
+  };
+
+  const handleCallLead = (targetLead: LeadItem) => {
+    const phone = targetLead.phone || targetLead.contactNo;
+    if (phone) {
+      Linking.openURL(`tel:${phone}`).catch(() => {});
+      setActiveCaller({
+        contactId: targetLead.id,
+        leadId: targetLead.id,
+        customerName: targetLead.name || targetLead.firstName || 'Lead',
+        phone: phone,
+        project: targetLead.project || '',
+        stage: targetLead.stage || targetLead.status || '',
+      });
+      setTimeout(() => {
+        setPostCallModalVisible(true);
+      }, 1000);
+    }
+  };
+
+  const handleCallTask = (task: TaskItem) => {
+    const phone = task.phone || (task as any).contactNumber;
+    if (phone) {
+      Linking.openURL(`tel:${phone}`).catch(() => {});
+      setActiveCaller({
+        contactId: task.contactId || task.leadId,
+        leadId: task.leadId || task.contactId,
+        customerName: task.leadName || (task as any).customerName || 'Task Client',
+        phone: phone,
+        project: task.project || '',
+        stage: 'Answered',
+      });
+      setTimeout(() => {
+        setPostCallModalVisible(true);
+      }, 1000);
+    }
   };
 
   const userDisplayName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Executive';
@@ -174,6 +217,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                     navigation.navigate('Tasks');
                   }
                 }}
+                onCallTask={handleCallTask}
               />
 
               {/* Zone 5: Fresh Incoming Leads Queue */}
@@ -188,6 +232,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                     lead: l,
                   })
                 }
+                onCallLead={handleCallLead}
               />
             </>
           )
@@ -196,6 +241,19 @@ export const DashboardScreen = ({ navigation }: any) => {
         {/* Zone 7: Standard App Version Footer */}
         <AppVersionFooter />
       </ScrollView>
+
+      {/* Post-Call Disposition & Logging Modal */}
+      <PostCallDispositionModal
+        visible={postCallModalVisible}
+        onClose={() => {
+          setPostCallModalVisible(false);
+          setActiveCaller(null);
+        }}
+        caller={activeCaller}
+        onSuccess={() => {
+          fetchDashboardData();
+        }}
+      />
     </View>
   );
 };

@@ -9,13 +9,18 @@ export interface TaskItem {
   isCompleted: boolean;
   completed?: boolean;
   leadId?: string;
+  contactId?: string;
   leadName?: string;
+  customerName?: string;
   phone?: string;
+  contactNumber?: string;
   email?: string;
   project?: string;
   projectName?: string;
   type?: string;
   source?: string;
+  notes?: string;
+  status?: string;
 }
 
 export const taskService = {

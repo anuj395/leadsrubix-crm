@@ -64,8 +64,25 @@ export const callLogService = {
         const notes = item.details || item.notes || '';
         const agent = item.createdBy || item.created_by || item.agent || 'Sales Agent';
 
-        const isAnswered = status.toLowerCase() === 'answered' || status.toLowerCase().includes('won') || status.toLowerCase().includes('site');
-        const isMissed = status.toLowerCase() === 'missed' || status.toLowerCase().includes('no answer') || status.toLowerCase().includes('lost');
+        let badgeColor = '#047857';
+        let bgColor = '#ECFDF5';
+        const s = status.toLowerCase();
+        if (s.includes('missed')) {
+          badgeColor = '#DC2626';
+          bgColor = '#FEF2F2';
+        } else if (s.includes('busy')) {
+          badgeColor = '#EA580C';
+          bgColor = '#FFF7ED';
+        } else if (s.includes('call back') || s.includes('callback') || s.includes('follow')) {
+          badgeColor = '#D97706';
+          bgColor = '#FFFBEB';
+        } else if (s.includes('no answer')) {
+          badgeColor = '#64748B';
+          bgColor = '#F8FAFC';
+        } else if (s.includes('wrong')) {
+          badgeColor = '#E11D48';
+          bgColor = '#FFF1F2';
+        }
 
         return {
           id: item._id || item.id || Date.now().toString(),
@@ -82,13 +99,59 @@ export const callLogService = {
           stage: item.stage,
           agent,
           notes,
-          badgeColor: isAnswered ? '#047857' : isMissed ? '#BE123C' : '#1D4ED8',
-          bgColor: isAnswered ? '#ECFDF5' : isMissed ? '#FFF1F2' : '#EFF6FF',
+          badgeColor,
+          bgColor,
         };
       });
     } catch (err) {
       console.warn('[callLogService] Error loading call logs:', err);
       return [];
+    }
+  },
+
+  async logCall(payload: {
+    contactId?: string;
+    leadId?: string;
+    customerName: string;
+    contactNumber: string;
+    duration?: number;
+    details?: string;
+    stage?: string;
+    projectName?: string;
+    createdBy?: string;
+    organizationId?: string;
+    industryId?: string;
+    type?: string;
+  }): Promise<any> {
+    try {
+      const res = await callLogRepository.createCallLog({
+        contact_id: payload.contactId || null,
+        contactId: payload.contactId || null,
+        lead_id: payload.leadId || payload.contactId || '',
+        leadId: payload.leadId || payload.contactId || '',
+        customer_name: payload.customerName || 'Contact',
+        customerName: payload.customerName || 'Contact',
+        contact_number: payload.contactNumber,
+        contactNumber: payload.contactNumber,
+        phone: payload.contactNumber,
+        duration: payload.duration || 0,
+        details: payload.details || '',
+        notes: payload.details || '',
+        stage: payload.stage || 'Answered',
+        project_name: payload.projectName || '',
+        projectName: payload.projectName || '',
+        created_by: payload.createdBy || '',
+        createdBy: payload.createdBy || '',
+        organization_id: payload.organizationId || null,
+        organizationId: payload.organizationId || null,
+        industry_id: payload.industryId || null,
+        industryId: payload.industryId || null,
+        type: payload.type || 'Outbound',
+      });
+      return res;
+    } catch (err) {
+      console.warn('[callLogService] Error saving call log:', err);
+      throw err;
     }
   },
 };

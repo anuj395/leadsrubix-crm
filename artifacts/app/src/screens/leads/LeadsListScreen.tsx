@@ -21,6 +21,7 @@ import { leadService, LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { getIndustrySemantics } from '../../utils/industryLabels';
+import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 import { theme } from '../../theme/theme';
 
 export const LeadsListScreen = ({ navigation, route }: any) => {
@@ -32,6 +33,10 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [filterScrollProgress, setFilterScrollProgress] = useState(0);
+
+  // Post-Call Disposition State
+  const [postCallModalVisible, setPostCallModalVisible] = useState(false);
+  const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
 
   // Sync filter when navigating from Analytics or other screens
   useEffect(() => {
@@ -182,14 +187,29 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
     return result;
   }, [leads, selectedStatus, searchQuery]);
 
-  const handleCall = (phone?: string) => {
+  const handleCall = (targetLead: LeadItem) => {
+    const phone = targetLead.phone || targetLead.contactNo;
     if (!phone) {
       Alert.alert('No Phone Number', 'No contact number available for this buyer.');
       return;
     }
     Linking.openURL(`tel:${phone}`).catch(() => {
-      Alert.alert('Error', 'Unable to launch phone dialer.');
+      // Note: Simulator has no cellular dialer hardware
+      console.log(`[Telephony] Native dialer not available on simulator for ${phone}`);
     });
+
+    setActiveCaller({
+      contactId: targetLead.id,
+      leadId: targetLead.id,
+      customerName: targetLead.name || targetLead.firstName || 'Buyer Contact',
+      phone: phone,
+      project: targetLead.project || '',
+      stage: targetLead.stage || targetLead.status || '',
+    });
+
+    setTimeout(() => {
+      setPostCallModalVisible(true);
+    }, 1000);
   };
 
   const handleWhatsApp = (phone?: string, name?: string) => {
@@ -516,7 +536,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                     {lead.phone ? (
                       <TouchableOpacity
                         style={styles.circleActionBtnCall}
-                        onPress={() => handleCall(lead.phone)}
+                        onPress={() => handleCall(lead)}
                         activeOpacity={0.75}
                       >
                         <Ionicons name="call" size={14} color="#FFFFFF" />
@@ -555,6 +575,19 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
           })
         )}
       </ScrollView>
+
+      {/* Post-Call Disposition & Logging Modal */}
+      <PostCallDispositionModal
+        visible={postCallModalVisible}
+        onClose={() => {
+          setPostCallModalVisible(false);
+          setActiveCaller(null);
+        }}
+        caller={activeCaller}
+        onSuccess={() => {
+          fetchLeadsData();
+        }}
+      />
     </View>
   );
 };

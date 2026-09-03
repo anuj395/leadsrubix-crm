@@ -54,18 +54,27 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   title = 'Select Date',
   includeTime = false,
 }) => {
-  const initialDate = useMemo(() => {
+  const { parsedInitialDate, parsedInitialTime } = useMemo(() => {
     if (currentValue) {
-      const parsed = new Date(currentValue);
-      if (!isNaN(parsed.getTime())) return parsed;
+      let cleanDateStr = currentValue;
+      let timePart = '10:00 AM';
+      if (currentValue.includes(',')) {
+        const parts = currentValue.split(',');
+        cleanDateStr = parts[0].trim();
+        timePart = parts.slice(1).join(',').trim() || '10:00 AM';
+      }
+      const parsed = new Date(cleanDateStr);
+      if (!isNaN(parsed.getTime())) {
+        return { parsedInitialDate: parsed, parsedInitialTime: timePart };
+      }
     }
-    return new Date();
+    return { parsedInitialDate: new Date(), parsedInitialTime: '10:00 AM' };
   }, [currentValue, visible]);
 
-  const [currentYear, setCurrentYear] = useState<number>(initialDate.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState<number>(initialDate.getMonth());
-  const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
-  const [selectedTime, setSelectedTime] = useState<string>('10:00 AM');
+  const [currentYear, setCurrentYear] = useState<number>(parsedInitialDate.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState<number>(parsedInitialDate.getMonth());
+  const [selectedDate, setSelectedDate] = useState<Date>(parsedInitialDate);
+  const [selectedTime, setSelectedTime] = useState<string>(parsedInitialTime);
 
   // Days in month calculation
   const calendarDays = useMemo(() => {

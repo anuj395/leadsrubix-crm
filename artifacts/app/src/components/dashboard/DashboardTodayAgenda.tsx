@@ -10,6 +10,7 @@ interface Props {
   industryId?: string;
   onViewAll: () => void;
   onTaskPress: (task: TaskItem) => void;
+  onCallTask?: (task: TaskItem) => void;
 }
 
 export const DashboardTodayAgenda: React.FC<Props> = ({
@@ -17,11 +18,17 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
   industryId,
   onViewAll,
   onTaskPress,
+  onCallTask,
 }) => {
   const semantics = getIndustrySemantics(industryId);
   const pendingTasks = tasks.filter((t) => !t.isCompleted).slice(0, 3);
 
-  const handleCall = (phone?: string) => {
+  const handleCall = (task: TaskItem) => {
+    if (onCallTask) {
+      onCallTask(task);
+      return;
+    }
+    const phone = task.phone || (task as any).contactNumber;
     if (phone) {
       Linking.openURL(`tel:${phone}`).catch(() => {});
     }
@@ -123,7 +130,7 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
 
                   <TouchableOpacity
                     style={styles.callBtn}
-                    onPress={() => handleCall(t.phone)}
+                    onPress={() => handleCall(t)}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="call" size={13} color="#FFFFFF" />

@@ -238,8 +238,8 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
     industryName: 'Real Estate',
     leadEntitySingular: 'Lead',
     leadEntityPlural: 'Leads',
-    taskEntitySingular: 'Site Visit',
-    taskEntityPlural: 'Site Visits',
+    taskEntitySingular: 'Task',
+    taskEntityPlural: 'Tasks',
     agentEntity: 'Associate',
     agentEntityPlural: 'Associates',
     projectEntity: 'Project',
@@ -250,62 +250,23 @@ export function getIndustrySemantics(industryInput?: string): IndustrySemantics 
     wonLabel: 'Closed Won',
     siteVisit: 'Site Visit',
     meeting: 'Meeting',
-    visitsDesc: 'Site Visits',
+    visitsDesc: 'Follow-ups',
     completedVisitsTooltip: 'Completed Visits:\nThe count of successfully finished customer property visits.',
     scheduledVisitsTooltip: 'Scheduled Visits:\nCustomer property visits scheduled for the future.',
-    tasksAndMeetingsTab: 'Site Visits & Meetings',
+    tasksAndMeetingsTab: 'Tasks & Follow-ups',
     recentLeadsHeader: 'FRESH LEADS INQUIRIES',
     recentLeadsSub: 'Recent buyers assigned to sales queue',
   };
 }
 
-export function getIndustryCallOutcomePresets(industryInput?: string): CallOutcomePreset[] {
-  const normalized = String(industryInput || '')
-    .toLowerCase()
-    .trim()
-    .replace(/[\s\-_]+/g, '');
-
-  if (normalized === 'temp0003' || normalized.includes('health') || normalized.includes('medic')) {
-    return [
-      { label: 'Consultation Booked', badgeColor: '#047857', bgColor: '#ECFDF5' },
-      { label: 'Follow-up Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
-      { label: 'Prescription / Report Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
-      { label: 'Not Interested / Lost', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
-    ];
-  }
-
-  if (normalized === 'temp0004' || normalized.includes('edu')) {
-    return [
-      { label: 'Campus Tour Scheduled', badgeColor: '#047857', bgColor: '#ECFDF5' },
-      { label: 'Counseling Call Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
-      { label: 'Application Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
-      { label: 'Not Interested / Dropped', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
-    ];
-  }
-
-  if (normalized === 'temp0005' || normalized.includes('finan')) {
-    return [
-      { label: 'Portfolio Review Booked', badgeColor: '#047857', bgColor: '#ECFDF5' },
-      { label: 'Audit Follow-up Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
-      { label: 'Proposal Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
-      { label: 'Not Interested / Declined', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
-    ];
-  }
-
-  if (normalized === 'temp0006' || normalized.includes('tech') || normalized.includes('it')) {
-    return [
-      { label: 'Demo Confirmed', badgeColor: '#047857', bgColor: '#ECFDF5' },
-      { label: 'Technical Call Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
-      { label: 'SOW / Quote Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
-      { label: 'Not Interested / Disqualified', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
-    ];
-  }
-
-  // Default Real Estate
+export function getIndustryCallOutcomePresets(_industryInput?: string): CallOutcomePreset[] {
+  // Standard Normal Universal Telephony Call Outcomes across all CRM workspaces
   return [
-    { label: 'Site Visit Confirmed', badgeColor: '#047857', bgColor: '#ECFDF5' },
-    { label: 'Callback Required', badgeColor: '#B45309', bgColor: '#FFFBEB' },
-    { label: 'Price Matrix Sent', badgeColor: '#1D4ED8', bgColor: '#EFF6FF' },
-    { label: 'Not Interested / Lost', badgeColor: '#BE123C', bgColor: '#FFF1F2' },
+    { label: 'Answered', badgeColor: '#047857', bgColor: '#ECFDF5' },
+    { label: 'Missed', badgeColor: '#DC2626', bgColor: '#FEF2F2' },
+    { label: 'Busy', badgeColor: '#EA580C', bgColor: '#FFF7ED' },
+    { label: 'Call Back', badgeColor: '#D97706', bgColor: '#FFFBEB' },
+    { label: 'No Answer', badgeColor: '#64748B', bgColor: '#F8FAFC' },
+    { label: 'Wrong Number', badgeColor: '#E11D48', bgColor: '#FFF1F2' },
   ];
 }

@@ -89,19 +89,38 @@ export default function SuperAdminCallLogsListPage() {
 
   const stats = useMemo(() => {
     const total = logs.length
-    const answered = logs.filter((l) => (l.stage || l.status || '').toLowerCase() === 'answered').length
-    const missed = logs.filter((l) => (l.stage || l.status || '').toLowerCase() === 'missed').length
+    const answered = logs.filter((l) => {
+      const s = (l.stage || l.status || '').toLowerCase()
+      const isM = s === 'missed' || s.includes('no answer') || s.includes('busy') || s.includes('lost') || s.includes('dropped')
+      return !isM || (Number(l.duration) > 0)
+    }).length
+    const missed = logs.filter((l) => {
+      const s = (l.stage || l.status || '').toLowerCase()
+      return (s === 'missed' || s.includes('no answer') || s.includes('busy') || s.includes('lost') || s.includes('dropped')) && (Number(l.duration) === 0)
+    }).length
     const inbound = logs.filter((l) => (l.type || l.direction || '').toLowerCase() === 'inbound').length
-    const outbound = logs.filter((l) => (l.type || l.direction || '').toLowerCase() === 'outbound').length
+    const outbound = logs.filter((l) => (l.type || l.direction || '').toLowerCase() !== 'inbound').length
     return { total, answered, missed, inbound, outbound }
   }, [logs])
 
   const filteredLogs = useMemo(() => {
     let list = logs
-    if (activeFilter === 'ANSWERED') list = list.filter(l => (l.stage || l.status || '').toLowerCase() === 'answered')
-    else if (activeFilter === 'MISSED') list = list.filter(l => (l.stage || l.status || '').toLowerCase() === 'missed')
-    else if (activeFilter === 'INBOUND') list = list.filter(l => (l.type || l.direction || '').toLowerCase() === 'inbound')
-    else if (activeFilter === 'OUTBOUND') list = list.filter(l => (l.type || l.direction || '').toLowerCase() === 'outbound')
+    if (activeFilter === 'ANSWERED') {
+      list = list.filter((l) => {
+        const s = (l.stage || l.status || '').toLowerCase()
+        const isM = s === 'missed' || s.includes('no answer') || s.includes('busy') || s.includes('lost') || s.includes('dropped')
+        return !isM || (Number(l.duration) > 0)
+      })
+    } else if (activeFilter === 'MISSED') {
+      list = list.filter((l) => {
+        const s = (l.stage || l.status || '').toLowerCase()
+        return (s === 'missed' || s.includes('no answer') || s.includes('busy') || s.includes('lost') || s.includes('dropped')) && (Number(l.duration) === 0)
+      })
+    } else if (activeFilter === 'INBOUND') {
+      list = list.filter(l => (l.type || l.direction || '').toLowerCase() === 'inbound')
+    } else if (activeFilter === 'OUTBOUND') {
+      list = list.filter(l => (l.type || l.direction || '').toLowerCase() !== 'inbound')
+    }
 
     if (statusFilter !== 'All') {
       list = list.filter(l => (l.stage || l.status || '').toLowerCase() === statusFilter.toLowerCase())
@@ -161,7 +180,7 @@ export default function SuperAdminCallLogsListPage() {
         headerName: customerLabel,
         flex: 1.2,
         minWidth: 160,
-        valueGetter: (_v, row) => row.customerName || row.customer_name || '',
+        valueGetter: (_v, row) => row.customerName || (row as any).customer_name || (row as any).buyerName || (row as any).name || 'Contact',
         renderCell: (params) => (
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {params.value}
@@ -173,14 +192,14 @@ export default function SuperAdminCallLogsListPage() {
         headerName: 'Phone Number',
         flex: 1,
         minWidth: 130,
-        valueGetter: (_v, row) => row.contactNumber || row.contact_no || ''
+        valueGetter: (_v, row) => row.contactNumber || (row as any).contact_number || (row as any).contact_no || (row as any).phone || (row as any).phoneNumber || '-'
       },
       {
         field: 'createdBy',
         headerName: agentLabel,
         flex: 1,
         minWidth: 140,
-        valueGetter: (_v, row) => row.createdBy || row.created_by || '',
+        valueGetter: (_v, row) => row.createdBy || (row as any).created_by || (row as any).agent || (row as any).agentName || 'Sales Agent',
         renderCell: (params) => (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
             <SupportAgentIcon sx={{ fontSize: '1.05rem', color: 'text.secondary' }} />
@@ -197,8 +216,8 @@ export default function SuperAdminCallLogsListPage() {
       {
         field: 'stage',
         headerName: 'Status',
-        width: 120,
-        valueGetter: (_v, row) => row.stage || row.status || '',
+        width: 140,
+        valueGetter: (_v, row) => row.stage || (row as any).status || (row as any).outcome || 'Answered',
         renderCell: (params) => <StatusBadge value={params.value} />,
       },
       {
@@ -219,7 +238,7 @@ export default function SuperAdminCallLogsListPage() {
         flex: 1.2,
         minWidth: 140,
         valueGetter: (_v, row) => {
-          const dateStr = row.created_at || row.createdAt
+          const dateStr = (row as any).created_at || (row as any).createdAt
           return dateStr ? new Date(dateStr).toLocaleString() : ''
         }
       },
@@ -228,7 +247,7 @@ export default function SuperAdminCallLogsListPage() {
         headerName: 'Call Summary/Notes',
         flex: 2,
         minWidth: 240,
-        valueGetter: (_v, row) => row.details || row.notes || '',
+        valueGetter: (_v, row) => row.details || (row as any).notes || (row as any).remark || (row as any).callSummary || (row as any).summary || '-',
         renderCell: (params) => (
           <Typography variant="body2" sx={{ color: 'text.secondary', textOverflow: 'ellipsis', overflow: 'hidden' }}>
             {params.value}

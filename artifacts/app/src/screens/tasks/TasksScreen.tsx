@@ -19,6 +19,7 @@ import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
+import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 
 export const TasksScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
@@ -28,6 +29,10 @@ export const TasksScreen = ({ navigation, route }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Post-Call Telephony Disposition State
+  const [postCallModalVisible, setPostCallModalVisible] = useState(false);
+  const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
 
   // Handle route params (e.g. if navigated from Analytics KPI cards)
   useEffect(() => {
@@ -68,14 +73,29 @@ export const TasksScreen = ({ navigation, route }: any) => {
     await taskService.toggleTaskCompletion(task.id, nextState);
   };
 
-  const handleCall = (phone?: string) => {
+  const handleCall = (task: TaskItem) => {
+    const phone = task.phone || (task as any).contactNumber;
     if (!phone) {
       Alert.alert('No Contact Number', 'No phone number available for this task client.');
       return;
     }
     Linking.openURL(`tel:${phone}`).catch(() => {
-      Alert.alert('Error', 'Unable to launch phone dialer.');
+      // Note: Simulator has no cellular dialer hardware
+      console.log(`[Telephony] Native dialer not available on simulator for ${phone}`);
     });
+
+    setActiveCaller({
+      contactId: task.contactId || (task as any).leadId,
+      leadId: (task as any).leadId || task.contactId,
+      customerName: task.leadName || (task as any).customerName || 'Task Client',
+      phone: phone,
+      project: task.project || '',
+      stage: 'Answered',
+    });
+
+    setTimeout(() => {
+      setPostCallModalVisible(true);
+    }, 1000);
   };
 
   const handleWhatsApp = (phone?: string, name?: string) => {
@@ -348,7 +368,7 @@ export const TasksScreen = ({ navigation, route }: any) => {
                     {item.phone ? (
                       <TouchableOpacity
                         style={styles.circleActionBtnCall}
-                        onPress={() => handleCall(item.phone)}
+                        onPress={() => handleCall(item)}
                         activeOpacity={0.75}
                       >
                         <Ionicons name="call" size={14} color="#FFFFFF" />
@@ -374,6 +394,19 @@ export const TasksScreen = ({ navigation, route }: any) => {
           })
         )}
       </ScrollView>
+
+      {/* Post-Call Disposition & Logging Modal */}
+      <PostCallDispositionModal
+        visible={postCallModalVisible}
+        onClose={() => {
+          setPostCallModalVisible(false);
+          setActiveCaller(null);
+        }}
+        caller={activeCaller}
+        onSuccess={() => {
+          fetchTasksData();
+        }}
+      />
     </View>
   );
 };

@@ -21,6 +21,7 @@ import { apiClient } from '../../api/apiClient';
 import { leadService, LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
+import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 
 type DetailTabType = 'timeline' | 'profile' | 'deals' | 'notes';
 type TimelineFilterType = 'all' | 'calls' | 'tasks';
@@ -35,6 +36,10 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTabType>('timeline');
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilterType>('all');
+
+  // Post-Call Telephony Disposition State
+  const [postCallModalVisible, setPostCallModalVisible] = useState(false);
+  const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
 
   // Related Data Lists
   const [tasks, setTasks] = useState<any[]>([]);
@@ -226,8 +231,22 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
       return;
     }
     Linking.openURL(`tel:${phone}`).catch(() => {
-      Alert.alert('Error', 'Unable to launch phone dialer.');
+      // Note: Simulator has no cellular dialer hardware
+      console.log(`[Telephony] Native dialer not available on simulator for ${phone}`);
     });
+
+    setActiveCaller({
+      contactId: leadId,
+      leadId: leadId,
+      customerName: leadName,
+      phone: phone,
+      project: lead.project || '',
+      stage: stage,
+    });
+
+    setTimeout(() => {
+      setPostCallModalVisible(true);
+    }, 1000);
   };
 
   const handleWhatsApp = () => {
@@ -1495,6 +1514,19 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         onClose={() => setShowCallBackDatePicker(false)}
         onSelectDate={(formatted) => {
           setCallBackDate(formatted);
+        }}
+      />
+
+      {/* Unified Telephony Post-Call Disposition Modal */}
+      <PostCallDispositionModal
+        visible={postCallModalVisible}
+        onClose={() => {
+          setPostCallModalVisible(false);
+          setActiveCaller(null);
+        }}
+        caller={activeCaller}
+        onSuccess={() => {
+          loadLeadDetails();
         }}
       />
     </View>

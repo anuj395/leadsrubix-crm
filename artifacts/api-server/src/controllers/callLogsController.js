@@ -202,39 +202,66 @@ const callLogController = {};
 
 callLogController.Create = async (req, res) => {
   try {
-    const userQuery = mongoose.isValidObjectId(req.body.uid) ? { _id: req.body.uid } : { uid: req.body.uid };
-    const user = await User.findOne(userQuery);
+    const uid = req.body.uid || req.user?.uid || req.user?._id || req.user?.id || '';
+    let user = null;
+    if (uid) {
+      const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
+      user = await User.findOne(userQuery);
+    }
     let createdBy = '';
     if (user) {
-      createdBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      createdBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email;
     }
+    if (!createdBy && req.user) {
+      createdBy = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.name || req.user.email;
+    }
+    if (!createdBy) {
+      createdBy = req.body.created_by || req.body.createdBy || req.body.agent || 'Sales Agent';
+    }
+
     const orgId = req.user?.role === 'superAdmin'
-      ? (req.body.organizationId || req.body.organization_id || '')
-      : req.user?.organizationId;
+      ? (req.body.organizationId || req.body.organization_id || req.user?.organizationId || '')
+      : (req.user?.organizationId || req.body.organizationId || req.body.organization_id || (user ? user.organizationId : ''));
+
+    const indId = req.body.industryId || req.body.industry_id || req.user?.industryId || '';
+
+    let durationSeconds = 0;
+    if (typeof req.body.duration === 'number') {
+      durationSeconds = req.body.duration;
+    } else if (typeof req.body.duration === 'string' && req.body.duration.includes(':')) {
+      durationSeconds = mapSeconds(req.body.duration);
+    } else if (req.body.duration) {
+      durationSeconds = Number(req.body.duration) || 0;
+    } else if (req.body.callTime || req.body.call_time) {
+      durationSeconds = mapSeconds(req.body.callTime || req.body.call_time);
+    }
 
     const data = new CallLog({
-      lead_id: req.body.leadId || '',
-      customer_name: req.body.customerName || req.body.customer_name || '',
-      contact_number: req.body.contactNumber || req.body.contact_no || '',
-      stage: req.body.stage || '',
-      contact_owner_email: req.body.contactOwnerEmail || req.body.contact_owner_email || '',
+      contact_id: req.body.contactId || req.body.contact_id || null,
+      lead_id: req.body.leadId || req.body.lead_id || '',
+      customer_name: req.body.customerName || req.body.customer_name || req.body.buyerName || req.body.name || 'Contact',
+      contact_number: req.body.contactNumber || req.body.contact_number || req.body.contact_no || req.body.phone || req.body.phoneNumber || '',
+      stage: req.body.stage || req.body.status || req.body.outcome || 'Answered',
+      contact_owner_email: req.body.contactOwnerEmail || req.body.contact_owner_email || req.user?.email || '',
       location: req.body.location || '',
-      project_name: req.body.projectName || req.body.project || '',
+      project_name: req.body.projectName || req.body.project_name || req.body.project || '',
       budget: req.body.budget || '',
       transfer_status: req.body.transferStatus || req.body.transfer_status || false,
       created_by: createdBy,
+      details: req.body.details || req.body.notes || req.body.remark || req.body.callSummary || '',
       source: req.body.source || req.body.lead_source || '',
       createdAt: req.body.createdAt ? new Date(req.body.createdAt) : new Date(),
-      type: req.body.type || '',
+      type: req.body.type || req.body.direction || 'Outbound',
       inventory_type: req.body.inventoryType || req.body.inventory_type || '',
-      duration: mapSeconds(req.body.callTime || req.body.duration),
-      uid: req.body.uid || '',
+      duration: durationSeconds,
+      uid: uid || '',
+      industry_id: indId,
       organization_id: orgId || '',
       latitude: req.body.latitude || null,
       longitude: req.body.longitude || null
     });
     await data.save();
-    res.send('Task Created');
+    res.status(201).json({ message: 'Call log created successfully', data });
   } catch (error) {
     console.error("Error in CallLog.Create:", error);
     res.status(500).send({ error: error.message });
@@ -331,17 +358,37 @@ callLogController.Search = async (req, res) => {
       filter['customerName'] = { $in: customer_name_list };
     }
 
-    const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
-    const resultUser = await User.find(userQuery);
-    if (resultUser.length === 0) {
-      return res.send({ error: 'User Not Found' });
+    let user = null;
+    if (uid) {
+      const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
+      user = await User.findOne(userQuery);
+    }
+    if (!user && req.user) {
+      user = req.user;
+    }
+    if (!user) {
+      return res.status(401).send({ error: 'User Not Found or Not Authenticated' });
     }
 
-    const user = resultUser[0];
     const role = user.role;
-    const organizationId = user.organizationId;
+    const organizationId = user.organizationId || user.organization_id;
 
     const dbFilter = translateFilterKeys(filter);
+
+    if (role === 'superAdmin') {
+      const callLogs = await CallLog.find(dbFilter)
+        .sort(sort)
+        .skip((page - 1) * pageSize)
+        .limit(pageSize);
+      return res.send(convertKeysToCamelCase(callLogs));
+    }
+
+    const orgTenantCondition = {
+      $or: [
+        { organization_id: organizationId },
+        { organizationId: organizationId },
+      ],
+    };
 
     if (role === 'leadManager' || role === 'admin') {
       const permission = user.branchPermission;
@@ -350,28 +397,28 @@ callLogController.Search = async (req, res) => {
         (permission && permission.length === 0) ||
         (permission && permission.includes('All'))
       ) {
-        const callLogs = await CallLog.find({ organization_id: organizationId, ...dbFilter })
+        const callLogs = await CallLog.find({ ...orgTenantCondition, ...dbFilter })
           .sort(sort)
           .skip((page - 1) * pageSize)
           .limit(pageSize);
         res.send(convertKeysToCamelCase(callLogs));
       } else {
-        let usersList = await getBranchUsers(uid, organizationId, permission);
-        const callLogs = await CallLog.find({ uid: { $in: usersList }, ...dbFilter })
+        let usersList = await getBranchUsers(user.uid || user._id || uid, organizationId, permission);
+        const callLogs = await CallLog.find({ ...orgTenantCondition, uid: { $in: usersList }, ...dbFilter })
           .sort(sort)
           .skip((page - 1) * pageSize)
           .limit(pageSize);
         res.send(convertKeysToCamelCase(callLogs));
       }
     } else if (role === 'teamLead') {
-      let usersList = await getTeamUsers(uid, organizationId);
-      const callLogs = await CallLog.find({ uid: { $in: usersList }, ...dbFilter })
+      let usersList = await getTeamUsers(user.uid || user._id || uid, organizationId);
+      const callLogs = await CallLog.find({ ...orgTenantCondition, uid: { $in: usersList }, ...dbFilter })
         .sort(sort)
         .skip((page - 1) * pageSize)
         .limit(pageSize);
       res.send(convertKeysToCamelCase(callLogs));
     } else {
-      const callLogs = await CallLog.find({ uid, ...dbFilter })
+      const callLogs = await CallLog.find({ ...orgTenantCondition, uid: user.uid || user._id || uid, ...dbFilter })
         .sort(sort)
         .skip((page - 1) * pageSize)
         .limit(pageSize);
@@ -661,15 +708,20 @@ callLogController.FilterValues = async (req, res) => {
     }
     const finalFilters = { ...stageFilter, ...missedFilter };
 
-    const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
-    const resultUser = await User.find(userQuery);
-    if (resultUser.length === 0) {
-      return res.send({ error: 'User Not Found' });
+    let user = null;
+    if (uid) {
+      const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
+      user = await User.findOne(userQuery);
+    }
+    if (!user && req.user) {
+      user = req.user;
+    }
+    if (!user) {
+      return res.send([]);
     }
 
-    const user = resultUser[0];
     const role = user.role;
-    const organizationId = user.organizationId;
+    const organizationId = user.organizationId || user.organization_id;
 
     const group = {
       $group: {
@@ -688,6 +740,13 @@ callLogController.FilterValues = async (req, res) => {
 
     let filters;
     const dbFinalFilters = translateFilterKeys(finalFilters);
+    const orgTenantCondition = {
+      $or: [
+        { organization_id: organizationId },
+        { organizationId: organizationId },
+      ],
+    };
+
     if (role === 'leadManager' || role === 'admin') {
       const permission = user.branchPermission;
       if (
@@ -696,25 +755,25 @@ callLogController.FilterValues = async (req, res) => {
         (permission && permission.includes('All'))
       ) {
         filters = await CallLog.aggregate([
-          { $match: { organization_id: organizationId, ...dbFinalFilters } },
+          { $match: { ...orgTenantCondition, ...dbFinalFilters } },
           group,
         ]);
       } else {
-        let usersList = await getBranchUsers(uid, organizationId, permission);
+        let usersList = await getBranchUsers(user.uid || user._id || uid, organizationId, permission);
         filters = await CallLog.aggregate([
-          { $match: { uid: { $in: usersList }, ...dbFinalFilters } },
+          { $match: { ...orgTenantCondition, uid: { $in: usersList }, ...dbFinalFilters } },
           group,
         ]);
       }
     } else if (role === 'teamLead') {
-      let usersList = await getTeamUsers(uid, organizationId);
+      let usersList = await getTeamUsers(user.uid || user._id || uid, organizationId);
       filters = await CallLog.aggregate([
-        { $match: { uid: { $in: usersList }, ...dbFinalFilters } },
+        { $match: { ...orgTenantCondition, uid: { $in: usersList }, ...dbFinalFilters } },
         group,
       ]);
     } else {
       filters = await CallLog.aggregate([
-        { $match: { uid, ...dbFinalFilters } },
+        { $match: { ...orgTenantCondition, uid: user.uid || user._id || uid, ...dbFinalFilters } },
         group,
       ]);
     }
@@ -818,16 +877,28 @@ callLogController.CallLogCount = async (req, res) => {
           }
         }
       });
-    const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
-    const resultUser = await User.find(userQuery);
-    if (resultUser.length === 0) {
-      return res.send({ error: 'User Not Found' });
+    let user = null;
+    if (uid) {
+      const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
+      user = await User.findOne(userQuery);
+    }
+    if (!user && req.user) {
+      user = req.user;
+    }
+    if (!user) {
+      return res.send({ total: 0 });
     }
 
-    const user = resultUser[0];
     const role = user.role;
-    const organizationId = user.organizationId;
+    const organizationId = user.organizationId || user.organization_id;
     const dbLeadFilter = translateFilterKeys(leadFilter);
+
+    const orgTenantCondition = {
+      $or: [
+        { organization_id: organizationId },
+        { organizationId: organizationId },
+      ],
+    };
 
     if (role === 'leadManager' || role === 'admin') {
       const permission = user.branchPermission;
@@ -836,7 +907,7 @@ callLogController.CallLogCount = async (req, res) => {
         (permission && permission.length === 0) ||
         (permission && permission.includes('All'))
       ) {
-        const and = [{ organization_id: organizationId }];
+        const and = [orgTenantCondition];
         if (!isObjectEmpty(dbLeadFilter)) {
           Object.keys(dbLeadFilter).forEach((key) => {
             if (!datesField.includes(key)) {
@@ -852,8 +923,8 @@ callLogController.CallLogCount = async (req, res) => {
         ]);
         res.send(count[0] || { total: 0 });
       } else {
-        let usersList = await getBranchUsers(uid, organizationId, permission);
-        const and = [{ uid: { $in: usersList } }];
+        let usersList = await getBranchUsers(user.uid || user._id || uid, organizationId, permission);
+        const and = [orgTenantCondition, { uid: { $in: usersList } }];
         if (!isObjectEmpty(dbLeadFilter)) {
           Object.keys(dbLeadFilter).forEach((key) => {
             if (!datesField.includes(key)) {
@@ -870,8 +941,8 @@ callLogController.CallLogCount = async (req, res) => {
         res.send(count[0] || { total: 0 });
       }
     } else if (role === 'teamLead') {
-      let usersList = await getTeamUsers(uid, organizationId);
-      const and = [{ uid: { $in: usersList } }];
+      let usersList = await getTeamUsers(user.uid || user._id || uid, organizationId);
+      const and = [orgTenantCondition, { uid: { $in: usersList } }];
       if (!isObjectEmpty(dbLeadFilter)) {
         Object.keys(dbLeadFilter).forEach((key) => {
           if (!datesField.includes(key)) {
@@ -887,7 +958,7 @@ callLogController.CallLogCount = async (req, res) => {
       ]);
       res.send(count[0] || { total: 0 });
     } else {
-      const and = [{ uid }];
+      const and = [orgTenantCondition, { uid: user.uid || user._id || uid }];
       if (!isObjectEmpty(dbLeadFilter)) {
         Object.keys(dbLeadFilter).forEach((key) => {
           if (!datesField.includes(key)) {
