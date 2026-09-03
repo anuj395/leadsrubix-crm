@@ -20,6 +20,8 @@ import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
+import { openWhatsApp } from '../../utils/whatsappHelper';
+import { openEmail } from '../../utils/emailHelper';
 
 export const TasksScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
@@ -99,17 +101,14 @@ export const TasksScreen = ({ navigation, route }: any) => {
   };
 
   const handleWhatsApp = (phone?: string, name?: string) => {
-    if (!phone) {
-      Alert.alert('No Contact Number', 'No WhatsApp number available for this task client.');
-      return;
-    }
-    const clean = phone.replace(/[^0-9]/g, '');
-    const message = encodeURIComponent(
-      `Hello ${name || 'Sir/Madam'}, this is regarding our scheduled appointment / site visit from Leads Rubix.`
-    );
-    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
-      Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
-    });
+    const message = `Hello ${name || 'Sir/Madam'}, this is regarding our scheduled follow-up / appointment from ${user?.organizationName || 'Leads Rubix'}.`;
+    openWhatsApp(phone, message);
+  };
+
+  const handleEmail = (email?: string, name?: string) => {
+    const subject = `Regarding your appointment with ${user?.organizationName || 'Leads Rubix'}`;
+    const body = `Hello ${name || 'Sir/Madam'},\n\nFollowing up on our scheduled appointment from ${user?.organizationName || 'Leads Rubix'}.\n\nBest regards,\n${user?.name || 'Executive'}`;
+    openEmail(email, subject, body);
   };
 
   const counts = useMemo(() => {
@@ -373,6 +372,19 @@ export const TasksScreen = ({ navigation, route }: any) => {
                       >
                         <Ionicons name="call" size={14} color="#FFFFFF" />
                       </TouchableOpacity>
+                    ) : null}
+
+                    {item.email ? (
+                      <>
+                        <View style={styles.actionDividerLine} />
+                        <TouchableOpacity
+                          style={styles.circleActionBtnMail}
+                          onPress={() => handleEmail(item.email, item.leadName)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="mail" size={14} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </>
                     ) : null}
 
                     {item.phone ? (
@@ -679,6 +691,14 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: '#272944',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnMail: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0284C7',
     alignItems: 'center',
     justifyContent: 'center',
   },

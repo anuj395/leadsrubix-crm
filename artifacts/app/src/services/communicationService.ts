@@ -1,5 +1,5 @@
-import { Linking, Alert } from 'react-native';
 import { apiClient } from '../api/apiClient';
+import { openWhatsApp } from '../utils/whatsappHelper';
 
 export interface WhatsAppTemplate {
   id: string;
@@ -38,18 +38,11 @@ export const communicationService = {
         message = message.replace(new RegExp(`{{${key}}}`, 'g'), val);
       });
 
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      const url = `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
-
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-        await apiClient.post('/communications/log', { phone, templateId, channel: 'WhatsApp', text: message });
-        return true;
-      } else {
-        Alert.alert('WhatsApp Not Installed', 'Please install WhatsApp to trigger automated messaging.');
-        return false;
+      const success = await openWhatsApp(phone, message);
+      if (success) {
+        apiClient.post('/communications/log', { phone, templateId, channel: 'WhatsApp', text: message }).catch(() => {});
       }
+      return success;
     } catch (err) {
       console.warn('[communicationService] WhatsApp dispatch fallback:', err);
       return false;

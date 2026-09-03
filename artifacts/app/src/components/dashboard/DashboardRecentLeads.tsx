@@ -4,16 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { LeadItem } from '../../services/leadService';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { theme } from '../../theme/theme';
+import { openWhatsApp } from '../../utils/whatsappHelper';
+import { openEmail } from '../../utils/emailHelper';
 
-interface Props {
+interface DashboardRecentLeadsProps {
   leads: LeadItem[];
   industryId?: string;
-  onViewAll: () => void;
+  onViewAll?: () => void;
   onLeadPress: (lead: LeadItem) => void;
   onCallLead?: (lead: LeadItem) => void;
 }
 
-export const DashboardRecentLeads: React.FC<Props> = ({
+export const DashboardRecentLeads: React.FC<DashboardRecentLeadsProps> = ({
   leads,
   industryId,
   onViewAll,
@@ -32,11 +34,16 @@ export const DashboardRecentLeads: React.FC<Props> = ({
     if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
   };
 
-  const handleWhatsApp = (phone?: string) => {
-    if (phone) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      Linking.openURL(`https://wa.me/${cleanPhone}`).catch(() => {});
-    }
+  const handleWhatsApp = (lead: LeadItem) => {
+    const phone = lead.phone || lead.contactNo;
+    const msg = `Hello ${lead.name || 'Sir/Madam'}, connecting from Leads Rubix regarding your ${semantics.leadEntitySingular.toLowerCase()} inquiry.`;
+    openWhatsApp(phone, msg);
+  };
+
+  const handleEmail = (lead: LeadItem) => {
+    const subject = `Regarding your inquiry with Leads Rubix`;
+    const body = `Hello ${lead.name || 'Sir/Madam'},\n\nThank you for reaching out to Leads Rubix. How can we assist you with your inquiry today?\n\nBest regards,\nSales Team`;
+    openEmail(lead.email, subject, body);
   };
 
   return (
@@ -102,9 +109,19 @@ export const DashboardRecentLeads: React.FC<Props> = ({
               </View>
 
               <View style={styles.actionsGroup}>
+                {lead.email ? (
+                  <TouchableOpacity
+                    style={styles.emailBtn}
+                    onPress={() => handleEmail(lead)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="mail" size={13} color="#FFFFFF" />
+                  </TouchableOpacity>
+                ) : null}
+
                 <TouchableOpacity
                   style={styles.whatsappBtn}
-                  onPress={() => handleWhatsApp(lead.phone)}
+                  onPress={() => handleWhatsApp(lead)}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
@@ -238,6 +255,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  emailBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0284C7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   whatsappBtn: {
     width: 32,

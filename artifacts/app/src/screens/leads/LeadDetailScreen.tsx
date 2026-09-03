@@ -22,6 +22,8 @@ import { leadService, LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
+import { openWhatsApp } from '../../utils/whatsappHelper';
+import { openEmail } from '../../utils/emailHelper';
 
 type DetailTabType = 'timeline' | 'profile' | 'deals' | 'notes';
 type TimelineFilterType = 'all' | 'calls' | 'tasks';
@@ -250,17 +252,14 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   };
 
   const handleWhatsApp = () => {
-    if (!phone) {
-      Alert.alert('No Phone Number', 'No valid phone number available for this contact.');
-      return;
-    }
-    const cleanNum = phone.replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(
-      `Hello ${leadName}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you with your ${semantics.leadEntitySingular.toLowerCase()} inquiry today?`
-    );
-    Linking.openURL(`whatsapp://send?phone=${cleanNum}&text=${msg}`).catch(() => {
-      Alert.alert('WhatsApp Error', 'Please verify WhatsApp is installed on your device.');
-    });
+    const msg = `Hello ${leadName}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you with your ${semantics.leadEntitySingular.toLowerCase()} inquiry today?`;
+    openWhatsApp(phone, msg);
+  };
+
+  const handleEmail = () => {
+    const subject = `Regarding your inquiry with ${user?.organizationName || 'Leads Rubix'}`;
+    const body = `Hello ${leadName},\n\nThank you for reaching out to ${user?.organizationName || 'Leads Rubix'}. How can we assist you with your property inquiry today?\n\nBest regards,\n${user?.name || 'Sales Team'}`;
+    openEmail(email, subject, body);
   };
 
   // Submit Handlers for Modals
@@ -580,12 +579,12 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               ) : null}
 
               {email ? (
-                <View style={styles.headerContactPill}>
+                <TouchableOpacity onPress={handleEmail} style={styles.headerContactPill} activeOpacity={0.75}>
                   <Ionicons name="mail" size={11} color="rgba(255, 255, 255, 0.7)" />
                   <Text style={styles.headerContactPillText} numberOfLines={1}>
                     {email}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ) : null}
             </View>
           </View>
@@ -913,10 +912,19 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                     <Text style={styles.fieldValue}>{phone || 'Not Provided'}</Text>
                   </View>
 
-                  <View style={styles.profileField}>
+                  <TouchableOpacity
+                    style={styles.profileField}
+                    onPress={email ? handleEmail : undefined}
+                    activeOpacity={email ? 0.7 : 1}
+                  >
                     <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-                    <Text style={styles.fieldValue}>{email || 'Not Provided'}</Text>
-                  </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      {email ? <Ionicons name="mail-outline" size={13} color="#2563EB" /> : null}
+                      <Text style={[styles.fieldValue, email ? { color: '#2563EB', textDecorationLine: 'underline' } : null]}>
+                        {email || 'Not Provided'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
 
                   <View style={styles.profileField}>
                     <Text style={styles.fieldLabel}>ALTERNATE NUMBER</Text>

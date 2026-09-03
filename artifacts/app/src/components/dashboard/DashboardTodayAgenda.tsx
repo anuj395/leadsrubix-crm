@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TaskItem } from '../../services/taskService';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { theme } from '../../theme/theme';
+import { openWhatsApp } from '../../utils/whatsappHelper';
 
 interface Props {
   tasks: TaskItem[];
@@ -35,13 +36,8 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
   };
 
   const handleWhatsApp = (phone?: string, name?: string) => {
-    if (phone) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      const text = encodeURIComponent(`Hi ${name || ''}, connecting regarding your scheduled visit/follow-up.`);
-      Linking.openURL(`whatsapp://send?phone=${cleanPhone}&text=${text}`).catch(() => {
-        Linking.openURL(`https://wa.me/${cleanPhone}`).catch(() => {});
-      });
-    }
+    const text = `Hi ${name || 'Sir/Madam'}, connecting regarding your scheduled appointment / follow-up from Leads Rubix.`;
+    openWhatsApp(phone, text);
   };
 
   return (

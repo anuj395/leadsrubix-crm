@@ -20,6 +20,7 @@ import { callLogService, CallLogItem } from '../../services/callLogService';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { getIndustrySemantics, getIndustryCallOutcomePresets } from '../../utils/industryLabels';
 import { CallDialerModal, PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
+import { openWhatsApp } from '../../utils/whatsappHelper';
 
 type FilterType = 'ALL' | 'ANSWERED' | 'MISSED' | 'INBOUND' | 'OUTBOUND';
 
@@ -84,17 +85,8 @@ export const CallLogsScreen: React.FC<CallLogsScreenProps> = ({ navigation }) =>
   };
 
   const handleOpenWhatsApp = (phone?: string, name?: string) => {
-    if (!phone) {
-      Alert.alert('No Phone Number', 'No WhatsApp number available for this contact.');
-      return;
-    }
-    const clean = phone.replace(/[^0-9]/g, '');
-    const message = encodeURIComponent(
-      `Hello ${name || 'Sir/Madam'}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you today?`
-    );
-    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
-      Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
-    });
+    const message = `Hello ${name || 'Sir/Madam'}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you today?`;
+    openWhatsApp(phone, message);
   };
 
   // Compute exact Web CRM counts

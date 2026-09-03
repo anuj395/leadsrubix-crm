@@ -23,6 +23,8 @@ import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 import { theme } from '../../theme/theme';
+import { openWhatsApp } from '../../utils/whatsappHelper';
+import { openEmail } from '../../utils/emailHelper';
 
 export const LeadsListScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
@@ -213,27 +215,14 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
   };
 
   const handleWhatsApp = (phone?: string, name?: string) => {
-    if (!phone) {
-      Alert.alert('No Phone Number', 'No WhatsApp number available for this buyer.');
-      return;
-    }
-    const clean = phone.replace(/[^0-9]/g, '');
-    const message = encodeURIComponent(
-      `Hello ${name || 'Sir/Madam'}, thank you for contacting Leads Rubix. How can I assist you with your property inquiry today?`
-    );
-    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() => {
-      Alert.alert('WhatsApp Not Installed', 'Please verify WhatsApp is installed on this device.');
-    });
+    const message = `Hello ${name || 'Sir/Madam'}, thank you for contacting ${user?.organizationName || 'Leads Rubix'}. How can I assist you with your ${semantics.leadEntitySingular.toLowerCase()} inquiry today?`;
+    openWhatsApp(phone, message);
   };
 
-  const handleEmail = (email?: string) => {
-    if (!email) {
-      Alert.alert('No Email Address', 'No email address available for this buyer.');
-      return;
-    }
-    Linking.openURL(`mailto:${email}`).catch(() => {
-      Alert.alert('Error', 'Unable to launch email client.');
-    });
+  const handleEmail = (email?: string, name?: string) => {
+    const subject = `Regarding your inquiry with ${user?.organizationName || 'Leads Rubix'}`;
+    const body = `Hello ${name || 'Sir/Madam'},\n\nThank you for reaching out to ${user?.organizationName || 'Leads Rubix'}. How can we assist you with your property inquiry today?\n\nBest regards,\n${user?.name || 'Sales Team'}`;
+    openEmail(email, subject, body);
   };
 
   const formatSource = (src?: string) => {
@@ -516,12 +505,16 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                     ) : null}
 
                     {lead.email ? (
-                      <View style={styles.contactItemRow}>
+                      <TouchableOpacity
+                        style={styles.contactItemRow}
+                        onPress={() => handleEmail(lead.email, lead.name)}
+                        activeOpacity={0.7}
+                      >
                         <Ionicons name="mail-outline" size={11} color="#64748B" />
                         <Text style={styles.emailText} numberOfLines={1}>
                           {lead.email}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     ) : null}
 
                     {!lead.phone && !lead.email ? (
@@ -548,7 +541,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                         <View style={styles.actionDividerLine} />
                         <TouchableOpacity
                           style={styles.circleActionBtnMail}
-                          onPress={() => handleEmail(lead.email)}
+                          onPress={() => handleEmail(lead.email, lead.name)}
                           activeOpacity={0.75}
                         >
                           <Ionicons name="mail" size={14} color="#FFFFFF" />

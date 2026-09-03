@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { leadService, LeadItem } from '../../services/leadService';
 import { theme } from '../../theme/theme';
+import { openWhatsApp } from '../../utils/whatsappHelper';
 
 interface CallDialerModalProps {
   visible: boolean;
@@ -171,16 +172,9 @@ export const CallDialerModal: React.FC<CallDialerModalProps> = ({
   };
 
   const handleOpenWhatsApp = () => {
-    const clean = phoneNumber.replace(/[^0-9]/g, '');
-    if (!clean || clean.length < 5) {
-      Alert.alert('Invalid Number', 'Please enter a valid phone number for WhatsApp.');
-      return;
-    }
-    Linking.openURL(`whatsapp://send?phone=${clean}`).catch(() => {
-      Linking.openURL(`https://wa.me/${clean}`).catch(() => {
-        Alert.alert('WhatsApp Error', 'Please verify WhatsApp is installed on this device.');
-      });
-    });
+    const callerName = selectedLead?.name || 'Sir/Madam';
+    const message = `Hello ${callerName}, connecting with you from Leads Rubix. How can I assist you today?`;
+    openWhatsApp(phoneNumber, message);
   };
 
   return (
