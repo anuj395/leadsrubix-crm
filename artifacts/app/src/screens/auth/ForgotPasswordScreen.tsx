@@ -373,11 +373,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.brand700,
     borderBottomColor: theme.colors.brand700,
     backgroundColor: '#FFFFFF',
-    shadowColor: theme.colors.brand700,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
   },
   fieldIconBadge: {
     width: 30,

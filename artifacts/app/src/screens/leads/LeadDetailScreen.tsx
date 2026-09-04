@@ -132,7 +132,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               (t.leadId && t.leadId === leadId) ||
               (t.customerName && t.customerName.toLowerCase() === (lead.name || '').toLowerCase())
           );
-          setTasks(matchedTasks.length > 0 ? matchedTasks : rawTasks.slice(0, 3));
+          setTasks(matchedTasks);
         }
       }
 
@@ -147,7 +147,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               (c.phone && c.phone === lead.phone) ||
               (c.leadName && c.leadName.toLowerCase() === (lead.name || '').toLowerCase())
           );
-          setCalls(matchedCalls.length > 0 ? matchedCalls : rawCalls.slice(0, 2));
+          setCalls(matchedCalls);
         }
       }
     } catch (e) {
@@ -501,19 +501,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         note: n.content,
       });
     });
-
-    if (list.length === 0) {
-      list.push({
-        id: 'default-task-1',
-        type: 'task',
-        title: 'Follow-up: Call Back',
-        status: 'Pending',
-        dueDate: '12/09/2026',
-        author: user?.name || 'Anuj Chauhan',
-        timestamp: '02/09/2026, 3:29:30 PM',
-        note: 'Customer requested follow-up discussion regarding 3BHK pricing and payment plans.',
-      });
-    }
 
     return list;
   }, [tasks, calls, notesList, user]);

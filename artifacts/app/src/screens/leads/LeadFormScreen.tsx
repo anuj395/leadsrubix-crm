@@ -475,27 +475,64 @@ export const LeadFormScreen = ({ navigation }: any) => {
     }
   };
 
-  const contactFields = dynamicFields.filter((f) => {
-    const k = f.key.toLowerCase();
-    return k.includes('name') || k.includes('customer') || k.includes('phone') || k.includes('mobile') || k.includes('contact') || k.includes('alternate') || k.includes('email') || k.includes('owner');
-  });
+  const contactFields = useMemo(() => {
+    return dynamicFields.filter((f) => {
+      const k = f.key.toLowerCase();
+      return (
+        k.includes('name') ||
+        k.includes('customer') ||
+        k.includes('phone') ||
+        k.includes('mobile') ||
+        k.includes('contact') ||
+        k.includes('alternate') ||
+        k.includes('email') ||
+        k.includes('owner')
+      );
+    });
+  }, [dynamicFields]);
 
-  const requirementFields = dynamicFields.filter((f) => {
-    const k = f.key.toLowerCase();
-    const isContact = k.includes('name') || k.includes('customer') || k.includes('phone') || k.includes('mobile') || k.includes('contact') || k.includes('alternate') || k.includes('email') || k.includes('owner');
-    const isSourceOrNotes = k.includes('source') || k.includes('adset') || k.includes('ad_set') || k.includes('campaign') || k.includes('note') || k.includes('remark');
-    return !isContact && !isSourceOrNotes;
-  });
+  const requirementFields = useMemo(() => {
+    return dynamicFields.filter((f) => {
+      const k = f.key.toLowerCase();
+      const isContact =
+        k.includes('name') ||
+        k.includes('customer') ||
+        k.includes('phone') ||
+        k.includes('mobile') ||
+        k.includes('contact') ||
+        k.includes('alternate') ||
+        k.includes('email') ||
+        k.includes('owner');
+      const isSourceOrNotes =
+        k.includes('source') ||
+        k.includes('adset') ||
+        k.includes('ad_set') ||
+        k.includes('campaign') ||
+        k.includes('note') ||
+        k.includes('remark');
+      return !isContact && !isSourceOrNotes;
+    });
+  }, [dynamicFields]);
 
-  const sourceAndCampaignFields = dynamicFields.filter((f) => {
-    const k = f.key.toLowerCase();
-    return k.includes('source') || k.includes('adset') || k.includes('ad_set') || k.includes('campaign');
-  });
+  const sourceAndCampaignFields = useMemo(() => {
+    return dynamicFields.filter((f) => {
+      const k = f.key.toLowerCase();
+      return k.includes('source') || k.includes('adset') || k.includes('ad_set') || k.includes('campaign');
+    });
+  }, [dynamicFields]);
 
-  const notesAndOtherFields = dynamicFields.filter((f) => {
-    const k = f.key.toLowerCase();
-    return k.includes('note') || k.includes('remark') || (!contactFields.some((c) => c.key === f.key) && !requirementFields.some((r) => r.key === f.key) && !sourceAndCampaignFields.some((s) => s.key === f.key));
-  });
+  const notesAndOtherFields = useMemo(() => {
+    return dynamicFields.filter((f) => {
+      const k = f.key.toLowerCase();
+      return (
+        k.includes('note') ||
+        k.includes('remark') ||
+        (!contactFields.some((c) => c.key === f.key) &&
+          !requirementFields.some((r) => r.key === f.key) &&
+          !sourceAndCampaignFields.some((s) => s.key === f.key))
+      );
+    });
+  }, [dynamicFields, contactFields, requirementFields, sourceAndCampaignFields]);
 
   const renderFieldInput = (field: DynamicFormField) => {
     const val = formValues[field.key] || '';
@@ -633,7 +670,7 @@ export const LeadFormScreen = ({ navigation }: any) => {
       </View>
 
       <KeyboardAvoidingView style={styles.flexOne} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always" removeClippedSubviews={false} showsVerticalScrollIndicator={false}>
           {loadingConfig ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color="#272944" />
@@ -793,7 +830,7 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 6, letterSpacing: 0.3 },
   requiredAsterisk: { color: '#EF4444', fontWeight: '900' },
   inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12, height: 48 },
-  inputBoxFocused: { borderColor: '#0284C7', backgroundColor: '#FFFFFF', shadowColor: '#0284C7', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 2 },
+  inputBoxFocused: { borderColor: '#0284C7', backgroundColor: '#FFFFFF' },
   textInput: { flex: 1, height: 48, color: '#0F172A', fontSize: 14, fontWeight: '600' },
   dropdownTriggerBox: { justifyContent: 'space-between' },
   datePickerTriggerLeft: {

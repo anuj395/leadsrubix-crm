@@ -12,6 +12,7 @@ router.get('/importHistory', authenticate, requireScreenAction('contacts', 'view
 router.delete('/importHistory/:id', authenticate, requireScreenAction('contacts', 'delete'), ctrl.deleteImportHistory);
 router.delete('/import-history/:id', authenticate, requireScreenAction('contacts', 'delete'), ctrl.deleteImportHistory);
 router.post('/masterSortSearch', authenticate, requireScreenAction('contacts', 'view'), ctrl.masterSortSearch);
+router.post('/:id/convert', authenticate, requireScreenAction('contacts', 'edit'), ctrl.convert);
 router.post('/:id/attachments', authenticate, requireScreenAction('contacts', 'edit'), ctrl.addAttachment);
 router.delete('/:id/attachments/:attachmentId', authenticate, requireScreenAction('contacts', 'edit'), ctrl.deleteAttachment);
 router.get('/:id', authenticate, requireScreenAction('contacts', 'view'), ctrl.retrieve);

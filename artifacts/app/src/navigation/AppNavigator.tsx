@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -53,6 +53,7 @@ export const AppNavigator = () => {
 
   // Navigation stack & route state
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Dashboard');
+  const [navStack, setNavStack] = useState<Array<{ screen: ScreenName; params?: any }>>([{ screen: 'Dashboard', params: {} }]);
   const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');
   const [routeParams, setRouteParams] = useState<any>({});
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
@@ -67,6 +68,40 @@ export const AppNavigator = () => {
     };
     checkOnboarding();
   }, []);
+
+  // Hardware Back Button Handler for Android
+  useEffect(() => {
+    const handleHardwareBackPress = () => {
+      if (!token) {
+        if (authScreen !== 'Login') {
+          setAuthScreen('Login');
+          return true;
+        }
+        return false;
+      }
+
+      if (navStack.length > 1) {
+        const nextStack = [...navStack];
+        nextStack.pop();
+        const prev = nextStack[nextStack.length - 1];
+        setNavStack(nextStack);
+        setCurrentScreen(prev.screen);
+        setRouteParams(prev.params || {});
+        return true;
+      }
+
+      if (currentScreen !== 'Dashboard') {
+        setCurrentScreen('Dashboard');
+        setNavStack([{ screen: 'Dashboard', params: {} }]);
+        return true;
+      }
+
+      return false; // Allow app exit only from root Dashboard
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleHardwareBackPress);
+    return () => subscription.remove();
+  }, [token, authScreen, navStack, currentScreen]);
 
   if (isLoading || hasSeenOnboarding === null) {
     return (
@@ -141,23 +176,48 @@ export const AppNavigator = () => {
 
       setRouteParams(params || {});
       setCurrentScreen(target);
+
+      setNavStack((prev) => {
+        if (['Dashboard', 'Leads', 'Tasks', 'Analytics', 'Menu'].includes(target)) {
+          return [{ screen: target, params: params || {} }];
+        }
+        const last = prev[prev.length - 1];
+        if (last && last.screen === target && JSON.stringify(last.params) === JSON.stringify(params)) {
+          return prev;
+        }
+        return [...prev, { screen: target, params: params || {} }];
+      });
     },
     goBack: () => {
-      if (currentScreen === 'LeadDetail' || currentScreen === 'LeadForm') {
-        setCurrentScreen('Leads');
-      } else if (currentScreen === 'TaskForm') {
-        setCurrentScreen('Tasks');
-      } else if (
-        currentScreen === 'CallLogs' ||
-        currentScreen === 'Notifications' ||
-        currentScreen === 'Settings' ||
-        currentScreen === 'Profile'
-      ) {
-        setCurrentScreen('Menu');
+      if (navStack.length > 1) {
+        const nextStack = [...navStack];
+        nextStack.pop();
+        const prev = nextStack[nextStack.length - 1];
+        setNavStack(nextStack);
+        setCurrentScreen(prev.screen);
+        setRouteParams(prev.params || {});
       } else {
-        setCurrentScreen('Dashboard');
+        if (currentScreen === 'LeadDetail' || currentScreen === 'LeadForm') {
+          setCurrentScreen('Leads');
+          setNavStack([{ screen: 'Leads', params: {} }]);
+        } else if (currentScreen === 'TaskForm') {
+          setCurrentScreen('Tasks');
+          setNavStack([{ screen: 'Tasks', params: {} }]);
+        } else if (
+          currentScreen === 'CallLogs' ||
+          currentScreen === 'Notifications' ||
+          currentScreen === 'Settings' ||
+          currentScreen === 'Profile'
+        ) {
+          setCurrentScreen('Menu');
+          setNavStack([{ screen: 'Menu', params: {} }]);
+        } else {
+          setCurrentScreen('Dashboard');
+          setNavStack([{ screen: 'Dashboard', params: {} }]);
+        }
       }
     },
+    canGoBack: () => navStack.length > 1 || currentScreen !== 'Dashboard',
   };
 
   const renderActiveScreen = () => {
@@ -180,13 +240,13 @@ export const AppNavigator = () => {
       case 'Analytics':
         return <AnalyticsScreen navigation={navigation} />;
       case 'Notifications':
-        return <NotificationsScreen />;
+        return <NotificationsScreen navigation={navigation} />;
       case 'Settings':
-        return <SettingsScreen />;
+        return <SettingsScreen navigation={navigation} />;
       case 'UpdatePassword':
         return <UpdatePasswordScreen navigation={navigation} />;
       case 'Profile':
-        return <ProfileScreen />;
+        return <ProfileScreen navigation={navigation} />;
       case 'Menu':
         return <MenuScreen navigation={navigation} />;
       default:

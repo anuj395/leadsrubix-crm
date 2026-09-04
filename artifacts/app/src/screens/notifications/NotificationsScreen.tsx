@@ -17,7 +17,7 @@ import { CompanyLogo } from '../../components/ui/CompanyLogo';
 
 type FilterType = 'ALL' | 'UNREAD' | 'LEADS' | 'TASKS';
 
-export const NotificationsScreen = () => {
+export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

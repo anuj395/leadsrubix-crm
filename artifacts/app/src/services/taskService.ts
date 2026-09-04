@@ -59,7 +59,7 @@ export const taskService = {
           isCompleted:
             String(t.status || '').toUpperCase() === 'COMPLETED' ||
             Boolean(t.isCompleted || t.completed),
-          leadId: t.leadId || t.lead_id || t.lead?._id || t.lead?.id || t.customer_id || t.customerId || t._id || t.id,
+          leadId: t.leadId || t.lead_id || t.lead?._id || t.lead?.id || t.customer_id || t.customerId || undefined,
           leadName: t.customerName || t.customer_name || t.leadName || 'Client',
           phone: t.contactNumber || t.contact_number || t.phone || '',
           email: t.email || t.leadEmail || t.lead_email || t.lead?.email || '',
