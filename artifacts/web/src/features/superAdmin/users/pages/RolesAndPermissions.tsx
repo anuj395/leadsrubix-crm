@@ -548,7 +548,7 @@ export default function RolesAndPermissionsPage() {
     action: 'view' | 'add' | 'edit' | 'delete',
   ) => {
     if (!actionRoleId || !selectedIndustry || isPrivilegedRole) return
-    const sObj = screens.find((s) => s._id === screenId)
+    const sObj = allScreens.find((s: any) => s._id === screenId)
     const cur = actionByScreen.get(screenId)
     const def = getDefaultPermissionState(selectedRoleObj?.key, sObj?.key)
 

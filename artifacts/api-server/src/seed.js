@@ -178,7 +178,7 @@ async function ensureDevAdmin() {
 
   const email = 'info@leadsrubix.com';
   const existing = await User.findOne({ email }).exec();
-  const hashedPassword = bcrypt.hashSync('lead@1221', 10);
+  const hashedPassword = bcrypt.hashSync('dev@1221', 10);
 
   // Hash password using bcrypt if updating directly, or save new user
   if (existing) {

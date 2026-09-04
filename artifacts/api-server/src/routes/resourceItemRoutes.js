@@ -337,7 +337,8 @@ router.post('/:resource_key', authenticate, requireScreenAction((req) => mapReso
   try {
     const { resource_key } = req.params;
 
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
+    const isNoteKey = resource_key === 'resourceNotes' || resource_key === 'resource_notes' || resource_key === 'notes';
+    if (!isNoteKey && req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Forbidden' });
     }
 

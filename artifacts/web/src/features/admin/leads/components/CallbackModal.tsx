@@ -114,18 +114,62 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
       // 1. Update Contact stage
       await updateContact(contactId, contactFields)
 
-      // 3. Save Note if exists
-      const noteContent = String(taskFields.notes || '').trim()
+      // 2. Mark previous PENDING tasks for this contact as COMPLETED
+      try {
+        const prevTasksRes = await api.get('tasks', { params: { contactId, contact_id: contactId } })
+        const prevTasks = prevTasksRes.data?.items || prevTasksRes.data || []
+        if (Array.isArray(prevTasks)) {
+          const pendingTasks = prevTasks.filter((t: any) => String(t.status || '').toUpperCase() === 'PENDING')
+          for (const pt of pendingTasks) {
+            const taskId = pt._id || pt.id
+            if (taskId) {
+              await api.put(`tasks/${taskId}`, {
+                status: 'COMPLETED',
+                isCompleted: true,
+                completedAt: new Date().toISOString()
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to complete previous tasks', e)
+      }
 
-      // 2. Create Task on separate endpoint
+      // 3. Save Note if exists
+      const noteContent = String(taskFields.notes || values.notes || '').trim()
+      if (noteContent) {
+        try {
+          await api.post('resources/resourceNotes', {
+            contactId,
+            contact_id: contactId,
+            note: noteContent,
+            notes: noteContent,
+            text: noteContent,
+            content: noteContent,
+            customerName: contact.customerName || (contact as any).customer_name || '',
+            userName: user?.name || user?.email || 'Admin',
+            userEmail: user?.email || '',
+            createdBy: user?.name || user?.email || 'Admin',
+            created_by: user?.name || user?.email || 'Admin'
+          })
+        } catch (noteErr) {
+          console.warn('Failed to save note record', noteErr)
+        }
+      }
+
+      // 4. Create Task on separate endpoint (note is attached to task notes)
       await api.post('tasks', {
         contactId,
+        contact_id: contactId,
         type: 'Call Back',
         taskType: 'Call Back',
         task_type: 'Call Back',
         dueDate: taskFields.nextFollowUp ? new Date(taskFields.nextFollowUp) : new Date(),
         status: 'PENDING',
         callbackReason: values.callBackReason || '',
+        callBackReason: values.callBackReason || '',
+        callback_reason: values.callBackReason || '',
+        call_back_reason: values.callBackReason || '',
         customerName: contact.customerName || '',
         contactNumber: contact.contactNumber || (contact as any).contact_number || '',
         contact_number: contact.contactNumber || (contact as any).contact_number || '',
@@ -140,13 +184,6 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
         source: contact.source || '',
         notes: noteContent,
       })
-      if (noteContent) {
-        await api.post('resources/resourceNotes', {
-          contactId,
-          note: noteContent,
-          userEmail: user?.email || 'System'
-        })
-      }
 
       setToast({ open: true, msg: 'Lead Status Updated!!', sev: 'success' })
       setTimeout(() => {

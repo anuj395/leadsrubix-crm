@@ -1355,3 +1355,21 @@ Organization: Leads Rubix
 Username / Email: dasdnad@gnmail.com
 Temp Password: BeBZv4cp
 ========================================
+
+========================================
+Timestamp: 2026-09-03T12:52:21.566Z
+To: dev@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: dev@digitalrubix.com
+Temp Password: h2nJ0PXf
+========================================
+
+========================================
+Timestamp: 2026-09-03T12:54:25.866Z
+To: lead@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Leads Rubix
+Username / Email: lead@gmail.com
+Temp Password: O4Y6Ax2O
+========================================

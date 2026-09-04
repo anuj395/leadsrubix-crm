@@ -111,50 +111,78 @@ export default function RescheduleModal({ open, onClose, contactId, onSuccess }:
       await updateContact(contactId, contactFields)
 
       // 3. Save Note if exists
-      const noteContent = String(taskFields.notes || '').trim()
-
-      // 2. Fetch and Reschedule tasks
-      const tasksRes = await api.get('tasks', { params: { contactId } })
-      const tasksList = (tasksRes.data?.items ?? [])
-      const pendingTasks = tasksList.filter((t: any) => t.status === 'PENDING')
-      if (pendingTasks.length > 0) {
-        pendingTasks.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        const latest = pendingTasks[0]
-        await api.put(`tasks/${latest._id}`, {
-          ...latest,
-          dueDate: new Date(values.nextFollowUp),
-          notes: noteContent || latest.notes || ''
-        })
-      } else {
-        await api.post('tasks', {
-          contactId,
-          type: 'Call Back',
-          taskType: 'Call Back',
-          task_type: 'Call Back',
-          dueDate: new Date(values.nextFollowUp),
-          status: 'PENDING',
-          customerName: contact.customerName || '',
-          contactNumber: contact.contactNumber || (contact as any).contact_number || '',
-          contact_number: contact.contactNumber || (contact as any).contact_number || '',
-          createdBy: user?.email || 'System',
-          latitude: lat,
-          longitude: lng,
-          stage: contact.stage || '',
-          contactOwnerEmail: contact.contactOwnerEmail || (contact as any).contact_owner_email || user?.email || '',
-          projectName: contact.projectName || '',
-          location: contact.location || '',
-          budget: contact.budget || '',
-          source: contact.source || '',
-          notes: noteContent,
-        })
-      }
+      const noteContent = String(taskFields.notes || values.notes || '').trim()
       if (noteContent) {
-        await api.post('resources/resourceNotes', {
-          contactId,
-          note: noteContent,
-          userEmail: user?.email || 'System'
-        })
+        try {
+          await api.post('resources/resourceNotes', {
+            contactId,
+            contact_id: contactId,
+            note: noteContent,
+            notes: noteContent,
+            text: noteContent,
+            content: noteContent,
+            customerName: contact.customerName || (contact as any).customer_name || '',
+            userName: user?.name || user?.email || 'Admin',
+            userEmail: user?.email || '',
+            createdBy: user?.name || user?.email || 'Admin',
+            created_by: user?.name || user?.email || 'Admin'
+          })
+        } catch (noteErr) {
+          console.warn('Failed to save note record', noteErr)
+        }
       }
+
+      let prevTaskType = ''
+      try {
+        const tasksRes = await api.get('tasks', { params: { contactId, contact_id: contactId } })
+        const tasksList = tasksRes.data?.items || tasksRes.data || []
+        if (Array.isArray(tasksList)) {
+          const pendingTasks = tasksList.filter((t: any) => String(t.status || '').toUpperCase() === 'PENDING')
+          for (const pt of pendingTasks) {
+            if (pt.taskType || pt.task_type || pt.type) {
+              prevTaskType = pt.taskType || pt.task_type || pt.type
+            }
+            const taskId = pt._id || pt.id
+            if (taskId) {
+              await api.put(`tasks/${taskId}`, {
+                status: 'COMPLETED',
+                isCompleted: true,
+                completedAt: new Date().toISOString()
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to complete previous tasks', e)
+      }
+
+      const reschedTaskType = prevTaskType && !prevTaskType.toLowerCase().includes('re-schedule')
+        ? `Re-Schedule (${prevTaskType})`
+        : 'Re-Schedule'
+
+      // 3. Create new Rescheduled Task (note is attached to task notes)
+      await api.post('tasks', {
+        contactId,
+        contact_id: contactId,
+        type: reschedTaskType,
+        taskType: reschedTaskType,
+        task_type: reschedTaskType,
+        dueDate: new Date(values.nextFollowUp),
+        status: 'PENDING',
+        customerName: contact.customerName || '',
+        contactNumber: contact.contactNumber || (contact as any).contact_number || '',
+        contact_number: contact.contactNumber || (contact as any).contact_number || '',
+        createdBy: user?.email || 'System',
+        latitude: lat,
+        longitude: lng,
+        stage: contact.stage || '',
+        contactOwnerEmail: contact.contactOwnerEmail || (contact as any).contact_owner_email || user?.email || '',
+        projectName: contact.projectName || '',
+        location: contact.location || '',
+        budget: contact.budget || '',
+        source: contact.source || '',
+        notes: noteContent,
+      })
 
       setToast({ open: true, msg: 'Task Rescheduled!', sev: 'success' })
       setTimeout(() => {
