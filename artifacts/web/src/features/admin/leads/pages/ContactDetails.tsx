@@ -229,23 +229,35 @@ export default function ContactDetailsPage() {
 
         if (tasksRes.data?.items || Array.isArray(tasksRes.data)) {
           const tItems = tasksRes.data?.items || (Array.isArray(tasksRes.data) ? tasksRes.data : [])
-          setTasks(tItems)
+          const matchTasks = tItems.filter((t: any) => String(t.contact_id || t.contactId || '') === String(id))
+          setTasks(matchTasks)
+        } else {
+          setTasks([])
         }
 
         if (notesRes.data?.items || Array.isArray(notesRes.data)) {
           const notesArr = Array.isArray(notesRes.data) ? notesRes.data : notesRes.data.items
           const matchNotes = notesArr.filter((n: any) => String(n.contact_id || n.contactId || '') === String(id))
           setNotes(matchNotes)
+        } else {
+          setNotes([])
         }
 
         // Call logs from booking or direct API
-        const directCalls = callsRes.data?.items || []
+        const directCalls = callsRes.data?.items || (Array.isArray(callsRes.data) ? callsRes.data : [])
+        const matchPhone = String(match.contactNumber || match.contact_number || match.phone || '').trim()
+        const matchDirectCalls = directCalls.filter((c: any) => {
+          const cCId = String(c.contact_id || c.contactId || '')
+          const cPhone = String(c.phone || c.contactNumber || c.contact_number || '').trim()
+          return cCId === String(id) || (matchPhone && cPhone === matchPhone)
+        })
         const bookingCalls = bookingRes.data?.items?.[0]?.callLogs || []
-        const mergedCalls = [...directCalls, ...bookingCalls]
+        const mergedCalls = [...matchDirectCalls, ...bookingCalls]
         const uniqueCalls = mergedCalls.filter((v, i, a) => a.findIndex(t => (t._id || t.id) === (v._id || v.id)) === i)
         setCalls(uniqueCalls)
 
-        setDeals(dealsList)
+        const matchDeals = (dealsList || []).filter((d: any) => String(d.contactId || d.contact_id || '') === String(id))
+        setDeals(matchDeals)
         setPipelines(pipesList)
       }
     } catch (e) {

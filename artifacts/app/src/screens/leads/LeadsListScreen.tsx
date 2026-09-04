@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
   sourceVerticalText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.4,
     transform: [{ rotate: '-90deg' }],
     width: 75,
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   },
   leadNameText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.2,
     maxWidth: 150,
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
   },
   miniStatusText: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   contactItemRow: {
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
   },
   phoneText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1E293B',
     letterSpacing: -0.1,
   },

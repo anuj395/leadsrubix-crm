@@ -318,52 +318,59 @@ function buildController({
 
   async function list(req, res, next) {
     try {
-      const filter = await resolveTenantFilter(req.user, req.query.industryId, req.query.organizationId);
+      const baseTenantFilter = await resolveTenantFilter(req.user, req.query.industryId, req.query.organizationId);
+      const andConditions = [];
+
+      if (baseTenantFilter.$or) {
+        andConditions.push({ $or: baseTenantFilter.$or });
+      } else if (Object.keys(baseTenantFilter).length > 0) {
+        andConditions.push(baseTenantFilter);
+      }
+
+      const contactVal = req.query.contactId || req.query.contact_id;
+      if (contactVal) {
+        const isObjId = mongoose.Types.ObjectId.isValid(contactVal);
+        const contactOrConditions = [
+          { contact_id: String(contactVal) },
+          { contactId: String(contactVal) },
+          { contact_id: contactVal },
+          { contactId: contactVal }
+        ];
+        if (isObjId) {
+          contactOrConditions.push({ contact_id: new mongoose.Types.ObjectId(contactVal) });
+          contactOrConditions.push({ contactId: new mongoose.Types.ObjectId(contactVal) });
+        }
+        andConditions.push({ $or: contactOrConditions });
+      }
+
       Object.keys(req.query).forEach((key) => {
-        if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId', 'organizationId'].includes(key)) return;
+        if (['page', 'pageSize', 'sortField', 'sortDir', 'q', 'industryId', 'organizationId', 'contactId', 'contact_id'].includes(key)) return;
         let targetKey = key;
         if (Model.schema.paths[key]) {
           targetKey = key;
         } else {
-          // Check snake_case version
           const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
           if (Model.schema.paths[snake]) {
             targetKey = snake;
           }
         }
-        if (Model.schema.paths[targetKey] || key === 'contactId' || key === 'contact_id') {
-          const val = req.query[key];
-          if (key === 'contactId' || key === 'contact_id' || targetKey === 'contact_id' || targetKey === 'contactId') {
-            const isObjId = mongoose.Types.ObjectId.isValid(val);
-            const orConditions = [
-              { contact_id: val },
-              { contactId: val },
-            ];
-            if (isObjId) {
-              orConditions.push({ contact_id: new mongoose.Types.ObjectId(val) });
-              orConditions.push({ contactId: new mongoose.Types.ObjectId(val) });
-            }
-            if (filter.$or) {
-              filter.$and = filter.$and || [];
-              filter.$and.push({ $or: filter.$or }, { $or: orConditions });
-              delete filter.$or;
-            } else {
-              filter.$or = orConditions;
-            }
-          } else {
-            filter[targetKey] = val;
-          }
+        if (Model.schema.paths[targetKey]) {
+          andConditions.push({ [targetKey]: req.query[key] });
         }
       });
+
       const q = (req.query.q || '').toString().trim();
       if (q) {
         const re = new RegExp(escapeRegex(q), 'i');
-        filter.$or = searchKeys.map((k) => ({ [k]: re }));
+        andConditions.push({ $or: searchKeys.map((k) => ({ [k]: re })) });
       }
+
+      const filter = andConditions.length > 0 ? (andConditions.length === 1 ? andConditions[0] : { $and: andConditions }) : {};
+
+      const page = Math.max(Number(req.query.page) || 0, 0);
       const sortField = ALLOWED_SORT.has(req.query.sortField) ? req.query.sortField : 'createdAt';
       const dir = req.query.sortDir === 'asc' ? 1 : -1;
       const pageSize = Math.min(Math.max(Number(req.query.pageSize) || 25, 1), 200);
-      const page = Math.max(Number(req.query.page) || 0, 0);
 
       const [items, total] = await Promise.all([
         Model.find(filter)

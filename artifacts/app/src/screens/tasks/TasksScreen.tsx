@@ -341,6 +341,15 @@ export const TasksScreen = ({ navigation, route }: any) => {
                       </View>
                     </View>
 
+                    {(item.callbackReason || item.call_back_reason) ? (
+                      <View style={styles.callbackReasonPill}>
+                        <Ionicons name="chatbox-ellipses-outline" size={10} color="#D97706" />
+                        <Text style={styles.callbackReasonText} numberOfLines={1}>
+                          {item.callbackReason || item.call_back_reason}
+                        </Text>
+                      </View>
+                    ) : null}
+
                     {item.leadName ? (
                       <View style={styles.contactItemRow}>
                         <Ionicons name="person" size={11} color="#272944" />
@@ -372,19 +381,6 @@ export const TasksScreen = ({ navigation, route }: any) => {
                       >
                         <Ionicons name="call" size={14} color="#FFFFFF" />
                       </TouchableOpacity>
-                    ) : null}
-
-                    {item.email ? (
-                      <>
-                        <View style={styles.actionDividerLine} />
-                        <TouchableOpacity
-                          style={styles.circleActionBtnMail}
-                          onPress={() => handleEmail(item.email, item.leadName)}
-                          activeOpacity={0.75}
-                        >
-                          <Ionicons name="mail" size={14} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      </>
                     ) : null}
 
                     {item.phone ? (
@@ -488,7 +484,7 @@ const styles = StyleSheet.create({
   statusPillText: {
     color: '#34D399',
     fontSize: 10.5,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.6,
   },
   searchBarBox: {
@@ -555,7 +551,7 @@ const styles = StyleSheet.create({
   },
   statusChipText: {
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.3,
   },
@@ -573,7 +569,7 @@ const styles = StyleSheet.create({
   },
   chipBadgeText: {
     fontSize: 10.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#475569',
   },
   chipBadgeTextSelected: {
@@ -608,7 +604,7 @@ const styles = StyleSheet.create({
   sourceVerticalText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.4,
     transform: [{ rotate: '-90deg' }],
     width: 75,
@@ -635,7 +631,7 @@ const styles = StyleSheet.create({
   },
   taskTitleText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.2,
     maxWidth: 150,
@@ -660,8 +656,28 @@ const styles = StyleSheet.create({
   },
   miniStatusText: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  callbackReasonPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  callbackReasonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B45309',
+    maxWidth: 160,
   },
   contactItemRow: {
     flexDirection: 'row',
@@ -671,7 +687,7 @@ const styles = StyleSheet.create({
   },
   clientText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1E293B',
     letterSpacing: -0.1,
   },

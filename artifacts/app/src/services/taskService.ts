@@ -21,6 +21,8 @@ export interface TaskItem {
   source?: string;
   notes?: string;
   status?: string;
+  callbackReason?: string;
+  call_back_reason?: string;
 }
 
 export const taskService = {
@@ -67,6 +69,8 @@ export const taskService = {
           projectName: t.projectName || t.project_name || t.project || '',
           type: t.type || t.taskType || '',
           source: t.source || t.leadSource || t.lead_source || t.lead?.source || t.lead?.lead_source || 'Self Generated',
+          callbackReason: t.callbackReason || t.call_back_reason || t.reason || undefined,
+          call_back_reason: t.call_back_reason || t.callbackReason || t.reason || undefined,
         };
       });
     } catch (err) {

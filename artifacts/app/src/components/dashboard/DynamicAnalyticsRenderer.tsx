@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
   },
   sectionHeadingText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#334155',
     letterSpacing: 0.2,
   },
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
   },
   kpiCompactValue: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.5,
   },
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   },
   kpiCompactTitle: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.2,
   },

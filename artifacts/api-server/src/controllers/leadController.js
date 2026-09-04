@@ -46,7 +46,7 @@ exports.list = async (req, res, next) => {
           projectName: c.project_name || c.projectName || c.project || '',
           budget: c.budget || '',
           propertyType: c.property_type || c.propertyType || '',
-          source: c.source || 'Website Inquiry',
+          source: c.source || c.lead_source || '',
           notes: c.notes || '',
           contactOwnerEmail: c.contact_owner_email || c.contactOwnerEmail || '',
           createdAt: c.createdAt || c.created_at || new Date().toISOString(),
@@ -85,7 +85,7 @@ exports.list = async (req, res, next) => {
           projectName: l.project || l.project_name || '',
           budget: l.budget || '',
           propertyType: l.property_type || '',
-          source: l.lead_source || l.source || 'Mobile App',
+          source: l.lead_source || l.source || '',
           notes: l.notes || '',
           createdAt: l.createdAt || l.created_at || new Date().toISOString(),
           updatedAt: l.updatedAt || l.updated_at || new Date().toISOString(),
@@ -119,7 +119,7 @@ exports.create = async (req, res, next) => {
     const location = payload.location || '';
     const leadType = payload.leadType || payload.lead_type || 'Buyer';
     const alternateNo = payload.alternateNo || payload.alternate_no || '';
-    const source = payload.source || payload.lead_source || 'Mobile Lead';
+    const source = payload.source || payload.lead_source || '';
     const notes = payload.notes || '';
 
     // 1. Create in Contact collection (Single source of truth for Web CRM)
