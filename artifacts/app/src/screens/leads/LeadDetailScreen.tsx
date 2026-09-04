@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
@@ -24,6 +25,20 @@ import { getIndustrySemantics } from '../../utils/industryLabels';
 import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
 import { openWhatsApp } from '../../utils/whatsappHelper';
 import { openEmail } from '../../utils/emailHelper';
+import { getDynamicDefaultOptions } from './LeadFormScreen';
+import {
+  CallbackModal,
+  NotInterestedModal,
+  InterestedModal,
+  ConvertLeadModal,
+  LostModal,
+  RescheduleModal,
+  LogCallModal,
+  NotesModal,
+  ChangeOwnerModal,
+  UnifiedActivityTimeline,
+  CreateTaskModal,
+} from '../../components/leads';
 
 type DetailTabType = 'timeline' | 'profile' | 'deals' | 'notes';
 type TimelineFilterType = 'all' | 'calls' | 'tasks';
@@ -58,6 +73,10 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [dealModalVisible, setDealModalVisible] = useState(false);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [logCallModalVisible, setLogCallModalVisible] = useState(false);
+  const [lostModalVisible, setLostModalVisible] = useState(false);
+  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
+  const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
+  const [changeOwnerModalVisible, setChangeOwnerModalVisible] = useState(false);
 
   // Form States for Modals
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -72,12 +91,181 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [notInterestedReason, setNotInterestedReason] = useState('Budget Mismatch');
   const [notInterestedNote, setNotInterestedNote] = useState('');
 
-  // 3. Interested Modal Form
-  const [interestedProject, setInterestedProject] = useState(lead.project || lead.projectName || 'Test Project');
-  const [interestedBudget, setInterestedBudget] = useState(lead.budget || 'Rs.40 Lacs - Rs.50 Lacs');
+  // 3. Interested Modal Form (Matching Web CRM InterestedDetails.tsx 1:1)
+  const [interestedCustomerName, setInterestedCustomerName] = useState(lead.name || lead.firstName || 'Inquiry Contact');
+  const [interestedAlternateNo, setInterestedAlternateNo] = useState((lead as any).alternateNo || (lead as any).alternate_no || '');
   const [interestedLocation, setInterestedLocation] = useState(lead.location || 'Noida Sector 18');
+  const [interestedProject, setInterestedProject] = useState(lead.project || lead.projectName || 'Sunrise Park');
+  const [interestedTaskType, setInterestedTaskType] = useState('Call Back');
+  const [interestedBudget, setInterestedBudget] = useState(lead.budget || 'Rs.40 Lacs - Rs.50 Lacs');
+  const [interestedNextFollowUp, setInterestedNextFollowUp] = useState('2026-09-05, 11:00 AM');
   const [interestedPropertyType, setInterestedPropertyType] = useState(lead.propertyType || 'Residential Properties');
+  const [interestedPropertyStage, setInterestedPropertyStage] = useState((lead as any).propertyStage || 'Under Construction');
+  const [interestedPropertySubType, setInterestedPropertySubType] = useState((lead as any).propertySubType || 'Apartment');
+  const [interestedSource, setInterestedSource] = useState(lead.source || 'Website');
   const [interestedNote, setInterestedNote] = useState('');
+
+  // Dynamic API Dropdown Options & Picker Modal States
+  const [dynamicApiOptions, setDynamicApiOptions] = useState<Record<string, string[]>>({});
+  const [pickerModal, setPickerModal] = useState<{
+    visible: boolean;
+    fieldKey: string;
+    fieldLabel: string;
+    options: string[];
+    currentValue: string;
+    setter: (val: string) => void;
+  }>({
+    visible: false,
+    fieldKey: '',
+    fieldLabel: '',
+    options: [],
+    currentValue: '',
+    setter: () => {},
+  });
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [showInterestedDatePicker, setShowInterestedDatePicker] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchInterestedDynamicOptions = async () => {
+      try {
+        const finalIndustry = user?.industryId || 'temp0001';
+        const finalRole = user?.role || 'admin';
+        const finalOrg = user?.organizationId;
+
+        // 1. Resolve screen config for interested screen (matching InterestedDetails.tsx)
+        await apiClient
+          .post('/screens/resolve', {
+            screenKey: 'interested',
+            industryCode: finalIndustry,
+            industry_code: finalIndustry,
+            roleKey: finalRole,
+            role_key: finalRole,
+            organizationId: finalOrg,
+            organization_id: finalOrg,
+          })
+          .catch(() => null);
+
+        // 2. Fetch options from backend endpoints
+        const orgParam = finalOrg ? `?organizationId=${encodeURIComponent(finalOrg)}` : '';
+        const indParam = finalIndustry ? `&industryId=${encodeURIComponent(finalIndustry)}` : '';
+        const querySuffix = `${orgParam}${orgParam ? indParam : indParam ? `?${indParam.substring(1)}` : ''}`;
+
+        const endpoints = [
+          { key: 'projectName', url: `options/projectName${querySuffix}` },
+          { key: 'projectName', url: `options/resourceProjects?display=projectName${indParam}` },
+          { key: 'projectName', url: `projects${querySuffix}` },
+          { key: 'location', url: `options/location${querySuffix}` },
+          { key: 'location', url: `options/resourceLocations?display=locationName${indParam}` },
+          { key: 'propertyType', url: `options/propertyType${querySuffix}` },
+          { key: 'propertyType', url: `options/resourcePropertyTypes?display=propertyType${indParam}` },
+          { key: 'propertyStage', url: `options/propertyStage${querySuffix}` },
+          { key: 'propertyStage', url: `options/resourcePropertyStages?display=stage${indParam}` },
+          { key: 'propertySubType', url: `options/propertySubType${querySuffix}` },
+          { key: 'budget', url: `options/budget${querySuffix}` },
+          { key: 'budget', url: `options/resourceBudgets?display=budget${indParam}` },
+          { key: 'leadSource', url: `options/source${querySuffix}` },
+          { key: 'leadSource', url: `options/resourceLeadSources?display=leadSource${indParam}` },
+          { key: 'source', url: `options/source${querySuffix}` },
+        ];
+
+        const loadedOptions: Record<string, string[]> = {};
+
+        await Promise.allSettled(
+          endpoints.map(async ({ key, url }) => {
+            try {
+              const res = await apiClient.get(url);
+              const raw = res.data?.items || res.data?.data || res.data || [];
+              if (Array.isArray(raw) && raw.length > 0) {
+                const strVals = raw
+                  .map((item: any) => {
+                    if (typeof item === 'string') return item;
+                    return (
+                      item.name ||
+                      item.label ||
+                      item.value ||
+                      item.projectName ||
+                      item.locationName ||
+                      item.propertyType ||
+                      item.stage ||
+                      item.budget ||
+                      item.leadSource ||
+                      String(item)
+                    );
+                  })
+                  .filter((v: string) => v && typeof v === 'string' && v.trim() !== '');
+
+                if (strVals.length > 0) {
+                  loadedOptions[key] = Array.from(
+                    new Set([...(loadedOptions[key] || []), ...strVals])
+                  );
+                }
+              }
+            } catch {
+              // Ignore
+            }
+          })
+        );
+
+        if (isMounted) {
+          setDynamicApiOptions(loadedOptions);
+        }
+      } catch (err) {
+        console.warn('Failed loading dynamic options for interested screen:', err);
+      }
+    };
+
+    fetchInterestedDynamicOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.industryId, user?.role, user?.organizationId]);
+
+  const getOptionsForField = useCallback(
+    (fieldKey: string): string[] => {
+      const apiVals =
+        dynamicApiOptions[fieldKey] ||
+        dynamicApiOptions[fieldKey === 'source' ? 'leadSource' : fieldKey];
+      const defaults = getDynamicDefaultOptions(user?.industryId);
+      const defVals =
+        defaults[fieldKey] ||
+        defaults[fieldKey === 'projectName' ? 'project' : fieldKey] ||
+        [];
+
+      const merged = Array.from(new Set([...(apiVals || []), ...defVals]));
+      if (merged.length > 0) return merged;
+
+      if (fieldKey === 'taskType') return ['Call Back', 'Site Visit', 'Meeting'];
+      if (fieldKey === 'propertyStage')
+        return ['Under Construction', 'Ready to Move', 'Pre Launch', 'Resale'];
+      return [];
+    },
+    [dynamicApiOptions, user?.industryId]
+  );
+
+  const filteredPickerOptions = useMemo(() => {
+    if (!pickerSearch.trim()) return pickerModal.options;
+    const query = pickerSearch.toLowerCase().trim();
+    return pickerModal.options.filter((o) => o.toLowerCase().includes(query));
+  }, [pickerModal.options, pickerSearch]);
+
+  const openFieldPicker = (
+    fieldKey: string,
+    fieldLabel: string,
+    currentVal: string,
+    setter: (val: string) => void
+  ) => {
+    const options = getOptionsForField(fieldKey);
+    setPickerSearch('');
+    setPickerModal({
+      visible: true,
+      fieldKey,
+      fieldLabel,
+      options,
+      currentValue: currentVal,
+      setter,
+    });
+  };
 
   // 4. Convert Deal Form
   const [dealTitle, setDealTitle] = useState(`${lead.name || 'Client'} - Deal`);
@@ -227,6 +415,13 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
   const stageMeta = getStageMeta(stage);
 
+  const normalizedStage = String(stage || '').toUpperCase().trim();
+  const isFresh = !normalizedStage || normalizedStage.includes('FRESH') || normalizedStage.includes('NEW');
+  const isCallback = normalizedStage.includes('CALLBACK') || normalizedStage.includes('CALL_BACK');
+  const isInterested = normalizedStage.includes('INTEREST') || normalizedStage.includes('QUALIF') || normalizedStage.includes('VISIT') || normalizedStage.includes('MEET') || normalizedStage.includes('FOLLOW');
+  const isClosedLost = normalizedStage.includes('LOST') || normalizedStage.includes('NOT_INTEREST') || normalizedStage.includes('REFUSED');
+  const isConverted = Boolean(lead?.isConverted || lead?.is_converted || normalizedStage.includes('CONVERT') || normalizedStage.includes('WON') || normalizedStage.includes('DEAL') || dealsList.length > 0);
+
   // Handlers for Direct Communication
   const handleCall = () => {
     if (!phone) {
@@ -318,26 +513,56 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
       await leadService.transitionLead(
         leadId,
         'INTERESTED',
-        `Updated details: ${interestedProject} | ${interestedBudget} | ${interestedLocation} - ${interestedNote}`
+        `Updated interested details: ${interestedProject} | ${interestedBudget} | ${interestedLocation} - ${interestedNote}`
       );
       await apiClient.put(`/leads/${leadId}`, {
-        project: interestedProject,
-        budget: interestedBudget,
+        customerName: interestedCustomerName,
+        alternateNo: interestedAlternateNo,
         location: interestedLocation,
+        project: interestedProject,
+        projectName: interestedProject,
+        budget: interestedBudget,
         propertyType: interestedPropertyType,
+        propertyStage: interestedPropertyStage,
+        propertySubType: interestedPropertySubType,
+        source: interestedSource,
+        notes: interestedNote,
+        stage: 'INTERESTED',
+        status: 'INTERESTED',
+      }).catch(() => null);
+
+      // Create Follow-up Task matching Web CRM 1:1
+      await apiClient.post('/tasks', {
+        contactId: leadId,
+        leadId: leadId,
+        title: `Follow-up: ${interestedTaskType}`,
+        type: interestedTaskType,
+        taskType: interestedTaskType,
+        dueDate: interestedNextFollowUp,
+        notes: interestedNote,
+        status: 'PENDING',
+        customerName: interestedCustomerName,
+        leadName: interestedCustomerName,
+        phone: phone,
+        project: interestedProject,
+        location: interestedLocation,
+        budget: interestedBudget,
+        source: interestedSource,
       }).catch(() => null);
 
       setLead((prev) => ({
         ...prev,
         status: 'INTERESTED',
         stage: 'INTERESTED',
+        name: interestedCustomerName,
         project: interestedProject,
         budget: interestedBudget,
         location: interestedLocation,
         propertyType: interestedPropertyType,
+        source: interestedSource,
       }));
       setInterestedModalVisible(false);
-      Alert.alert('Success', 'Interested details saved successfully!');
+      Alert.alert('Success', 'Lead updated to Interested and follow-up task created!');
       loadLeadDetails();
     } catch (e) {
       Alert.alert('Error', 'Failed to save details.');
@@ -606,7 +831,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
             {[
               { key: 'timeline', label: 'ACTIVITY', count: unifiedActivities.length },
               { key: 'profile', label: 'OVERVIEW', count: undefined },
-              { key: 'deals', label: 'DEALS', count: dealsList.length },
               { key: 'notes', label: 'NOTES', count: notesList.length },
             ].map((tab) => {
               const isSelected = activeTab === tab.key;
@@ -649,58 +873,142 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           </View>
         </View>
 
-        {/* ─── Modern 5-Column Executive Quick Action Cockpit ─── */}
+        {/* ─── Web CRM 1:1 Stage-Aware Executive Action Cockpit ─── */}
         <View style={styles.actionCockpitBar}>
           <TouchableOpacity style={styles.actionItem} onPress={handleCall} activeOpacity={0.75}>
             <View style={[styles.actionCircle, { backgroundColor: '#EEF0F8', borderColor: '#C8CDDC' }]}>
               <Ionicons name="call" size={20} color="#272944" />
             </View>
-            <Text style={styles.actionItemLabel}>Call</Text>
+            <Text style={styles.actionItemLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              Call
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionItem}
-            onPress={handleWhatsApp}
-            activeOpacity={0.75}
-          >
+          <TouchableOpacity style={styles.actionItem} onPress={handleWhatsApp} activeOpacity={0.75}>
             <View style={[styles.actionCircle, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
               <Ionicons name="logo-whatsapp" size={21} color="#16A34A" />
             </View>
-            <Text style={styles.actionItemLabel}>WhatsApp</Text>
+            <Text style={styles.actionItemLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              WhatsApp
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionItem}
-            onPress={() => setCallBackModalVisible(true)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-              <Ionicons name="time" size={20} color="#EA580C" />
-            </View>
-            <Text style={styles.actionItemLabel}>Follow-up</Text>
-          </TouchableOpacity>
+          {/* Dynamic Stage Action Buttons matching Web CRM 1:1 */}
+          {(isFresh || isCallback) && (
+            <>
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setInterestedModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.actionCircle, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                  <Ionicons name="thumbs-up" size={20} color="#16A34A" />
+                </View>
+                <Text
+                  style={[styles.actionItemLabel, { color: '#047857' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  Interested
+                </Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionItem}
-            onPress={() => setDealModalVisible(true)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.actionCircle, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
-              <Ionicons name="swap-horizontal" size={20} color="#7C3AED" />
-            </View>
-            <Text style={styles.actionItemLabel}>Convert</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setCallBackModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                  <Ionicons name="time" size={20} color="#EA580C" />
+                </View>
+                <Text
+                  style={[styles.actionItemLabel, { color: '#C2410C' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {isCallback ? 'Re-Call Back' : 'Call Back'}
+                </Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionItem}
-            onPress={() => setNotInterestedModalVisible(true)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
-              <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
-            </View>
-            <Text style={styles.actionItemLabel}>Lost</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setNotInterestedModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
+                  <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
+                </View>
+                <Text
+                  style={[styles.actionItemLabel, { color: '#B91C1C' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  Not Int.
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {isInterested && !isClosedLost && (
+            <>
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setCreateTaskModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.actionCircle, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                  <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
+                </View>
+                <Text
+                  style={[styles.actionItemLabel, { color: '#1D4ED8' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  Create Task
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setRescheduleModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                  <Ionicons name="calendar-outline" size={20} color="#EA580C" />
+                </View>
+                <Text
+                  style={[styles.actionItemLabel, { color: '#C2410C' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  Re-Schedule
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setLostModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
+                  <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
+                </View>
+                <Text
+                  style={[styles.actionItemLabel, { color: '#B91C1C' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  Lost
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* ─── TAB 1: Connected Vertical Activity Timeline ─── */}
@@ -761,15 +1069,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                 >
                   Tasks ({tasks.length})
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.quickAddTrigger}
-                onPress={() => setNoteModalVisible(true)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="add" size={13} color="#2563EB" />
-                <Text style={styles.quickAddTriggerText}>Add Note</Text>
               </TouchableOpacity>
             </View>
 
@@ -979,14 +1278,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                     <Ionicons name="briefcase-outline" size={16} color="#059669" />
                     <Text style={styles.cardSectionTitle}>DEALS & PIPELINE</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.sectionActionPill}
-                    onPress={() => setDealModalVisible(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add-circle" size={13} color="#2563EB" />
-                    <Text style={styles.sectionActionText}>+ New Deal</Text>
-                  </TouchableOpacity>
                 </View>
 
                 {dealsList.length === 0 ? (
@@ -994,15 +1285,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                     <Ionicons name="briefcase-outline" size={36} color="#94A3B8" />
                     <Text style={styles.emptyTitle}>No active deals created yet</Text>
                     <Text style={styles.emptySubtext}>
-                      Click "+ New Deal" or "Convert" from the action bar to link a monetary pipeline deal.
+                      Convert this lead from the action bar to link a monetary pipeline deal.
                     </Text>
-                    <TouchableOpacity
-                      style={styles.emptyCTA}
-                      onPress={() => setDealModalVisible(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.emptyCTAText}>Create Deal Now</Text>
-                    </TouchableOpacity>
                   </View>
                 ) : (
                   dealsList.map((d, idx) => (
@@ -1088,446 +1372,68 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         )}
       </ScrollView>
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ─── MODAL 1: Call Back / Reschedule Details ─── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Modal visible={callBackModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Call Back Details</Text>
-              <TouchableOpacity
-                onPress={() => setCallBackModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalInputLabel}>Call Back Reason *</Text>
-            <View style={styles.modalPickerContainer}>
-              {['Busy in Meeting', 'Call After 1 Hour', 'Call Tomorrow', 'Ringing No Response'].map((r) => (
-                <TouchableOpacity
-                  key={r}
-                  style={[styles.pickerChip, callBackReason === r && styles.pickerChipActive]}
-                  onPress={() => setCallBackReason(r)}
-                >
-                  <Text
-                    style={[styles.pickerChipText, callBackReason === r && styles.pickerChipTextActive]}
-                  >
-                    {r}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.modalInputLabel}>Next Follow Up Date *</Text>
-            <TouchableOpacity
-              style={[styles.modalTextInput, styles.dateTriggerBox]}
-              onPress={() => setShowCallBackDatePicker(true)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.datePickerLeft}>
-                <Ionicons name="calendar-sharp" size={17} color="#0284C7" />
-                <Text style={styles.dateTriggerText}>
-                  {callBackDate || 'Select follow up date & time...'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-down" size={15} color="#64748B" />
-            </TouchableOpacity>
-
-            <Text style={styles.modalInputLabel}>Note</Text>
-            <TextInput
-              style={[styles.modalTextInput, { height: 75, textAlignVertical: 'top' }]}
-              value={callBackNote}
-              onChangeText={setCallBackNote}
-              placeholder="Add client discussion notes..."
-              placeholderTextColor="#94A3B8"
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setCallBackModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={submitCallBack}
-                disabled={submittingAction}
-              >
-                {submittingAction ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalSubmitBtnText}>Save Call Back</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ─── MODAL 2: Not Interested (Mark Lost) Details ─── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Modal visible={notInterestedModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Not Interested Details</Text>
-              <TouchableOpacity
-                onPress={() => setNotInterestedModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalInputLabel}>Not Interested Reason *</Text>
-            <View style={styles.modalPickerContainer}>
-              {[
-                'Budget Mismatch',
-                'Not Looking Now',
-                'High Price',
-                'Location Issue',
-                'Already Purchased',
-                'Fake Inquiry',
-              ].map((r) => (
-                <TouchableOpacity
-                  key={r}
-                  style={[styles.pickerChip, notInterestedReason === r && styles.pickerChipActive]}
-                  onPress={() => setNotInterestedReason(r)}
-                >
-                  <Text
-                    style={[
-                      styles.pickerChipText,
-                      notInterestedReason === r && styles.pickerChipTextActive,
-                    ]}
-                  >
-                    {r}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.modalInputLabel}>Enter Note</Text>
-            <TextInput
-              style={[styles.modalTextInput, { height: 75, textAlignVertical: 'top' }]}
-              value={notInterestedNote}
-              onChangeText={setNotInterestedNote}
-              placeholder="Provide reason remarks..."
-              placeholderTextColor="#94A3B8"
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setNotInterestedModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalSubmitBtn, { backgroundColor: '#DC2626' }]}
-                onPress={submitNotInterested}
-                disabled={submittingAction}
-              >
-                {submittingAction ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalSubmitBtnText}>Submit & Mark Lost</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ─── MODAL 3: Interested Stage Details Form ─── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Modal visible={interestedModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <ScrollView contentContainerStyle={{ paddingVertical: 20 }}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalTitle}>Interested Stage Details</Text>
-                <TouchableOpacity
-                  onPress={() => setInterestedModalVisible(false)}
-                  style={styles.modalCloseBtn}
-                >
-                  <Ionicons name="close" size={20} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalInputLabel}>Project Name *</Text>
-              <TextInput
-                style={styles.modalTextInput}
-                value={interestedProject}
-                onChangeText={setInterestedProject}
-                placeholder="Project Name"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.modalInputLabel}>Budget Range *</Text>
-              <TextInput
-                style={styles.modalTextInput}
-                value={interestedBudget}
-                onChangeText={setInterestedBudget}
-                placeholder="e.g. Rs.40 Lacs - Rs.50 Lacs"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.modalInputLabel}>Location / Area *</Text>
-              <TextInput
-                style={styles.modalTextInput}
-                value={interestedLocation}
-                onChangeText={setInterestedLocation}
-                placeholder="e.g. Noida Sector 18"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.modalInputLabel}>Property Type *</Text>
-              <TextInput
-                style={styles.modalTextInput}
-                value={interestedPropertyType}
-                onChangeText={setInterestedPropertyType}
-                placeholder="Residential / Commercial"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.modalInputLabel}>Note</Text>
-              <TextInput
-                style={[styles.modalTextInput, { height: 75, textAlignVertical: 'top' }]}
-                value={interestedNote}
-                onChangeText={setInterestedNote}
-                placeholder="Additional inquiry requirements..."
-                placeholderTextColor="#94A3B8"
-                multiline
-              />
-
-              <View style={styles.modalActionsRow}>
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={() => setInterestedModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalSubmitBtn}
-                  onPress={submitInterested}
-                  disabled={submittingAction}
-                >
-                  {submittingAction ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.modalSubmitBtnText}>Save Details</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ─── MODAL 4: Convert to Deal ─── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Modal visible={dealModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Convert to Pipeline Deal</Text>
-              <TouchableOpacity
-                onPress={() => setDealModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalInputLabel}>Deal Title *</Text>
-            <TextInput
-              style={styles.modalTextInput}
-              value={dealTitle}
-              onChangeText={setDealTitle}
-              placeholder="e.g. 3BHK Unit Deal"
-              placeholderTextColor="#94A3B8"
-            />
-
-            <Text style={styles.modalInputLabel}>Deal Value (₹) *</Text>
-            <TextInput
-              style={styles.modalTextInput}
-              value={dealAmount}
-              onChangeText={setDealAmount}
-              keyboardType="numeric"
-              placeholder="5000000"
-              placeholderTextColor="#94A3B8"
-            />
-
-            <Text style={styles.modalInputLabel}>Pipeline</Text>
-            <TextInput
-              style={styles.modalTextInput}
-              value={dealPipeline}
-              onChangeText={setDealPipeline}
-              placeholder="Primary Sales Pipeline"
-              placeholderTextColor="#94A3B8"
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setDealModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalSubmitBtn, { backgroundColor: '#2563EB' }]}
-                onPress={submitConvertDeal}
-                disabled={submittingAction}
-              >
-                {submittingAction ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalSubmitBtnText}>Create Deal</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ─── MODAL 5: Add Note ─── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Modal visible={noteModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Add Contact Note</Text>
-              <TouchableOpacity
-                onPress={() => setNoteModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalInputLabel}>Note Content *</Text>
-            <TextInput
-              style={[styles.modalTextInput, { height: 95, textAlignVertical: 'top' }]}
-              value={newNoteContent}
-              onChangeText={setNewNoteContent}
-              placeholder="Type client discussion or internal note here..."
-              placeholderTextColor="#94A3B8"
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setNoteModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={submitAddNote}
-                disabled={submittingAction || !newNoteContent.trim()}
-              >
-                {submittingAction ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalSubmitBtnText}>Save Note</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ─── MODAL 6: Log Call Details ─── */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <Modal visible={logCallModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Log Call Activity</Text>
-              <TouchableOpacity
-                onPress={() => setLogCallModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalInputLabel}>Call Type</Text>
-            <View style={styles.modalPickerContainer}>
-              {['Outgoing', 'Incoming', 'Missed'].map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  style={[styles.pickerChip, callType === t && styles.pickerChipActive]}
-                  onPress={() => setCallType(t)}
-                >
-                  <Text style={[styles.pickerChipText, callType === t && styles.pickerChipTextActive]}>
-                    {t}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.modalInputLabel}>Call Status</Text>
-            <View style={styles.modalPickerContainer}>
-              {['Connected', 'Busy', 'No Answer', 'Wrong Number'].map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.pickerChip, callStatus === s && styles.pickerChipActive]}
-                  onPress={() => setCallStatus(s)}
-                >
-                  <Text
-                    style={[styles.pickerChipText, callStatus === s && styles.pickerChipTextActive]}
-                  >
-                    {s}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.modalInputLabel}>Call Remark / Summary</Text>
-            <TextInput
-              style={[styles.modalTextInput, { height: 75, textAlignVertical: 'top' }]}
-              value={callRemark}
-              onChangeText={setCallRemark}
-              placeholder="Summary of conversation..."
-              placeholderTextColor="#94A3B8"
-              multiline
-            />
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setLogCallModalVisible(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={submitLogCall}
-                disabled={submittingAction}
-              >
-                {submittingAction ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalSubmitBtnText}>Log Call</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* ─── MODULAR COMPONENT MODALS (Matching Web CRM Structure 1:1) ─── */}
+      <CallbackModal
+        visible={callBackModalVisible}
+        lead={lead}
+        onClose={() => setCallBackModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <NotInterestedModal
+        visible={notInterestedModalVisible}
+        lead={lead}
+        onClose={() => setNotInterestedModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <InterestedModal
+        visible={interestedModalVisible}
+        lead={lead}
+        onClose={() => setInterestedModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <ConvertLeadModal
+        visible={dealModalVisible}
+        lead={lead}
+        onClose={() => setDealModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <LostModal
+        visible={lostModalVisible}
+        lead={lead}
+        onClose={() => setLostModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <RescheduleModal
+        visible={rescheduleModalVisible}
+        lead={lead}
+        onClose={() => setRescheduleModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <CreateTaskModal
+        visible={createTaskModalVisible}
+        lead={lead}
+        tasksData={tasks}
+        onClose={() => setCreateTaskModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <LogCallModal
+        visible={logCallModalVisible}
+        lead={lead}
+        onClose={() => setLogCallModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <NotesModal
+        visible={noteModalVisible}
+        lead={lead}
+        onClose={() => setNoteModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
+      <ChangeOwnerModal
+        visible={changeOwnerModalVisible}
+        lead={lead}
+        onClose={() => setChangeOwnerModalVisible(false)}
+        onSuccess={loadLeadDetails}
+      />
 
       {/* Calendar Date Picker Modal for Call Back Date */}
       <CalendarDatePickerModal
@@ -1540,6 +1446,95 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           setCallBackDate(formatted);
         }}
       />
+
+      {/* Calendar Date Picker Modal for Interested Follow Up Date */}
+      <CalendarDatePickerModal
+        visible={showInterestedDatePicker}
+        title="Select Interested Follow Up Date & Time"
+        currentValue={interestedNextFollowUp}
+        includeTime={true}
+        onClose={() => setShowInterestedDatePicker(false)}
+        onSelectDate={(formatted) => {
+          setInterestedNextFollowUp(formatted);
+        }}
+      />
+
+      {/* Dynamic Dropdown Options Picker Modal */}
+      <Modal
+        visible={pickerModal.visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPickerModal((prev) => ({ ...prev, visible: false }))}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '80%', paddingBottom: 20 }]}>
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalTitle}>Select {pickerModal.fieldLabel}</Text>
+                <Text style={styles.modalSubtitle}>{filteredPickerOptions.length} options available</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPickerModal((prev) => ({ ...prev, visible: false }))}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder={`Search ${pickerModal.fieldLabel.toLowerCase()}...`}
+              placeholderTextColor="#94A3B8"
+              value={pickerSearch}
+              onChangeText={setPickerSearch}
+              autoCorrect={false}
+            />
+
+            <FlatList
+              data={filteredPickerOptions}
+              keyExtractor={(item, index) => `${item}_${index}`}
+              renderItem={({ item }) => {
+                const isSelected = pickerModal.currentValue === item;
+                return (
+                  <TouchableOpacity
+                    style={[styles.optionRow, isSelected && styles.optionRowSelected]}
+                    onPress={() => {
+                      if (pickerModal.setter) {
+                        pickerModal.setter(item);
+                      }
+                      setPickerModal((prev) => ({ ...prev, visible: false }));
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                      {item}
+                    </Text>
+                    {isSelected && <Ionicons name="checkmark-circle" size={20} color={theme.colors.brand700} />}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                pickerSearch.trim() ? (
+                  <TouchableOpacity
+                    style={styles.customOptionRow}
+                    onPress={() => {
+                      if (pickerModal.setter) {
+                        pickerModal.setter(pickerSearch.trim());
+                      }
+                      setPickerModal((prev) => ({ ...prev, visible: false }));
+                    }}
+                  >
+                    <Ionicons name="add-circle" size={20} color={theme.colors.brand700} />
+                    <Text style={styles.customOptionText}>Use custom value: "{pickerSearch.trim()}"</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.emptyOptionsText}>No options found</Text>
+                )
+              }
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Unified Telephony Post-Call Disposition Modal */}
       <PostCallDispositionModal
@@ -1791,12 +1786,12 @@ const styles = StyleSheet.create({
   actionCockpitBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 16,
+    justifyContent: 'space-around',
+    marginHorizontal: 12,
     marginBottom: 14,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -1810,21 +1805,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 1,
   },
   actionCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   actionItemLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#334155',
     textAlign: 'center',
+    lineHeight: 12,
   },
   cardInnerPadding: {
     padding: 16,
@@ -2272,6 +2269,98 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
+  reasonChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  reasonChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  dropdownSelectBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    marginBottom: 12,
+  },
+  dropdownSelectText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#0F172A',
+    flex: 1,
+    marginRight: 8,
+  },
+  dropdownSelectPlaceholder: {
+    color: '#94A3B8',
+    fontWeight: '400',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  modalSearchInput: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 42,
+    fontSize: 13.5,
+    color: '#0F172A',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  optionRowSelected: {
+    backgroundColor: '#EFF6FF',
+  },
+  optionText: {
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#334155',
+  },
+  optionTextSelected: {
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  customOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  customOptionText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  emptyOptionsText: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    fontSize: 13,
+    paddingVertical: 20,
+  },
   modalActionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -2302,6 +2391,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  chipOptionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginVertical: 4,
+  },
+  reasonChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  reasonChipSelected: {
+    backgroundColor: '#1E2238',
+    borderColor: '#1E2238',
   },
 });
 

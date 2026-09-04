@@ -49,7 +49,7 @@ const COUNTRY_DIALING_CODES = [
   { code: '+880', flag: '🇧🇩', country: 'Bangladesh' },
 ];
 
-function getDynamicDefaultOptions(industryInput?: string): Record<string, string[]> {
+export function getDynamicDefaultOptions(industryInput?: string): Record<string, string[]> {
   const norm = String(industryInput || '').toLowerCase().trim().replace(/[\s\-_]+/g, '');
 
   if (norm === 'temp0003' || norm.includes('health') || norm.includes('medic') || norm.includes('clinic')) {

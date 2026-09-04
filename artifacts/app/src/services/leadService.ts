@@ -22,6 +22,8 @@ export interface LeadItem {
   notes?: string;
   contactOwnerEmail?: string;
   createdAt?: string;
+  isConverted?: boolean;
+  is_converted?: boolean;
 }
 
 export const leadService = {
@@ -78,7 +80,7 @@ export const leadService = {
           stage: item.stage || item.status || 'FRESH',
           leadType: item.leadType || item.lead_type || 'Buyer',
           location: item.location || '',
-          source: item.source || item.lead_source || 'Direct',
+          source: item.source || item.lead_source || '',
           budget: item.budget || '',
           propertyType: item.propertyType || item.inventoryType || '',
           project: item.projectName || item.project_name || item.project || '',
