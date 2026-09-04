@@ -711,17 +711,6 @@ export default function DealsListPage() {
             </ToggleButton>
           </ToggleButtonGroup>
 
-          {/* Add Deal Button */}
-          {can_add && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenAdd}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              Add Deal
-            </Button>
-          )}
         </Stack>
       </Box>
 

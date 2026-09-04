@@ -331,8 +331,28 @@ function buildController({
             targetKey = snake;
           }
         }
-        if (Model.schema.paths[targetKey]) {
-          filter[targetKey] = req.query[key];
+        if (Model.schema.paths[targetKey] || key === 'contactId' || key === 'contact_id') {
+          const val = req.query[key];
+          if (key === 'contactId' || key === 'contact_id' || targetKey === 'contact_id' || targetKey === 'contactId') {
+            const isObjId = mongoose.Types.ObjectId.isValid(val);
+            const orConditions = [
+              { contact_id: val },
+              { contactId: val },
+            ];
+            if (isObjId) {
+              orConditions.push({ contact_id: new mongoose.Types.ObjectId(val) });
+              orConditions.push({ contactId: new mongoose.Types.ObjectId(val) });
+            }
+            if (filter.$or) {
+              filter.$and = filter.$and || [];
+              filter.$and.push({ $or: filter.$or }, { $or: orConditions });
+              delete filter.$or;
+            } else {
+              filter.$or = orConditions;
+            }
+          } else {
+            filter[targetKey] = val;
+          }
         }
       });
       const q = (req.query.q || '').toString().trim();

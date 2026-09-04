@@ -81,8 +81,12 @@ const RESOURCE_SCREENS = [
       { field_key: 'locationName', label: 'Location Name', type: 'text', is_required: true, order: 1 },
     ],
     items: [
-      { locationName: 'Noida' },
-      { locationName: 'Delhi' },
+      { locationName: 'Mumbai - Bandra West' },
+      { locationName: 'South Delhi - Greater Kailash' },
+      { locationName: 'Bangalore - Whitefield' },
+      { locationName: 'Gurgaon - Golf Course Road' },
+      { locationName: 'Hyderabad - HITEC City' },
+      { locationName: 'Pune - Koregaon Park' },
     ]
   },
   {
@@ -94,9 +98,18 @@ const RESOURCE_SCREENS = [
       { field_key: 'leadSourceColor', label: 'Color Hex', type: 'text', is_required: false, order: 2 },
     ],
     items: [
-      { leadSource: 'Sulekha', leadSourceColor: '#ff6b76' },
-      { leadSource: 'Self Generated', leadSourceColor: '#22c55e' },
-      { leadSource: 'OLX', leadSourceColor: '#3b82f6' },
+      { leadSource: 'Sulekha', leadSourceColor: '#3B82F6' },
+      { leadSource: 'Self Generated', leadSourceColor: '#10B981' },
+      { leadSource: 'OLX', leadSourceColor: '#F97316' },
+      { leadSource: 'Makaan.com', leadSourceColor: '#8B5CF6' },
+      { leadSource: 'Magicbricks', leadSourceColor: '#EF4444' },
+      { leadSource: 'LinkedIn Ads', leadSourceColor: '#0A66C2' },
+      { leadSource: 'Justdial', leadSourceColor: '#14B8A6' },
+      { leadSource: 'Indiamart', leadSourceColor: '#2563EB' },
+      { leadSource: 'Housing.com', leadSourceColor: '#EC4899' },
+      { leadSource: 'Google Ads', leadSourceColor: '#34A853' },
+      { leadSource: 'Facebook', leadSourceColor: '#1877F2' },
+      { leadSource: '99 Acres', leadSourceColor: '#F59E0B' },
     ]
   },
   {
@@ -109,6 +122,10 @@ const RESOURCE_SCREENS = [
     items: [
       { budget: 'Rs.40 Lacs - Rs.50 Lacs' },
       { budget: 'Rs.50 Lacs - Rs.60 Lacs' },
+      { budget: 'Rs.60 Lacs - Rs.70 Lacs' },
+      { budget: 'Rs.70 Lacs - Rs.80 Lacs' },
+      { budget: 'Rs.80 Lacs - Rs.90 Lacs' },
+      { budget: 'Rs.90 Lacs - Rs.1 Cr' },
     ]
   },
   {
@@ -121,6 +138,7 @@ const RESOURCE_SCREENS = [
     items: [
       { reason: 'Fresh Leads' },
       { reason: 'Old Leads' },
+      { reason: 'Not Interested Leads' },
     ]
   },
   {
@@ -132,7 +150,7 @@ const RESOURCE_SCREENS = [
     ],
     items: [
       { stage: 'Under Construction' },
-      { stage: 'Ready to Move In' },
+      { stage: 'Ready to Move In (RTM) or Completed' },
     ]
   },
   {
@@ -145,6 +163,10 @@ const RESOURCE_SCREENS = [
     items: [
       { propertyType: 'Residential Properties' },
       { propertyType: 'Commercial Properties' },
+      { propertyType: 'Investment Properties' },
+      { propertyType: 'Plots & Land' },
+      { propertyType: 'Special Purpose Properties' },
+      { propertyType: 'Government Properties' },
     ]
   },
   {
@@ -157,7 +179,20 @@ const RESOURCE_SCREENS = [
     ],
     items: [
       { propertyType: 'Residential Properties', property_sub_type: 'Apartments/Condos' },
+      { propertyType: 'Residential Properties', property_sub_type: 'Townhouses' },
+      { propertyType: 'Residential Properties', property_sub_type: 'Villas' },
       { propertyType: 'Commercial Properties', property_sub_type: 'Office Spaces' },
+      { propertyType: 'Commercial Properties', property_sub_type: 'Retail Spaces' },
+      { propertyType: 'Commercial Properties', property_sub_type: 'Industrial Properties' },
+      { propertyType: 'Investment Properties', property_sub_type: 'Rental Properties' },
+      { propertyType: 'Investment Properties', property_sub_type: 'Vacation Homes' },
+      { propertyType: 'Plots & Land', property_sub_type: 'Agricultural Land' },
+      { propertyType: 'Plots & Land', property_sub_type: 'Residential Land' },
+      { propertyType: 'Special Purpose Properties', property_sub_type: 'Hotels and Resorts' },
+      { propertyType: 'Special Purpose Properties', property_sub_type: 'Healthcare Facilities' },
+      { propertyType: 'Special Purpose Properties', property_sub_type: 'Educational Institutions' },
+      { propertyType: 'Government Properties', property_sub_type: 'Public Buildings' },
+      { propertyType: 'Government Properties', property_sub_type: 'Military Bases' },
     ]
   }
 ];

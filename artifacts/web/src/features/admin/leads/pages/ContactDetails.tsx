@@ -215,7 +215,7 @@ export default function ContactDetailsPage() {
 
         const [bookingRes, tasksRes, notesRes, dealsList, pipesList, callsRes] = await Promise.all([
           api.get('bookings', { params: { contactId: id } }).catch(() => ({ data: { items: [] } })),
-          api.get('tasks', { params: { contactId: id } }).catch(() => ({ data: { items: [] } })),
+          api.get('tasks', { params: { contactId: id, contact_id: id, pageSize: 200 } }).catch(() => ({ data: { items: [] } })),
           api.get('resources/notes', { params: { contactId: id } }).catch(() => ({ data: { items: [] } })),
           listDeals({ contactId: id }).catch(() => [] as Deal[]),
           listPipelines().catch(() => [] as Pipeline[]),
@@ -228,13 +228,14 @@ export default function ContactDetailsPage() {
           setBooking(null)
         }
 
-        if (tasksRes.data?.items) {
-          setTasks(tasksRes.data.items)
+        if (tasksRes.data?.items || Array.isArray(tasksRes.data)) {
+          const tItems = tasksRes.data?.items || (Array.isArray(tasksRes.data) ? tasksRes.data : [])
+          setTasks(tItems)
         }
 
         if (notesRes.data?.items || Array.isArray(notesRes.data)) {
           const notesArr = Array.isArray(notesRes.data) ? notesRes.data : notesRes.data.items
-          const matchNotes = notesArr.filter((n: any) => n.contact_id === id || n.contactId === id)
+          const matchNotes = notesArr.filter((n: any) => String(n.contact_id || n.contactId || '') === String(id))
           setNotes(matchNotes)
         }
 
@@ -532,7 +533,7 @@ export default function ContactDetailsPage() {
             {can_edit && isCallback && (
               <Stack direction="row" spacing={0.75}>
                 <Button variant="contained" color="success" size="small" onClick={() => navigate(`/leads/contacts/${contact._id}/interested`)} sx={{ textTransform: 'none', fontWeight: 600 }}>Interested</Button>
-                <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 600 }}>Call Back</Button>
+                <Button variant="contained" color="warning" size="small" onClick={() => setCallbackOpen(true)} sx={{ textTransform: 'none', fontWeight: 600 }}>Re-Call Back</Button>
                 <Button variant="contained" color="error" size="small" onClick={() => setNotInterestedOpen(true)} sx={{ textTransform: 'none', fontWeight: 600 }}>Not Interested</Button>
               </Stack>
             )}
@@ -548,32 +549,36 @@ export default function ContactDetailsPage() {
               <Divider orientation="vertical" flexItem sx={{ height: 24, alignSelf: 'center', display: { xs: 'none', sm: 'block' } }} />
             )}
 
-            {/* Primary Action: Convert to Deal (if not converted) OR + New Deal (if converted) */}
-            {!isClosedLost && (!isConverted && can_edit ? (
-              <Button
-                variant="contained"
-                color="secondary"
-                size="small"
-                startIcon={<TransformIcon />}
-                onClick={() => setConvertOpen(true)}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
-              >
-                Convert to Deal
-              </Button>
-            ) : (
-              can_add && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  startIcon={<HandshakeOutlinedIcon />}
-                  onClick={handleOpenAddDeal}
-                  sx={{ textTransform: 'none', fontWeight: 600 }}
-                >
-                  + New Deal
-                </Button>
+            {/* Primary Action: Convert to Deal (if qualified/interested and not converted) OR + New Deal (if converted) */}
+            {!isClosedLost && (
+              !isConverted ? (
+                isInterested && can_edit && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    size="small"
+                    startIcon={<TransformIcon />}
+                    onClick={() => setConvertOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Convert to Deal
+                  </Button>
+                )
+              ) : (
+                can_add && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    startIcon={<HandshakeOutlinedIcon />}
+                    onClick={handleOpenAddDeal}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    + New Deal
+                  </Button>
+                )
               )
-            ))}
+            )}
 
             {/* Edit Contact Button */}
             {can_edit && (
@@ -758,17 +763,6 @@ export default function ContactDetailsPage() {
                     >
                       Open Deals Pipeline
                     </Button>
-                    {can_add && (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<AddIcon />}
-                        onClick={handleOpenAddDeal}
-                        sx={{ textTransform: 'none', fontWeight: 600 }}
-                      >
-                        + Add Deal
-                      </Button>
-                    )}
                   </Stack>
                 </Stack>
                 <Divider sx={{ mb: 2 }} />
@@ -779,19 +773,9 @@ export default function ContactDetailsPage() {
                     <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                       No Deals Created Yet
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 400, mx: 'auto' }}>
-                      Start tracking revenue and pipeline stages for this contact by creating a deal opportunity.
+                    <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mx: 'auto' }}>
+                      Revenue and pipeline stages for this contact will be displayed here once a deal is created.
                     </Typography>
-                    {can_add && (
-                      <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={handleOpenAddDeal}
-                        sx={{ textTransform: 'none', fontWeight: 600 }}
-                      >
-                        Create Deal Opportunity
-                      </Button>
-                    )}
                   </Box>
                 ) : (
                   <TableContainer>

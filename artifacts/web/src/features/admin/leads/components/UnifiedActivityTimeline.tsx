@@ -84,11 +84,23 @@ export default function UnifiedActivityTimeline({
 
     // 2. Tasks
     tasks.forEach((t, idx) => {
+      const dDate = t.nextFollowUpDateTime || t.dueDate || t.due_date || t.nextFollowUp || t.next_follow_up
+      const dateStr = dDate ? new Date(dDate).toLocaleDateString() : ''
+      const isDone = String(t.status || '').toUpperCase() === 'COMPLETED'
+      const subTitleStr = isDone ? (dateStr ? `Completed (Due: ${dateStr})` : 'Completed') : (dateStr ? `Due: ${dateStr}` : undefined)
+
+      const reason = t.callbackReason || t.callBackReason || t.callback_reason || t.call_back_reason || t.notIntReason || t.lostReason || t.reason
+      const rawType = t.taskType || t.task_type || t.type || 'Call Back'
+      let titleStr = rawType.toLowerCase().startsWith('follow-up') ? rawType : `Follow-up: ${rawType}`
+      if (reason) {
+        titleStr = `${titleStr} (${reason})`
+      }
+
       list.push({
         id: t._id || `task-${idx}`,
         type: 'task',
-        title: t.taskType ? `Follow-up: ${t.taskType}` : (t.type ? `Task: ${t.type}` : 'Follow-up Task'),
-        subtitle: t.nextFollowUpDateTime || t.dueDate ? `Due: ${new Date(t.nextFollowUpDateTime || t.dueDate).toLocaleDateString()}` : undefined,
+        title: titleStr,
+        subtitle: subTitleStr,
         description: t.notes || t.description || '',
         author: (() => {
           const name = t.assignedToName || t.createdByName || t.assignedTo || t.createdBy
@@ -104,13 +116,18 @@ export default function UnifiedActivityTimeline({
       })
     })
 
-    // 3. Notes
+    // 3. Notes (Deduplicating notes that match task notes)
+    const taskNotesSet = new Set(tasks.map(t => (t.notes || t.description || '').trim()).filter(Boolean))
     notes.forEach((n, idx) => {
+      const noteTxt = (n.notes || n.text || n.note || '').trim()
+      // Skip redundant note cards if exact note is attached to a task
+      if (noteTxt && taskNotesSet.has(noteTxt)) return
+
       list.push({
         id: n._id || `note-${idx}`,
         type: 'note',
         title: 'Note Added',
-        description: n.notes || n.text || n.note || '',
+        description: noteTxt,
         timestamp: n.createdAt || n.created_at || n.date || new Date(),
         author: (() => {
           let name = n.userName || n.user_name || n.createdByName || n.created_by_name || n.userEmail || n.user_email || n.createdBy || n.created_by
@@ -340,6 +357,25 @@ export default function UnifiedActivityTimeline({
                         {item.title}
                       </Typography>
                       {renderStatusChip(item)}
+                      {item.type === 'task' && (() => {
+                        const r = item.meta?.callbackReason || item.meta?.callBackReason || item.meta?.callback_reason || item.meta?.call_back_reason || item.meta?.notIntReason || item.meta?.lostReason || item.meta?.reason
+                        if (!r) return null
+                        return (
+                          <Chip
+                            size="small"
+                            label={`Reason: ${r}`}
+                            sx={{
+                              height: 18,
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              bgcolor: '#fff7ed',
+                              color: '#c2410c',
+                              border: '1px solid #ffedd5',
+                              px: 0.5
+                            }}
+                          />
+                        )
+                      })()}
                     </Box>
                     {item.subtitle && (
                       <Typography variant="caption" color="text.secondary">
