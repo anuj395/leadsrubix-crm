@@ -81,6 +81,67 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   // Form States for Modals
   const [submittingAction, setSubmittingAction] = useState(false);
 
+  // Resource Attachments Upload & Sub-tab State
+  const [notesSubTab, setNotesSubTab] = useState<'notes' | 'attachments'>('notes');
+  const [attachModalVisible, setAttachModalVisible] = useState(false);
+  const [attachType, setAttachType] = useState<'photo' | 'video' | 'file'>('photo');
+  const [attachName, setAttachName] = useState('');
+  const [attachUrl, setAttachUrl] = useState('');
+  const [uploadingAttach, setUploadingAttach] = useState(false);
+
+  const handleOpenAttachModal = (type: 'photo' | 'video' | 'file') => {
+    setAttachType(type);
+    setAttachName('');
+    setAttachUrl('');
+    setAttachModalVisible(true);
+  };
+
+  const handleUploadAttachment = async () => {
+    if (!attachUrl.trim()) {
+      Alert.alert('Required Field', 'Please enter a Resource URL or file link.');
+      return;
+    }
+
+    try {
+      setUploadingAttach(true);
+      const leadId = lead.id || lead._id;
+      const payload = {
+        name: attachName.trim() || `${attachType === 'photo' ? 'Photo' : attachType === 'video' ? 'Video' : 'Document'} Attachment`,
+        type: attachType,
+        url: attachUrl.trim(),
+      };
+
+      await apiClient.post(`/contacts/${leadId}/attachments`, payload);
+      Alert.alert('Success', 'Attachment uploaded successfully!');
+      setAttachModalVisible(false);
+      loadLeadDetails();
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to upload attachment');
+    } finally {
+      setUploadingAttach(false);
+    }
+  };
+
+  const handleDeleteAttachment = (attachId: string) => {
+    Alert.alert('Delete Attachment', 'Are you sure you want to delete this attachment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const leadId = lead.id || lead._id;
+            await apiClient.delete(`/contacts/${leadId}/attachments/${attachId}`);
+            Alert.alert('Success', 'Attachment deleted successfully!');
+            loadLeadDetails();
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.message || 'Failed to delete attachment');
+          }
+        },
+      },
+    ]);
+  };
+
   // 1. Call Back Modal Form
   const [callBackReason, setCallBackReason] = useState('Busy in Meeting');
   const [callBackDate, setCallBackDate] = useState('2026-09-05, 10:00 AM');
@@ -419,7 +480,11 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const isFresh = !normalizedStage || normalizedStage.includes('FRESH') || normalizedStage.includes('NEW');
   const isCallback = normalizedStage.includes('CALLBACK') || normalizedStage.includes('CALL_BACK');
   const isInterested = normalizedStage.includes('INTEREST') || normalizedStage.includes('QUALIF') || normalizedStage.includes('VISIT') || normalizedStage.includes('MEET') || normalizedStage.includes('FOLLOW');
-  const isClosedLost = normalizedStage.includes('LOST') || normalizedStage.includes('NOT_INTEREST') || normalizedStage.includes('REFUSED');
+  const isClosedLost =
+    ['NOT INTERESTED', 'NOTINTERESTED', 'NOT_INTERESTED', 'LOST', 'DROP', 'CLOSED LOST', 'CLOSED_LOST', 'JUNK'].includes(normalizedStage.replace(/_/g, ' ')) ||
+    normalizedStage.includes('LOST') ||
+    normalizedStage.includes('NOT_INTEREST') ||
+    normalizedStage.includes('REFUSED');
   const isConverted = Boolean(lead?.isConverted || lead?.is_converted || normalizedStage.includes('CONVERT') || normalizedStage.includes('WON') || normalizedStage.includes('DEAL') || dealsList.length > 0);
 
   // Handlers for Direct Communication
@@ -748,14 +813,16 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
 
-          <TouchableOpacity
-            style={styles.headerEditBtn}
-            onPress={() => navigation.navigate('LeadForm', { lead })}
-            activeOpacity={0.88}
-          >
-            <Ionicons name="create-outline" size={14} color="#FFFFFF" />
-            <Text style={styles.headerEditBtnText}>Edit Lead</Text>
-          </TouchableOpacity>
+          {!isClosedLost && (
+            <TouchableOpacity
+              style={styles.headerEditBtn}
+              onPress={() => navigation.navigate('LeadForm', { lead })}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="create-outline" size={14} color="#FFFFFF" />
+              <Text style={styles.headerEditBtnText}>Edit Lead</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Lead Identity Hero Strip inside Luxury Header */}
@@ -1314,60 +1381,170 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         {/* ─── TAB 4: Notes & Files ─── */}
         {activeTab === 'notes' && (
           <View style={styles.tabContentContainer}>
-            <View style={styles.profileCard3D}>
-              <View style={styles.cardInnerPadding}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleGroup}>
-                    <Ionicons name="document-text-outline" size={16} color="#2563EB" />
-                    <Text style={styles.cardSectionTitle}>CONTACT NOTES & REMARKS</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.sectionActionPill}
-                    onPress={() => setNoteModalVisible(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add" size={13} color="#2563EB" />
-                    <Text style={styles.sectionActionText}>+ Add Note</Text>
-                  </TouchableOpacity>
-                </View>
+            {/* Sub-Tab Filter Pills (50/50 Split) */}
+            <View style={styles.subTabRow}>
+              <TouchableOpacity
+                style={[styles.subTabPill, notesSubTab === 'notes' && styles.subTabPillSelected]}
+                onPress={() => setNotesSubTab('notes')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.subTabPillText, notesSubTab === 'notes' && styles.subTabPillTextSelected]}>
+                  Notes ({notesList.length})
+                </Text>
+              </TouchableOpacity>
 
-                {notesList.length === 0 ? (
-                  <Text style={styles.noItemsText}>No client notes recorded yet.</Text>
-                ) : (
-                  notesList.map((n, idx) => (
-                    <View key={idx} style={styles.noteItemCard}>
-                      <Text style={styles.noteContentText}>{n.content}</Text>
-                      <View style={styles.noteFooterRow}>
-                        <Text style={styles.noteAuthorText}>By {n.author}</Text>
-                        <Text style={styles.noteTimestampText}>
-                          {new Date(n.createdAt).toLocaleDateString()}
-                        </Text>
-                      </View>
+              <TouchableOpacity
+                style={[styles.subTabPill, notesSubTab === 'attachments' && styles.subTabPillSelected]}
+                onPress={() => setNotesSubTab('attachments')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.subTabPillText, notesSubTab === 'attachments' && styles.subTabPillTextSelected]}>
+                  Attachments ({attachments.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Notes List Card */}
+            {notesSubTab === 'notes' && (
+              <View style={styles.profileCard3D}>
+                <View style={styles.cardInnerPadding}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionTitleGroup}>
+                      <Ionicons name="document-text-outline" size={16} color="#2563EB" />
+                      <Text style={styles.cardSectionTitle}>CONTACT NOTES & REMARKS</Text>
                     </View>
-                  ))
-                )}
-              </View>
-            </View>
-
-            <View style={[styles.profileCard3D, { marginTop: 14 }]}>
-              <View style={styles.cardInnerPadding}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleGroup}>
-                    <Ionicons name="attach-outline" size={16} color="#7C3AED" />
-                    <Text style={styles.cardSectionTitle}>ATTACHMENTS & FILES</Text>
+                    <TouchableOpacity
+                      style={styles.sectionActionPill}
+                      onPress={() => setNoteModalVisible(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="add" size={13} color="#2563EB" />
+                      <Text style={styles.sectionActionText}>Add Note</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={styles.sectionActionPill}
-                    onPress={() => Alert.alert('Upload Attachment', 'File upload options ready.')}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="cloud-upload-outline" size={13} color="#2563EB" />
-                    <Text style={styles.sectionActionText}>+ Upload</Text>
-                  </TouchableOpacity>
+
+                  {notesList.length === 0 ? (
+                    <Text style={styles.noItemsText}>No client notes recorded yet.</Text>
+                  ) : (
+                    <ScrollView
+                      style={{ maxHeight: 320 }}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                    >
+                      {notesList.map((n, idx) => (
+                        <View key={idx} style={styles.noteItemCard}>
+                          <Text style={styles.noteContentText}>{n.content}</Text>
+                          <View style={styles.noteFooterRow}>
+                            <Text style={styles.noteAuthorText}>By {n.author}</Text>
+                            <Text style={styles.noteTimestampText}>
+                              {new Date(n.createdAt).toLocaleDateString()}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
                 </View>
-                <Text style={styles.noItemsText}>No attachments uploaded for this contact.</Text>
               </View>
-            </View>
+            )}
+
+            {/* Resource Attachments Card */}
+            {notesSubTab === 'attachments' && (
+              <View style={styles.profileCard3D}>
+                <View style={styles.cardInnerPadding}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionTitleGroup}>
+                      <Ionicons name="attach-outline" size={16} color="#7C3AED" />
+                      <Text style={styles.cardSectionTitle}>Resource Attachments</Text>
+                    </View>
+                  </View>
+
+                  {/* 3 Action Buttons in full width row */}
+                  <View style={styles.attachButtonsRow}>
+                    <TouchableOpacity
+                      style={styles.attachTypeBtn}
+                      onPress={() => handleOpenAttachModal('photo')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="image-outline" size={13} color="#16A34A" />
+                      <Text style={styles.attachTypeBtnText}>Photo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.attachTypeBtn}
+                      onPress={() => handleOpenAttachModal('video')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="videocam-outline" size={13} color="#9333EA" />
+                      <Text style={styles.attachTypeBtnText}>Video</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.attachTypeBtn}
+                      onPress={() => handleOpenAttachModal('file')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="document-text-outline" size={13} color="#2563EB" />
+                      <Text style={styles.attachTypeBtnText}>Document</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {attachments.length === 0 ? (
+                    <View style={styles.emptyAttachmentsBox}>
+                      <Ionicons name="cloud-upload-outline" size={40} color="#CBD5E1" />
+                      <Text style={styles.emptyAttachText}>No Attachments uploaded yet.</Text>
+                      <Text style={styles.emptyAttachSubtext}>Click Photo, Video, or Document above to upload.</Text>
+                    </View>
+                  ) : (
+                    attachments.map((a: any, idx: number) => {
+                      const attachId = a._id || a.id || String(idx);
+                      const isPhoto = a.type === 'photo';
+                      const isVideo = a.type === 'video';
+                      return (
+                        <View key={attachId} style={styles.attachmentCardRow}>
+                          <View style={[styles.attachmentAvatar, isPhoto ? styles.avatarPhoto : isVideo ? styles.avatarVideo : styles.avatarDoc]}>
+                            <Ionicons
+                              name={isPhoto ? 'image-outline' : isVideo ? 'videocam-outline' : 'document-text-outline'}
+                              size={18}
+                              color="#FFFFFF"
+                            />
+                          </View>
+
+                          <View style={styles.attachmentInfoGroup}>
+                            <Text style={styles.attachmentTitleText} numberOfLines={1}>
+                              {a.name || 'Attachment'}
+                            </Text>
+                            <Text style={styles.attachmentMetaText}>
+                              {a.size ? `${(a.size / 1024 / 1024).toFixed(2)} MB • ` : ''}
+                              {a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN') : 'Uploaded'}
+                            </Text>
+                          </View>
+
+                          <View style={styles.attachmentActionsGroup}>
+                            {a.url ? (
+                              <TouchableOpacity
+                                style={styles.viewAttachBtn}
+                                onPress={() => Linking.openURL(a.url).catch(() => Alert.alert('Error', 'Cannot open URL'))}
+                              >
+                                <Ionicons name="open-outline" size={14} color="#2563EB" />
+                                <Text style={styles.viewAttachBtnText}>View</Text>
+                              </TouchableOpacity>
+                            ) : null}
+
+                            <TouchableOpacity
+                              style={styles.deleteAttachBtn}
+                              onPress={() => handleDeleteAttachment(attachId)}
+                            >
+                              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -1434,6 +1611,69 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         onClose={() => setChangeOwnerModalVisible(false)}
         onSuccess={loadLeadDetails}
       />
+
+      {/* ─── UPLOAD ATTACHMENT MODAL (Matching Web CRM 1:1) ─── */}
+      <Modal visible={attachModalVisible} transparent animationType="slide" onRequestClose={() => setAttachModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalTitleGroup}>
+                <Text style={styles.modalTitle}>
+                  Upload {attachType === 'photo' ? 'Photo' : attachType === 'video' ? 'Video' : 'Document'} Attachment
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setAttachModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ paddingVertical: 10 }}>
+              <View style={styles.fieldContainer}>
+                <Text style={styles.modalInputLabel}>Attachment Title / Name</Text>
+                <TextInput
+                  style={styles.modalTextInput}
+                  value={attachName}
+                  onChangeText={setAttachName}
+                  placeholder="e.g. Site Visit Photos, ID Proof, Agreement"
+                  placeholderTextColor="#94A3B8"
+                />
+              </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.modalInputLabel}>
+                  Resource URL / File Link <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.modalTextInput}
+                  value={attachUrl}
+                  onChangeText={setAttachUrl}
+                  placeholder="https://..."
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAttachModalVisible(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSubmitBtn}
+                onPress={handleUploadAttachment}
+                disabled={uploadingAttach}
+              >
+                {uploadingAttach ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Upload</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Calendar Date Picker Modal for Call Back Date */}
       <CalendarDatePickerModal
@@ -2406,9 +2646,160 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  reasonChipSelected: {
-    backgroundColor: '#1E2238',
-    borderColor: '#1E2238',
+  fieldContainer: {
+    marginBottom: 12,
+  },
+  requiredStar: {
+    color: '#EF4444',
+  },
+  modalTitleGroup: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  /* SUB-TAB FILTER PILLS */
+  subTabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  subTabPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  subTabPillSelected: {
+    backgroundColor: '#151728',
+    borderColor: '#151728',
+  },
+  subTabPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  subTabPillTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  /* RESOURCE ATTACHMENTS STYLES */
+  attachButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  attachTypeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  attachTypeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  emptyAttachmentsBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyAttachText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 8,
+  },
+  emptyAttachSubtext: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  attachmentCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  attachmentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarPhoto: {
+    backgroundColor: '#16A34A',
+  },
+  avatarVideo: {
+    backgroundColor: '#9333EA',
+  },
+  avatarDoc: {
+    backgroundColor: '#2563EB',
+  },
+  attachmentInfoGroup: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  attachmentTitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  attachmentMetaText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  attachmentActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewAttachBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    backgroundColor: '#EFF6FF',
+  },
+  viewAttachBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  deleteAttachBtn: {
+    padding: 6,
   },
 });
 
