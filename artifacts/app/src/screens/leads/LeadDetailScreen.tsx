@@ -833,12 +833,20 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         cleanTitle = `${cleanTitle} (${reasonVal})`;
       }
 
+      const rawStatus = String(t.status || '').toUpperCase().trim();
+      let statusVal = 'Pending';
+      if (t.isCompleted || rawStatus === 'COMPLETED' || rawStatus === 'DONE') {
+        statusVal = 'Completed';
+      } else if (rawStatus === 'CANCELLED' || rawStatus === 'CANCEL' || t.isCancelled) {
+        statusVal = 'Cancelled';
+      }
+
       list.push({
         id: t.id || t._id || `task-${idx}`,
         type: 'task',
         title: cleanTitle,
         reason: reasonVal,
-        status: t.isCompleted || t.status === 'COMPLETED' || t.status === 'Completed' ? 'Completed' : 'Pending',
+        status: statusVal,
         dueDate: formatDateStr(t.dueDate || t.due_date || t.nextFollowUpDateTime) || '12/09/2026',
         author: t.author || user?.name || 'Anuj Chauhan',
         timestamp: formatDateTimeStr(t.createdAt || t.created_at) || '02/09/2026, 15:29:30',
@@ -1187,14 +1195,20 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
             {/* Activities List */}
             <View style={styles.timelineStream}>
               {filteredActivities.map((act) => (
-                <View key={act.id} style={styles.activityCard3D}>
+                <View
+                  key={act.id}
+                  style={[
+                    styles.activityCard3D,
+                    act.status === 'Cancelled' && { backgroundColor: '#FFF5F5', borderColor: '#FECDD3' },
+                  ]}
+                >
                   <View style={styles.cardInnerPadding}>
                     <View style={styles.cardHeaderRow}>
                       <View
                         style={[
                           styles.taskIconBox,
                           act.type === 'call' && { backgroundColor: '#EFF6FF' },
-                          act.type === 'task' && { backgroundColor: '#FFFBEB' },
+                          act.type === 'task' && { backgroundColor: act.status === 'Cancelled' ? '#FEF2F2' : '#FFFBEB' },
                           act.type === 'note' && { backgroundColor: '#ECFDF5' },
                         ]}
                       >
@@ -1210,6 +1224,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                           color={
                             act.type === 'call'
                               ? '#2563EB'
+                              : act.status === 'Cancelled'
+                              ? '#DC2626'
                               : act.type === 'task'
                               ? '#D97706'
                               : '#059669'
@@ -1219,7 +1235,12 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
                       <View style={styles.taskInfoGroup}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
-                          <Text style={styles.taskTitleText}>
+                          <Text
+                            style={[
+                              styles.taskTitleText,
+                              act.status === 'Cancelled' && { textDecorationLine: 'line-through', color: '#94A3B8' },
+                            ]}
+                          >
                             {act.title}
                           </Text>
 
@@ -1228,6 +1249,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                               styles.statusBadge,
                               act.status === 'Completed' || act.status === 'Saved'
                                 ? styles.statusBadgeCompleted
+                                : act.status === 'Cancelled'
+                                ? { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }
                                 : styles.statusBadgePending,
                             ]}
                           >
@@ -1236,6 +1259,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                                 styles.statusBadgeText,
                                 act.status === 'Completed' || act.status === 'Saved'
                                   ? styles.statusBadgeTextCompleted
+                                  : act.status === 'Cancelled'
+                                  ? { color: '#DC2626' }
                                   : styles.statusBadgeTextPending,
                               ]}
                             >
