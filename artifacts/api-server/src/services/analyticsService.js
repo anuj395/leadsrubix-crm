@@ -289,34 +289,21 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     if (callLogDate.createdAt) callLogFilter.createdAt = callLogDate.createdAt;
   }
 
-  // Fetch all base data in parallel from tasks, calllogs, contacts, and leads collections
-  const Lead = mongoose.model('Lead');
-  const [contacts, leadsList, tasks, callLogs, usersList] = await Promise.all([
+  // Fetch all base data in parallel from tasks, calllogs, and contacts collections
+  const [contacts, tasks, callLogs, usersList] = await Promise.all([
     Contact.find(contactFilter).lean().exec().catch(() => []),
-    Lead.find(contactFilter).lean().exec().catch(() => []),
     Task.find(taskFilter).lean().exec().catch(() => []),
     CallLog.find(callLogFilter).lean().exec().catch(() => []),
     User.find(targetOrgId ? { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] } : {}).select('_id uid name firstName lastName email role team').lean().exec().catch(() => [])
   ]);
 
-  // Combine contacts and leads into a single cohesive list
-  const allLeadsMap = new Map();
-  for (const c of contacts) {
-    allLeadsMap.set(String(c._id || c.id), c);
-  }
-  for (const l of leadsList) {
-    const idStr = String(l._id || l.id);
-    if (!allLeadsMap.has(idStr)) {
-      allLeadsMap.set(idStr, {
-        ...l,
-        stage: l.lead_status || l.stage || l.status || 'FRESH',
-        status: l.lead_status || l.stage || l.status || 'FRESH',
-        customerName: l.name || `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Lead',
-        contactNumber: l.phone || l.contact_no || ''
-      });
-    }
-  }
-  const allLeads = Array.from(allLeadsMap.values());
+  const allLeads = contacts.map(c => ({
+    ...c,
+    stage: c.stage || c.status || c.lead_status || c.property_stage || c.propertyStage || 'FRESH',
+    status: c.stage || c.status || c.lead_status || c.property_stage || c.propertyStage || 'FRESH',
+    customerName: c.name || c.customerName || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Lead',
+    contactNumber: c.phone || c.contactNo || c.contactNumber || c.contact_number || ''
+  }));
 
   // Create lookups
   const userMap = new Map();
