@@ -32,7 +32,6 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack'
 import ImageIcon from '@mui/icons-material/Image'
 import DescriptionIcon from '@mui/icons-material/Description'
@@ -580,8 +579,8 @@ export default function ContactDetailsPage() {
               )
             )}
 
-            {/* Edit Contact Button */}
-            {can_edit && (
+            {/* Edit Contact Button (Hidden if lead is Lost or Not Interested) */}
+            {can_edit && !isClosedLost && (
               <Button
                 variant="outlined"
                 size="small"
