@@ -1184,6 +1184,8 @@ exports.bulkImportContacts = async ({ contacts, fileName = 'contacts_import.csv'
     await ImportLog.create({
       requestId,
       organization_id: orgId,
+      module: 'contacts',
+      resource_key: 'contacts',
       createdBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || authedUser?.email || 'Admin',
       uid: user?.uid || String(user?._id || authedUser?.id),
       status: errors.length === 0 ? 'Completed' : 'Completed with Errors',
@@ -1219,11 +1221,19 @@ exports.listImportLogs = async ({ authedUser }) => {
     const err = new Error('Authenticated user not found'); err.status = 401; throw err;
   }
   const ImportLog = require('../models/importLogModel');
-  const logs = await ImportLog.find({ organization_id: user.organizationId || user.organization_id })
+  const orgId = user.organizationId || user.organization_id;
+  const logs = await ImportLog.find({ organization_id: orgId })
     .sort({ createdAt: -1 })
     .lean()
     .exec();
-  return logs;
+
+  const contactLogs = logs.filter(l => {
+    const key = l.resource_key || l.resourceKey || '';
+    if (key.startsWith('resource')) return false;
+    return true;
+  });
+
+  return contactLogs;
 };
 
 exports.deleteImportLog = async ({ id, authedUser }) => {
