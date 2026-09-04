@@ -23,12 +23,32 @@ export const UnifiedActivityTimeline: React.FC<Props> = ({
     const list: any[] = [];
 
     tasks.forEach((t) => {
+      const reasonVal =
+        t.callbackReason ||
+        t.callBackReason ||
+        t.callback_reason ||
+        t.call_back_reason ||
+        t.notIntReason ||
+        t.lostReason ||
+        t.reason ||
+        '';
+
+      const rawType = t.taskType || t.task_type || t.type || 'Call Back';
+      let titleStr = rawType.toLowerCase().startsWith('follow-up')
+        ? rawType
+        : `Follow-up: ${rawType}`;
+      if (reasonVal && !titleStr.includes(`(${reasonVal})`)) {
+        titleStr = `${titleStr} (${reasonVal})`;
+      }
+
       list.push({
         id: t._id || t.id,
         type: 'task',
-        title: `${t.taskType || t.type || 'Task'}: ${t.notes || t.customerName || 'Follow Up'}`,
+        title: titleStr,
+        reason: reasonVal,
         time: t.dueDate ? new Date(t.dueDate).toLocaleString() : 'Scheduled',
         status: t.status || 'PENDING',
+        notes: t.notes || t.description || '',
         rawDate: t.dueDate ? new Date(t.dueDate).getTime() : 0,
       });
     });
@@ -108,7 +128,14 @@ export const UnifiedActivityTimeline: React.FC<Props> = ({
             <View style={styles.timelineCard}>
               <View style={styles.timelineHeader}>
                 <Text style={styles.timelineTitle}>{act.title}</Text>
-                <Text style={styles.timelineStatusBadge}>{act.status}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {act.reason ? (
+                    <View style={styles.reasonBadge}>
+                      <Text style={styles.reasonBadgeText}>Reason: {act.reason}</Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.timelineStatusBadge}>{act.status}</Text>
+                </View>
               </View>
 
               {act.notes ? <Text style={styles.timelineNotes}>{act.notes}</Text> : null}
@@ -219,6 +246,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
+  },
+  reasonBadge: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  reasonBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#C2410C',
   },
   timelineNotes: {
     fontSize: 12,
