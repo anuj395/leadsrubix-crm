@@ -179,10 +179,14 @@ export function getDynamicDefaultOptions(industryInput?: string): Record<string,
   };
 }
 
-export const LeadFormScreen = ({ navigation }: any) => {
+export const LeadFormScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
   const semantics = getIndustrySemantics(user?.industryId);
   const dynamicOptionMap = useMemo(() => getDynamicDefaultOptions(user?.industryId), [user?.industryId]);
+
+  const editLead = route?.params?.lead;
+  const leadId = editLead?.id || editLead?._id || route?.params?.leadId;
+  const isEditMode = !!leadId;
 
   const [dynamicFields, setDynamicFields] = useState<DynamicFormField[]>([]);
   const [apiOptions, setApiOptions] = useState<Record<string, string[]>>({});
@@ -191,6 +195,75 @@ export const LeadFormScreen = ({ navigation }: any) => {
     contactCountryCode: '+91',
     alternateCountryCode: '+91',
   });
+
+  useEffect(() => {
+    if (!editLead) return;
+
+    let rawPhone = editLead.phone || editLead.contactNumber || editLead.contact_number || editLead.contactNo || '';
+    let phoneCode = '+91';
+    let phoneNum = rawPhone;
+    if (rawPhone.includes(' ')) {
+      const parts = rawPhone.split(' ');
+      if (parts[0].startsWith('+')) {
+        phoneCode = parts[0];
+        phoneNum = parts.slice(1).join(' ');
+      }
+    } else if (rawPhone.startsWith('+')) {
+      const match = rawPhone.match(/^(\+\d{1,3})(.*)$/);
+      if (match) {
+        phoneCode = match[1];
+        phoneNum = match[2].trim();
+      }
+    }
+
+    let rawAltPhone = editLead.alternateNo || editLead.alternate_no || editLead.alternateNumber || editLead.alternate_number || '';
+    let altPhoneCode = '+91';
+    let altPhoneNum = rawAltPhone;
+    if (rawAltPhone.includes(' ')) {
+      const parts = rawAltPhone.split(' ');
+      if (parts[0].startsWith('+')) {
+        altPhoneCode = parts[0];
+        altPhoneNum = parts.slice(1).join(' ');
+      }
+    } else if (rawAltPhone.startsWith('+')) {
+      const match = rawAltPhone.match(/^(\+\d{1,3})(.*)$/);
+      if (match) {
+        altPhoneCode = match[1];
+        altPhoneNum = match[2].trim();
+      }
+    }
+
+    const initialValues: Record<string, string> = {
+      contactCountryCode: phoneCode,
+      alternateCountryCode: altPhoneCode,
+      customerName: editLead.name || editLead.customerName || editLead.customer_name || `${editLead.firstName || ''} ${editLead.lastName || ''}`.trim() || '',
+      contactNumber: phoneNum,
+      emailId: editLead.email || editLead.emailId || editLead.email_id || '',
+      alternateNumber: altPhoneNum,
+      projectName: editLead.project || editLead.projectName || editLead.project_name || '',
+      location: editLead.location || '',
+      budget: editLead.budget || '',
+      propertyType: editLead.propertyType || editLead.property_type || '',
+      propertyStage: editLead.propertyStage || editLead.property_stage || '',
+      propertySubType: editLead.propertySubType || editLead.property_sub_type || '',
+      leadSource: editLead.source || editLead.leadSource || editLead.lead_source || '',
+      leadType: editLead.leadType || editLead.lead_type || '',
+      contactOwnerEmail: editLead.contactOwnerEmail || editLead.contact_owner_email || editLead.owner || '',
+      adSet: editLead.adSet || editLead.ad_set || '',
+      campaign: editLead.campaign || '',
+      notes: editLead.notes || editLead.note || editLead.remarks || editLead.description || '',
+    };
+
+    Object.keys(editLead).forEach((key) => {
+      if (editLead[key] !== null && editLead[key] !== undefined && (typeof editLead[key] === 'string' || typeof editLead[key] === 'number')) {
+        if (!initialValues[key]) {
+          initialValues[key] = String(editLead[key]);
+        }
+      }
+    });
+
+    setFormValues((prev) => ({ ...initialValues, ...prev }));
+  }, [editLead]);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -452,24 +525,35 @@ export const LeadFormScreen = ({ navigation }: any) => {
         email: email.trim(),
         project: project.trim(),
         source: source,
-        status: 'FRESH',
-        stage: 'FRESH',
         organizationId: user?.organizationId,
         organization_id: user?.organizationId,
         industryId: user?.industryId,
         industry_id: user?.industryId,
       };
 
-      await leadService.createLead(payload as any);
+      if (isEditMode) {
+        await apiClient.put(`/contacts/${leadId}`, payload);
+        Alert.alert(
+          `${semantics.leadEntitySingular} Updated!`,
+          `${semantics.leadEntitySingular} profile updated successfully.`,
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        await leadService.createLead({
+          ...payload,
+          status: 'FRESH',
+          stage: 'FRESH',
+        } as any);
 
-      Alert.alert(
-        `${semantics.leadEntitySingular} Registered!`,
-        `New ${semantics.leadEntitySingular.toLowerCase()} prospect registered successfully.`,
-        [{ text: 'View Pipeline', onPress: () => navigation.navigate('Leads') }]
-      );
+        Alert.alert(
+          `${semantics.leadEntitySingular} Registered!`,
+          `New ${semantics.leadEntitySingular.toLowerCase()} prospect registered successfully.`,
+          [{ text: 'View Pipeline', onPress: () => navigation.navigate('Leads') }]
+        );
+      }
     } catch (err: any) {
-      console.error('Failed to create lead:', err);
-      Alert.alert('Error', err.message || 'Unable to register prospect.');
+      console.error(isEditMode ? 'Failed to update lead:' : 'Failed to create lead:', err);
+      Alert.alert('Error', err.message || `Unable to ${isEditMode ? 'update' : 'register'} prospect.`);
     } finally {
       setSubmitting(false);
     }
@@ -658,13 +742,13 @@ export const LeadFormScreen = ({ navigation }: any) => {
         <View style={styles.headerBannerBox}>
           <View style={styles.headerTitleGroup}>
             <View style={styles.headerIconCircle}>
-              <Ionicons name="person-add-sharp" size={15} color="#0284C7" />
+              <Ionicons name={isEditMode ? "pencil-sharp" : "person-add-sharp"} size={15} color="#0284C7" />
             </View>
-            <Text style={styles.headerTitleText}>Add New {semantics.leadEntitySingular}</Text>
+            <Text style={styles.headerTitleText}>{isEditMode ? `Edit ${semantics.leadEntitySingular} Profile` : `Add New ${semantics.leadEntitySingular}`}</Text>
           </View>
           <View style={styles.headerStatusPill}>
             <View style={styles.headerGreenPulseDot} />
-            <Text style={styles.headerStatusPillText}>ENTRY</Text>
+            <Text style={styles.headerStatusPillText}>{isEditMode ? 'EDIT' : 'ENTRY'}</Text>
           </View>
         </View>
       </View>
@@ -732,7 +816,7 @@ export const LeadFormScreen = ({ navigation }: any) => {
                 ) : (
                   <View style={styles.submitBtnContent}>
                     <Ionicons name="checkmark-circle-sharp" size={20} color="#FFFFFF" />
-                    <Text style={styles.submitBtnText}>Create {semantics.leadEntitySingular}</Text>
+                    <Text style={styles.submitBtnText}>{isEditMode ? `Update ${semantics.leadEntitySingular}` : `Create ${semantics.leadEntitySingular}`}</Text>
                   </View>
                 )}
               </TouchableOpacity>
