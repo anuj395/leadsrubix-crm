@@ -1656,9 +1656,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerContactRow: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
     marginTop: 4,
   },
   headerContactPill: {
