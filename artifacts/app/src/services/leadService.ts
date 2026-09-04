@@ -113,4 +113,18 @@ export const leadService = {
       return false;
     }
   },
+
+  async updateLeadStage(id: string, stage: string, remarks?: string): Promise<boolean> {
+    return this.transitionLead(id, stage, remarks);
+  },
+
+  async updateLead(id: string, payload: Partial<LeadItem>): Promise<boolean> {
+    try {
+      await leadRepository.updateRawLead(id, payload);
+      return true;
+    } catch (err) {
+      console.error('[leadService] Failed to update lead:', err);
+      return false;
+    }
+  },
 };
