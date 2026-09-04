@@ -1618,7 +1618,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   headerHeroMeta: {
     flex: 1,
@@ -1631,7 +1631,7 @@ const styles = StyleSheet.create({
   },
   headerHeroTitle: {
     fontSize: 16.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
     flex: 1,
     marginRight: 8,
@@ -1652,14 +1652,13 @@ const styles = StyleSheet.create({
   },
   headerStageText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   headerContactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4.5,
     marginTop: 4,
   },
   headerContactPill: {
@@ -1695,7 +1694,7 @@ const styles = StyleSheet.create({
   },
   filterSectionTitle: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#94A3B8',
     letterSpacing: 0.5,
   },

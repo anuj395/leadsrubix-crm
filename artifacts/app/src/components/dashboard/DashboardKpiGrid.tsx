@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#475569',
     letterSpacing: 0.6,
   },
@@ -277,13 +277,13 @@ const styles = StyleSheet.create({
   },
   kpiValue: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.4,
   },
   kpiLabel: {
     fontSize: 9.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.3,
     marginTop: 1,
