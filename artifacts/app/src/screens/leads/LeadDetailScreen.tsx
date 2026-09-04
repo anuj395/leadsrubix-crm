@@ -38,6 +38,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTabType>('timeline');
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilterType>('all');
+  const [tabScrollProgress, setTabScrollProgress] = useState(0);
 
   // Post-Call Telephony Disposition State
   const [postCallModalVisible, setPostCallModalVisible] = useState(false);
@@ -580,11 +581,27 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
       <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {/* ─── Status Filter Chips (Matching Leads & Tasks Screens) ─── */}
+        <View style={styles.filterSectionHeader}>
+          <Text style={styles.filterSectionTitle}>SECTION TABS</Text>
+          <View style={styles.swipeHintPill}>
+            <Ionicons name="swap-horizontal" size={11} color="#0284C7" />
+            <Text style={styles.swipeHintText}>Swipe for more</Text>
+          </View>
+        </View>
+
         <View style={styles.statusFilterBar}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.statusFilterContent}
+            onScroll={(e) => {
+              const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+              const maxScroll = contentSize.width - layoutMeasurement.width;
+              if (maxScroll > 0) {
+                setTabScrollProgress(Math.min(1, Math.max(0, contentOffset.x / maxScroll)));
+              }
+            }}
+            scrollEventThrottle={16}
           >
             {[
               { key: 'timeline', label: 'ACTIVITY', count: unifiedActivities.length },
@@ -618,6 +635,18 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               );
             })}
           </ScrollView>
+        </View>
+
+        {/* Micro Track Bar Indicator */}
+        <View style={styles.scrollTrackContainer}>
+          <View style={styles.scrollTrackBg}>
+            <View
+              style={[
+                styles.scrollTrackThumb,
+                { left: `${tabScrollProgress * 65}%` },
+              ]}
+            />
+          </View>
         </View>
 
         {/* ─── Modern 5-Column Executive Quick Action Cockpit ─── */}
@@ -1657,6 +1686,53 @@ const styles = StyleSheet.create({
   },
 
   // ─── Status Tabs Bar (Horizontal scrolling identical to LeadsListScreen) ───
+  filterSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 6,
+  },
+  filterSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  swipeHintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 12,
+  },
+  swipeHintText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  scrollTrackContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: -6,
+  },
+  scrollTrackBg: {
+    width: 48,
+    height: 3,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  scrollTrackThumb: {
+    width: 20,
+    height: 3,
+    backgroundColor: '#0284C7',
+    borderRadius: 2,
+  },
   statusFilterBar: {
     marginBottom: 14,
   },
