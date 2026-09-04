@@ -53,7 +53,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTabType>('timeline');
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilterType>('all');
-  const [tabScrollProgress, setTabScrollProgress] = useState(0);
 
   // Post-Call Telephony Disposition State
   const [postCallModalVisible, setPostCallModalVisible] = useState(false);
@@ -347,9 +346,10 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
     if (!leadId) return;
     try {
       setLoading(true);
+      let contactNotes: any[] = [];
       const res = await apiClient.get(`/contacts/${leadId}`).catch(() => null);
       if (res?.data) {
-        const d = res.data;
+        const d = res.data?.item || res.data;
         setLead((prev) => ({
           ...prev,
           name: d.name || `${d.firstName || ''} ${d.lastName || ''}`.trim() || prev.name,
@@ -367,21 +367,64 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           createdAt: d.createdAt || prev.createdAt,
         }));
 
-        if (Array.isArray(d.notesList)) setNotesList(d.notesList);
+        if (Array.isArray(d.notesList)) contactNotes = [...d.notesList];
+        if (d.notes && typeof d.notes === 'string' && d.notes.trim()) {
+          contactNotes.push({ content: d.notes.trim(), author: 'System', createdAt: d.createdAt || new Date().toISOString() });
+        }
         if (Array.isArray(d.attachments)) setAttachments(d.attachments);
       }
 
+      // Fetch Resource Notes (Matching Web CRM 1:1)
+      const notesRes = (await apiClient.get('/resources/resourceNotes', { params: { contactId: leadId, contact_id: leadId, pageSize: 200 } }).catch(() => null))
+        || (await apiClient.get('/resources/notes', { params: { contactId: leadId, contact_id: leadId, pageSize: 200 } }).catch(() => null));
+
+      let fetchedNotes: any[] = [];
+      if (notesRes?.data) {
+        const rawNotes = notesRes.data?.items || (Array.isArray(notesRes.data) ? notesRes.data : []);
+        if (Array.isArray(rawNotes)) {
+          const targetIdStr = String(leadId || '').trim();
+          fetchedNotes = rawNotes.filter((n: any) => {
+            const nContactId = String(n.contactId || n.contact_id || n.leadId || '').trim();
+            return nContactId === targetIdStr;
+          });
+        }
+      }
+
+      // Merge and normalize all notes
+      const combinedNotes = [...fetchedNotes, ...contactNotes];
+      const seenContent = new Set<string>();
+      const normalizedNotes: any[] = [];
+
+      for (let i = 0; i < combinedNotes.length; i++) {
+        const n = combinedNotes[i];
+        const content = typeof n === 'string' ? n : (n.content || n.note || n.notes || n.text || n.description || n.remark || '');
+        if (!content || !content.trim()) continue;
+        const key = content.trim().toLowerCase();
+        if (seenContent.has(key)) continue;
+        seenContent.add(key);
+
+        normalizedNotes.push({
+          id: typeof n === 'object' && (n._id || n.id) ? (n._id || n.id) : `note-${i}`,
+          content: content.trim(),
+          author: typeof n === 'object' ? (n.userEmail || n.user_email || n.userName || n.user_name || n.createdBy || n.created_by || n.author || 'dev@digitalrubix.com') : 'dev@digitalrubix.com',
+          createdAt: typeof n === 'object' ? (n.createdAt || n.created_at || n.date || n.updatedAt || new Date().toISOString()) : new Date().toISOString(),
+        });
+      }
+
+      setNotesList(normalizedNotes);
+
       // Fetch Tasks associated
-      const tasksRes = await apiClient.get('/tasks').catch(() => null);
+      const tasksRes = await apiClient.get('/tasks', { params: { contactId: leadId, contact_id: leadId } }).catch(() => null);
       if (tasksRes?.data) {
         const rawTasks = tasksRes.data?.items || tasksRes.data?.tasks || tasksRes.data || [];
         if (Array.isArray(rawTasks)) {
-          const matchedTasks = rawTasks.filter(
-            (t: any) =>
-              (t.contactId && t.contactId === leadId) ||
-              (t.leadId && t.leadId === leadId) ||
-              (t.customerName && t.customerName.toLowerCase() === (lead.name || '').toLowerCase())
-          );
+          const targetIdStr = String(leadId || '').trim();
+          const targetNameStr = String(lead.name || lead.firstName || '').toLowerCase().trim();
+          const matchedTasks = rawTasks.filter((t: any) => {
+            const tContactId = String(t.contactId || t.contact_id || t.leadId || '').trim();
+            const tCustName = String(t.customerName || t.customer_name || '').toLowerCase().trim();
+            return (tContactId && tContactId === targetIdStr) || (targetNameStr && tCustName && tCustName === targetNameStr);
+          });
           setTasks(matchedTasks);
         }
       }
@@ -753,15 +796,61 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
     // Follow-up tasks
     tasks.forEach((t, idx) => {
+      let reasonVal =
+        t.reason ||
+        t.callbackReason ||
+        t.callBackReason ||
+        t.callback_reason ||
+        t.call_back_reason ||
+        t.notIntReason ||
+        t.lostReason ||
+        '';
+
+      // Smart Fallback: Extract reason from notes/note/description text if not explicitly present
+      if (!reasonVal) {
+        const notesText = String(t.notes || t.description || t.note || t.content || '').toLowerCase();
+        if (notesText.includes('on request') || notesText.includes('onrequest')) reasonVal = 'On Request';
+        else if (notesText.includes('not picked') || notesText.includes('no picked')) reasonVal = 'Not Picked';
+        else if (notesText.includes('not reachable')) reasonVal = 'Not Reachable';
+        else if (notesText.includes('switched off')) reasonVal = 'Switched Off';
+        else if (notesText.includes('busy')) reasonVal = 'Busy in Meeting';
+        else if (notesText.includes('driving')) reasonVal = 'Driving';
+        else if (notesText.includes('travel')) reasonVal = 'Customer Travel';
+        else if (notesText.includes('budget')) reasonVal = 'Budget Mismatch';
+      }
+
+      const rawType = t.taskType || t.task_type || t.type || 'Call Back';
+      let baseTypeStr = rawType.toLowerCase().startsWith('follow-up')
+        ? rawType
+        : `Follow-up: ${rawType}`;
+
+      let cleanTitle = (t.title || baseTypeStr).replace(/\s*\([^)]*\)/g, '').trim();
+      if (!cleanTitle.toLowerCase().startsWith('follow-up')) {
+        cleanTitle = `Follow-up: ${cleanTitle}`;
+      }
+
+      if (reasonVal && !cleanTitle.toLowerCase().includes(reasonVal.toLowerCase())) {
+        cleanTitle = `${cleanTitle} (${reasonVal})`;
+      }
+
+      const rawStatus = String(t.status || '').toUpperCase().trim();
+      let statusVal = 'Pending';
+      if (t.isCompleted || rawStatus === 'COMPLETED' || rawStatus === 'DONE') {
+        statusVal = 'Completed';
+      } else if (rawStatus === 'CANCELLED' || rawStatus === 'CANCEL' || t.isCancelled) {
+        statusVal = 'Cancelled';
+      }
+
       list.push({
         id: t.id || t._id || `task-${idx}`,
         type: 'task',
-        title: t.title || `Follow-up: ${t.type || 'Call Back'}`,
-        status: t.isCompleted || t.status === 'COMPLETED' ? 'Completed' : 'Pending',
+        title: cleanTitle,
+        reason: reasonVal,
+        status: statusVal,
         dueDate: formatDateStr(t.dueDate || t.due_date || t.nextFollowUpDateTime) || '12/09/2026',
         author: t.author || user?.name || 'Anuj Chauhan',
         timestamp: formatDateTimeStr(t.createdAt || t.created_at) || '02/09/2026, 15:29:30',
-        note: t.notes || t.description,
+        note: t.notes || t.description || t.note,
       });
     });
 
@@ -779,22 +868,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
       });
     });
 
-    // Notes
-    notesList.forEach((n, idx) => {
-      list.push({
-        id: n.id || `note-${idx}`,
-        type: 'note',
-        title: 'Note Added',
-        status: 'Saved',
-        dueDate: '',
-        author: n.author || user?.name || 'Anuj Chauhan',
-        timestamp: formatDateTimeStr(n.createdAt || n.created_at) || '02/09/2026, 12:00:00',
-        note: n.content,
-      });
-    });
-
     return list;
-  }, [tasks, calls, notesList, user]);
+  }, [tasks, calls, user]);
 
   // Filtered Activities based on Sub-pills
   const filteredActivities = useMemo(() => {
@@ -875,10 +950,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         {/* ─── Status Filter Chips (Matching Leads & Tasks Screens) ─── */}
         <View style={styles.filterSectionHeader}>
           <Text style={styles.filterSectionTitle}>SECTION TABS</Text>
-          <View style={styles.swipeHintPill}>
-            <Ionicons name="swap-horizontal" size={11} color="#0284C7" />
-            <Text style={styles.swipeHintText}>Swipe for more</Text>
-          </View>
         </View>
 
         <View style={styles.statusFilterBar}>
@@ -886,14 +957,6 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.statusFilterContent}
-            onScroll={(e) => {
-              const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-              const maxScroll = contentSize.width - layoutMeasurement.width;
-              if (maxScroll > 0) {
-                setTabScrollProgress(Math.min(1, Math.max(0, contentOffset.x / maxScroll)));
-              }
-            }}
-            scrollEventThrottle={16}
           >
             {[
               { key: 'timeline', label: 'ACTIVITY', count: unifiedActivities.length },
@@ -928,155 +991,145 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           </ScrollView>
         </View>
 
-        {/* Micro Track Bar Indicator */}
-        <View style={styles.scrollTrackContainer}>
-          <View style={styles.scrollTrackBg}>
-            <View
-              style={[
-                styles.scrollTrackThumb,
-                { left: `${tabScrollProgress * 65}%` },
-              ]}
-            />
-          </View>
-        </View>
-
         {/* ─── Web CRM 1:1 Stage-Aware Executive Action Cockpit ─── */}
-        <View style={styles.actionCockpitBar}>
-          <TouchableOpacity style={styles.actionItem} onPress={handleCall} activeOpacity={0.75}>
-            <View style={[styles.actionCircle, { backgroundColor: '#EEF0F8', borderColor: '#C8CDDC' }]}>
-              <Ionicons name="call" size={20} color="#272944" />
-            </View>
-            <Text style={styles.actionItemLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-              Call
-            </Text>
-          </TouchableOpacity>
+        {!isClosedLost && (
+          <View style={styles.actionCockpitBar}>
+            <TouchableOpacity style={styles.actionItem} onPress={handleCall} activeOpacity={0.75}>
+              <View style={[styles.actionCircle, { backgroundColor: '#EEF0F8', borderColor: '#C8CDDC' }]}>
+                <Ionicons name="call" size={20} color="#272944" />
+              </View>
+              <Text style={styles.actionItemLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                Call
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionItem} onPress={handleWhatsApp} activeOpacity={0.75}>
-            <View style={[styles.actionCircle, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-              <Ionicons name="logo-whatsapp" size={21} color="#16A34A" />
-            </View>
-            <Text style={styles.actionItemLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-              WhatsApp
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.actionItem} onPress={handleWhatsApp} activeOpacity={0.75}>
+              <View style={[styles.actionCircle, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                <Ionicons name="logo-whatsapp" size={21} color="#16A34A" />
+              </View>
+              <Text style={styles.actionItemLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                WhatsApp
+              </Text>
+            </TouchableOpacity>
 
-          {/* Dynamic Stage Action Buttons matching Web CRM 1:1 */}
-          {(isFresh || isCallback) && (
-            <>
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => setInterestedModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.actionCircle, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                  <Ionicons name="thumbs-up" size={20} color="#16A34A" />
-                </View>
-                <Text
-                  style={[styles.actionItemLabel, { color: '#047857' }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+            {/* Dynamic Stage Action Buttons matching Web CRM 1:1 */}
+            {(isFresh || isCallback) && (
+              <>
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setInterestedModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  Interested
-                </Text>
-              </TouchableOpacity>
+                  <View style={[styles.actionCircle, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                    <Ionicons name="thumbs-up" size={20} color="#16A34A" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#047857' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Interested
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => setCallBackModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-                  <Ionicons name="time" size={20} color="#EA580C" />
-                </View>
-                <Text
-                  style={[styles.actionItemLabel, { color: '#C2410C' }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setCallBackModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  {isCallback ? 'Re-Call Back' : 'Call Back'}
-                </Text>
-              </TouchableOpacity>
+                  <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                    <Ionicons name="time" size={20} color="#EA580C" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#C2410C' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    {isCallback ? 'Re-Call Back' : 'Call Back'}
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => setNotInterestedModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
-                  <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
-                </View>
-                <Text
-                  style={[styles.actionItemLabel, { color: '#B91C1C' }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setNotInterestedModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  Not Int.
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
+                  <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
+                    <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#B91C1C' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Not Int.
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
 
-          {isInterested && !isClosedLost && (
-            <>
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => setCreateTaskModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.actionCircle, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                  <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
-                </View>
-                <Text
-                  style={[styles.actionItemLabel, { color: '#1D4ED8' }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+            {isInterested && (
+              <>
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setCreateTaskModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  Create Task
-                </Text>
-              </TouchableOpacity>
+                  <View style={[styles.actionCircle, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                    <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#1D4ED8' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Create Task
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => setRescheduleModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-                  <Ionicons name="calendar-outline" size={20} color="#EA580C" />
-                </View>
-                <Text
-                  style={[styles.actionItemLabel, { color: '#C2410C' }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setRescheduleModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  Re-Schedule
-                </Text>
-              </TouchableOpacity>
+                  <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                    <Ionicons name="calendar-outline" size={20} color="#EA580C" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#C2410C' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Re-Schedule
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => setLostModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
-                  <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
-                </View>
-                <Text
-                  style={[styles.actionItemLabel, { color: '#B91C1C' }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setLostModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  Lost
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+                  <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
+                    <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#B91C1C' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Lost
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
 
         {/* ─── TAB 1: Connected Vertical Activity Timeline ─── */}
         {activeTab === 'timeline' && (
@@ -1142,14 +1195,20 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
             {/* Activities List */}
             <View style={styles.timelineStream}>
               {filteredActivities.map((act) => (
-                <View key={act.id} style={styles.activityCard3D}>
+                <View
+                  key={act.id}
+                  style={[
+                    styles.activityCard3D,
+                    act.status === 'Cancelled' && { backgroundColor: '#FFF5F5', borderColor: '#FECDD3' },
+                  ]}
+                >
                   <View style={styles.cardInnerPadding}>
                     <View style={styles.cardHeaderRow}>
                       <View
                         style={[
                           styles.taskIconBox,
                           act.type === 'call' && { backgroundColor: '#EFF6FF' },
-                          act.type === 'task' && { backgroundColor: '#FFFBEB' },
+                          act.type === 'task' && { backgroundColor: act.status === 'Cancelled' ? '#FEF2F2' : '#FFFBEB' },
                           act.type === 'note' && { backgroundColor: '#ECFDF5' },
                         ]}
                       >
@@ -1165,6 +1224,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                           color={
                             act.type === 'call'
                               ? '#2563EB'
+                              : act.status === 'Cancelled'
+                              ? '#DC2626'
                               : act.type === 'task'
                               ? '#D97706'
                               : '#059669'
@@ -1173,35 +1234,53 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                       </View>
 
                       <View style={styles.taskInfoGroup}>
-                        <Text style={styles.taskTitleText} numberOfLines={1}>
-                          {act.title}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+                          <Text
+                            style={[
+                              styles.taskTitleText,
+                              act.status === 'Cancelled' && { textDecorationLine: 'line-through', color: '#94A3B8' },
+                            ]}
+                          >
+                            {act.title}
+                          </Text>
+
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              act.status === 'Completed' || act.status === 'Saved'
+                                ? styles.statusBadgeCompleted
+                                : act.status === 'Cancelled'
+                                ? { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }
+                                : styles.statusBadgePending,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusBadgeText,
+                                act.status === 'Completed' || act.status === 'Saved'
+                                  ? styles.statusBadgeTextCompleted
+                                  : act.status === 'Cancelled'
+                                  ? { color: '#DC2626' }
+                                  : styles.statusBadgeTextPending,
+                              ]}
+                            >
+                              {act.status}
+                            </Text>
+                          </View>
+
+                          {act.reason ? (
+                            <View style={styles.activityReasonBadge}>
+                              <Text style={styles.activityReasonBadgeText}>Reason: {act.reason}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+
                         {act.dueDate ? (
                           <View style={styles.dueDateRow}>
                             <Ionicons name="time-outline" size={12} color="#EA580C" />
                             <Text style={styles.dueDateText}>Due: {act.dueDate}</Text>
                           </View>
                         ) : null}
-                      </View>
-
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          act.status === 'Completed' || act.status === 'Saved'
-                            ? styles.statusBadgeCompleted
-                            : styles.statusBadgePending,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusBadgeText,
-                            act.status === 'Completed' || act.status === 'Saved'
-                              ? styles.statusBadgeTextCompleted
-                              : styles.statusBadgeTextPending,
-                          ]}
-                        >
-                          {act.status}
-                        </Text>
                       </View>
                     </View>
 
@@ -1435,7 +1514,9 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                         <View key={idx} style={styles.noteItemCard}>
                           <Text style={styles.noteContentText}>{n.content}</Text>
                           <View style={styles.noteFooterRow}>
-                            <Text style={styles.noteAuthorText}>By {n.author}</Text>
+                            <Text style={styles.noteAuthorText}>
+                              {n.author.includes('@') ? n.author : `By ${n.author}`}
+                            </Text>
                             <Text style={styles.noteTimestampText}>
                               {new Date(n.createdAt).toLocaleDateString()}
                             </Text>
@@ -1554,37 +1635,55 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         visible={callBackModalVisible}
         lead={lead}
         onClose={() => setCallBackModalVisible(false)}
-        onSuccess={loadLeadDetails}
+        onSuccess={() => {
+          setLead((prev) => ({ ...prev, stage: 'CALLBACK', status: 'CALLBACK' }));
+          loadLeadDetails();
+        }}
       />
       <NotInterestedModal
         visible={notInterestedModalVisible}
         lead={lead}
         onClose={() => setNotInterestedModalVisible(false)}
-        onSuccess={loadLeadDetails}
+        onSuccess={() => {
+          setLead((prev) => ({ ...prev, stage: 'NOT INTERESTED', status: 'NOT INTERESTED' }));
+          loadLeadDetails();
+        }}
       />
       <InterestedModal
         visible={interestedModalVisible}
         lead={lead}
         onClose={() => setInterestedModalVisible(false)}
-        onSuccess={loadLeadDetails}
+        onSuccess={() => {
+          setLead((prev) => ({ ...prev, stage: 'INTERESTED', status: 'INTERESTED' }));
+          loadLeadDetails();
+        }}
       />
       <ConvertLeadModal
         visible={dealModalVisible}
         lead={lead}
         onClose={() => setDealModalVisible(false)}
-        onSuccess={loadLeadDetails}
+        onSuccess={() => {
+          setLead((prev) => ({ ...prev, stage: 'CONVERTED', status: 'CONVERTED' }));
+          loadLeadDetails();
+        }}
       />
       <LostModal
         visible={lostModalVisible}
         lead={lead}
         onClose={() => setLostModalVisible(false)}
-        onSuccess={loadLeadDetails}
+        onSuccess={() => {
+          setLead((prev) => ({ ...prev, stage: 'LOST', status: 'LOST' }));
+          loadLeadDetails();
+        }}
       />
       <RescheduleModal
         visible={rescheduleModalVisible}
         lead={lead}
         onClose={() => setRescheduleModalVisible(false)}
-        onSuccess={loadLeadDetails}
+        onSuccess={() => {
+          setLead((prev) => ({ ...prev, stage: 'INTERESTED', status: 'INTERESTED' }));
+          loadLeadDetails();
+        }}
       />
       <CreateTaskModal
         visible={createTaskModalVisible}
@@ -2800,6 +2899,19 @@ const styles = StyleSheet.create({
   },
   deleteAttachBtn: {
     padding: 6,
+  },
+  activityReasonBadge: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  activityReasonBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#C2410C',
   },
 });
 

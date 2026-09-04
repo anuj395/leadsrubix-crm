@@ -142,7 +142,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 
             <View style={styles.infoRow}>
               <Text style={styles.infoKey}>Deployment Version</Text>
-              <Text style={styles.infoVal}>v1.4.0 Enterprise Edition</Text>
+              <Text style={styles.infoVal}>v1.0.0 Enterprise Edition</Text>
             </View>
           </View>
         </View>

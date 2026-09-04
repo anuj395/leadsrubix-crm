@@ -51,17 +51,18 @@ export const DashboardScreen = ({ navigation }: any) => {
   const fetchDashboardData = useCallback(async (isPullRefresh = false) => {
     try {
       if (!isPullRefresh) setLoading(true);
-      const [analyticsRes, tasksRes, leadsRes] = await Promise.all([
+      const [analyticsRes, tasksRes, freshLeadsRes, fallbackLeadsRes] = await Promise.all([
         analyticsService.getAnalyticsData({
           industryId: user?.industryId,
           organizationId: user?.organizationId,
         }),
         taskService.getTasks(),
+        leadService.getLeads({ status: 'FRESH', limit: 5 }),
         leadService.getLeads({ limit: 5 }),
       ]);
       setData(analyticsRes);
       setTasks(tasksRes);
-      setLeads(leadsRes);
+      setLeads(freshLeadsRes && freshLeadsRes.length > 0 ? freshLeadsRes : fallbackLeadsRes);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -72,7 +73,13 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+    const unsub = navigation?.addListener?.('focus', () => {
+      fetchDashboardData(true);
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [fetchDashboardData, navigation]);
 
   const onRefresh = () => {
     setRefreshing(true);

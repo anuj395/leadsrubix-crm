@@ -101,14 +101,24 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
 
-          <View style={styles.statusPill}>
-            <View style={styles.greenPulseDot} />
-            <Text style={styles.statusPillText}>ACTIVE</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.headerBackBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.88}
+          >
+            <Ionicons name="chevron-back" size={15} color="#FFFFFF" />
+            <Text style={styles.headerBackBtnText}>Back</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitleText}>Update Password</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitleText}>Update Password</Text>
+            <View style={styles.statusPill}>
+              <View style={styles.greenPulseDot} />
+              <Text style={styles.statusPillText}>ACTIVE</Text>
+            </View>
+          </View>
           <Text style={styles.headerSubtitleText}>
             Change security credentials & access key
           </Text>
@@ -128,11 +138,11 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
           {/* User ID Capsule */}
           <View style={styles.userCapsule}>
             <View style={styles.userIconCircle}>
-              <Ionicons name="person" size={16} color="#2563EB" />
+              <Ionicons name="person" size={16} color="#0284C7" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.userCapsuleName}>{user?.name || 'Anuj Chauhan'}</Text>
-              <Text style={styles.userCapsuleEmail}>{user?.email || 'anuj@leadsrubix.com'}</Text>
+              <Text style={styles.userCapsuleEmail}>{user?.email || 'dev@digitalrubix.com'}</Text>
             </View>
             <View style={styles.verifiedBadge}>
               <Ionicons name="shield-checkmark" size={12} color="#059669" />
@@ -144,7 +154,7 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
           <View style={styles.formCard}>
             <View style={styles.formCardHeader}>
               <View style={styles.keyIconBox}>
-                <Ionicons name="key" size={18} color="#2563EB" />
+                <Ionicons name="key-sharp" size={18} color="#0284C7" />
               </View>
               <Text style={styles.formCardTitle}>SECURITY CREDENTIALS</Text>
             </View>
@@ -159,9 +169,9 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
                 ]}
               >
                 <Ionicons
-                  name="lock-closed"
+                  name="lock-closed-sharp"
                   size={18}
-                  color={newFocused ? '#2563EB' : '#94A3B8'}
+                  color={newFocused ? '#0284C7' : '#94A3B8'}
                   style={styles.fieldIcon}
                 />
                 <TextInput
@@ -198,9 +208,9 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
                 ]}
               >
                 <Ionicons
-                  name="lock-closed"
+                  name="lock-closed-sharp"
                   size={18}
-                  color={confirmFocused ? '#2563EB' : '#94A3B8'}
+                  color={confirmFocused ? '#0284C7' : '#94A3B8'}
                   style={styles.fieldIcon}
                 />
                 <TextInput
@@ -231,14 +241,14 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
             <View style={styles.validationBox}>
               <View style={styles.valRow}>
                 <Ionicons
-                  name={isLengthValid ? 'checkmark-circle' : 'ellipse-outline'}
+                  name={isLengthValid ? 'checkmark-circle-sharp' : 'ellipse-outline'}
                   size={16}
                   color={isLengthValid ? '#059669' : '#94A3B8'}
                 />
                 <Text
                   style={[
                     styles.valText,
-                    isLengthValid && { color: '#059669', fontWeight: '600' },
+                    isLengthValid && { color: '#059669', fontWeight: '700' },
                   ]}
                 >
                   At least 6 characters long
@@ -247,14 +257,14 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
 
               <View style={styles.valRow}>
                 <Ionicons
-                  name={isMatchValid ? 'checkmark-circle' : 'ellipse-outline'}
+                  name={isMatchValid ? 'checkmark-circle-sharp' : 'ellipse-outline'}
                   size={16}
                   color={isMatchValid ? '#059669' : '#94A3B8'}
                 />
                 <Text
                   style={[
                     styles.valText,
-                    isMatchValid && { color: '#059669', fontWeight: '600' },
+                    isMatchValid && { color: '#059669', fontWeight: '700' },
                   ]}
                 >
                   Passwords match
@@ -275,10 +285,10 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <>
+                <View style={styles.submitBtnContent}>
                   <Ionicons name="shield-checkmark-sharp" size={18} color="#FFFFFF" />
                   <Text style={styles.submitBtnText}>Update Password</Text>
-                </>
+                </View>
               )}
             </TouchableOpacity>
           </View>
@@ -317,7 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#151728',
     paddingTop: Platform.OS === 'ios' ? 56 : 42,
     paddingBottom: 22,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     shadowColor: '#0F172A',
@@ -330,14 +340,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  headerBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 4,
+  },
+  headerBackBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(5, 150, 105, 0.16)',
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',
@@ -358,6 +384,11 @@ const styles = StyleSheet.create({
   headerTitleContainer: {
     paddingHorizontal: 2,
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerTitleText: {
     color: '#FFFFFF',
     fontSize: 20,
@@ -374,7 +405,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
     paddingBottom: 40,
-    gap: 14,
+    gap: 16,
   },
 
   // ─── User Capsule ───
@@ -386,13 +417,18 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
     gap: 12,
   },
   userIconCircle: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -444,7 +480,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -460,7 +496,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#64748B',
+    color: '#475569',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
@@ -475,7 +511,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   inputContainerFocused: {
-    borderColor: '#2563EB',
+    borderColor: '#0284C7',
     backgroundColor: '#FFFFFF',
   },
   fieldIcon: {
@@ -484,7 +520,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 13.5,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#0F172A',
     height: '100%',
   },
@@ -496,7 +532,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
   },
   valRow: {
     flexDirection: 'row',
@@ -510,29 +546,32 @@ const styles = StyleSheet.create({
   },
 
   submitBtn: {
-    flexDirection: 'row',
+    backgroundColor: '#272944',
+    borderRadius: 14,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2563EB',
-    borderRadius: 14,
-    height: 50,
-    gap: 8,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#272944',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitBtnDisabled: {
     backgroundColor: '#94A3B8',
     shadowOpacity: 0,
     elevation: 0,
   },
+  submitBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   submitBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: -0.2,
   },
 
   // ─── Tips Card ───

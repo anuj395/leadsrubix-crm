@@ -120,10 +120,31 @@ export default function InterestedDetailsPage() {
       // 1. Update Contact in DB
       await updateContact(id, contactFields)
 
+      // 2. Complete previous PENDING tasks for this contact (Matching Web 1:1)
+      try {
+        const prevTasksRes = await api.get('tasks', { params: { contactId: id, contact_id: id } }).catch(() => null)
+        const prevTasks = prevTasksRes?.data?.items || (Array.isArray(prevTasksRes?.data) ? prevTasksRes.data : [])
+        if (Array.isArray(prevTasks)) {
+          const pendingTasks = prevTasks.filter((t: any) => String(t.status || '').toUpperCase() === 'PENDING')
+          for (const pt of pendingTasks) {
+            const taskId = pt._id || pt.id
+            if (taskId) {
+              await api.put(`tasks/${taskId}`, {
+                status: 'COMPLETED',
+                isCompleted: true,
+                completedAt: new Date().toISOString()
+              }).catch(() => null)
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to complete previous tasks:', e)
+      }
+
       // 3. Save Note in DB (resourceNotes inside resource_items)
       const noteContent = String(taskFields.notes || '').trim()
 
-      // 2. Create Task in DB
+      // 4. Create Task in DB
       await api.post('tasks', {
         contactId: id,
         type: taskFields.taskType || 'Call Back',
