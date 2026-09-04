@@ -416,7 +416,28 @@ export const InterestedModal: React.FC<Props> = ({
       // 1. Update Contact
       await apiClient.put(`/contacts/${leadId}`, contactFields).catch(() => null);
 
-      // 2. Create Task
+      // 2. Mark previous PENDING tasks for this contact as COMPLETED (Matching Web 1:1)
+      try {
+        const prevTasksRes = await apiClient.get('/tasks', { params: { contactId: leadId, contact_id: leadId } }).catch(() => null);
+        const prevTasks = prevTasksRes?.data?.items || prevTasksRes?.data || [];
+        if (Array.isArray(prevTasks)) {
+          const pendingTasks = prevTasks.filter((t: any) => String(t.status || '').toUpperCase() === 'PENDING');
+          for (const pt of pendingTasks) {
+            const taskId = pt._id || pt.id;
+            if (taskId) {
+              await apiClient.put(`/tasks/${taskId}`, {
+                status: 'COMPLETED',
+                isCompleted: true,
+                completedAt: new Date().toISOString(),
+              }).catch(() => null);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to complete previous tasks:', e);
+      }
+
+      // 3. Create Task
       const taskPayload = {
         contactId: leadId,
         type: taskFields.taskType || 'Call Back',
