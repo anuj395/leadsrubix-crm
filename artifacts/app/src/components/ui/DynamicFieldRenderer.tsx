@@ -267,6 +267,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#0F172A',
+    height: '100%',
+    flex: 1,
   },
   textAreaBox: {
     backgroundColor: '#F8FAFC',

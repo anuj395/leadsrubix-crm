@@ -1090,11 +1090,6 @@ const styles = StyleSheet.create({
   inputBoxFocused: {
     borderColor: '#0284C7',
     backgroundColor: '#FFFFFF',
-    shadowColor: '#0284C7',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
   },
   inputBoxDisabled: {
     backgroundColor: '#F1F5F9',

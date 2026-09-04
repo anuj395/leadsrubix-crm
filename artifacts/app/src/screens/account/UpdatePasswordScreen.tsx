@@ -122,7 +122,8 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
         <ScrollView
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
+          removeClippedSubviews={false}
         >
           {/* User ID Capsule */}
           <View style={styles.userCapsule}>
@@ -476,11 +477,6 @@ const styles = StyleSheet.create({
   inputContainerFocused: {
     borderColor: '#2563EB',
     backgroundColor: '#FFFFFF',
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
   fieldIcon: {
     marginRight: 10,

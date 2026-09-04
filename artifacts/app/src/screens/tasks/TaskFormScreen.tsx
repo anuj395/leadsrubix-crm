@@ -169,7 +169,8 @@ export const TaskFormScreen = ({ navigation }: any) => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        removeClippedSubviews={false}
       >
         <View style={styles.cardContainer}>
           {loadingSchema ? (
@@ -471,11 +472,6 @@ const styles = StyleSheet.create({
   inputFocused: {
     borderColor: '#0284C7',
     backgroundColor: '#FFFFFF',
-    shadowColor: '#0284C7',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
   },
   dateTriggerBox: {
     flexDirection: 'row',
