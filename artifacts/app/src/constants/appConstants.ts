@@ -22,10 +22,10 @@ export const IS_PRODUCTION = !__DEV__;
 
 export const APP_CONFIG = {
   appName: 'Leads Rubix',
-  version: '1.4.0',
+  version: '1.0.0',
   build: '2026.08.27',
   tagline: 'Enterprise Multi-Tenant CRM Engine',
-  footerVersionText: 'v1.4.0 • Enterprise Edition',
+  footerVersionText: 'v1.0.0 • Enterprise Edition',
   isProduction: IS_PRODUCTION,
   isDevelopment: __DEV__,
   // Auto-switches: Localhost during local development, Live Cloud API on production build

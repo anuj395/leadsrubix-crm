@@ -63,7 +63,7 @@ const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // root status & health check
-app.get('/', (req, res) => res.json({ status: 'ok', server: 'Leads Rubix CRM API', version: '1.4.0', time: new Date().toISOString() }));
+app.get('/', (req, res) => res.json({ status: 'ok', server: 'Leads Rubix CRM API', version: '1.0.0', time: new Date().toISOString() }));
 app.get('/api/healthz', (req, res) => res.json({ status: 'ok', server: 'leadsrubix-crm', time: new Date().toISOString() }));
 app.get('/healthz', (req, res) => res.json({ status: 'ok', server: 'leadsrubix-crm', time: new Date().toISOString() }));
 
