@@ -57,6 +57,17 @@ export const AppNavigator = () => {
   const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');
   const [routeParams, setRouteParams] = useState<any>({});
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
+  const focusListeners = React.useRef<Set<() => void>>(new Set());
+
+  useEffect(() => {
+    focusListeners.current.forEach((cb) => {
+      try {
+        cb();
+      } catch (e) {
+        // ignore callback error
+      }
+    });
+  }, [currentScreen]);
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -218,6 +229,13 @@ export const AppNavigator = () => {
       }
     },
     canGoBack: () => navStack.length > 1 || currentScreen !== 'Dashboard',
+    addListener: (event: string, callback: () => void) => {
+      if (event === 'focus') {
+        focusListeners.current.add(callback);
+        return () => focusListeners.current.delete(callback);
+      }
+      return () => {};
+    },
   };
 
   const renderActiveScreen = () => {

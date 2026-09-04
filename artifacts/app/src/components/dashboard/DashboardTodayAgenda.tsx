@@ -22,7 +22,17 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
   onCallTask,
 }) => {
   const semantics = getIndustrySemantics(industryId);
-  const pendingTasks = tasks.filter((t) => !t.isCompleted).slice(0, 3);
+  const pendingTasks = React.useMemo(() => {
+    return tasks
+      .filter((t) => !t.isCompleted)
+      .sort((a, b) => {
+        const pOrder: Record<string, number> = { High: 1, Medium: 2, Low: 3 };
+        const pa = pOrder[a.priority] || 2;
+        const pb = pOrder[b.priority] || 2;
+        return pa - pb;
+      })
+      .slice(0, 3);
+  }, [tasks]);
 
   const handleCall = (task: TaskItem) => {
     if (onCallTask) {
