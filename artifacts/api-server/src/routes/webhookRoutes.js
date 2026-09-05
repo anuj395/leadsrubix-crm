@@ -634,6 +634,17 @@ router.post('/facebook', async (req, res, next) => {
         // 6. Resolve Owner User via Lead Distribution Rules
         let uid = '';
         let ownerUser = null;
+        let propertyTypeVal = '';
+        if (formInfo) {
+          projectId = formInfo.projectId || formInfo.project_id || '';
+          locationId = formInfo.locationId || formInfo.location_id || '';
+          budgetId = formInfo.budgetId || formInfo.budget_id || '';
+          leadSourcesId = formInfo.leadSourcesId || formInfo.lead_sources_id || '';
+          propertyTypeVal = formInfo.propertyTypeId || formInfo.property_type_id || formInfo.propertyType || formInfo.property_type || '';
+        }
+        if (!propertyTypeVal) {
+          propertyTypeVal = rawFields.property_type || rawFields.propertyType || rawFields.property || '';
+        }
 
         const { assignLeadByRules } = require('../services/leadDistributionService');
         const assignment = await assignLeadByRules({
@@ -644,7 +655,7 @@ router.post('/facebook', async (req, res, next) => {
           project: projectId,
           location: cityField || locationId,
           budget: budgetId,
-          propertyType: ''
+          propertyType: propertyTypeVal
         });
 
         if (assignment.uid) {
