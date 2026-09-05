@@ -210,6 +210,7 @@ exports.masterSortSearch = async (req, res, next) => {
 
     // --- Handle date & boolean filters ---
     Object.keys(filter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (filter[key].length && filter[key].length === 2) {
           filter[key] = {
