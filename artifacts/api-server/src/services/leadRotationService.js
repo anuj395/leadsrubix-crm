@@ -133,7 +133,6 @@ async function processUnattendedLeadsRotation(organizationId = null) {
 
       const usersList = rule.users || [];
       const userQueue = rule.users_queue || rule.usersQueue || usersList.map(u => u.user_email || u.email);
-      if (userQueue.length <= 1) continue; // Rotation requires at least 2 users in queue
 
       // Check if within working hours
       const inWorkingHours = await isWithinWorkingHours(orgId, now);
@@ -154,19 +153,22 @@ async function processUnattendedLeadsRotation(organizationId = null) {
 
       if (!allOrgLeads || allOrgLeads.length === 0) continue;
 
+      const CallLog = mongoose.model('CallLog');
+
       // Filter unattended leads matching criteria
-      const unattendedLeads = allOrgLeads.filter(lead => {
+      const unattendedLeads = [];
+      for (const lead of allOrgLeads) {
         // 1. Stage Check: untouched fresh lead
         const stage = String(lead.stage || '').trim().toUpperCase();
         const isFresh = !stage || ['FRESH', 'NEW', ''].includes(stage);
-        if (!isFresh) return false;
+        if (!isFresh) continue;
 
         // 2. Universal Dynamic Source Matching (works for all sources: Website, Housing.com, 99 Acres, Magicbricks, etc.)
         if (rule.source && rule.source.toLowerCase() !== 'all' && rule.source.toLowerCase() !== 'any') {
           const lSource = lead.source || '';
           const lCampaign = lead.campaign || '';
           if (!matchLeadSourceAndCampaign(lSource, lCampaign, rule.source)) {
-            return false;
+            continue;
           }
         }
 
@@ -174,7 +176,7 @@ async function processUnattendedLeadsRotation(organizationId = null) {
         if (rule.project && Array.isArray(rule.project) && rule.project.length > 0) {
           const lProject = String(lead.projectName || lead.project_name || lead.project || '').trim().toLowerCase();
           const matchesProj = rule.project.some(p => String(p).trim().toLowerCase() === lProject);
-          if (!matchesProj) return false;
+          if (!matchesProj) continue;
         }
 
         // 4. Inactivity Timeout Check
@@ -190,8 +192,28 @@ async function processUnattendedLeadsRotation(organizationId = null) {
           0
         ).getTime();
 
-        return (now.getTime() - lastActiveTime) >= timeoutThresholdMs;
-      });
+        if ((now.getTime() - lastActiveTime) < timeoutThresholdMs) {
+          continue;
+        }
+
+        // 5. Activity Log Check: if a CallLog was registered after lastActiveTime, agent acted on the lead!
+        const leadIdStr = String(lead._id || lead.id);
+        const hasRecentCall = await CallLog.findOne({
+          $or: [
+            { contactId: leadIdStr },
+            { contact_id: leadIdStr },
+            { leadId: leadIdStr },
+            { lead_id: leadIdStr }
+          ],
+          createdAt: { $gte: new Date(lastActiveTime) }
+        }).lean().exec();
+
+        if (hasRecentCall) {
+          continue; // Agent has called the lead, skip rotation
+        }
+
+        unattendedLeads.push(lead);
+      }
 
       if (unattendedLeads.length === 0) continue;
 
@@ -200,31 +222,66 @@ async function processUnattendedLeadsRotation(organizationId = null) {
       for (const lead of unattendedLeads) {
         const currentOwner = lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || lead.assignedTo || '';
 
-        // Find next active candidate in queue who is not the same current owner
         let nextCandidate = null;
         let nextCandidateDoc = null;
         let nextIndex = currentIndex;
 
-        for (let step = 1; step <= userQueue.length; step++) {
-          const candidateIdx = (currentIndex + step) % userQueue.length;
-          const candidateEmail = userQueue[candidateIdx];
-          if (!candidateEmail) continue;
+        // If userQueue has multiple agents, rotate to next active candidate
+        if (userQueue.length > 1) {
+          for (let step = 1; step <= userQueue.length; step++) {
+            const candidateIdx = (currentIndex + step) % userQueue.length;
+            const candidateEmail = userQueue[candidateIdx];
+            if (!candidateEmail) continue;
 
-          const candidateDoc = await User.findOne({
-            $or: [
-              { organization_id: orgId },
-              { organizationId: orgId }
-            ],
-            email: candidateEmail,
-            is_active: { $ne: false },
-            status: { $ne: 'inactive' }
-          }).lean().exec();
+            const candidateDoc = await User.findOne({
+              $or: [
+                { organization_id: orgId },
+                { organizationId: orgId }
+              ],
+              email: candidateEmail,
+              is_active: { $ne: false },
+              status: { $ne: 'inactive' }
+            }).lean().exec();
 
-          if (candidateDoc) {
-            nextCandidate = candidateEmail;
-            nextCandidateDoc = candidateDoc;
-            nextIndex = candidateIdx;
-            break;
+            if (candidateDoc) {
+              nextCandidate = candidateEmail;
+              nextCandidateDoc = candidateDoc;
+              nextIndex = candidateIdx;
+              break;
+            }
+          }
+        }
+
+        // Escalation Fallback: If single user queue OR no active queue candidate found, escalate to Lead Manager / Admin
+        if (!nextCandidate || nextCandidate.toLowerCase() === currentOwner.toLowerCase()) {
+          const leadManagers = rule.lead_manager_users || rule.leadManagerUsers || [];
+          let managerEmail = (leadManagers[0] && (leadManagers[0].user_email || leadManagers[0].email)) || '';
+
+          if (managerEmail && managerEmail.toLowerCase() !== currentOwner.toLowerCase()) {
+            const mgrDoc = await User.findOne({
+              $or: [{ organization_id: orgId }, { organizationId: orgId }],
+              email: managerEmail,
+              is_active: { $ne: false },
+              status: { $ne: 'inactive' }
+            }).lean().exec();
+            if (mgrDoc) {
+              nextCandidate = managerEmail;
+              nextCandidateDoc = mgrDoc;
+            }
+          }
+
+          if (!nextCandidate || nextCandidate.toLowerCase() === currentOwner.toLowerCase()) {
+            const adminDoc = await User.findOne({
+              $or: [{ organization_id: orgId }, { organizationId: orgId }],
+              role: 'admin',
+              is_active: { $ne: false },
+              status: { $ne: 'inactive' }
+            }).lean().exec();
+
+            if (adminDoc && adminDoc.email.toLowerCase() !== currentOwner.toLowerCase()) {
+              nextCandidate = adminDoc.email;
+              nextCandidateDoc = adminDoc;
+            }
           }
         }
 
@@ -389,18 +446,40 @@ async function processUnattendedLeadsRotation(organizationId = null) {
   }
 }
 
+let isRotationCronRunning = false;
+
 /**
  * Starts periodic background cron evaluation for lead rotation.
  */
 function startLeadRotationCron(intervalMs = 60 * 1000) { // Every 1 minute
+  // PM2 Cluster mode safety: only run cron on instance 0
+  if (process.env.NODE_APP_INSTANCE && process.env.NODE_APP_INSTANCE !== '0') {
+    console.log('[LeadRotation] Skipping cron on secondary PM2 cluster instance:', process.env.NODE_APP_INSTANCE);
+    return;
+  }
+
   console.log('[LeadRotation] Starting automated lead rotation background cron job (1 min interval)...');
-  setInterval(async () => {
+
+  const executeTick = async () => {
+    if (isRotationCronRunning) {
+      console.log('[LeadRotation] Previous cron execution still in progress, skipping overlap tick.');
+      return;
+    }
+    isRotationCronRunning = true;
     try {
       await processUnattendedLeadsRotation();
     } catch (e) {
-      // background error handled
+      console.error('[LeadRotation] Background cron tick error:', e);
+    } finally {
+      isRotationCronRunning = false;
     }
-  }, intervalMs);
+  };
+
+  // 1. Initial run on server boot
+  void executeTick();
+
+  // 2. Recurring interval schedule
+  setInterval(executeTick, intervalMs);
 }
 
 module.exports = {

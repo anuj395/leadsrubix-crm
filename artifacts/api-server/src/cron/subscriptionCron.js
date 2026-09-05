@@ -38,14 +38,36 @@ async function processSubscriptionExpiries() {
   }
 }
 
+let isSubscriptionCronRunning = false;
+
 function startSubscriptionCron(intervalMs = 60 * 60 * 1000) {
+  if (process.env.NODE_APP_INSTANCE && process.env.NODE_APP_INSTANCE !== '0') {
+    console.log('[SubscriptionCron] Skipping cron on secondary PM2 cluster instance:', process.env.NODE_APP_INSTANCE);
+    return;
+  }
+
   console.log('[SubscriptionCron] Starting automated subscription evaluation cron job...');
+
+  const executeTick = async () => {
+    if (isSubscriptionCronRunning) {
+      console.log('[SubscriptionCron] Previous tick still in progress, skipping overlap.');
+      return;
+    }
+    isSubscriptionCronRunning = true;
+    try {
+      await processSubscriptionExpiries();
+    } catch (err) {
+      console.error('[SubscriptionCron] Error in subscription cron tick:', err);
+    } finally {
+      isSubscriptionCronRunning = false;
+    }
+  };
+
   // Initial run on server startup
-  void processSubscriptionExpiries();
+  void executeTick();
+
   // Recurring interval schedule
-  setInterval(() => {
-    void processSubscriptionExpiries();
-  }, intervalMs);
+  setInterval(executeTick, intervalMs);
 }
 
 module.exports = {

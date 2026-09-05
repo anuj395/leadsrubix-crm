@@ -385,6 +385,34 @@ exports.createForUser = async ({ payload, authedUser }) => {
     notes: data.notes || data['Notes'] || '',
   };
 
+  // If owner is not explicitly specified, route through organization Lead Distribution Rules
+  if (!cleaned.contactOwnerEmail && !cleaned.uid) {
+    const targetOrgId = user.organizationId || data.organizationId || data.organization_id;
+    if (targetOrgId) {
+      try {
+        const { assignLeadByRules } = require('./leadDistributionService');
+        const assignment = await assignLeadByRules({
+          organizationId: targetOrgId,
+          industryId: user.industryId,
+          source: cleaned.source || '',
+          project: cleaned.projectName,
+          location: cleaned.location,
+          budget: cleaned.budget,
+          propertyType: cleaned.propertyType
+        });
+
+        if (assignment && (assignment.uid || assignment.ownerEmail)) {
+          cleaned.uid = assignment.uid || '';
+          cleaned.contactOwnerEmail = assignment.ownerEmail || '';
+          cleaned.assignedTo = assignment.ownerEmail || '';
+          cleaned.assigned_to = assignment.ownerEmail || '';
+        }
+      } catch (distErr) {
+        console.error('[contactService] Lead distribution evaluation error:', distErr);
+      }
+    }
+  }
+
   for (const f of allowedFormFields) {
     const k = f.field_key;
     const camelK = (k || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
