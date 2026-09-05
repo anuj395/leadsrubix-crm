@@ -143,7 +143,51 @@ router.delete('/api-data', authenticate, async (req, res, next) => {
 });
 
 router.post('/createContacts', async (req, res, next) => {
-  let reqData = req.body || {};
+  let rawBody = req.body || {};
+  let reqData = {};
+
+  // Recursive payload flattener function to extract fields from any nested structure
+  const flattenPayload = (source) => {
+    if (!source || typeof source !== 'object') return;
+
+    if (Array.isArray(source)) {
+      source.forEach(item => flattenPayload(item));
+      return;
+    }
+
+    for (const [key, val] of Object.entries(source)) {
+      if (val === null || val === undefined) continue;
+
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        // Elementor Pro field format: { value: '...', id: '...', title: '...' }
+        if (val.value !== undefined || val.raw_value !== undefined) {
+          const actualVal = val.value !== undefined ? val.value : val.raw_value;
+          if (val.id) reqData[String(val.id).toLowerCase()] = actualVal;
+          if (val.title) reqData[String(val.title).toLowerCase().trim().replace(/\s+/g, '_')] = actualVal;
+          reqData[String(key).toLowerCase()] = actualVal;
+        } else {
+          // Recursively flatten nested sub-objects (e.g. data, payload, form_fields, fields, lead)
+          flattenPayload(val);
+        }
+      } else {
+        reqData[String(key).toLowerCase()] = val;
+      }
+    }
+  };
+
+  // Flatten raw body first, then merge original raw body keys
+  flattenPayload(rawBody);
+  Object.assign(reqData, rawBody);
+
+  // Merge URL query parameters if present (e.g. ?token=XYZ&phone=123)
+  if (req.query && typeof req.query === 'object') {
+    for (const [key, val] of Object.entries(req.query)) {
+      if (reqData[key] === undefined || reqData[key] === '') {
+        reqData[key] = val;
+      }
+    }
+  }
+
   let tokenData = null;
   
   try {
@@ -152,38 +196,70 @@ router.post('/createContacts', async (req, res, next) => {
     const Contact = mongoose.model('Contact');
     const User = mongoose.model('User');
 
-    const token = reqData.token || req.query.token;
+    // Token Resolution across query string, body, headers
+    const authHeader = req.headers['authorization'] || '';
+    const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
+
+    const token = reqData.token || reqData.api_key || reqData.apikey || req.query.token || req.headers['x-api-token'] || bearerToken;
 
     if (!token) {
-      return res.status(200).json({ message: "Token Not Found" });
+      return res.status(200).json({ status: "error", success: false, message: "Token Not Found" });
     }
 
     tokenData = await ApiToken.findOne({ api_key: token }).exec();
     if (!tokenData) {
-      return res.status(200).json({ message: "Invalid Token" });
+      return res.status(200).json({ status: "error", success: false, message: "Invalid Token" });
     }
 
     if (tokenData.status === "INACTIVE") {
       await logApiTransaction(reqData, tokenData, "FAILED", "Token is Inactive");
-      return res.status(200).json({ message: "Token is Inactive" });
+      return res.status(200).json({ status: "error", success: false, message: "Token is Inactive" });
     }
 
-    const contactNo = reqData.contactNumber || reqData.contact_number || reqData.contact_no;
+    // Comprehensive Mobile / Phone Field Matching
+    let contactNo = reqData.contactnumber || reqData.contact_number || reqData.contact_no || 
+                    reqData.phone || reqData.phone_number || reqData.phonenumber || reqData.mobile || 
+                    reqData.mobile_no || reqData.mobileno || reqData.tel || reqData['your-phone'] || 
+                    reqData.your_phone || reqData.cell || reqData.whatsapp;
+
+    // Fallback: If no explicit key matched, search all flat values for a 10-digit number
+    if (!contactNo) {
+      for (const val of Object.values(reqData)) {
+        if (typeof val === 'string' || typeof val === 'number') {
+          const cleaned = String(val).replace(/\D/g, '');
+          if (cleaned.length >= 10 && cleaned.length <= 13) {
+            contactNo = String(val);
+            break;
+          }
+        }
+      }
+    }
+
     if (!contactNo) {
       await logApiTransaction(reqData, tokenData, "FAILED", "Mobile Empty");
-      return res.status(200).json({ message: "Mobile Empty" });
+      return res.status(200).json({ status: "error", success: false, message: "Mobile Empty" });
     }
 
-    const customerName = reqData.customerName || reqData.customer_name || reqData.name;
-    if (!customerName) {
-      await logApiTransaction(reqData, tokenData, "FAILED", "Invalid Customer Name");
-      return res.status(200).json({ message: "Invalid Customer Name" });
+    // Comprehensive Name Field Matching with Fail-Safe Fallback
+    let customerName = reqData.customername || reqData.customer_name || reqData.name || 
+                        reqData.full_name || reqData.fullname || reqData['your-name'] || 
+                        reqData.your_name || reqData.first_name || reqData.client_name || 
+                        reqData.patient_name || reqData.lead_name;
+
+    // If first_name and last_name exist separately, combine them
+    if (!customerName && (reqData.first_name || reqData.last_name)) {
+      customerName = `${reqData.first_name || ''} ${reqData.last_name || ''}`.trim();
+    }
+
+    // Fail-Safe Fallback: Never fail on empty name
+    if (!customerName || String(customerName).trim() === '') {
+      customerName = 'Website Inquiry';
     }
 
     const propertyType = reqData.propertyType || reqData.property_type;
     if (propertyType !== undefined && typeof propertyType !== "string") {
       await logApiTransaction(reqData, tokenData, "FAILED", "Invalid Property Type");
-      return res.status(200).json({ message: "Invalid Property Type" });
+      return res.status(200).json({ status: "error", success: false, message: "Invalid Property Type" });
     }
 
     // Phone parsing
@@ -226,7 +302,7 @@ router.post('/createContacts', async (req, res, next) => {
       if (existing) {
         await logApiTransaction(reqData, tokenData, "FAILED", "Duplicate Lead");
         // Send success message to simulate obfuscation/avoid enumeration
-        return res.status(200).json({ message: "Thank You! We will get back to you soon" });
+        return res.status(200).json({ status: "success", success: true, message: "Thank You! We will get back to you soon" });
       }
     }
 
@@ -247,7 +323,7 @@ router.post('/createContacts', async (req, res, next) => {
         ownerUser = userDoc;
       } else {
         await logApiTransaction(reqData, tokenData, "FAILED", "Owner Not Found!");
-        return res.status(200).json({ message: "Owner Not Found!" });
+        return res.status(200).json({ status: "error", success: false, message: "Owner Not Found!" });
       }
     }
 
@@ -271,12 +347,12 @@ router.post('/createContacts', async (req, res, next) => {
       }
     }
 
-    const emailVal = reqData.emailId || reqData.email_id || reqData.email || '';
-    const projectVal = reqData.projectName || reqData.project_name || reqData.project || reqData.projectId || reqData.project_id || '';
+    const emailVal = reqData.emailId || reqData.email_id || reqData.email || reqData['your-email'] || reqData.your_email || '';
+    const projectVal = reqData.projectName || reqData.project_name || reqData.project || reqData.projectId || reqData.project_id || reqData.subject || reqData['your-subject'] || reqData.your_subject || reqData.message || '';
     const locationVal = reqData.location || reqData.city || reqData.locationName || '';
     const budgetVal = reqData.budget || reqData.budgetId || reqData.budget_id || '';
     const propertyTypeVal = reqData.propertyType || reqData.property_type || reqData.propertyTypeId || '';
-    let sourceVal = reqData.source || tokenData.source || 'Incoming API';
+    let sourceVal = reqData.source || tokenData.source || 'Website';
     let campaignVal = reqData.campaign || reqData.campaignName || sourceVal;
 
     // Dynamically canonicalize incoming source name against organization's registered resources
@@ -386,7 +462,7 @@ router.post('/createContacts', async (req, res, next) => {
 
     await logApiTransaction(reqData, tokenData, "SUCCESS", "", String(doc._id));
 
-    return res.status(200).json({ message: "Thank You! We will get back to you soon" });
+    return res.status(200).json({ status: "success", success: true, message: "Thank You! We will get back to you soon" });
   } catch (err) {
     if (tokenData) {
       await logApiTransaction(reqData, tokenData, "FAILED", err.message || "Internal Error");
