@@ -43,7 +43,7 @@ interface ReceiptRecord {
 export default function ReceiptsHistoryPage() {
   const { user } = useAuth()
   const orgName = (user as any)?.organizationName || (user as any)?.organization_name || 'Leads Rubix Client'
-  const adminEmail = user?.email || 'admin@leadsrubix.com'
+  const adminEmail = user?.email || ''
 
   const [receipts, setReceipts] = useState<ReceiptRecord[]>([])
   const [totalGstPaid, setTotalGstPaid] = useState('₹0.00')

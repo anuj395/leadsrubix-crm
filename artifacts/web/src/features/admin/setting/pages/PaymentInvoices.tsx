@@ -96,7 +96,7 @@ export default function PaymentInvoicesPage() {
   }, [invoices])
 
   const generatePdfReceipt = (inv: PaymentInvoice) => {
-    const adminEmail = user?.email || 'admin@leadsrubix.com'
+    const adminEmail = user?.email || ''
 
     const receiptHtml = `
       <!DOCTYPE html>

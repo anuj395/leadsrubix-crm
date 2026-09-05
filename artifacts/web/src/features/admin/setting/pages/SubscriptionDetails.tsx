@@ -609,7 +609,7 @@ export default function SubscriptionDetailsPage() {
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">Billing Email</Typography>
                   <Typography variant="body2" fontWeight={700}>
-                    {billingForm.billingEmail || user?.email || 'admin@leadsrubix.com'}
+                    {billingForm.billingEmail || user?.email || ''}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>

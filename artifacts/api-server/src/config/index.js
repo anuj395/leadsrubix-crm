@@ -22,7 +22,7 @@ module.exports = {
   mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/leadsrubix-migrate-crm-dev-live',
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
   smtpPort: parseInt(process.env.SMTP_PORT || '465', 10),
-  smtpUser: process.env.SMTP_USER || 'dev@digitalrubix.com',
+  smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || 'exch pzyu imoy zptl'
   // add other third-party API keys, etc.
 };

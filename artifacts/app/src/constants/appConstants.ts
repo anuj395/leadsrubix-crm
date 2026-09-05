@@ -24,6 +24,8 @@ export const APP_CONFIG = {
   appName: 'Leads Rubix',
   version: '1.0.0',
   build: '2026.08.27',
+  environment: 'Production',
+  buildNumber: '5',
   tagline: 'Enterprise Multi-Tenant CRM Engine',
   footerVersionText: 'v1.0.0 • Enterprise Edition',
   isProduction: IS_PRODUCTION,

@@ -142,27 +142,27 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   };
 
   // 1. Call Back Modal Form
-  const [callBackReason, setCallBackReason] = useState('Busy in Meeting');
-  const [callBackDate, setCallBackDate] = useState('2026-09-05, 10:00 AM');
+  const [callBackReason, setCallBackReason] = useState('');
+  const [callBackDate, setCallBackDate] = useState('');
   const [callBackNote, setCallBackNote] = useState('');
   const [showCallBackDatePicker, setShowCallBackDatePicker] = useState(false);
 
   // 2. Not Interested Modal Form
-  const [notInterestedReason, setNotInterestedReason] = useState('Budget Mismatch');
+  const [notInterestedReason, setNotInterestedReason] = useState('');
   const [notInterestedNote, setNotInterestedNote] = useState('');
 
   // 3. Interested Modal Form (Matching Web CRM InterestedDetails.tsx 1:1)
-  const [interestedCustomerName, setInterestedCustomerName] = useState(lead.name || lead.firstName || 'Inquiry Contact');
+  const [interestedCustomerName, setInterestedCustomerName] = useState(lead.name || lead.firstName || '');
   const [interestedAlternateNo, setInterestedAlternateNo] = useState((lead as any).alternateNo || (lead as any).alternate_no || '');
-  const [interestedLocation, setInterestedLocation] = useState(lead.location || 'Noida Sector 18');
-  const [interestedProject, setInterestedProject] = useState(lead.project || lead.projectName || 'Sunrise Park');
+  const [interestedLocation, setInterestedLocation] = useState(lead.location || '');
+  const [interestedProject, setInterestedProject] = useState(lead.project || lead.projectName || '');
   const [interestedTaskType, setInterestedTaskType] = useState('Call Back');
-  const [interestedBudget, setInterestedBudget] = useState(lead.budget || 'Rs.40 Lacs - Rs.50 Lacs');
-  const [interestedNextFollowUp, setInterestedNextFollowUp] = useState('2026-09-05, 11:00 AM');
-  const [interestedPropertyType, setInterestedPropertyType] = useState(lead.propertyType || 'Residential Properties');
-  const [interestedPropertyStage, setInterestedPropertyStage] = useState((lead as any).propertyStage || 'Under Construction');
-  const [interestedPropertySubType, setInterestedPropertySubType] = useState((lead as any).propertySubType || 'Apartment');
-  const [interestedSource, setInterestedSource] = useState(lead.source || 'Website');
+  const [interestedBudget, setInterestedBudget] = useState(lead.budget || '');
+  const [interestedNextFollowUp, setInterestedNextFollowUp] = useState('');
+  const [interestedPropertyType, setInterestedPropertyType] = useState(lead.propertyType || '');
+  const [interestedPropertyStage, setInterestedPropertyStage] = useState((lead as any).propertyStage || '');
+  const [interestedPropertySubType, setInterestedPropertySubType] = useState((lead as any).propertySubType || '');
+  const [interestedSource, setInterestedSource] = useState(lead.source || '');
   const [interestedNote, setInterestedNote] = useState('');
 
   // Dynamic API Dropdown Options & Picker Modal States
@@ -406,7 +406,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         normalizedNotes.push({
           id: typeof n === 'object' && (n._id || n.id) ? (n._id || n.id) : `note-${i}`,
           content: content.trim(),
-          author: typeof n === 'object' ? (n.userEmail || n.user_email || n.userName || n.user_name || n.createdBy || n.created_by || n.author || 'dev@digitalrubix.com') : 'dev@digitalrubix.com',
+          author: typeof n === 'object' ? (n.userEmail || n.user_email || n.userName || n.user_name || n.createdBy || n.created_by || n.author || user?.name || user?.email || '') : (user?.name || user?.email || ''),
           createdAt: typeof n === 'object' ? (n.createdAt || n.created_at || n.date || n.updatedAt || new Date().toISOString()) : new Date().toISOString(),
         });
       }
@@ -454,7 +454,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
     loadLeadDetails();
   }, [loadLeadDetails]);
 
-  const leadName = lead.name || lead.firstName || 'Inquiry Contact';
+  const leadName = lead.name || lead.firstName || '';
   const phone = lead.phone || lead.contactNo || '';
   const email = lead.email || '';
   const stage = (lead.stage || lead.status || 'FRESH').toUpperCase();
@@ -724,7 +724,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         id: `note-${Date.now()}`,
         content: newNoteContent.trim(),
         createdAt: new Date().toISOString(),
-        author: user?.name || user?.email || 'Anuj Chauhan',
+        author: user?.name || user?.email || '',
       };
       setNotesList((prev) => [noteObj, ...prev]);
       await apiClient.post(`/contacts/${leadId}/notes`, { note: newNoteContent }).catch(() => null);
@@ -748,7 +748,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         duration: callDuration,
         remark: callRemark,
         createdAt: new Date().toISOString(),
-        userName: user?.name || 'Anuj Chauhan',
+        userName: user?.name || user?.email || '',
       };
       setCalls((prev) => [callObj, ...prev]);
       await apiClient.post('/call-logs', {
@@ -856,9 +856,9 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         title: cleanTitle,
         reason: reasonVal,
         status: statusVal,
-        dueDate: formatDateStr(t.dueDate || t.due_date || t.nextFollowUpDateTime) || '12/09/2026',
-        author: t.author || user?.name || 'Anuj Chauhan',
-        timestamp: formatDateTimeStr(t.createdAt || t.created_at) || '02/09/2026, 15:29:30',
+        dueDate: formatDateStr(t.dueDate || t.due_date || t.nextFollowUpDateTime) || '',
+        author: t.createdBy || t.author || user?.name || user?.email || '',
+        timestamp: formatDateTimeStr(t.createdAt || t.created_at) || '',
         note: t.notes || t.description || t.note,
       });
     });
@@ -870,9 +870,9 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         type: 'call',
         title: `Call: ${c.callType || 'Outgoing'} (${c.callStatus || c.status || 'Connected'})`,
         status: c.callStatus || 'Completed',
-        dueDate: c.duration || '2m 15s',
-        author: c.userName || user?.name || 'Anuj Chauhan',
-        timestamp: formatDateTimeStr(c.createdAt || c.created_at) || '02/09/2026, 14:15:00',
+        dueDate: c.duration ? (typeof c.duration === 'number' ? `${Math.floor(c.duration / 60)}m ${c.duration % 60}s` : String(c.duration)) : '',
+        author: c.createdBy || c.created_by || c.userName || user?.name || user?.email || '',
+        timestamp: formatDateTimeStr(c.createdAt || c.created_at) || '',
         note: c.remark || c.notes,
       });
     });
@@ -1408,7 +1408,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
                   <View style={styles.profileField}>
                     <Text style={styles.fieldLabel}>ASSIGNED EXECUTIVE</Text>
-                    <Text style={styles.fieldValue}>{user?.name || 'Anuj Chauhan'}</Text>
+                    <Text style={styles.fieldValue}>{(lead as any).ownerName || (lead as any).agentName || lead.contactOwnerEmail || user?.name || user?.email || 'Unassigned'}</Text>
                   </View>
                 </View>
 
