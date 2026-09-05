@@ -202,28 +202,21 @@ const callLogController = {};
 
 callLogController.Create = async (req, res) => {
   try {
-    const uid = req.body.uid || req.user?.uid || req.user?._id || req.user?.id || '';
-    let user = null;
-    if (uid) {
-      const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
-      user = await User.findOne(userQuery);
-    }
-    let createdBy = '';
-    if (user) {
-      createdBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email;
-    }
-    if (!createdBy && req.user) {
-      createdBy = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.name || req.user.email;
-    }
-    if (!createdBy) {
-      createdBy = req.body.created_by || req.body.createdBy || req.body.agent || 'Sales Agent';
+    const isSuperAdmin = req.user?.role === 'superAdmin';
+    let user = req.user;
+    if (isSuperAdmin && req.body.uid) {
+      const userQuery = mongoose.isValidObjectId(req.body.uid) ? { _id: req.body.uid } : { uid: req.body.uid };
+      const targetUser = await User.findOne(userQuery);
+      if (targetUser) user = targetUser;
     }
 
-    const orgId = req.user?.role === 'superAdmin'
-      ? (req.body.organizationId || req.body.organization_id || req.user?.organizationId || '')
-      : (req.user?.organizationId || req.body.organizationId || req.body.organization_id || (user ? user.organizationId : ''));
+    const createdBy = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.name || user?.email || 'Sales Agent';
+    const orgId = isSuperAdmin
+      ? (req.body.organizationId || req.body.organization_id || user?.organizationId || user?.organization_id || '')
+      : (user?.organizationId || user?.organization_id || '');
 
-    const indId = req.body.industryId || req.body.industry_id || req.user?.industryId || '';
+    const indId = req.body.industryId || req.body.industry_id || user?.industryId || '';
+    const uidStr = String(user?.uid || user?._id || user?.id || req.body.uid || '');
 
     let durationSeconds = 0;
     if (typeof req.body.duration === 'number') {
@@ -242,7 +235,7 @@ callLogController.Create = async (req, res) => {
       customer_name: req.body.customerName || req.body.customer_name || req.body.buyerName || req.body.name || 'Contact',
       contact_number: req.body.contactNumber || req.body.contact_number || req.body.contact_no || req.body.phone || req.body.phoneNumber || '',
       stage: req.body.stage || req.body.status || req.body.outcome || 'Answered',
-      contact_owner_email: req.body.contactOwnerEmail || req.body.contact_owner_email || req.user?.email || '',
+      contact_owner_email: req.body.contactOwnerEmail || req.body.contact_owner_email || user?.email || '',
       location: req.body.location || '',
       project_name: req.body.projectName || req.body.project_name || req.body.project || '',
       budget: req.body.budget || '',
@@ -254,9 +247,9 @@ callLogController.Create = async (req, res) => {
       type: req.body.type || req.body.direction || 'Outbound',
       inventory_type: req.body.inventoryType || req.body.inventory_type || '',
       duration: durationSeconds,
-      uid: uid || '',
+      uid: uidStr,
       industry_id: indId,
-      organization_id: orgId || '',
+      organization_id: orgId,
       latitude: req.body.latitude || null,
       longitude: req.body.longitude || null
     });
@@ -358,20 +351,21 @@ callLogController.Search = async (req, res) => {
       filter['customerName'] = { $in: customer_name_list };
     }
 
-    let user = null;
-    if (uid) {
+    const isSuperAdmin = req.user?.role === 'superAdmin';
+    let user = req.user;
+    if (isSuperAdmin && uid) {
       const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
-      user = await User.findOne(userQuery);
-    }
-    if (!user && req.user) {
-      user = req.user;
+      const foundUser = await User.findOne(userQuery);
+      if (foundUser) user = foundUser;
     }
     if (!user) {
       return res.status(401).send({ error: 'User Not Found or Not Authenticated' });
     }
 
-    const role = user.role;
-    const organizationId = user.organizationId || user.organization_id;
+    const role = user.role || req.user?.role;
+    const organizationId = isSuperAdmin 
+      ? (req.body.organizationId || user?.organizationId || user?.organization_id)
+      : (req.user?.organizationId || req.user?.organization_id);
 
     const dbFilter = translateFilterKeys(filter);
 
