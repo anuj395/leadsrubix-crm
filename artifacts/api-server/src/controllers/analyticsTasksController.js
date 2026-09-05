@@ -4,8 +4,8 @@ const QUERY_TIMEOUT_MS = 30000;
 
 const cloneValue = (value) => JSON.parse(JSON.stringify(value ?? {}));
 
-const createMockReqRes = (body, params = {}) => {
-  const req = { body: cloneValue(body), params: { ...params } };
+const createMockReqRes = (body, params = {}, user = null) => {
+  const req = { body: cloneValue(body), params: { ...params }, user: user ? cloneValue(user) : null };
   let resolvePromise;
 
   const rawPromise = new Promise((resolve) => {
@@ -61,17 +61,20 @@ const dashboard = async (req, res) => {
 
     const tasksCompletedReq = createMockReqRes(
       { ...buildAnalyticsBody(), status: 'Completed', parameter: 'type' },
-      { type }
+      { type },
+      req.user
     );
 
     const tasksOverdueReq = createMockReqRes(
       { ...buildAnalyticsBody(), status: 'Overdue', parameter: 'type' },
-      { type }
+      { type },
+      req.user
     );
 
     const tasksPendingReq = createMockReqRes(
       { ...buildAnalyticsBody(), status: 'Pending', parameter: 'type' },
-      { type }
+      { type },
+      req.user
     );
 
     taskController.TasksReport(tasksCompletedReq.req, tasksCompletedReq.res);

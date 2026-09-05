@@ -13,9 +13,11 @@ const router = express.Router();
 const getTeamUsers = async (uid, organizationId) => {
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const baseUser = await userModel.findOne(userQuery);
-  const orgId = organizationId || baseUser?.organizationId;
+  const orgId = organizationId || baseUser?.organizationId || baseUser?.organization_id;
 
-  const users = await userModel.find({ organizationId: orgId }).lean().exec();
+  const users = await userModel.find({
+    $or: [{ organizationId: orgId }, { organization_id: orgId }]
+  }).lean().exec();
   const targetUser = users.find((u) => String(u.uid) === String(uid) || String(u._id) === String(uid));
   if (!targetUser) return [uid];
 
@@ -60,17 +62,19 @@ const buildDrilldownQuery = async (req, bodyUid, bodyOrgId, filters, isLead, isT
   const query = {};
 
   // 1. Resolve and lock Organization ID
-  let orgId = bodyOrgId || req.body.organizationId;
+  let orgId = bodyOrgId || req.body.organizationId || req.body.organizationid;
   if (req.user?.role !== 'superAdmin') {
-    orgId = req.user?.organizationId;
+    orgId = req.user?.organizationId || req.user?.organization_id;
   } else if (orgId) {
     const org = await Organization.findOne({
       $or: [
         { industryId: orgId },
-        { organizationId: orgId }
+        { organizationId: orgId },
+        { organization_id: orgId },
+        ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
       ]
     }).lean().exec();
-    orgId = org ? org.organizationId : orgId;
+    orgId = org ? (org.organizationId || org.organization_id || String(org._id)) : orgId;
   }
 
   if (orgId) {
@@ -93,10 +97,14 @@ const buildDrilldownQuery = async (req, bodyUid, bodyOrgId, filters, isLead, isT
   }).lean().exec();
 
   if (req.user?.role !== 'superAdmin') {
-    if (dbUser && String(dbUser.organization_id || dbUser.organizationId) !== String(req.user?.organizationId)) {
-      const err = new Error('Forbidden: User does not belong to your organization');
-      err.status = 403;
-      throw err;
+    const userOrg = req.user?.organizationId || req.user?.organization_id;
+    if (dbUser) {
+      const targetUserOrg = dbUser.organization_id || dbUser.organizationId;
+      if (targetUserOrg && userOrg && String(targetUserOrg) !== String(userOrg)) {
+        const err = new Error('Forbidden: User does not belong to your organization');
+        err.status = 403;
+        throw err;
+      }
     }
   }
 
@@ -196,9 +204,46 @@ const buildDrilldownQuery = async (req, bodyUid, bodyOrgId, filters, isLead, isT
         }
         if (key === 'lead_source') dbKey = 'source';
       } else if (isTask) {
-        if (key === 'task_type') dbKey = 'taskType';
-        else if (key === 'assigned_to') dbKey = 'assignedTo';
-        else if (key === 'due_date') dbKey = 'dueDate';
+        if (key === 'status') {
+          const statusValues = Array.isArray(value) ? value : [value];
+          const allVariations = [];
+          statusValues.forEach(s => {
+            if (s) {
+              allVariations.push(s, s.toLowerCase(), s.toUpperCase());
+            }
+          });
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { status: { $in: Array.from(new Set(allVariations)) } },
+              { task_status: { $in: Array.from(new Set(allVariations)) } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'taskType' || key === 'task_type') {
+          const arr = Array.isArray(value) ? value : [value];
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { taskType: { $in: arr } },
+              { task_type: { $in: arr } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'assignedTo' || key === 'assigned_to') {
+          const arr = Array.isArray(value) ? value : [value];
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { assignedTo: { $in: arr } },
+              { assigned_to: { $in: arr } }
+            ]
+          });
+          continue;
+        }
+        if (key === 'due_date') dbKey = 'dueDate';
         else if (key === 'project_name') dbKey = 'projectName';
         else if (key === 'contact_owner_email') dbKey = 'contactOwnerEmail';
       }
