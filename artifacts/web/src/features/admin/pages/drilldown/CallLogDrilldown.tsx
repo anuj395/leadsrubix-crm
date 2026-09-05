@@ -65,6 +65,7 @@ export default function CallLogDrilldownPage() {
 
       const apiData = {
         uid: callDrilldownData.uid,
+        organizationId: callDrilldownData.organizationId || callDrilldownData.organizationid,
         page: paginationModel.page + 1,
         pageSize: paginationModel.pageSize,
         searchString: '',
