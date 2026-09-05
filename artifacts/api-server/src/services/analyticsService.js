@@ -245,7 +245,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
       ...allowedNames
     ]));
 
-    contactFilter.$or = [
+    const contactUserOr = [
       { createdBy: { $in: allUserIdentifiers } },
       { uid: { $in: allUserIdentifiers } },
       { assigned_to: { $in: allUserIdentifiers } },
@@ -256,7 +256,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
       { ownerId: { $in: allUserIdentifiers } }
     ];
 
-    taskFilter.$or = [
+    const taskUserOr = [
       { createdBy: { $in: allUserIdentifiers } },
       { uid: { $in: allUserIdentifiers } },
       { assigned_to: { $in: allUserIdentifiers } },
@@ -265,7 +265,7 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
       { user_id: { $in: allUserIdentifiers } }
     ];
 
-    callLogFilter.$or = [
+    const callLogUserOr = [
       { createdBy: { $in: allUserIdentifiers } },
       { uid: { $in: allUserIdentifiers } },
       { userId: { $in: allUserIdentifiers } },
@@ -275,6 +275,15 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
       { caller_email: { $in: allUserIdentifiers } },
       { callerEmail: { $in: allUserIdentifiers } }
     ];
+
+    contactFilter.$and = contactFilter.$and || [];
+    contactFilter.$and.push({ $or: contactUserOr });
+
+    taskFilter.$and = taskFilter.$and || [];
+    taskFilter.$and.push({ $or: taskUserOr });
+
+    callLogFilter.$and = callLogFilter.$and || [];
+    callLogFilter.$and.push({ $or: callLogUserOr });
   }
 
   // Apply date filters

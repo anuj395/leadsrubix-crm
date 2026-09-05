@@ -33,10 +33,10 @@ const getBranchUsers = async (
 ) => {
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const baseUser = await userModel.findOne(userQuery);
-  const orgId = organizationId || baseUser?.organizationId;
+  const orgId = organizationId || baseUser?.organizationId || baseUser?.organization_id;
 
   const users = await userModel.find({
-    organizationId: orgId,
+    $or: [{ organizationId: orgId }, { organization_id: orgId }],
     branch: { $in: permission },
   });
   let usersList = [uid];
@@ -50,10 +50,10 @@ const getBranchUsers = async (
 const getTeamUsers = async (uid, organizationId) => {
   const userQuery = mongoose.isValidObjectId(uid) ? { _id: uid } : { uid };
   const baseUser = await userModel.findOne(userQuery);
-  const orgId = organizationId || baseUser?.organizationId;
+  const orgId = organizationId || baseUser?.organizationId || baseUser?.organization_id;
 
   const users = await userModel.find({
-    organizationId: orgId
+    $or: [{ organizationId: orgId }, { organization_id: orgId }]
   });
   const targetUser = users.find((u) => String(u.uid) === String(uid) || String(u._id) === String(uid));
   if (!targetUser) return [uid];
@@ -104,7 +104,7 @@ const feedbackReport = async (req, res) => {
 
   const user = resultUser[0];
   const profile = user.role || user.profile;
-  const organizationId = user.organizationId;
+  const organizationId = user.organizationId || user.organization_id;
   const date_parameter = "leadAssignTime";
 
   let start_date, end_date, date_condition;
@@ -240,6 +240,7 @@ const feedbackReport = async (req, res) => {
 
   !isObjectEmpty(leadUserFilter) &&
     Object.keys(leadUserFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           leadUserFilter[key].length &&
@@ -257,6 +258,7 @@ const feedbackReport = async (req, res) => {
 
   !isObjectEmpty(leadFilter) &&
     Object.keys(leadFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           leadFilter[key].length &&
@@ -282,6 +284,7 @@ const feedbackReport = async (req, res) => {
 
   !isObjectEmpty(taskFilter) &&
     Object.keys(taskFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           taskFilter[key].length &&
@@ -582,7 +585,7 @@ const callBackReasonReport = async (req, res) => {
 
   const user = resultUser[0];
   const profile = user.role || user.profile;
-  const organizationId = user.organizationId;
+  const organizationId = user.organizationId || user.organization_id;
   const date_parameter = "leadAssignTime";
 
   let start_date, end_date, date_condition;
@@ -717,6 +720,7 @@ const callBackReasonReport = async (req, res) => {
 
   !isObjectEmpty(leadUserFilter) &&
     Object.keys(leadUserFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           leadUserFilter[key].length &&
@@ -734,6 +738,7 @@ const callBackReasonReport = async (req, res) => {
 
   !isObjectEmpty(leadFilter) &&
     Object.keys(leadFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           leadFilter[key].length &&
@@ -759,6 +764,7 @@ const callBackReasonReport = async (req, res) => {
 
   !isObjectEmpty(taskFilter) &&
     Object.keys(taskFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           taskFilter[key].length &&
@@ -1054,7 +1060,7 @@ const InterestedReport = async (req, res) => {
 
   const user = resultUser[0];
   const profile = user.role || user.profile;
-  const organizationId = user.organizationId;
+  const organizationId = user.organizationId || user.organization_id;
   const date_parameter = "leadAssignTime";
 
   let start_date, end_date, date_condition;
@@ -1242,6 +1248,7 @@ const InterestedReport = async (req, res) => {
 
   !isObjectEmpty(leadFilter) &&
     Object.keys(leadFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           leadFilter[key].length &&
@@ -1267,6 +1274,7 @@ const InterestedReport = async (req, res) => {
 
   !isObjectEmpty(taskFilter) &&
     Object.keys(taskFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           taskFilter[key].length &&
@@ -1578,7 +1586,7 @@ const ReasonReport = async (req, res) => {
 
   const user = resultUser[0];
   const profile = user.role || user.profile;
-  const organizationId = user.organizationId;
+  const organizationId = user.organizationId || user.organization_id;
   const date_parameter = "leadAssignTime";
 
   let start_date, end_date, date_condition;
@@ -1728,6 +1736,7 @@ const ReasonReport = async (req, res) => {
 
   !isObjectEmpty(leadFilter) &&
     Object.keys(leadFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           leadFilter[key].length &&
@@ -1753,6 +1762,7 @@ const ReasonReport = async (req, res) => {
 
   !isObjectEmpty(taskFilter) &&
     Object.keys(taskFilter).forEach((key) => {
+      if (key.startsWith('$')) return;
       if (datesField.includes(key)) {
         if (
           taskFilter[key].length &&

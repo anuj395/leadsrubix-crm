@@ -5,8 +5,8 @@ const QUERY_TIMEOUT_MS = 30000;
 
 const cloneValue = (value) => JSON.parse(JSON.stringify(value ?? {}));
 
-const createMockReqRes = (body, params = {}) => {
-  const req = { body: cloneValue(body), params: { ...params } };
+const createMockReqRes = (body, params = {}, user = null) => {
+  const req = { body: cloneValue(body), params: { ...params }, user: user ? cloneValue(user) : null };
   let resolvePromise;
 
   const rawPromise = new Promise((resolve) => {
@@ -62,12 +62,14 @@ const dashboard = async (req, res) => {
 
     const callingReq = createMockReqRes(
       buildAnalyticsBody(),
-      { type }
+      { type },
+      req.user
     );
 
     const interestedStageReq = createMockReqRes(
       { ...buildAnalyticsBody(), parameter: 'stageChangeAt' },
-      { type }
+      { type },
+      req.user
     );
 
     analyticsLeadController.InterestedReport(interestedStageReq.req, interestedStageReq.res);

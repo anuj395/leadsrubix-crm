@@ -93,7 +93,7 @@ taskController.TasksReport = async (req, res) => {
 
     const user = resultUser[0];
     const profile = user.role || user.profile;
-    const organizationId = user.organizationId;
+    const organizationId = user.organizationId || user.organization_id;
     const status = req.body.status || '';
 
     let stage;
@@ -227,6 +227,7 @@ taskController.TasksReport = async (req, res) => {
 
     !isObjectEmpty(taskFilter) &&
       Object.keys(taskFilter).forEach((key) => {
+        if (key.startsWith('$')) return;
         if (datesField.includes(key)) {
           if (taskFilter[key].length && taskFilter[key].length === 2) {
             taskFilter[key] = {
@@ -324,7 +325,7 @@ taskController.TasksReport = async (req, res) => {
       ) {
         try {
           let report;
-          let and = [{ organizationId }];
+          let and = [{ $or: [{ organizationId }, { organization_id: organizationId }] }];
 
           if (stage) {
             and.push(stage);
