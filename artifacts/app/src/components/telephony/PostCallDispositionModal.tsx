@@ -149,19 +149,6 @@ export const PostCallDispositionModal: React.FC<PostCallDispositionModalProps> =
       // 1. Save Call Log to Backend MongoDB
       await callLogService.logCall(payload);
 
-      // 2. Synchronize Lead Stage if Lead ID exists
-      if (caller.leadId || caller.contactId) {
-        const leadTargetId = caller.leadId || caller.contactId!;
-        const stageStatus = selectedOutcome.label.toUpperCase();
-        await leadService
-          .transitionLead(
-            leadTargetId,
-            stageStatus,
-            `Call logged: ${selectedOutcome.label} (${Math.round(durationSeconds / 60)}m) - ${callNotes}`
-          )
-          .catch((err) => console.warn('Lead stage sync note:', err));
-      }
-
       // 3. Create Follow-up Task if Call-Back / Follow-up date chosen
       if (isFollowUpRequired && followUpDate) {
         let taskDueDate = followUpDate;

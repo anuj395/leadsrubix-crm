@@ -21,7 +21,6 @@ import { taskService, TaskItem } from '../../services/taskService';
 import { leadService, LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
-import { LicenseTrialBanner } from '../../components/ui/LicenseTrialBanner';
 import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { DashboardActionCockpit } from '../../components/dashboard/DashboardActionCockpit';
 import { DashboardTodayAgenda } from '../../components/dashboard/DashboardTodayAgenda';
@@ -187,9 +186,6 @@ export const DashboardScreen = ({ navigation }: any) => {
           />
         }
       >
-        {/* Zone 2: Dynamic Subscription / Trial Status Banner */}
-        <LicenseTrialBanner />
-
         {/* Zone 3: Today's Action Command Cockpit (Fresh, Visits, Follow-ups) */}
         {data && (
           <DashboardActionCockpit

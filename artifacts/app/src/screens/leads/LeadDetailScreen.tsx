@@ -520,7 +520,16 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const stageMeta = getStageMeta(stage);
 
   const normalizedStage = String(stage || '').toUpperCase().trim();
-  const isFresh = !normalizedStage || normalizedStage.includes('FRESH') || normalizedStage.includes('NEW');
+  const isFresh =
+    !normalizedStage ||
+    normalizedStage.includes('FRESH') ||
+    normalizedStage.includes('NEW') ||
+    normalizedStage.includes('ANSWERED') ||
+    normalizedStage.includes('BUSY') ||
+    normalizedStage.includes('MISSED') ||
+    normalizedStage.includes('NO_ANSWER') ||
+    normalizedStage.includes('CONNECTED') ||
+    normalizedStage.includes('OUTBOUND');
   const isCallback = normalizedStage.includes('CALLBACK') || normalizedStage.includes('CALL_BACK');
   const isInterested = normalizedStage.includes('INTEREST') || normalizedStage.includes('QUALIF') || normalizedStage.includes('VISIT') || normalizedStage.includes('MEET') || normalizedStage.includes('FOLLOW');
   const isClosedLost =
