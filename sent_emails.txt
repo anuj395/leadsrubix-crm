@@ -1382,3 +1382,12 @@ Organization: Lead Rubix
 Username / Email: dev@digitalrubix.com
 Temp Password: ulRw06vb
 ========================================
+
+========================================
+Timestamp: 2026-09-05T09:20:55.592Z
+To: test@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: test
+Username / Email: test@gmail.com
+Temp Password: wByaUHIq
+========================================
