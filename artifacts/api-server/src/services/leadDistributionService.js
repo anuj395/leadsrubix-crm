@@ -60,15 +60,27 @@ async function assignLeadByRules({
       ]
     };
 
+function getRuleSpecificity(rule) {
+  let score = 0;
+  if (rule.source && !['all', 'any'].includes(String(rule.source).toLowerCase())) score += 1;
+  if (rule.project && Array.isArray(rule.project) && rule.project.length > 0 && !rule.project.includes('all')) score += 10;
+  if (rule.location && Array.isArray(rule.location) && rule.location.length > 0 && !rule.location.includes('all')) score += 10;
+  if (rule.budget && Array.isArray(rule.budget) && rule.budget.length > 0 && !rule.budget.includes('all')) score += 10;
+  const pType = rule.property_type || rule.propertyType;
+  if (pType && Array.isArray(pType) && pType.length > 0 && !pType.includes('all')) score += 10;
+  return score;
+}
+
     const rules = await LeadDistributionRule.find(query).exec();
+    rules.sort((a, b) => getRuleSpecificity(b) - getRuleSpecificity(a));
 
     let matchedRule = null;
 
-    // 2. Evaluate rules in order
+    // 2. Evaluate rules in order (most specific rules first)
     for (const rule of rules) {
       if (!rule.users || rule.users.length === 0) continue;
 
-      const sourceMatch = matchesSource(source, rule.source);
+      const sourceMatch = matchSources(source, rule.source);
       if (!sourceMatch) continue;
 
       const projectMatch = matchesCriteria(project, rule.project);
