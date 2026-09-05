@@ -31,12 +31,12 @@ export const ProfileScreen = ({ navigation }: any) => {
     ]);
   };
 
-  const initials = (user?.name || 'Anuj Chauhan')
+  const initials = (user?.name || user?.email || '')
     .split(' ')
     .map((n: string) => n[0])
     .join('')
-    .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <View style={styles.container}>
@@ -67,22 +67,22 @@ export const ProfileScreen = ({ navigation }: any) => {
         <View style={styles.profileHeroCard}>
           <View style={styles.avatarSection}>
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitials}>{initials || 'AC'}</Text>
+              <Text style={styles.avatarInitials}>{initials || ''}</Text>
               <View style={styles.avatarPulseBadge} />
             </View>
 
             <View style={styles.userInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>{user?.name || 'Anuj Chauhan'}</Text>
+                <Text style={styles.userName}>{user?.name || user?.email || ''}</Text>
                 <Ionicons name="checkmark-circle" size={18} color="#2563EB" />
               </View>
-              <Text style={styles.userEmail}>{user?.email || 'anuj@leadsrubix.com'}</Text>
+              <Text style={styles.userEmail}>{user?.email || ''}</Text>
 
               <View style={styles.rolePillRow}>
                 <View style={styles.adminBadge}>
                   <Ionicons name="shield-checkmark" size={12} color="#059669" />
                   <Text style={styles.adminBadgeText}>
-                    {(user?.role || 'Admin').toUpperCase()}
+                    {(user?.role || '').toUpperCase()}
                   </Text>
                 </View>
 

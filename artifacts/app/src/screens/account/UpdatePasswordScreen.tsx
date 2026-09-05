@@ -141,8 +141,8 @@ export const UpdatePasswordScreen = ({ navigation }: any) => {
               <Ionicons name="person" size={16} color="#0284C7" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.userCapsuleName}>{user?.name || 'Anuj Chauhan'}</Text>
-              <Text style={styles.userCapsuleEmail}>{user?.email || 'dev@digitalrubix.com'}</Text>
+              <Text style={styles.userCapsuleName}>{user?.name || user?.email || ''}</Text>
+              <Text style={styles.userCapsuleEmail}>{user?.email || ''}</Text>
             </View>
             <View style={styles.verifiedBadge}>
               <Ionicons name="shield-checkmark" size={12} color="#059669" />

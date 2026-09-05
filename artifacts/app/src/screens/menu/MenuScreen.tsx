@@ -21,8 +21,7 @@ export const MenuScreen = ({ navigation }: any) => {
   const displayName =
     user?.name ||
     [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
-    'Anuj Chauhan';
-
+    user?.name || user?.email || ''
   const userInitials = displayName
     .split(' ')
     .map((n) => n.charAt(0))
