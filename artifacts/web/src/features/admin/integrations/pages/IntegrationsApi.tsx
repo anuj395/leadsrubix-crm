@@ -40,7 +40,7 @@ export default function IntegrationsApiPage() {
         {
           id: 'a1',
           name: 'Facebook Patient Webhook',
-          url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+          url: 'https://api1.leadsrubix.com/api/v1/webhooks/facebook',
           method: 'POST',
           status: 'Active',
           type: 'Incoming Webhook',
@@ -58,7 +58,7 @@ export default function IntegrationsApiPage() {
         {
           id: 'a3',
           name: 'SendGrid Email Status Webhook',
-          url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
+          url: 'https://api1.leadsrubix.com/api/v1/webhooks/sendgrid',
           method: 'POST',
           status: 'Active',
           type: 'Incoming Webhook',
@@ -80,7 +80,7 @@ export default function IntegrationsApiPage() {
         {
           id: 'a1',
           name: 'Facebook Lead Ads Webhook',
-          url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+          url: 'https://api1.leadsrubix.com/api/v1/webhooks/facebook',
           method: 'POST',
           status: 'Active',
           type: 'Incoming Webhook',
@@ -98,7 +98,7 @@ export default function IntegrationsApiPage() {
         {
           id: 'a3',
           name: 'SendGrid Email Status Webhook',
-          url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
+          url: 'https://api1.leadsrubix.com/api/v1/webhooks/sendgrid',
           method: 'POST',
           status: 'Active',
           type: 'Incoming Webhook',
@@ -119,7 +119,7 @@ export default function IntegrationsApiPage() {
       {
         id: 'a1',
         name: 'Facebook Lead Ads Webhook',
-        url: 'https://api.leadsrubix.com/api/v1/webhooks/facebook',
+        url: 'https://api1.leadsrubix.com/api/v1/webhooks/facebook',
         method: 'POST',
         status: 'Active',
         type: 'Incoming Webhook',
@@ -137,7 +137,7 @@ export default function IntegrationsApiPage() {
       {
         id: 'a3',
         name: 'SendGrid Email Status Webhook',
-        url: 'https://api.leadsrubix.com/api/v1/webhooks/sendgrid',
+        url: 'https://api1.leadsrubix.com/api/v1/webhooks/sendgrid',
         method: 'POST',
         status: 'Active',
         type: 'Incoming Webhook',
