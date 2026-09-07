@@ -21,10 +21,21 @@ router.get('/', authenticate, async (req, res, next) => {
 
     let config = null;
     if (orgId) {
-      config = await WhatsAppConfig.findOne({
+      const Organization = mongoose.model('Organization');
+      const org = await Organization.findOne({
         $or: [
           { organization_id: orgId },
-          { organizationId: orgId }
+          { organizationId: orgId },
+          ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+        ]
+      }).lean().exec();
+
+      const targetOrgIds = [orgId, org?._id ? String(org._id) : null, org?.organization_id, org?.organizationId].filter(Boolean);
+
+      config = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: { $in: targetOrgIds } },
+          { organizationId: { $in: targetOrgIds } }
         ]
       }).exec();
     }
@@ -75,6 +86,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+    const Organization = mongoose.model('Organization');
 
     if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Forbidden: Only admins and superAdmins can update WhatsApp settings' });
@@ -90,20 +102,30 @@ router.post('/', authenticate, async (req, res, next) => {
       orgId = req.user.organizationId || req.user.organization_id;
     }
 
+    const org = orgId ? await Organization.findOne({
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+      ]
+    }).lean().exec() : null;
+
+    const targetOrgIds = [orgId, org?._id ? String(org._id) : null, org?.organization_id, org?.organizationId].filter(Boolean);
+
     let config = null;
-    if (orgId) {
+    if (targetOrgIds.length > 0) {
       config = await WhatsAppConfig.findOne({
         $or: [
-          { organization_id: orgId },
-          { organizationId: orgId }
+          { organization_id: { $in: targetOrgIds } },
+          { organizationId: { $in: targetOrgIds } }
         ]
       }).exec();
     }
 
     if (!config) {
       config = new WhatsAppConfig({
-        organization_id: orgId,
-        organizationId: orgId
+        organization_id: org?.organization_id || orgId,
+        organizationId: org?.organizationId || orgId
       });
     }
 

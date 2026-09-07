@@ -376,7 +376,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
     countryCode: data.countryCode || '+91',
     alternateNo: data.alternateNo || '',
     leadType: data.leadType || 'Leads',
-    source: data.source || data['Source'] || 'Import',
+    source: data.source || data['Source'] || data.lead_source || data.leadSource || 'Self Generated',
     stage: data.stage || 'FRESH',
     location: data.location || data['Location'] || '',
     projectName: data.projectName || data.project || data.Project || data.project_name || '',
@@ -392,12 +392,14 @@ exports.createForUser = async ({ payload, authedUser }) => {
   for (const f of allowedFormFields) {
     const k = f.field_key;
     const camelK = (k || '').replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-    if (data[camelK] !== undefined) {
+    if (data[camelK] !== undefined && data[camelK] !== '') {
       cleaned[camelK] = data[camelK];
-    } else if (data[k] !== undefined) {
+    } else if (data[k] !== undefined && data[k] !== '') {
       cleaned[camelK] = data[k];
     }
   }
+
+  cleaned.source = cleaned.source || data.source || data.lead_source || data.leadSource || 'Self Generated';
 
   // Required-field validation
   const missing = allowedFormFields
@@ -491,8 +493,17 @@ exports.createForUser = async ({ payload, authedUser }) => {
     }
   }
 
-  // Auto-evaluate lead distribution rules if owner is not explicitly provided in request
-  if (!explicitOwnerEmail && !explicitUid) {
+  // Default to logged-in user if no explicit owner was selected during manual creation
+  if (!explicitOwnerEmail && !explicitUid && user) {
+    cleaned.contactOwnerEmail = user.email || '';
+    cleaned.contact_owner_email = user.email || '';
+    cleaned.assignedTo = user.email || '';
+    cleaned.assigned_to = user.email || '';
+    cleaned.uid = user.uid || String(user._id);
+  }
+
+  // Auto-evaluate lead distribution rules if still unassigned (e.g. API / Webhook leads with no logged in user)
+  if (!cleaned.contactOwnerEmail && !cleaned.uid) {
     try {
       const { assignLeadByRules } = require('./leadDistributionService');
       const assignment = await assignLeadByRules({
@@ -516,15 +527,6 @@ exports.createForUser = async ({ payload, authedUser }) => {
     } catch (e) {
       console.error('[ContactService] Lead distribution assignment error:', e);
     }
-  }
-
-  // Fallback to creator if still unassigned
-  if (!cleaned.contactOwnerEmail && user) {
-    cleaned.contactOwnerEmail = user.email || '';
-    cleaned.contact_owner_email = user.email || '';
-    cleaned.assignedTo = user.email || '';
-    cleaned.assigned_to = user.email || '';
-    cleaned.uid = cleaned.uid || user.uid || String(user._id);
   }
 
   const docPayload = fillExtraFields(

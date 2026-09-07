@@ -78,7 +78,7 @@ function matchSources(leadSource, ruleSource) {
   // 4. Root comparison (e.g. 'Housing.com' vs 'Housing', 'Makaan.com' vs 'Makaan')
   const rootLead = getSourceRoot(cleanLead);
   const rootRule = getSourceRoot(cleanRule);
-  if (rootLead && rootRule && (rootLead === rootRule || rootLead.includes(rootRule) || rootRule.includes(rootRule))) {
+  if (rootLead && rootRule && (rootLead === rootRule || rootLead.includes(rootRule) || rootRule.includes(rootLead))) {
     return true;
   }
 
