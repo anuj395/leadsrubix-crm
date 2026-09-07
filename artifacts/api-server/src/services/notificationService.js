@@ -116,17 +116,114 @@ async function notifyLeadAssignmentOrCreation({ contact, organizationId, title, 
           workspaceId: contact.workspaceId || contact.workspace_id || null,
           title: 'New Lead Created',
           message: `A new lead "${contact.customerName || contact.name || 'Unnamed'}" has been added to your organization.`,
-          type: 'LEAD_CREATED',
           relatedId: contact._id
         });
       }
     }
+
+    // Trigger Email Notification in background
+    dispatchLeadEmailNotification({
+      type: type || 'LEAD_CREATED',
+      contact,
+      organizationId,
+      assignedUser,
+      source: contact.source
+    }).catch(err => console.error('[NotificationService] Email dispatch error:', err));
   } catch (err) {
     console.error('[NotificationService] Failed to notify lead assignment/creation:', err.stack || err.message);
   }
 }
 
+async function dispatchLeadEmailNotification({ type, contact, organizationId, assignedUser, transferredBy, reason, source }) {
+  try {
+    require('../models/organizationModel');
+    require('../models/userModel');
+    const Organization = mongoose.model('Organization');
+    const User = mongoose.model('User');
+    const {
+      sendNewLeadEmail,
+      sendLeadTransferredEmail,
+      sendThirdPartyLeadEmail
+    } = require('../utils/mailer');
+
+    let orgName = '';
+    if (organizationId) {
+      const orgDoc = await Organization.findOne({
+        $or: [
+          { organization_id: organizationId },
+          { _id: mongoose.Types.ObjectId.isValid(organizationId) ? organizationId : null }
+        ].filter(Boolean)
+      }).lean().exec();
+      if (orgDoc) orgName = orgDoc.name || orgDoc.organization_name || '';
+    }
+
+    let targetUser = assignedUser;
+    if (!targetUser && contact.uid) {
+      targetUser = await User.findById(contact.uid).lean().exec();
+    }
+    if (!targetUser && contact.contactOwnerEmail) {
+      targetUser = await User.findOne({ email: contact.contactOwnerEmail }).lean().exec();
+    }
+
+    const recipientEmail = targetUser?.email || contact.contactOwnerEmail || '';
+    if (!recipientEmail) {
+      console.log('[NotificationService] No recipient email found for lead email notification.');
+      return;
+    }
+
+    const customerName = contact.customerName || contact.customer_name || contact.name || 'Unnamed';
+    const contactNumber = contact.contactNumber || contact.contact_no || contact.phone || '';
+    const email = contact.email || contact.email_address || '';
+    const leadSource = source || contact.source || 'Direct';
+    const agentName = targetUser?.name || targetUser?.userName || recipientEmail.split('@')[0];
+
+    if (type === 'LEAD_TRANSFERRED') {
+      await sendLeadTransferredEmail({
+        toEmail: recipientEmail,
+        agentName,
+        customerName,
+        contactNumber,
+        email,
+        source: leadSource,
+        leadId: contact._id,
+        orgName,
+        transferredBy: transferredBy || 'Admin',
+        reason: reason || ''
+      });
+    } else if (type === 'THIRD_PARTY_LEAD') {
+      await sendThirdPartyLeadEmail({
+        toEmail: recipientEmail,
+        agentName,
+        customerName,
+        contactNumber,
+        email,
+        source: leadSource,
+        leadId: contact._id,
+        orgName,
+        campaign: contact.campaign || '',
+        adset: contact.adset || ''
+      });
+    } else {
+      await sendNewLeadEmail({
+        toEmail: recipientEmail,
+        agentName,
+        customerName,
+        contactNumber,
+        email,
+        source: leadSource,
+        leadId: contact._id,
+        orgName,
+        leadType: contact.leadType || 'Leads',
+        specialtyOrDepartment: contact.projectName || contact.propertyType || contact.department || ''
+      });
+    }
+  } catch (err) {
+    console.error('[NotificationService] Failed to dispatch email notification:', err.message);
+  }
+}
+
 module.exports = {
   createNotification,
-  notifyLeadAssignmentOrCreation
+  notifyLeadAssignmentOrCreation,
+  dispatchLeadEmailNotification
 };

@@ -178,7 +178,240 @@ async function sendResetPasswordEmail({ emailAddress, resetLink }) {
   }
 }
 
+function logFallbackEmail({ to, subject, details }) {
+  const fs = require('fs');
+  const path = require('path');
+  const workspaceRoot = path.join(__dirname, '../../../..');
+  const logFile = path.join(workspaceRoot, 'sent_emails.txt');
+
+  const emailLogEntry = `
+========================================
+Timestamp: ${new Date().toISOString()}
+To: ${to}
+Subject: ${subject}
+Details: ${JSON.stringify(details, null, 2)}
+========================================\n`;
+  try {
+    fs.appendFileSync(logFile, emailLogEntry, 'utf8');
+    console.log(`[mailer] Email logged to fallback file: ${logFile}`);
+  } catch (fsErr) {
+    console.error('[mailer] Failed to write fallback email file:', fsErr);
+  }
+}
+
+async function sendNewLeadEmail({ toEmail, agentName, customerName, contactNumber, email, source, leadId, orgName, leadType, specialtyOrDepartment }) {
+  if (!toEmail) return;
+  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
+
+  const htmlContent = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e5e7eb;">
+        
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px; margin-bottom: 0;">New Lead Notification</p>
+        </div>
+
+        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">New Lead Assigned</h3>
+        
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 20px;">
+          Hello <strong>${agentName || 'Agent'}</strong>,<br/>
+          A new lead has been created and assigned to you in <strong>${orgName || 'your organization'}</strong>.
+        </p>
+
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin-bottom: 24px; border: 1px solid #e5e7eb;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; width: 140px; font-weight: 500;">Lead Name:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${customerName || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Phone / Contact:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${contactNumber || 'N/A'}</td>
+            </tr>
+            ${email ? `<tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Email:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${email}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Source:</td>
+              <td style="padding: 6px 0; color: #2563eb; font-weight: 600;">${source || 'Direct Entry'}</td>
+            </tr>
+            ${specialtyOrDepartment ? `<tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Specialty/Dept:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${specialtyOrDepartment}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${leadUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px;">
+            View Lead Details
+          </a>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  const subject = `New Lead Assigned: ${customerName || 'Unnamed Lead'}`;
+  logFallbackEmail({ to: toEmail, subject, details: { customerName, contactNumber, email, source, agentName } });
+
+  try {
+    await transporter.sendMail({
+      from: `"Leads Rubix CRM" <${config.smtpUser}>`,
+      to: toEmail,
+      subject,
+      html: htmlContent,
+    });
+    console.log(`[mailer] New lead email sent successfully to ${toEmail}`);
+  } catch (err) {
+    console.error(`[mailer] SMTP error sending new lead email to ${toEmail}:`, err.message);
+  }
+}
+
+async function sendLeadTransferredEmail({ toEmail, agentName, customerName, contactNumber, email, source, leadId, orgName, transferredBy, reason }) {
+  if (!toEmail) return;
+  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
+
+  const htmlContent = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e5e7eb;">
+        
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px; margin-bottom: 0;">Lead Reassignment Notification</p>
+        </div>
+
+        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">Lead Transferred to You</h3>
+        
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 20px;">
+          Hello <strong>${agentName || 'Agent'}</strong>,<br/>
+          Lead <strong>${customerName || 'N/A'}</strong> has been reassigned to you by <strong>${transferredBy || 'Admin'}</strong>.
+        </p>
+
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin-bottom: 24px; border: 1px solid #e5e7eb;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; width: 140px; font-weight: 500;">Lead Name:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${customerName || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Phone / Contact:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${contactNumber || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Transferred By:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${transferredBy || 'Admin'}</td>
+            </tr>
+            ${reason ? `<tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Reason:</td>
+              <td style="padding: 6px 0; color: #dc2626; font-weight: 600;">${reason}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${leadUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px;">
+            View Transferred Lead
+          </a>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  const subject = `Lead Transferred to You: ${customerName || 'Unnamed Lead'}`;
+  logFallbackEmail({ to: toEmail, subject, details: { customerName, contactNumber, transferredBy, reason } });
+
+  try {
+    await transporter.sendMail({
+      from: `"Leads Rubix CRM" <${config.smtpUser}>`,
+      to: toEmail,
+      subject,
+      html: htmlContent,
+    });
+    console.log(`[mailer] Lead transfer email sent successfully to ${toEmail}`);
+  } catch (err) {
+    console.error(`[mailer] SMTP error sending lead transfer email to ${toEmail}:`, err.message);
+  }
+}
+
+async function sendThirdPartyLeadEmail({ toEmail, agentName, customerName, contactNumber, email, source, leadId, orgName, campaign, adset }) {
+  if (!toEmail) return;
+  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
+
+  const htmlContent = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e5e7eb;">
+        
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px; margin-bottom: 0;">3rd-Party Lead Alert (${source || 'Webhook'})</p>
+        </div>
+
+        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">New 3rd-Party Lead Received</h3>
+        
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 20px;">
+          Hello <strong>${agentName || 'Team'}</strong>,<br/>
+          A new lead has arrived from <strong>${source || '3rd-Party Integration'}</strong> and assigned to you.
+        </p>
+
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin-bottom: 24px; border: 1px solid #e5e7eb;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; width: 140px; font-weight: 500;">Lead Name:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${customerName || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Phone / Contact:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${contactNumber || 'N/A'}</td>
+            </tr>
+            ${email ? `<tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Email:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${email}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Integration Source:</td>
+              <td style="padding: 6px 0; color: #059669; font-weight: 700;">${source || 'Facebook / IndiaMART / API'}</td>
+            </tr>
+            ${campaign ? `<tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Campaign:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${campaign}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${leadUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px;">
+            Open Lead in CRM
+          </a>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  const subject = `[${source || '3rd Party'}] New Lead: ${customerName || 'Unnamed'}`;
+  logFallbackEmail({ to: toEmail, subject, details: { customerName, contactNumber, source, campaign } });
+
+  try {
+    await transporter.sendMail({
+      from: `"Leads Rubix CRM" <${config.smtpUser}>`,
+      to: toEmail,
+      subject,
+      html: htmlContent,
+    });
+    console.log(`[mailer] 3rd party lead email sent successfully to ${toEmail}`);
+  } catch (err) {
+    console.error(`[mailer] SMTP error sending 3rd party lead email to ${toEmail}:`, err.message);
+  }
+}
+
 module.exports = {
   sendCredentialsEmail,
   sendResetPasswordEmail,
+  sendNewLeadEmail,
+  sendLeadTransferredEmail,
+  sendThirdPartyLeadEmail,
 };
