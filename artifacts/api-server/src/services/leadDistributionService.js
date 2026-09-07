@@ -177,18 +177,24 @@ async function assignLeadByRules({
             }
           }
         } else {
-          // Normal distribution: assign first user in the configured rule
-          selectedUser = usersList[0];
-          if (selectedUser) {
-            const selectedUid = selectedUser.uid || selectedUser._id || selectedUser.id || undefined;
-            const selectedEmail = selectedUser.user_email || selectedUser.userEmail || selectedUser.email || undefined;
+          // Normal distribution: assign first active user in the configured rule
+          for (const candidate of usersList) {
+            if (!candidate) continue;
+            const candidateUid = candidate.uid || candidate._id || candidate.id || undefined;
+            const candidateEmail = candidate.user_email || candidate.userEmail || candidate.email || undefined;
 
-            userDoc = await User.findOne({
+            const candidateDoc = await User.findOne({
               $or: [
-                { _id: (selectedUid && mongoose.Types.ObjectId.isValid(selectedUid)) ? selectedUid : undefined },
-                { email: selectedEmail }
+                { _id: (candidateUid && mongoose.Types.ObjectId.isValid(candidateUid)) ? candidateUid : undefined },
+                { email: candidateEmail }
               ].filter(Boolean)
             }).lean().exec();
+
+            if (candidateDoc && candidateDoc.is_active !== false && candidateDoc.status !== 'inactive') {
+              selectedUser = candidate;
+              userDoc = candidateDoc;
+              break;
+            }
           }
         }
 

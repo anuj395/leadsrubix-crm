@@ -174,9 +174,12 @@ async function processUnattendedLeadsRotation(organizationId = null) {
 
         // 3. Project Matching
         if (rule.project && Array.isArray(rule.project) && rule.project.length > 0) {
-          const lProject = String(lead.projectName || lead.project_name || lead.project || '').trim().toLowerCase();
-          const matchesProj = rule.project.some(p => String(p).trim().toLowerCase() === lProject);
-          if (!matchesProj) continue;
+          const hasWildcard = rule.project.some(p => ['all', 'any'].includes(String(p).trim().toLowerCase()));
+          if (!hasWildcard) {
+            const lProject = String(lead.projectName || lead.project_name || lead.project || '').trim().toLowerCase();
+            const matchesProj = rule.project.some(p => String(p).trim().toLowerCase() === lProject);
+            if (!matchesProj) continue;
+          }
         }
 
         // 4. Inactivity Timeout Check
@@ -230,7 +233,9 @@ async function processUnattendedLeadsRotation(organizationId = null) {
         if (userQueue.length > 1) {
           for (let step = 1; step <= userQueue.length; step++) {
             const candidateIdx = (currentIndex + step) % userQueue.length;
-            const candidateEmail = userQueue[candidateIdx];
+            const candidateRaw = userQueue[candidateIdx];
+            if (!candidateRaw) continue;
+            const candidateEmail = typeof candidateRaw === 'string' ? candidateRaw : (candidateRaw.user_email || candidateRaw.email || candidateRaw.userEmail || '');
             if (!candidateEmail) continue;
 
             const candidateDoc = await User.findOne({
