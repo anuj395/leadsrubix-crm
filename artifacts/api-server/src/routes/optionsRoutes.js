@@ -211,6 +211,11 @@ router.get('/:key', (req, res, next) => {
   }
 
   const keyMap = {
+    specialties: 'resourcePropertyTypes',
+    departments: 'resourcePropertyTypes',
+    department: 'resourcePropertyTypes',
+    clinicalWing: 'resourcePropertyStages',
+    clinicalWings: 'resourcePropertyStages',
     projectName: 'resourceProjects',
     propertyType: 'resourcePropertyTypes',
     propertyStage: 'resourcePropertyStages',
@@ -313,10 +318,22 @@ router.get('/:key', (req, res, next) => {
       const displayFieldCamel = toCamelCase(displayField);
       const displayFieldSnake = toSnakeCase(displayField);
 
-      const options = list.map(item => {
+      let options = list.map(item => {
         const val = item[displayField] || item[displayFieldCamel] || item[displayFieldSnake] || item.name || item.value || Object.values(item).filter(v => typeof v !== 'object')[0] || item.id;
         return { value: String(val || ''), label: String(val || '') };
       });
+
+      if (!options || options.length === 0) {
+        try {
+          const DropdownOption = mongoose.model('DropdownOption');
+          const dbOpts = await DropdownOption.find({ key }).lean().exec();
+          if (dbOpts && dbOpts.length > 0) {
+            options = dbOpts.map(item => ({ value: item.value, label: item.label }));
+          }
+        } catch (err) {
+          /* swallow */
+        }
+      }
 
       return res.json({ items: options });
     } catch (err) {

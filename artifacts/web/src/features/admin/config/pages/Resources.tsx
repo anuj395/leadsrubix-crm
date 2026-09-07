@@ -178,6 +178,26 @@ export default function ResourcesPage() {
           filtered = filtered.filter((s) => !reSpecific.has(s.key))
         }
 
+        const REQUIRED_RESOURCE_KEYS = [
+          { key: 'resourceCarousel', name: 'Hospital Banners' },
+          { key: 'resourceLocations', name: 'Clinics & Centers' },
+          { key: 'resourcePropertyTypes', name: 'Departments' },
+          { key: 'resourcePropertyStages', name: 'Clinical Wings' },
+          { key: 'resourceLeadSources', name: 'Patient Sources' },
+          { key: 'resourceTransferReasons', name: 'Transfer Reasons' },
+        ];
+        const existingKeys = new Set(filtered.map((s) => s.key));
+        for (const reqScr of REQUIRED_RESOURCE_KEYS) {
+          if (!existingKeys.has(reqScr.key)) {
+            filtered.push({
+              _id: `default_${reqScr.key}`,
+              key: reqScr.key,
+              name: reqScr.name,
+              isActive: true,
+            } as any);
+          }
+        }
+
         // Apply dynamic translations to screen names
         const translated = filtered.map((s) => {
           const industryMap = RESOURCE_SCREEN_TRANSLATIONS[indCode] || {}
