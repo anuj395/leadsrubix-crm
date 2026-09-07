@@ -6,6 +6,135 @@ const roleModel = require('../models/roleModel');
 const menuModel = require('../models/sidebarMenuModel');
 const permModel = require('../models/sidebarPermissionModel');
 
+const INDUSTRY_MENU_OVERRIDES = {
+  temp0002: {
+    'analytics': 'Sales Dashboard',
+    'leads': 'Customers',
+    'leads.contact': 'Customer Inquiries',
+    'leads.tasks': 'Support Tickets',
+    'leads.call': 'Support Call Logs',
+    'leads.booking': 'Sales Orders',
+    'configuration.projects': 'Products Catalog',
+    'configuration.resources': 'Fulfillment Warehouses',
+    'integrations.api': 'Store API Keys',
+    'leadDistribution': 'Order Routing',
+    'leadDistribution.list': 'Routing Rules',
+    'leadDistribution.reassignList': 'Order Reassignments',
+    'invoices': 'Store Invoices',
+    'invoices.paymentLogs': 'Store Payments',
+    'invoices.receiptsHistory': 'Receipts History',
+    'support.news': 'Announcements',
+    'support.faq': 'Customer FAQ',
+    'tool.areaConverter': 'Weight Converter',
+    'tool.emiCalculator': 'Tax Calculator'
+  },
+  temp0003: {
+    'analytics': 'Patient Analytics',
+    'leads': 'Patients',
+    'leads.contact': 'Patient Inquiries',
+    'leads.tasks': 'Consultations List',
+    'leads.call': 'Telehealth Logs',
+    'leads.booking': 'Appointments List',
+    'configuration.projects': 'Clinical Specialties',
+    'configuration.resources': 'Doctors & Staff',
+    'integrations.api': 'EHR Connections',
+    'leadDistribution': 'Patient Triaging',
+    'leadDistribution.list': 'Triage Rules',
+    'leadDistribution.reassignList': 'Patient Transfers',
+    'invoices': 'Bills & Claims',
+    'invoices.paymentLogs': 'Claim Logs',
+    'invoices.receiptsHistory': 'Receipts History',
+    'support.news': 'Hospital Bulletins',
+    'support.faq': 'Patient FAQ',
+    'tool.areaConverter': 'Dosage Converter',
+    'tool.emiCalculator': 'Premium Calculator'
+  },
+  temp0004: {
+    'analytics': 'Academic Analytics',
+    'leads': 'Students',
+    'leads.contact': 'Student Inquiries',
+    'leads.tasks': 'Admissions Tasks',
+    'leads.call': 'Inquiry Calls',
+    'leads.booking': 'Enrollments List',
+    'configuration.projects': 'Academic Programs',
+    'configuration.resources': 'Faculty & Staff',
+    'integrations.api': 'LMS API Tokens',
+    'leadDistribution': 'Admissions Routing',
+    'leadDistribution.list': 'Routing Rules',
+    'leadDistribution.reassignList': 'Counselor Transfers',
+    'invoices': 'Tuition Invoices',
+    'invoices.paymentLogs': 'Tuition Fee Logs',
+    'invoices.receiptsHistory': 'Receipts History',
+    'support.news': 'School Announcements',
+    'support.faq': 'Student FAQ',
+    'tool.areaConverter': 'GPA Calculator',
+    'tool.emiCalculator': 'Tuition EMI'
+  },
+  temp0005: {
+    'analytics': 'Client Analytics',
+    'leads': 'Clients',
+    'leads.contact': 'Investor Inquiries',
+    'leads.tasks': 'KYC & Advisory Tasks',
+    'leads.call': 'Advisory Calls',
+    'leads.booking': 'Transactions List',
+    'configuration.projects': 'Financial Portfolios',
+    'configuration.resources': 'Relationship Advisors',
+    'integrations.api': 'Banking API Tokens',
+    'leadDistribution': 'Client Matching',
+    'leadDistribution.list': 'Matching Rules',
+    'leadDistribution.reassignList': 'Advisor Reassignments',
+    'invoices': 'Client Statements',
+    'invoices.paymentLogs': 'Transaction Logs',
+    'invoices.receiptsHistory': 'Statement History',
+    'support.news': 'Market Bulletins',
+    'support.faq': 'Client FAQ',
+    'tool.areaConverter': 'Currency Converter',
+    'tool.emiCalculator': 'Loan EMI'
+  },
+  temp0006: {
+    'analytics': 'Project Metrics',
+    'leads': 'Accounts',
+    'leads.contact': 'Client Inquiries',
+    'leads.tasks': 'Service Desk Tasks',
+    'leads.call': 'Client Call Logs',
+    'leads.booking': 'SOW Contracts',
+    'configuration.projects': 'Service Lines & Tech Stacks',
+    'configuration.resources': 'Delivery Centers',
+    'integrations.api': 'Developer API Keys',
+    'leadDistribution': 'Project Assignment',
+    'leadDistribution.list': 'Assignment Rules',
+    'leadDistribution.reassignList': 'Project Reassignments',
+    'invoices': 'Client Invoices',
+    'invoices.paymentLogs': 'Payment Receipts',
+    'invoices.receiptsHistory': 'Receipts History',
+    'support.news': 'Tech Bulletins',
+    'support.faq': 'Client Support FAQ',
+    'tool.areaConverter': 'Data Size Converter',
+    'tool.emiCalculator': 'Billing Estimate Calculator'
+  },
+  temp0007: {
+    'analytics': 'Production Analytics',
+    'leads': 'Dealers',
+    'leads.contact': 'Dealer Inquiries',
+    'leads.tasks': 'Logistics Tasks',
+    'leads.call': 'Dealer Calls',
+    'leads.booking': 'Purchase Orders',
+    'configuration.projects': 'Material Classes & Catalogs',
+    'configuration.resources': 'Manufacturing Plants',
+    'integrations.api': 'ERP API Tokens',
+    'leadDistribution': 'Territory Routing',
+    'leadDistribution.list': 'Territory Rules',
+    'leadDistribution.reassignList': 'Territory Transfers',
+    'invoices': 'Dealer Invoices',
+    'invoices.paymentLogs': 'Payment Logs',
+    'invoices.receiptsHistory': 'Receipts History',
+    'support.news': 'Factory Bulletins',
+    'support.faq': 'Dealer FAQ',
+    'tool.areaConverter': 'Volume Converter',
+    'tool.emiCalculator': 'Credit Term Calculator'
+  }
+};
+
 /**
  * Resolves the sidebar for a (industry_code, role_key) pair.
  * Returns { industryId, industry_code, role, menus } where `menus` is a
@@ -123,6 +252,8 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     };
   }
 
+  const permByMenu = new Map(perms.map((p) => [String(p.menu_id), p]));
+
 
 
   // Load globally visible menu keys for this industry + role to enforce Super Admin visibility overrides
@@ -190,7 +321,8 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     }
   }
 
-  const permByMenu = new Map(perms.map((p) => [String(p.menu_id), p]));
+  const indCode = String(code || '').toLowerCase().trim();
+  const industryOverrides = INDUSTRY_MENU_OVERRIDES[indCode] || {};
 
   const rawItems = [...menuById.values()]
     .map((m) => {
@@ -200,10 +332,11 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
         typeof orderOverride === 'number'
           ? orderOverride
           : (typeof m.order === 'number' ? m.order : 999);
+      const translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : m.name;
       return {
         _id: String(m._id),
         key: m.key,
-        name: m.name,
+        name: translatedName,
         icon: m.icon || '',
         route: m.route || '',
         parent_id: m.parent_id ? String(m.parent_id) : null,
@@ -285,6 +418,7 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
 }
 
 exports.resolveSidebar = resolveSidebar;
+exports.INDUSTRY_MENU_OVERRIDES = INDUSTRY_MENU_OVERRIDES;
 
 // ── Legacy compatibility helpers ─────────────────────────────────────────────
 

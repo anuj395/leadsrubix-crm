@@ -1,7 +1,31 @@
 const menuModel = require('../models/sidebarMenuModel');
-const permissionModel = require('../models/sidebarPermissionModel');
+const industryModel = require('../models/industryModel');
 
-exports.list = (opts) => menuModel.list(opts);
+exports.list = async (opts) => {
+  const items = await menuModel.list(opts);
+  const indId = opts?.industryId || opts?.industry_id;
+  if (!indId) return items;
+
+  let indCode = String(indId).toLowerCase().trim();
+  if (indId.length === 24 || !indCode.startsWith('temp')) {
+    const indDoc = await industryModel.findById(indId).lean().exec();
+    if (indDoc && indDoc.code) {
+      indCode = String(indDoc.code).toLowerCase().trim();
+    }
+  }
+
+  const { INDUSTRY_MENU_OVERRIDES } = require('./sidebarService');
+  const overrides = INDUSTRY_MENU_OVERRIDES ? INDUSTRY_MENU_OVERRIDES[indCode] : null;
+  if (!overrides) return items;
+
+  return items.map((item) => {
+    const obj = item.toObject ? item.toObject({ virtuals: true }) : { ...item };
+    if (overrides[obj.key]) {
+      obj.name = overrides[obj.key];
+    }
+    return obj;
+  });
+};
 
 exports.get = async (id) => {
   const doc = await menuModel.findById(id);
