@@ -125,6 +125,89 @@ export default function WebsitePage() {
 
   const webhookUrlWithToken = apiKey ? `${webhookUrl}?token=${apiKey}` : webhookUrl
 
+  const elementorPhpCode = `// Add this snippet to your child theme's functions.php or Code Snippets plugin
+add_action('elementor_pro/forms/new_record', 'leadsrubix_elementor_bulletproof_webhook', 10, 2);
+
+function leadsrubix_elementor_bulletproof_webhook($record, $handler) {
+    // 1. Extract sent_data & fields from Elementor
+    $sent_data = $record->get('sent_data'); // Flat key-value array [field_id => value]
+    $fields    = $record->get('fields');    // Detailed objects [id, title, value, type]
+
+    $customer_name = '';
+    $contact_no    = '';
+    $email         = '';
+    $project       = '';
+
+    // Direct Field ID Check
+    if (!empty($sent_data['customer_name'])) $customer_name = $sent_data['customer_name'];
+    if (!empty($sent_data['contact_no']))    $contact_no    = $sent_data['contact_no'];
+    if (!empty($sent_data['email']))         $email         = $sent_data['email'];
+    if (!empty($sent_data['project']))       $project       = $sent_data['project'];
+
+    // Smart Fallback: Scan fields by Title, ID, or Type if direct ID was not matched
+    if (is_array($fields)) {
+        foreach ($fields as $id => $field) {
+            $val   = isset($field['value']) ? trim($field['value']) : '';
+            $title = isset($field['title']) ? strtolower(trim($field['title'])) : '';
+            $type  = isset($field['type'])  ? strtolower(trim($field['type']))  : '';
+            $f_id  = strtolower(trim($id));
+
+            if (empty($val)) continue;
+
+            if (empty($customer_name)) {
+                if (in_array($f_id, array('customer_name', 'name', 'full_name', 'your_name', 'customername')) || strpos($title, 'name') !== false || $type === 'name') {
+                    $customer_name = $val;
+                }
+            }
+            if (empty($contact_no)) {
+                if (in_array($f_id, array('contact_no', 'contact_number', 'phone', 'mobile', 'contactno', 'phone_number')) || strpos($title, 'phone') !== false || strpos($title, 'mobile') !== false || strpos($title, 'contact') !== false || $type === 'tel') {
+                    $contact_no = $val;
+                }
+            }
+            if (empty($email)) {
+                if (in_array($f_id, array('email', 'email_id', 'emailid', 'your_email')) || strpos($title, 'email') !== false || $type === 'email') {
+                    $email = $val;
+                }
+            }
+            if (empty($project)) {
+                if (in_array($f_id, array('project', 'project_name', 'projectname')) || strpos($title, 'project') !== false) {
+                    $project = $val;
+                }
+            }
+        }
+    }
+
+    $customer_name = sanitize_text_field($customer_name);
+    $contact_no    = sanitize_text_field($contact_no);
+    $email         = sanitize_email($email);
+    $project       = sanitize_text_field($project);
+
+    if (empty($customer_name)) $customer_name = 'Website Lead';
+
+    // 2. Exact Source of Truth Payload
+    $payload = array(
+        'customer_name' => $customer_name,
+        'contact_no'    => $contact_no,
+        'email'         => $email,
+        'project'       => $project,
+        'campaign'      => 'Website',
+        'token'         => '${apiKey || 'YOUR_API_TOKEN'}'
+    );
+
+    // 3. Dispatch POST Request
+    wp_remote_post('${webhookUrl}', array(
+        'method'      => 'POST',
+        'timeout'     => 15,
+        'redirection' => 5,
+        'httpversion' => '1.1',
+        'blocking'    => true,
+        'sslverify'   => false, // Prevents SSL Handshake Errors
+        'headers'     => array('Content-Type' => 'application/json; charset=utf-8'),
+        'body'        => json_encode($payload),
+        'data_format' => 'body',
+    ));
+}`
+
   const cf7PhpCode = `// Add this snippet to your theme's functions.php or Code Snippets plugin
 add_action('wpcf7_before_send_mail', 'leadsrubix_cf7_integration');
 
@@ -450,17 +533,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </Box>
                 
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Follow these step-by-step instructions inside your WordPress Elementor Page Builder:
+                  Choose either Option A (Recommended PHP Hook — 100% Reliable & Token Secured) or Option B (Native Webhook Action):
+                </Typography>
+
+                <Box sx={{ mb: 3.5 }}>
+                  <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircleOutlineIcon color="success" fontSize="small" />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#166534' }}>
+                          Option A (Recommended): Copy PHP Hook into WordPress `functions.php`
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="success"
+                        startIcon={<ContentCopyIcon fontSize="small" />}
+                        onClick={() => handleCopySnippet(elementorPhpCode, 'Elementor PHP Hook')}
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                      >
+                        Copy PHP Hook
+                      </Button>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                      This PHP hook intercepts Elementor submissions server-side, secures your API Token, avoids SSL errors, and prevents duplicate submissions:
+                    </Typography>
+                    <pre
+                      style={{
+                        background: '#1e293b',
+                        color: '#f8fafc',
+                        borderRadius: 8,
+                        padding: '14px 16px',
+                        fontSize: '0.82rem',
+                        overflowX: 'auto',
+                        margin: 0,
+                        fontFamily: 'Consolas, Monaco, monospace',
+                      }}
+                    >
+                      {elementorPhpCode}
+                    </pre>
+                  </Paper>
+                </Box>
+
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  Option B: Elementor Native Webhook Action
                 </Typography>
 
                 <Grid container spacing={2.5}>
                   <Grid size={{ xs: 12 }}>
-                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#ffffff' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <CheckCircleOutlineIcon color="success" fontSize="small" />
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#166534' }}>
-                            Step 1: Copy Elementor Webhook URL (Includes API Token)
+                          <CheckCircleOutlineIcon color="primary" fontSize="small" />
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Step 1: Copy Elementor Webhook URL
                           </Typography>
                         </Box>
                         <IconButton size="small" onClick={() => handleCopySnippet(webhookUrlWithToken, 'Elementor Webhook URL')}>
@@ -468,7 +595,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </IconButton>
                       </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                        Paste this complete Webhook URL directly in <b>Elementor Form</b> → <b>Actions After Submit</b> → <b>Webhook</b> → <b>Webhook URL</b>:
+                        Paste this complete Webhook URL in <b>Elementor Form</b> → <b>Actions After Submit</b> → <b>Webhook</b> → <b>Webhook URL</b>:
                       </Typography>
                       <TextField
                         fullWidth
