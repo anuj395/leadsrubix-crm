@@ -98,6 +98,8 @@ router.use('/analyticsTasks', analyticsTasksRoutes);
 router.use('/analytics-calls', analyticsCallsRoutes);
 router.use('/analyticsCalls', analyticsCallsRoutes);
 router.use('/whatsapp-config', whatsappRoutes);
+router.use('/whatsappConfig', whatsappRoutes);
+router.use('/whatsapp', whatsappRoutes);
 router.use('/resources', resourceItemRoutes);
 router.use('/resource-items', resourceItemRoutes);
 router.use('/api-tokens', apiTokenRoutes);

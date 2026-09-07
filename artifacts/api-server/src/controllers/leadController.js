@@ -119,7 +119,7 @@ exports.create = async (req, res, next) => {
     const location = payload.location || '';
     const leadType = payload.leadType || payload.lead_type || 'Buyer';
     const alternateNo = payload.alternateNo || payload.alternate_no || '';
-    const source = payload.source || payload.lead_source || '';
+    const source = payload.source || payload.lead_source || payload.leadSource || 'Self Generated';
     const notes = payload.notes || '';
 
     // 1. Create in Contact collection (Single source of truth for Web CRM)
@@ -164,6 +164,25 @@ exports.create = async (req, res, next) => {
       console.error('[leadController] Error saving to Lead model:', err);
       return null;
     });
+
+    if (contactDoc || leadDoc) {
+      try {
+        const { sendNotification } = require('../services/whatsappService');
+        sendNotification({
+          organizationId: orgId,
+          contact: contactDoc || {
+            customer_name: fullName,
+            contact_number: phone,
+            source: source,
+            project_name: project,
+            contact_owner_email: req.user.email || ''
+          },
+          eventType: 'incoming'
+        }).catch(err => console.error('[WhatsApp] Incoming leadController notification dispatch error:', err));
+      } catch (e) {
+        console.error('[WhatsApp] Failed to initiate leadController notification:', e);
+      }
+    }
 
     const result = contactDoc || leadDoc || { message: 'Created' };
     res.status(201).json(withDualCase(result));
