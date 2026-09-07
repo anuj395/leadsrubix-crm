@@ -375,7 +375,7 @@ export default function ContactsListPage() {
                       startIcon={<SwapHorizIcon />}
                       onClick={() => setOpenOwnerModal(true)}
                     >
-                      Change Owner ({selectedIds.length})
+                      Reassign Owner ({selectedIds.length})
                     </Button>
                   </Tooltip>
                 )}

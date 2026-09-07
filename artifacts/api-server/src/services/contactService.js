@@ -347,6 +347,8 @@ exports.createForUser = async ({ payload, authedUser }) => {
   if (data.propertyStage === undefined && data.property_stage !== undefined) data.propertyStage = data.property_stage;
   if (data.propertySubType === undefined && data.property_sub_type !== undefined) data.propertySubType = data.property_sub_type;
   if (data.projectName === undefined && data.project_name !== undefined) data.projectName = data.project_name;
+  if (data.projectName === undefined && data.project !== undefined) data.projectName = data.project;
+  if (data.projectName === undefined && data.Project !== undefined) data.projectName = data.Project;
   if (data.countryCode === undefined && data.country_code !== undefined) data.countryCode = data.country_code;
 
   // Standard camelCase property defaults
@@ -357,10 +359,10 @@ exports.createForUser = async ({ payload, authedUser }) => {
   data.email = data.email || data.emailId || '';
   data.contactOwnerEmail = data.contactOwnerEmail || '';
   data.leadType = data.leadType || 'Leads';
-  data.propertyType = data.propertyType || '';
+  data.propertyType = data.propertyType || data['Property Type'] || data['property_type'] || '';
   data.propertyStage = data.propertyStage || '';
   data.propertySubType = data.propertySubType || '';
-  data.projectName = data.projectName || '';
+  data.projectName = data.projectName || data.project || data.Project || data.project_name || '';
   data.countryCode = data.countryCode || '+91';
 
   const explicitOwnerEmail = data.contactOwnerEmail || data.contact_owner_email || data.assignedTo || data.assigned_to || data.ownerEmail || data.owner_email || '';
@@ -377,13 +379,15 @@ exports.createForUser = async ({ payload, authedUser }) => {
     source: data.source || data['Source'] || 'Import',
     stage: data.stage || 'FRESH',
     location: data.location || data['Location'] || '',
-    projectName: data.projectName || '',
-    propertyType: data.propertyType || '',
+    projectName: data.projectName || data.project || data.Project || data.project_name || '',
+    propertyType: data.propertyType || data['Property Type'] || data['property_type'] || '',
     propertyStage: data.propertyStage || '',
     propertySubType: data.propertySubType || '',
     budget: data.budget || data['Budget'] || '',
     notes: data.notes || data['Notes'] || '',
   };
+
+
 
   for (const f of allowedFormFields) {
     const k = f.field_key;

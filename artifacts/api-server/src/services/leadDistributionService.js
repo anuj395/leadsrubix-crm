@@ -8,17 +8,53 @@ function matchesCriteria(leadVal, ruleArray) {
   if (!ruleArray || !Array.isArray(ruleArray) || ruleArray.length === 0) {
     return true; // Wildcard
   }
+  const hasWildcard = ruleArray.some(item => {
+    const cleanItem = String(item).trim().toLowerCase();
+    return cleanItem === 'all' || cleanItem === 'any';
+  });
+  if (hasWildcard) {
+    return true;
+  }
   if (!leadVal) {
     return false;
   }
   const cleanLeadVal = String(leadVal).trim().toLowerCase();
   return ruleArray.some(item => {
     const cleanItem = String(item).trim().toLowerCase();
-    return cleanItem === cleanLeadVal || cleanItem === 'all' || cleanItem === 'any';
+    return cleanItem === cleanLeadVal;
   });
 }
 
 const { matchSources } = require('./sourceMatcher');
+
+function hasSpecificValues(arr) {
+  if (!arr || !Array.isArray(arr) || arr.length === 0) return false;
+  return arr.some(item => {
+    const clean = String(item).trim().toLowerCase();
+    return clean !== '' && clean !== 'all' && clean !== 'any';
+  });
+}
+
+function getRuleSpecificity(rule) {
+  const r = rule._doc || rule.data || rule;
+  let score = 0;
+  const src = r.source || rule.source;
+  if (src && !['all', 'any'].includes(String(src).trim().toLowerCase())) score += 1;
+
+  const proj = r.project || rule.project;
+  if (hasSpecificValues(proj)) score += 10;
+
+  const loc = r.location || rule.location;
+  if (hasSpecificValues(loc)) score += 10;
+
+  const bdg = r.budget || rule.budget;
+  if (hasSpecificValues(bdg)) score += 10;
+
+  const pType = r.property_type || r.propertyType || rule.property_type || rule.propertyType;
+  if (hasSpecificValues(pType)) score += 10;
+
+  return score;
+}
 
 /**
  * Evaluates active lead distribution rules for an organization and returns the assigned user.
@@ -61,26 +97,29 @@ async function assignLeadByRules({
     };
 
     const rules = await LeadDistributionRule.find(query).exec();
+    rules.sort((a, b) => getRuleSpecificity(b) - getRuleSpecificity(a));
 
     let matchedRule = null;
 
-    // 2. Evaluate rules in order
+    // 2. Evaluate rules in order (most specific rules first)
     for (const rule of rules) {
-      if (!rule.users || rule.users.length === 0) continue;
+      const r = rule._doc || rule.data || rule;
+      const usersList = r.users || rule.users || [];
+      if (!usersList || usersList.length === 0) continue;
 
-      const sourceMatch = matchesSource(source, rule.source);
+      const sourceMatch = matchSources(source, r.source || rule.source);
       if (!sourceMatch) continue;
 
-      const projectMatch = matchesCriteria(project, rule.project);
+      const projectMatch = matchesCriteria(project, r.project || rule.project);
       if (!projectMatch) continue;
 
-      const locationMatch = matchesCriteria(location, rule.location);
+      const locationMatch = matchesCriteria(location, r.location || rule.location);
       if (!locationMatch) continue;
 
-      const budgetMatch = matchesCriteria(budget, rule.budget);
+      const budgetMatch = matchesCriteria(budget, r.budget || rule.budget);
       if (!budgetMatch) continue;
 
-      const propTypeMatch = matchesCriteria(propertyType, rule.property_type || rule.propertyType);
+      const propTypeMatch = matchesCriteria(propertyType, r.property_type || r.propertyType || rule.property_type || rule.propertyType);
       if (!propTypeMatch) continue;
 
       // Rule matched!
@@ -89,74 +128,92 @@ async function assignLeadByRules({
     }
 
     // 3. If a rule matched, assign according to distributionType
-    if (matchedRule && matchedRule.users && matchedRule.users.length > 0) {
-      const distType = matchedRule.distribution_type || matchedRule.distributionType || 'Normal';
-      let selectedUser = null;
-      let userDoc = null;
+    if (matchedRule) {
+      const r = matchedRule._doc || matchedRule.data || matchedRule;
+      const usersList = r.users || matchedRule.users || [];
 
-      if (distType === 'Roundrobin' && matchedRule.users.length > 0) {
-        const currentIndex = matchedRule.user_index !== undefined ? matchedRule.user_index : (matchedRule.userIndex || 0);
-        const userCount = matchedRule.users.length;
-        
-        // Try up to userCount candidates to find an active user
-        for (let i = 0; i < userCount; i++) {
-          const candidateIndex = (currentIndex + i) % userCount;
-          const candidate = matchedRule.users[candidateIndex];
-          if (!candidate) continue;
+      if (usersList && usersList.length > 0) {
+        const distType = r.distribution_type || r.distributionType || matchedRule.distribution_type || matchedRule.distributionType || 'Normal';
+        let selectedUser = null;
+        let userDoc = null;
 
-          const candidateDoc = await User.findOne({
-            $or: [
-              { _id: mongoose.Types.ObjectId.isValid(candidate.uid) ? candidate.uid : undefined },
-              { email: candidate.user_email }
-            ].filter(Boolean)
-          }).lean().exec();
+        if (distType === 'Roundrobin' && usersList.length > 0) {
+          const currentIndex = r.user_index !== undefined ? r.user_index : (r.userIndex !== undefined ? r.userIndex : 0);
+          const userCount = usersList.length;
+          
+          // Try up to userCount candidates to find an active user
+          for (let i = 0; i < userCount; i++) {
+            const candidateIndex = (currentIndex + i) % userCount;
+            const candidate = usersList[candidateIndex];
+            if (!candidate) continue;
 
-          if (candidateDoc && candidateDoc.is_active !== false && candidateDoc.status !== 'inactive') {
-            selectedUser = candidate;
-            userDoc = candidateDoc;
-            // Advance pointer past this candidate atomically in DB
-            const nextIndex = (candidateIndex + 1) % userCount;
-            matchedRule.user_index = nextIndex;
-            matchedRule.userIndex = nextIndex;
-            try {
-              await LeadDistributionRule.updateOne(
-                { _id: matchedRule._id },
-                { $set: { user_index: nextIndex, userIndex: nextIndex } }
-              ).exec();
-            } catch (err) {
-              console.error('[LeadDistribution] Pointer update error:', err);
+            const candidateUid = candidate.uid || candidate._id || candidate.id || undefined;
+            const candidateEmail = candidate.user_email || candidate.userEmail || candidate.email || undefined;
+
+            const candidateDoc = await User.findOne({
+              $or: [
+                { _id: (candidateUid && mongoose.Types.ObjectId.isValid(candidateUid)) ? candidateUid : undefined },
+                { email: candidateEmail }
+              ].filter(Boolean)
+            }).lean().exec();
+
+            if (candidateDoc && candidateDoc.is_active !== false && candidateDoc.status !== 'inactive') {
+              selectedUser = candidate;
+              userDoc = candidateDoc;
+              // Advance pointer past this candidate atomically in DB
+              const nextIndex = (candidateIndex + 1) % userCount;
+              r.user_index = nextIndex;
+              r.userIndex = nextIndex;
+              const ruleTargetId = String(matchedRule._id || r.id || r._id || matchedRule.id || '');
+              try {
+                await LeadDistributionRule.updateOne(
+                  { $or: [{ _id: ruleTargetId }, { id: ruleTargetId }] },
+                  { $set: { user_index: nextIndex, userIndex: nextIndex } }
+                ).exec();
+              } catch (err) {
+                console.error('[LeadDistribution] Pointer update error:', err);
+              }
+              break;
             }
-            break;
+          }
+        } else {
+          // Normal distribution: assign first active user in the configured rule
+          for (const candidate of usersList) {
+            if (!candidate) continue;
+            const candidateUid = candidate.uid || candidate._id || candidate.id || undefined;
+            const candidateEmail = candidate.user_email || candidate.userEmail || candidate.email || undefined;
+
+            const candidateDoc = await User.findOne({
+              $or: [
+                { _id: (candidateUid && mongoose.Types.ObjectId.isValid(candidateUid)) ? candidateUid : undefined },
+                { email: candidateEmail }
+              ].filter(Boolean)
+            }).lean().exec();
+
+            if (candidateDoc && candidateDoc.is_active !== false && candidateDoc.status !== 'inactive') {
+              selectedUser = candidate;
+              userDoc = candidateDoc;
+              break;
+            }
           }
         }
-      } else {
-        // Normal distribution: assign first user in the configured rule
-        selectedUser = matchedRule.users[0];
-        if (selectedUser) {
-          userDoc = await User.findOne({
-            $or: [
-              { _id: mongoose.Types.ObjectId.isValid(selectedUser.uid) ? selectedUser.uid : undefined },
-              { email: selectedUser.user_email }
-            ].filter(Boolean)
-          }).lean().exec();
+
+        if (selectedUser && (selectedUser.uid || selectedUser.user_email || selectedUser.email || userDoc)) {
+          const canonicalUid = userDoc ? String(userDoc._id) : (selectedUser.uid || null);
+          const canonicalEmail = userDoc ? userDoc.email : (selectedUser.user_email || selectedUser.email || null);
+          const canonicalName = userDoc ? (userDoc.name || `${userDoc.firstName || ''} ${userDoc.lastName || ''}`.trim() || userDoc.email) : '';
+
+          return {
+            uid: canonicalUid,
+            ownerEmail: canonicalEmail,
+            ownerName: canonicalName,
+            assignedTo: canonicalEmail,
+            assigned_to: canonicalEmail,
+            ruleId: String(matchedRule._id || r.id || r._id || ''),
+            distributionType: distType,
+            matchedRule: r
+          };
         }
-      }
-
-      if (selectedUser && (selectedUser.uid || selectedUser.user_email)) {
-        const canonicalUid = userDoc ? String(userDoc._id) : (selectedUser.uid || null);
-        const canonicalEmail = userDoc ? userDoc.email : (selectedUser.user_email || null);
-        const canonicalName = userDoc ? (userDoc.name || `${userDoc.firstName || ''} ${userDoc.lastName || ''}`.trim() || userDoc.email) : '';
-
-        return {
-          uid: canonicalUid,
-          ownerEmail: canonicalEmail,
-          ownerName: canonicalName,
-          assignedTo: canonicalEmail,
-          assigned_to: canonicalEmail,
-          ruleId: String(matchedRule._id),
-          distributionType: distType,
-          matchedRule
-        };
       }
     }
 

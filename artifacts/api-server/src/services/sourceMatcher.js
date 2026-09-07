@@ -45,7 +45,14 @@ function getSourceRoot(str) {
  * @returns {boolean}
  */
 function matchSources(leadSource, ruleSource) {
-  if (!ruleSource || ruleSource === 'all' || ruleSource === 'any' || ruleSource === 'All') {
+  if (!ruleSource) return true;
+  if (Array.isArray(ruleSource)) {
+    if (ruleSource.length === 0) return true;
+    return ruleSource.some(rs => matchSources(leadSource, rs));
+  }
+
+  const cleanRule = String(ruleSource).trim().toLowerCase();
+  if (cleanRule === 'all' || cleanRule === 'any' || cleanRule === '') {
     return true; // Wildcard matches all
   }
   if (!leadSource) {
@@ -53,7 +60,6 @@ function matchSources(leadSource, ruleSource) {
   }
 
   const cleanLead = String(leadSource).trim().toLowerCase();
-  const cleanRule = String(ruleSource).trim().toLowerCase();
 
   // 1. Exact string match (case-insensitive)
   if (cleanLead === cleanRule) return true;
@@ -72,7 +78,7 @@ function matchSources(leadSource, ruleSource) {
   // 4. Root comparison (e.g. 'Housing.com' vs 'Housing', 'Makaan.com' vs 'Makaan')
   const rootLead = getSourceRoot(cleanLead);
   const rootRule = getSourceRoot(cleanRule);
-  if (rootLead && rootRule && (rootLead === rootRule || rootLead.includes(rootRule) || rootRule.includes(rootLead))) {
+  if (rootLead && rootRule && (rootLead === rootRule || rootLead.includes(rootRule) || rootRule.includes(rootRule))) {
     return true;
   }
 

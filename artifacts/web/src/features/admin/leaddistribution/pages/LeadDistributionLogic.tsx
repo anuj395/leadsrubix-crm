@@ -225,18 +225,26 @@ export default function LeadDistributionLogicPage() {
         setProject(Array.isArray(rule.project) ? rule.project : (rule.project ? [rule.project] : []))
         setLocation(Array.isArray(rule.location) ? rule.location : (rule.location ? [rule.location] : []))
         setBudget(Array.isArray(rule.budget) ? rule.budget : (rule.budget ? [rule.budget] : []))
-        setPropertyType(Array.isArray(rule.propertyType) ? rule.propertyType : (rule.propertyType ? [rule.propertyType] : []))
 
-        if (rule.distributionType === 'Normal') {
-          const u = rule.users?.[0]
+        const pTypes = rule.propertyType || (rule as any).property_type
+        setPropertyType(Array.isArray(pTypes) ? pTypes : (pTypes ? [pTypes] : []))
+
+        const dType = (rule.distributionType || (rule as any).distribution_type || 'Normal') as 'Normal' | 'Roundrobin'
+        setActiveTab(dType)
+
+        const rawUsers = rule.users || []
+        const rawManagers = rule.leadManagerUsers || (rule as any).lead_manager_users || []
+
+        if (dType === 'Normal') {
+          const u = rawUsers[0]
           if (u) {
-            setAssignedUserNormal(u.uid)
+            setAssignedUserNormal(u.uid || u.user_email || (u as any)._id || '')
           }
         } else {
           // Roundrobin
-          const uIds = (rule.users || []).map(u => u.uid)
+          const uIds = rawUsers.map(u => u.uid || u.user_email || (u as any)._id).filter(Boolean)
           setAssignedUsersRoundrobin(uIds)
-          const mIds = (rule.leadManagerUsers || []).map(m => m.uid)
+          const mIds = rawManagers.map(m => m.uid || m.user_email || (m as any)._id).filter(Boolean)
           setSelectedManagers(mIds)
         }
       } catch (err) {
@@ -276,13 +284,35 @@ export default function LeadDistributionLogicPage() {
     try {
       let selectedUsers: AdminUser[] = []
       if (activeTab === 'Normal') {
-        const found = allUsers.find(u => String(u._id || u.id) === String(assignedUserNormal))
+        const cleanTarget = String(assignedUserNormal).toLowerCase().trim()
+        const found = allUsers.find(u => {
+          const uId = String(u._id || u.id || '').toLowerCase()
+          const uUid = String((u as any).uid || '').toLowerCase()
+          const uEmail = String(u.email || '').toLowerCase().trim()
+          return uId === cleanTarget || uUid === cleanTarget || uEmail === cleanTarget
+        })
         if (found) selectedUsers = [found]
       } else {
-        selectedUsers = allUsers.filter(u => assignedUsersRoundrobin.includes(String(u._id || u.id)))
+        selectedUsers = allUsers.filter(u => {
+          const uId = String(u._id || u.id || '').toLowerCase()
+          const uUid = String((u as any).uid || '').toLowerCase()
+          const uEmail = String(u.email || '').toLowerCase().trim()
+          return assignedUsersRoundrobin.some(s => {
+            const cleanS = String(s).toLowerCase().trim()
+            return cleanS === uId || cleanS === uUid || cleanS === uEmail
+          })
+        })
       }
 
-      const selectedManagersList = allUsers.filter(u => selectedManagers.includes(String(u._id || u.id)))
+      const selectedManagersList = allUsers.filter(u => {
+        const mId = String(u._id || u.id || '').toLowerCase()
+        const mUid = String((u as any).uid || '').toLowerCase()
+        const mEmail = String(u.email || '').toLowerCase().trim()
+        return selectedManagers.some(s => {
+          const cleanS = String(s).toLowerCase().trim()
+          return cleanS === mId || cleanS === mUid || cleanS === mEmail
+        })
+      })
 
       const payload: any = {
         organizationId: isSuperAdmin ? selectedOrg : undefined,
@@ -596,7 +626,15 @@ export default function LeadDistributionLogicPage() {
                     options={managerCandidates}
                     getOptionLabel={(m) => m.name || m.email}
                     isOptionEqualToValue={(option, val) => String(option._id || option.id) === String(val._id || val.id)}
-                    value={managerCandidates.filter(m => selectedManagers.includes(String(m._id || m.id)))}
+                    value={managerCandidates.filter(m => {
+                      const mId = String(m._id || m.id || '').toLowerCase()
+                      const mUid = String((m as any).uid || '').toLowerCase()
+                      const mEmail = String(m.email || '').toLowerCase().trim()
+                      return selectedManagers.some(s => {
+                        const cleanS = String(s).toLowerCase().trim()
+                        return cleanS === mId || cleanS === mUid || cleanS === mEmail
+                      })
+                    })}
                     onChange={(_, selected) => {
                       handleManagerChange(selected.map(m => String(m._id || m.id)))
                     }}
@@ -662,7 +700,17 @@ export default function LeadDistributionLogicPage() {
                     fullWidth
                     size="small"
                     label="Assigned Users *"
-                    value={assignedUserNormal}
+                    value={(() => {
+                      if (!assignedUserNormal) return ''
+                      const cleanTarget = String(assignedUserNormal).toLowerCase().trim()
+                      const found = allUsers.find(u => {
+                        const uId = String(u._id || u.id || '').toLowerCase()
+                        const uUid = String((u as any).uid || '').toLowerCase()
+                        const uEmail = String(u.email || '').toLowerCase().trim()
+                        return uId === cleanTarget || uUid === cleanTarget || uEmail === cleanTarget
+                      })
+                      return found ? String(found._id || found.id) : assignedUserNormal
+                    })()}
                     onChange={(e) => setAssignedUserNormal(e.target.value)}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                   >
@@ -700,7 +748,15 @@ export default function LeadDistributionLogicPage() {
                       options={candidateReportees}
                       getOptionLabel={(u) => u.name || u.email}
                       isOptionEqualToValue={(option, val) => String(option._id || option.id) === String(val._id || val.id)}
-                      value={candidateReportees.filter(u => assignedUsersRoundrobin.includes(String(u._id || u.id)))}
+                      value={candidateReportees.filter(u => {
+                        const uId = String(u._id || u.id || '').toLowerCase()
+                        const uUid = String((u as any).uid || '').toLowerCase()
+                        const uEmail = String(u.email || '').toLowerCase().trim()
+                        return assignedUsersRoundrobin.some(s => {
+                          const cleanS = String(s).toLowerCase().trim()
+                          return cleanS === uId || cleanS === uUid || cleanS === uEmail
+                        })
+                      })}
                       onChange={(_, selected) => {
                         setAssignedUsersRoundrobin(selected.map(u => String(u._id || u.id)))
                       }}

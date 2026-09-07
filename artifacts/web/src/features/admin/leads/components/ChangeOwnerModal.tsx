@@ -146,7 +146,7 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, textAlign: 'center' }}>
-        Change Owner ({selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''})
+        Reassign Owner ({selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''})
       </DialogTitle>
 
       <DialogContent dividers>
@@ -271,7 +271,7 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
               Back
             </Button>
             <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? <CircularProgress size={20} color="inherit" /> : 'Change Owner'}
+              {submitting ? <CircularProgress size={20} color="inherit" /> : 'Reassign Owner'}
             </Button>
           </Stack>
         )}
