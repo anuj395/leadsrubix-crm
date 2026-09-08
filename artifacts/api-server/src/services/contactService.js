@@ -385,7 +385,10 @@ exports.createForUser = async ({ payload, authedUser }) => {
     propertySubType: data.propertySubType || '',
     budget: data.budget || data['Budget'] || '',
     notes: data.notes || data['Notes'] || '',
+    lifecycle_stage: data.lifecycle_stage || data.lifecycleStage || (data.isRawInquiry || data.is_raw_inquiry || data.isWebhook ? 'INQUIRY' : 'LEAD'),
+    lifecycleStage: data.lifecycle_stage || data.lifecycleStage || (data.isRawInquiry || data.is_raw_inquiry || data.isWebhook ? 'INQUIRY' : 'LEAD'),
   };
+
 
 
 
@@ -1564,5 +1567,24 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
     message: 'Lead converted successfully!'
   };
 };
+
+exports.qualifyInquiry = async (contactId, authedUser) => {
+  const contact = await contactModel.Contact.findById(contactId).exec();
+  if (!contact) throw new Error('Inquiry not found');
+
+  await contactModel.Contact.findByIdAndUpdate(contactId, {
+    $set: {
+      lifecycle_stage: 'LEAD',
+      lifecycleStage: 'LEAD',
+      stage: 'Fresh',
+      status: 'FRESH',
+      qualified_at: new Date(),
+      qualifiedBy: authedUser?.email || authedUser?.name,
+    },
+  }).exec();
+
+  return { success: true, message: 'Inquiry qualified to Lead successfully' };
+};
+
 
 exports.fillExtraFields = fillExtraFields;

@@ -8,7 +8,9 @@ import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
 import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
 
 import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
+import InquiriesListPage from '@/features/admin/leads/pages/InquiriesList'
 import LeadsListPage from '@/features/admin/leads/pages/LeadsList'
+
 import AccountsListPage from '@/features/admin/leads/pages/AccountsList'
 import DealsListPage from '@/features/admin/leads/pages/DealsList'
 import QuotesListPage from '@/features/admin/leads/pages/QuotesList'
@@ -83,7 +85,9 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/deals": DealsListPage,
   "/leads/deals-list": DealsListPage,
   "/leads/quotes-list": QuotesListPage,
+  "/leads/inquiries": InquiriesListPage,
   "/leads/contacts": ContactsListPage,
+
   "/leads/contacts/new": AddContactPage,
   "/leads/contacts/:id": ContactDetailsPage,
   "/leads/contacts/:id/interested": InterestedDetailsPage,

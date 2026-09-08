@@ -432,3 +432,13 @@ exports.deleteAttachment = async (req, res, next) => {
   }
 };
 
+exports.qualifyInquiry = async (req, res, next) => {
+  try {
+    const result = await service.qualifyInquiry(req.params.id, req.user);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+

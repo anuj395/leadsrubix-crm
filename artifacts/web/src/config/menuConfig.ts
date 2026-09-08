@@ -150,12 +150,20 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     module: "Deals"
   },
   {
+    key: "leads.inquiries",
+    name: "Raw Inquiries (Tier 1)",
+    route: "/leads/inquiries",
+    icon: "contact",
+    module: "Leads"
+  },
+  {
     key: "leads.contacts",
-    name: "Contacts List",
+    name: "Qualified Leads & Contacts (Tier 2)",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
   },
+
   {
     key: "leads.tasks",
     name: "Tasks List",
