@@ -591,4 +591,137 @@ exports.updateBillingDetails = async (req, res, next) => {
   }
 };
 
+exports.getEmailSettings = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const Organization = mongoose.model('Organization');
+
+    const targetOrgId = req.params.id || req.user?.organizationId || req.user?.organization_id;
+    if (!targetOrgId) {
+      return res.status(400).json({ message: 'Organization ID is required' });
+    }
+
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetOrgId);
+    const orgQuery = isObjectId
+      ? { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }, { _id: targetOrgId }] }
+      : { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] };
+
+    const org = await Organization.findOne(orgQuery).lean().exec();
+    if (!org) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    const defaultTemplates = [
+      {
+        triggerKey: 'lead_created',
+        name: 'New Lead Inquiry Received',
+        subject: 'New Lead Assigned: {{customerName}}',
+        bodyHtml: '<p>Hello <strong>{{agentName}}</strong>, a new lead {{customerName}} (Phone: {{contactNumber}}) has been created and assigned to you in {{orgName}}.</p>',
+        isEnabled: true
+      },
+      {
+        triggerKey: 'lead_transferred',
+        name: 'Lead Transferred to Agent',
+        subject: 'Lead Transferred: {{customerName}}',
+        bodyHtml: '<p>Hello <strong>{{agentName}}</strong>, lead {{customerName}} has been reassigned to you by {{transferredBy}}.</p>',
+        isEnabled: true
+      },
+      {
+        triggerKey: 'webhook_ingested',
+        name: '3rd-Party Webhook Lead Ingested',
+        subject: '[{{source}}] New Lead: {{customerName}}',
+        bodyHtml: '<p>Hello <strong>{{agentName}}</strong>, a new 3rd-party lead arrived from {{source}} (Campaign: {{campaign}}).</p>',
+        isEnabled: true
+      }
+    ];
+
+    const smtpConfig = org.smtpConfig || org.smtp_config || {
+      useCustomSmtp: false,
+      smtpHost: '',
+      smtpPort: 465,
+      smtpUser: '',
+      smtpPass: '',
+      fromEmail: '',
+      fromName: org.organization_name || org.organizationName || 'Workspace',
+      security: 'SSL'
+    };
+
+    const emailTemplates = (org.emailTemplates || org.email_templates || []).length > 0
+      ? (org.emailTemplates || org.email_templates)
+      : defaultTemplates;
+
+    res.json({
+      organizationId: String(org._id),
+      smtpConfig,
+      emailTemplates
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateEmailSettings = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const Organization = mongoose.model('Organization');
+
+    const targetOrgId = req.params.id || req.user?.organizationId || req.user?.organization_id;
+    if (!targetOrgId) {
+      return res.status(400).json({ message: 'Organization ID is required' });
+    }
+
+    const { smtpConfig, emailTemplates } = req.body || {};
+
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetOrgId);
+    const orgQuery = isObjectId
+      ? { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }, { _id: targetOrgId }] }
+      : { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] };
+
+    const updateFields = {};
+    if (smtpConfig !== undefined) {
+      updateFields.smtp_config = smtpConfig;
+      updateFields.smtpConfig = smtpConfig;
+    }
+    if (emailTemplates !== undefined) {
+      updateFields.email_templates = emailTemplates;
+      updateFields.emailTemplates = emailTemplates;
+    }
+
+    const updated = await Organization.findOneAndUpdate(
+      orgQuery,
+      { $set: updateFields },
+      { new: true }
+    ).exec();
+
+    res.json({
+      success: true,
+      message: 'Workspace email settings updated successfully!',
+      organizationId: String(updated._id),
+      smtpConfig: updated.smtp_config || updated.smtpConfig,
+      emailTemplates: updated.email_templates || updated.emailTemplates
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.testSmtpConnectionHandler = async (req, res, next) => {
+  try {
+    const { mailer } = require('../utils/mailer') ? { mailer: require('../utils/mailer') } : {};
+    const testSmtpConnection = mailer.testSmtpConnection || require('../utils/mailer').testSmtpConnection;
+
+    const { smtpConfig, recipientEmail } = req.body || {};
+    const testEmail = recipientEmail || req.user?.email || req.user?.email_id || req.user?.username;
+
+    const result = await testSmtpConnection(smtpConfig, testEmail);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message || 'SMTP Connection Test Failed'
+    });
+  }
+};
+
 exports.upgradeSubscription = exports.renewSubscription;
+

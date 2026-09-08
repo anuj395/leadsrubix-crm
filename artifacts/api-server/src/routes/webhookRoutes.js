@@ -740,4 +740,9 @@ router.post('/facebook', async (req, res, next) => {
   }
 });
 
+// --- AWS SES Webhooks Ingest Endpoint ---
+const awsSesWebhookCtrl = require('../controllers/awsSesWebhookController');
+router.post('/aws-ses', awsSesWebhookCtrl.handleSesWebhook);
+
 module.exports = router;
+

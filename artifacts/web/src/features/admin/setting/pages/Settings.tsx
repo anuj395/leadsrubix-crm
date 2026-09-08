@@ -37,6 +37,11 @@ import {
   type NotificationSettingsResponse 
 } from '@/features/notifications/api/notificationApi'
 
+import { EmailSettingsTab } from '../components/EmailSettingsTab'
+import { ActionEmailTemplatesTab } from '../components/ActionEmailTemplatesTab'
+import { SuperAdminEmailQuotasTab } from '@/features/superAdmin/components/SuperAdminEmailQuotasTab'
+import { SuperAdminEmailLogsTab } from '@/features/superAdmin/components/SuperAdminEmailLogsTab'
+
 interface SettingItem {
   _id: string
   name: string
@@ -55,7 +60,9 @@ interface Industry {
   name: string
 }
 
-type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities'
+type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities' | 'email-settings' | 'email-templates' | 'email-quotas' | 'super-admin-email-logs'
+
+
 
 const NOTIFICATION_TYPES = [
   { value: 'LEAD_CREATED', label: 'New Lead Created', description: 'Triggered when a new lead is added to the organization.' },
@@ -165,6 +172,9 @@ export default function SettingsPage() {
   }
 
   const loadItems = async (currentTab: TabType, industryIdFilter?: string) => {
+    if (currentTab === 'email-settings' || currentTab === 'email-templates' || currentTab === 'email-quotas' || currentTab === 'super-admin-email-logs') {
+      return
+    }
     if (currentTab === 'notification-settings' || currentTab === 'notification-capabilities') {
       return loadNotificationSettings(industryIdFilter)
     }
@@ -376,6 +386,8 @@ export default function SettingsPage() {
               <Tab label="Roles" value="roles" />
               <Tab label="Role Keys" value="role-keys" />
               <Tab label="Notification Capabilities" value="notification-capabilities" />
+              <Tab label="Global Email Quotas" value="email-quotas" />
+              <Tab label="Global Email Logs" value="super-admin-email-logs" />
             </Tabs>
           ) : (
             <Tabs
@@ -395,10 +407,12 @@ export default function SettingsPage() {
               <Tab label="Branches" value="branches" />
               <Tab label="Designations" value="designations" />
               <Tab label="Notification Settings" value="notification-settings" />
+              <Tab label="Email & Domain Setup" value="email-settings" />
+              <Tab label="Action Email Templates" value="email-templates" />
             </Tabs>
           )}
 
-          {!(tab === 'notification-settings' || tab === 'notification-capabilities') && (
+          {!(tab === 'notification-settings' || tab === 'notification-capabilities' || tab === 'email-settings' || tab === 'email-templates' || tab === 'email-quotas' || tab === 'super-admin-email-logs') && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -416,12 +430,22 @@ export default function SettingsPage() {
           )}
         </Stack>
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress size={40} />
-          </Box>
-        ) : (tab === 'notification-settings' || tab === 'notification-capabilities') ? (
-          <Stack spacing={4} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 0.5 }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 1, pt: 1 }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress size={40} />
+            </Box>
+          ) : tab === 'email-settings' ? (
+            <EmailSettingsTab showToast={showToast} />
+          ) : tab === 'email-templates' ? (
+            <ActionEmailTemplatesTab showToast={showToast} />
+          ) : tab === 'email-quotas' ? (
+            <SuperAdminEmailQuotasTab showToast={showToast} />
+          ) : tab === 'super-admin-email-logs' ? (
+            <SuperAdminEmailLogsTab showToast={showToast} />
+          ) : (tab === 'notification-settings' || tab === 'notification-capabilities') ? (
+
+            <Stack spacing={4} sx={{ flex: 1, minHeight: 0, p: 0.5 }}>
             {tab === 'notification-capabilities' && (
               <Box>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Industry Notifications Capabilities</Typography>
@@ -602,6 +626,7 @@ export default function SettingsPage() {
             </Table>
           </TableContainer>
         )}
+        </Box>
       </AppCard>
 
       {/* Add / Edit Dialog */}

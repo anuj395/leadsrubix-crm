@@ -68,6 +68,8 @@ require('./models/sidebarModel');
 require('./models/taskModel');
 require('./models/notificationModel');
 require('./models/notificationSettingModel');
+require('./models/emailLogModel');
+require('./models/emailSuppressionModel');
 
 const {
   seedUsers,

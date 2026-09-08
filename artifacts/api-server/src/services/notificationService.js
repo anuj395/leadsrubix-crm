@@ -147,14 +147,14 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
     } = require('../utils/mailer');
 
     let orgName = '';
+    let orgDoc = null;
     if (organizationId) {
-      const orgDoc = await Organization.findOne({
-        $or: [
-          { organization_id: organizationId },
-          { _id: mongoose.Types.ObjectId.isValid(organizationId) ? organizationId : null }
-        ].filter(Boolean)
-      }).lean().exec();
-      if (orgDoc) orgName = orgDoc.name || orgDoc.organization_name || '';
+      const filterOr = [{ organization_id: organizationId }, { organizationId: organizationId }];
+      if (mongoose.Types.ObjectId.isValid(organizationId)) {
+        filterOr.push({ _id: organizationId });
+      }
+      orgDoc = await Organization.findOne({ $or: filterOr }).lean().exec();
+      if (orgDoc) orgName = orgDoc.name || orgDoc.organization_name || orgDoc.organizationName || '';
     }
 
     let targetUser = assignedUser;
@@ -165,7 +165,23 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
       targetUser = await User.findOne({ email: contact.contactOwnerEmail }).lean().exec();
     }
 
-    const recipientEmail = targetUser?.email || contact.contactOwnerEmail || '';
+    let recipientEmail = targetUser?.email || contact.contactOwnerEmail || contact.contact_owner_email || '';
+    if (!recipientEmail && orgDoc) {
+      recipientEmail = orgDoc.email_id || orgDoc.emailId || orgDoc.email || '';
+    }
+    if (!recipientEmail && organizationId) {
+      const orgAdmin = await User.findOne({
+        $or: [
+          { organization_id: organizationId },
+          { organizationId: organizationId }
+        ],
+        role: 'admin'
+      }).lean().exec();
+      if (orgAdmin?.email) {
+        recipientEmail = orgAdmin.email;
+      }
+    }
+
     if (!recipientEmail) {
       console.log('[NotificationService] No recipient email found for lead email notification.');
       return;
@@ -188,7 +204,8 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
         leadId: contact._id,
         orgName,
         transferredBy: transferredBy || 'Admin',
-        reason: reason || ''
+        reason: reason || '',
+        organizationId
       });
     } else if (type === 'THIRD_PARTY_LEAD') {
       await sendThirdPartyLeadEmail({
@@ -201,7 +218,8 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
         leadId: contact._id,
         orgName,
         campaign: contact.campaign || '',
-        adset: contact.adset || ''
+        adset: contact.adset || '',
+        organizationId
       });
     } else {
       await sendNewLeadEmail({
@@ -214,7 +232,8 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
         leadId: contact._id,
         orgName,
         leadType: contact.leadType || 'Leads',
-        specialtyOrDepartment: contact.projectName || contact.propertyType || contact.department || ''
+        specialtyOrDepartment: contact.projectName || contact.propertyType || contact.department || '',
+        organizationId
       });
     }
   } catch (err) {

@@ -1522,3 +1522,88 @@ Details: {
   "agentName": "Anuj Chauhan"
 }
 ========================================
+
+========================================
+Timestamp: 2026-09-07T13:17:19.924Z
+To: testadmin@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: test
+Username / Email: testadmin@gmail.com
+Temp Password: EuPAlt7b
+========================================
+
+========================================
+Timestamp: 2026-09-07T13:18:41.319Z
+To: testsale@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Meenakshi Speech & Hearing Clinic Pvt.Ltd
+Username / Email: testsale@gmail.com
+Temp Password: Jjcgfa3l
+========================================
+
+========================================
+Timestamp: 2026-09-07T13:26:23.224Z
+To: testadmin@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: tets
+Username / Email: testadmin@gmail.com
+Temp Password: gxYcSt4a
+========================================
+
+========================================
+Timestamp: 2026-09-07T13:27:54.183Z
+To: testsale@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: tets
+Username / Email: testsale@gmail.com
+Temp Password: prJa1BAt
+========================================
+
+========================================
+Timestamp: 2026-09-08T05:22:18.923Z
+To: adityasinghvns15@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Meenakshi Speech & Hearing Clinic Pvt.Ltd
+Username / Email: adityasinghvns15@gmail.com
+Temp Password: rZeimXLk
+========================================
+
+========================================
+Timestamp: 2026-09-08T05:28:04.687Z
+To: mshcludhiana@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Meenakshi Speech & Hearing Clinic Pvt.Ltd
+Username / Email: mshcludhiana@gmail.com
+Temp Password: UQoa9moR
+========================================
+
+========================================
+Timestamp: 2026-09-08T05:29:32.588Z
+To: mshcgk@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Meenakshi Speech & Hearing Clinic Pvt.Ltd
+Username / Email: mshcgk@gmail.com
+Temp Password: jRqK9iwN
+========================================
+
+========================================
+Timestamp: 2026-09-08T05:30:51.288Z
+To: mshcclinic26@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Meenakshi Speech & Hearing Clinic Pvt.Ltd
+Username / Email: mshcclinic26@gmail.com
+Temp Password: 1AeNukzb
+========================================
+
+========================================
+Timestamp: 2026-09-08T06:41:04.046Z
+To: dev@digitalrubix.com
+Subject: New Lead Assigned: dafdsfzdzc
+Details: {
+  "customerName": "dafdsfzdzc",
+  "contactNumber": "9899292929",
+  "email": "",
+  "source": "Self Generated",
+  "agentName": "Anuj Chauhan"
+}
+========================================
