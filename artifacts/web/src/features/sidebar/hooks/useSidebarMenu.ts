@@ -51,10 +51,7 @@ export function useSidebarMenu(): UseSidebarMenuResult {
   const fetchMenu = useCallback(async () => {
     if (!user) return
 
-    let industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code
-    if (!industryId && isSuperAdmin) {
-      industryId = 'temp0001'
-    }
+    let industryId = user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code || 'temp0001'
     const role = user.role || (user as any).roleKey || (user as any).role_key
     const organizationId = (user as any).organizationId || (user as any).organization_id
     if (!industryId) {

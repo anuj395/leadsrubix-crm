@@ -1,8 +1,8 @@
 import axiosInstance from '@/services/axiosInstance'
 import type { SidebarApiResponse, RawSidebarMenuItem } from '../types/sidebar.types'
 
-// ── In-memory cache (30 s TTL) ────────────────────────────────────────────────
-const CACHE_TTL_MS = 30_000
+// ── In-memory cache (1 s TTL) ────────────────────────────────────────────────
+const CACHE_TTL_MS = 1_000
 interface CacheEntry { ts: number; data: RawSidebarMenuItem[] }
 const cache = new Map<string, CacheEntry>()
 

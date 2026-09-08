@@ -86,9 +86,10 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "analytics", name: "Analytics", route: "/analytics", icon: "analytics", module: "analytics" },
   { key: "organization", name: "Organization", route: "/organization/list", icon: "organization", module: "organization" },
   { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
-  { key: "deals", name: "Deals", route: "/leads/deals-list", icon: "deals", module: "deals" },
+  { key: "deals", name: "Deals & Pipeline (Tier 3)", route: "/leads/deals-list", icon: "deals", module: "deals" },
 
-  { key: "leads.contacts", name: "Contacts List", route: "/leads/contacts", icon: "contact", module: "leads" },
+  { key: "leads.inquiries", name: "Raw Inquiries (Tier 1)", route: "/leads/inquiries", icon: "contact", module: "leads" },
+  { key: "leads.contacts", name: "Qualified Leads & Contacts (Tier 2)", route: "/leads/contacts", icon: "contact", module: "leads" },
   { key: "leads.tasks", name: "Tasks List", route: "/leads/tasks", icon: "tasks", module: "leads" },
   { key: "leads.callLogs", name: "Call Logs List", route: "/leads/call-logs", icon: "call", module: "leads" },
   { key: "leads.sorted", name: "Sorted List", route: "/leads/sorted", icon: "sort", module: "leads" },
@@ -144,7 +145,7 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "deals",
-    name: "Deals",
+    name: "Deals & Pipeline (Tier 3)",
     route: "/leads/deals-list",
     icon: "deals",
     module: "Deals"
@@ -331,17 +332,24 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
     module: "Analytics"
   },
   {
+    key: "leads.inquiries",
+    name: "Raw Inquiries (Tier 1)",
+    route: "/leads/inquiries",
+    icon: "contact",
+    module: "Leads"
+  },
+  {
     key: "leads.contacts",
-    name: "Contacts List",
+    name: "Qualified Leads & Contacts (Tier 2)",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.deals",
-    name: "Deals & Pipelines",
+    name: "Deals & Pipeline (Tier 3)",
     route: "/leads/deals-list",
-    icon: "billing",
+    icon: "deals",
     module: "Leads"
   },
   {
@@ -404,17 +412,24 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
     module: "Analytics"
   },
   {
+    key: "leads.inquiries",
+    name: "Raw Inquiries (Tier 1)",
+    route: "/leads/inquiries",
+    icon: "contact",
+    module: "Leads"
+  },
+  {
     key: "leads.contacts",
-    name: "Contacts List",
+    name: "Qualified Leads & Contacts (Tier 2)",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.deals",
-    name: "Deals & Pipelines",
+    name: "Deals & Pipeline (Tier 3)",
     route: "/leads/deals-list",
-    icon: "billing",
+    icon: "deals",
     module: "Leads"
   },
   {
@@ -477,17 +492,24 @@ export const salesMenuConfig: SuperAdminMenuItem[] = [
     module: "Analytics"
   },
   {
+    key: "leads.inquiries",
+    name: "Raw Inquiries (Tier 1)",
+    route: "/leads/inquiries",
+    icon: "contact",
+    module: "Leads"
+  },
+  {
     key: "leads.contacts",
-    name: "Contacts List",
+    name: "Qualified Leads & Contacts (Tier 2)",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.deals",
-    name: "Deals & Pipelines",
+    name: "Deals & Pipeline (Tier 3)",
     route: "/leads/deals-list",
-    icon: "billing",
+    icon: "deals",
     module: "Leads"
   },
   {
