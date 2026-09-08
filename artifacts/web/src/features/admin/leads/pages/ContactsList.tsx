@@ -486,17 +486,7 @@ export default function ContactsListPage() {
             sx={{ minHeight: 40, '& .MuiTab-root': { minHeight: 40, py: 0.5, textTransform: 'none', fontWeight: 600 } }}
           >
             <Tab value="all" label={`All (${filterCounts.all})`} />
-            <Tab
-              value="fresh"
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <span>Fresh Inquiries</span>
-                  {filterCounts.fresh > 0 && (
-                    <Chip size="small" label={filterCounts.fresh} color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />
-                  )}
-                </Box>
-              }
-            />
+            <Tab value="fresh" label={`Fresh Inquiries (${filterCounts.fresh})`} />
             <Tab value="callback" label={`Callbacks (${filterCounts.callback})`} />
             <Tab value="interested" label={`Interested (${filterCounts.interested})`} />
             <Tab value="deals" label={`Deals / Converted (${filterCounts.deals})`} />

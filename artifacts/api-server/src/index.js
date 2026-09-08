@@ -451,7 +451,7 @@ async function seedLifecycleSidebarMenus() {
   if (!globalInquiries) {
     globalInquiries = await SidebarMenu.create({
       key: 'leads.inquiries',
-      name: 'Raw Inquiries (Tier 1)',
+      name: 'Raw Inquiries',
       route: '/leads/inquiries',
       icon: 'contact',
       module: 'leads',
@@ -464,18 +464,18 @@ async function seedLifecycleSidebarMenus() {
   } else {
     await SidebarMenu.updateOne(
       { _id: globalInquiries._id },
-      { $set: { name: 'Raw Inquiries (Tier 1)', route: '/leads/inquiries', parent_id: globalParentLead._id, order: 4.05, is_active: true } }
+      { $set: { name: 'Raw Inquiries', route: '/leads/inquiries', parent_id: globalParentLead._id, order: 4.05, is_active: true } }
     );
   }
 
   await SidebarMenu.updateMany(
     { key: 'leads.contact', organization_id: null, industry_id: null },
-    { $set: { name: 'Qualified Leads & Contacts (Tier 2)', order: 4.1 } }
+    { $set: { name: 'Qualified Leads & Contacts', order: 4.1 } }
   );
 
   await SidebarMenu.updateMany(
     { key: 'deals', organization_id: null, industry_id: null },
-    { $set: { name: 'Deals & Pipeline (Tier 3)', order: 5 } }
+    { $set: { name: 'Deals & Pipeline', order: 5 } }
   );
 
   const allRoles = await Role.find({}).exec();
@@ -531,7 +531,7 @@ async function seedLifecycleSidebarMenus() {
     if (!orgInquiries) {
       orgInquiries = await SidebarMenu.create({
         key: 'leads.inquiries',
-        name: 'Raw Inquiries (Tier 1)',
+        name: 'Raw Inquiries',
         route: '/leads/inquiries',
         icon: 'contact',
         module: 'leads',
@@ -543,7 +543,7 @@ async function seedLifecycleSidebarMenus() {
     } else {
       await SidebarMenu.updateOne(
         { _id: orgInquiries._id },
-        { $set: { name: 'Raw Inquiries (Tier 1)', route: '/leads/inquiries', parent_id: orgParentLead._id, order: 4.05, is_active: true } }
+        { $set: { name: 'Raw Inquiries', route: '/leads/inquiries', parent_id: orgParentLead._id, order: 4.05, is_active: true } }
       );
     }
   }
