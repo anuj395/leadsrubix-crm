@@ -3,101 +3,17 @@ const contactModel = require('../models/contactModel');
 const accountModel = require('../models/accountModel');
 const { mapWithDualCase, withDualCase } = require('../utils/caseConverter');
 
+const contactService = require('../services/contactService');
+
 exports.list = async (req, res, next) => {
   try {
-    const orgId = req.user.organization_id || req.user.organizationId;
-    const filter = orgId ? { organization_id: orgId } : {};
-
-    // Concurrently query both Contact collection (Web CRM single source of truth) and Lead collection
-    const [leads, contacts] = await Promise.all([
-      leadModel.list({ filter }).catch(() => []),
-      contactModel.Contact.find(filter).sort({ createdAt: -1 }).limit(300).lean().exec().catch(() => [])
-    ]);
-
-    const combined = [];
-    const seenIds = new Set();
-    const seenPhones = new Set();
-
-    // 1. Add contacts first (Web CRM primary records)
-    for (const c of contacts) {
-      const idStr = String(c._id);
-      const phoneClean = (c.contact_number || c.contactNumber || '').replace(/\D/g, '');
-      if (idStr && !seenIds.has(idStr)) {
-        seenIds.add(idStr);
-        if (phoneClean) seenPhones.add(phoneClean);
-
-        combined.push({
-          id: idStr,
-          _id: idStr,
-          name: c.customer_name || c.customerName || c.name || 'Inquiry',
-          customerName: c.customer_name || c.customerName || c.name || 'Inquiry',
-          firstName: (c.customer_name || c.customerName || '').split(' ')[0] || '',
-          lastName: (c.customer_name || c.customerName || '').split(' ').slice(1).join(' ') || '',
-          phone: c.contact_number || c.contactNumber || '',
-          contactNumber: c.contact_number || c.contactNumber || '',
-          alternateNo: c.alternate_no || c.alternateNo || '',
-          email: c.email_id || c.emailId || c.email || '',
-          emailId: c.email_id || c.emailId || c.email || '',
-          stage: c.stage || c.property_stage || c.propertyStage || 'FRESH',
-          status: c.stage || c.property_stage || c.propertyStage || 'FRESH',
-          leadType: c.lead_type || c.leadType || 'Buyer',
-          location: c.location || '',
-          project: c.project_name || c.projectName || c.project || '',
-          projectName: c.project_name || c.projectName || c.project || '',
-          budget: c.budget || '',
-          propertyType: c.property_type || c.propertyType || '',
-          source: c.source || c.lead_source || '',
-          notes: c.notes || '',
-          contactOwnerEmail: c.contact_owner_email || c.contactOwnerEmail || '',
-          createdAt: c.createdAt || c.created_at || new Date().toISOString(),
-          updatedAt: c.updatedAt || c.updated_at || new Date().toISOString(),
-          isContact: true,
-        });
-      }
-    }
-
-    // 2. Add leads (deduplicating by phone / id)
-    for (const l of leads) {
-      const idStr = String(l._id || l.id);
-      const phoneClean = (l.phone || l.contact_no || '').replace(/\D/g, '');
-      if (!seenIds.has(idStr) && (!phoneClean || !seenPhones.has(phoneClean))) {
-        seenIds.add(idStr);
-        if (phoneClean) seenPhones.add(phoneClean);
-
-        const fullName = l.name || `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Inquiry';
-        combined.push({
-          id: idStr,
-          _id: idStr,
-          name: fullName,
-          customerName: fullName,
-          firstName: l.first_name || fullName.split(' ')[0] || '',
-          lastName: l.last_name || fullName.split(' ').slice(1).join(' ') || '',
-          phone: l.phone || l.contact_no || '',
-          contactNumber: l.phone || l.contact_no || '',
-          alternateNo: l.alternate_no || '',
-          email: l.email || '',
-          emailId: l.email || '',
-          stage: l.lead_status || l.stage || l.status || 'FRESH',
-          status: l.lead_status || l.stage || l.status || 'FRESH',
-          leadType: l.lead_type || 'Buyer',
-          location: l.location || '',
-          project: l.project || l.project_name || '',
-          projectName: l.project || l.project_name || '',
-          budget: l.budget || '',
-          propertyType: l.property_type || '',
-          source: l.lead_source || l.source || '',
-          notes: l.notes || '',
-          createdAt: l.createdAt || l.created_at || new Date().toISOString(),
-          updatedAt: l.updatedAt || l.updated_at || new Date().toISOString(),
-          isContact: false,
-        });
-      }
-    }
-
-    // Sort chronologically descending
-    combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    res.json({ items: combined });
+    const items = await contactService.listForUser({
+      authedUser: req.user,
+      industryIdQuery: req.query.industryId,
+      organizationIdQuery: req.query.organizationId,
+      limit: Number(req.query.limit) || 300,
+    });
+    res.json(mapWithDualCase(items));
   } catch (err) {
     next(err);
   }
