@@ -865,42 +865,6 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       console.error('[WhatsApp] Failed to initiate transfer notification:', e);
     }
 
-    // In-App Notification for New Owner
-    try {
-      const { createNotification } = require('./notificationService');
-      await createNotification({
-        userId: targetOwnerUid,
-        organizationId: orgId,
-        workspaceId: lead.workspace_id || lead.workspaceId || null,
-        title: 'Lead Transferred to You',
-        message: `Lead "${leadCustomerName}" has been transferred to you by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
-        type: 'LEAD_TRANSFERRED',
-        relatedId: lead._id
-      });
-    } catch (err) {
-      console.error('[Notification] Failed to create in-app transfer notification:', err);
-    }
-
-    // Email Notification for New Owner
-    try {
-      const { dispatchLeadEmailNotification } = require('./notificationService');
-      dispatchLeadEmailNotification({
-        type: 'LEAD_TRANSFERRED',
-        contact: {
-          ...lead.toObject(),
-          customerName: leadCustomerName,
-          contactNumber: leadContactNo
-        },
-        organizationId: orgId,
-        assignedUser: owner,
-        transferredBy: authedUser?.name || authedUser?.email || 'Admin',
-        reason: reason || 'Manual Lead Transfer',
-        source: leadSource
-      }).catch(e => console.error('[Notification] Transfer email error:', e));
-    } catch (err) {
-      console.error('[Notification] Failed to dispatch transfer email:', err);
-    }
-
     // In-App Notification for Previous Owner (Old Agent)
     if (oldOwner && oldOwner !== owner.email && oldOwner !== 'Unassigned') {
       try {
@@ -935,6 +899,30 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
           }
         }
       );
+    }
+  }
+
+  // Consolidated Bulk Notification Dispatch (Single Digest Email + Single In-App Notification)
+  if (leads.length > 0) {
+    try {
+      const { notifyBulkLeadAssignment } = require('./notificationService');
+      const firstOrgId = leads[0].organization_id || leads[0].organizationId;
+      const formattedLeads = leads.map(l => ({
+        ...l.toObject(),
+        customerName: l.customer_name || l.customerName || l.name || 'Unnamed Lead',
+        contactNumber: l.contact_no || l.contact_number || l.contactNumber || l.phone || '',
+        contactOwnerEmail: owner.email
+      }));
+
+      notifyBulkLeadAssignment({
+        contacts: formattedLeads,
+        organizationId: firstOrgId,
+        assignedUser: owner,
+        transferredBy: authedUser?.name || authedUser?.email || 'Admin',
+        reason: reason || 'Manual Lead Transfer'
+      }).catch(err => console.error('[Notification] Transfer digest notification error:', err));
+    } catch (err) {
+      console.error('[Notification] Failed to dispatch transfer digest notification:', err);
     }
   }
 
@@ -1027,44 +1015,29 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     } catch (e) {
       console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
     }
+  }
 
-    // In-App Notification for New Owner
-    if (uid) {
-      try {
-        const { createNotification } = require('./notificationService');
-        await createNotification({
-          userId: uid,
-          organizationId: orgId,
-          workspaceId: lead.workspace_id || lead.workspaceId || null,
-          title: 'Lead Transferred to You',
-          message: `Lead "${leadCustomerName}" has been reassigned to you by ${authedUser?.name || authedUser?.email || 'Admin'}.`,
-          type: 'LEAD_TRANSFERRED',
-          relatedId: lead._id
-        });
-      } catch (err) {
-        console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
-      }
-    }
-
-    // Email Notification for New Owner
+  // Single Consolidated Digest Email & In-App Notification Dispatch
+  if (leads.length > 0) {
     try {
-      const { dispatchLeadEmailNotification } = require('./notificationService');
-      dispatchLeadEmailNotification({
-        type: 'LEAD_TRANSFERRED',
-        contact: {
-          ...lead.toObject(),
-          customerName: leadCustomerName,
-          contactNumber: leadContactNo,
-          contactOwnerEmail: contactOwnerEmail
-        },
-        organizationId: orgId,
-        assignedUser: ownerUser,
+      const { notifyBulkLeadAssignment } = require('./notificationService');
+      const firstOrgId = leads[0].organization_id || leads[0].organizationId;
+      const formattedLeads = leads.map(l => ({
+        ...l.toObject(),
+        customerName: l.customer_name || l.customerName || l.name || 'Unnamed Lead',
+        contactNumber: l.contact_no || l.contact_number || l.contactNumber || l.phone || '',
+        contactOwnerEmail: contactOwnerEmail
+      }));
+
+      notifyBulkLeadAssignment({
+        contacts: formattedLeads,
+        organizationId: firstOrgId,
+        assignedUser: { email: contactOwnerEmail, _id: uid, uid, id: uid },
         transferredBy: authedUser?.name || authedUser?.email || 'Bulk Reassignment',
-        reason: 'Bulk Lead Reassignment',
-        source: lead.source || 'Direct'
-      }).catch(e => console.error('[Notification] Bulk transfer email error:', e));
+        reason: 'Bulk Lead Reassignment'
+      }).catch(err => console.error('[Notification] Bulk reassignment digest notification error:', err));
     } catch (err) {
-      console.error('[Notification] Failed to dispatch bulk transfer email:', err);
+      console.error('[Notification] Failed to dispatch bulk reassignment digest notification:', err);
     }
   }
 

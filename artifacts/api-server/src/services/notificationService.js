@@ -239,10 +239,83 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
   } catch (err) {
     console.error('[NotificationService] Failed to dispatch email notification:', err.message);
   }
+async function notifyBulkLeadAssignment({ contacts = [], organizationId, assignedUser, transferredBy, reason }) {
+  if (!Array.isArray(contacts) || contacts.length === 0) return;
+
+  // Single lead fallback -> use single notification flow
+  if (contacts.length === 1) {
+    return notifyLeadAssignmentOrCreation({
+      contact: contacts[0],
+      organizationId,
+      title: 'Lead Transferred',
+      message: `A lead "${contacts[0].customerName || contacts[0].name || 'Unnamed'}" has been transferred to you.`,
+      type: 'LEAD_TRANSFERRED'
+    });
+  }
+
+  try {
+    const User = mongoose.model('User');
+    const Organization = mongoose.model('Organization');
+    const { sendBulkLeadTransferredEmail } = require('../utils/mailer');
+
+    let targetUser = assignedUser;
+    const firstContact = contacts[0];
+    if (!targetUser && firstContact?.uid) {
+      targetUser = await User.findById(firstContact.uid).lean().exec();
+    }
+    if (!targetUser && firstContact?.contactOwnerEmail) {
+      targetUser = await User.findOne({ email: firstContact.contactOwnerEmail }).lean().exec();
+    }
+
+    let orgDoc = null;
+    let orgName = '';
+    if (organizationId) {
+      const filterOr = [{ organization_id: organizationId }, { organizationId: organizationId }];
+      if (mongoose.Types.ObjectId.isValid(organizationId)) {
+        filterOr.push({ _id: organizationId });
+      }
+      orgDoc = await Organization.findOne({ $or: filterOr }).lean().exec();
+      if (orgDoc) orgName = orgDoc.name || orgDoc.organization_name || orgDoc.organizationName || '';
+    }
+
+    let recipientEmail = targetUser?.email || firstContact?.contactOwnerEmail || '';
+    if (!recipientEmail && orgDoc) {
+      recipientEmail = orgDoc.email_id || orgDoc.emailId || orgDoc.email || '';
+    }
+
+    // 1. Create a SINGLE aggregated in-app notification
+    if (targetUser?._id) {
+      await createNotification({
+        userId: targetUser._id,
+        organizationId,
+        workspaceId: firstContact.workspaceId || firstContact.workspace_id || null,
+        title: `📊 ${contacts.length} Leads Transferred`,
+        message: `${transferredBy || 'Admin'} transferred ${contacts.length} new leads to your pipeline.`,
+        type: 'LEAD_TRANSFERRED',
+        relatedId: null
+      });
+    }
+
+    // 2. Dispatch a SINGLE consolidated digest email
+    if (recipientEmail) {
+      await sendBulkLeadTransferredEmail({
+        toEmail: recipientEmail,
+        agentName: targetUser?.name || targetUser?.userName || recipientEmail.split('@')[0],
+        leads: contacts,
+        orgName,
+        transferredBy: transferredBy || 'Admin',
+        reason: reason || '',
+        organizationId
+      });
+    }
+  } catch (err) {
+    console.error('[NotificationService] Failed to notify bulk lead assignment:', err.stack || err.message);
+  }
 }
 
 module.exports = {
   createNotification,
   notifyLeadAssignmentOrCreation,
-  dispatchLeadEmailNotification
+  dispatchLeadEmailNotification,
+  notifyBulkLeadAssignment
 };

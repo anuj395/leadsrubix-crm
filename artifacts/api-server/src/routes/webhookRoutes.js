@@ -449,15 +449,15 @@ router.post('/createContacts', async (req, res, next) => {
 
     try {
       const { notifyLeadAssignmentOrCreation } = require('../services/notificationService');
-      await notifyLeadAssignmentOrCreation({
+      notifyLeadAssignmentOrCreation({
         contact: doc,
         organizationId: tokenData.organizationId,
         title: 'New Lead Assigned (Webhook)',
         message: `A new lead "${doc.customerName || doc.name || 'Unnamed'}" has been assigned to you via API webhook.`,
         type: 'LEAD_ASSIGNED'
-      });
+      }).catch(err => console.error('[Notification] Webhook notification dispatch error:', err));
     } catch (err) {
-      console.error('[Notification] Failed to dispatch webhook in-app assignment notification:', err);
+      console.error('[Notification] Failed to trigger webhook in-app assignment notification:', err);
     }
 
     await logApiTransaction(reqData, tokenData, "SUCCESS", "", String(doc._id));
