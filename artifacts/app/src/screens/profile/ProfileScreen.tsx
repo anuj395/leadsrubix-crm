@@ -38,6 +38,35 @@ export const ProfileScreen = ({ navigation }: any) => {
     .toUpperCase()
     .slice(0, 2);
 
+  const getFormattedRole = (role?: string) => {
+    if (!role) return 'USER';
+    const normalized = role.toLowerCase().trim();
+    if (normalized === 'admin' || normalized === 'clientadmin' || normalized === 'client_admin') return 'ADMIN';
+    if (normalized === 'superadmin' || normalized === 'super_admin') return 'SUPER ADMIN';
+    if (normalized === 'sales_manager' || normalized === 'manager') return 'SALES MANAGER';
+    if (normalized === 'sales_agent' || normalized === 'agent') return 'SALES AGENT';
+    if (normalized === 'team_lead') return 'TEAM LEAD';
+    return role.replace(/_/g, ' ').toUpperCase();
+  };
+
+  const getAccessLevel = (role?: string) => {
+    if (!role) return 'Standard';
+    const normalized = role.toLowerCase().trim();
+    if (normalized === 'superadmin' || normalized === 'super_admin') return 'Super Admin';
+    if (normalized === 'admin' || normalized === 'clientadmin' || normalized === 'client_admin') return 'Client Admin';
+    if (normalized === 'sales_manager' || normalized === 'manager' || normalized === 'team_lead') return 'Manager / Lead';
+    return 'Sales Agent';
+  };
+
+  const getWorkspaceTag = (role?: string) => {
+    if (!role) return 'Team Member';
+    const normalized = role.toLowerCase().trim();
+    if (normalized === 'admin' || normalized === 'clientadmin' || normalized === 'client_admin') return 'Workspace Admin';
+    if (normalized === 'sales_manager' || normalized === 'manager') return 'Team Manager';
+    if (normalized === 'team_lead') return 'Team Lead';
+    return 'Team Member';
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#151728" />
@@ -82,12 +111,12 @@ export const ProfileScreen = ({ navigation }: any) => {
                 <View style={styles.adminBadge}>
                   <Ionicons name="shield-checkmark" size={12} color="#059669" />
                   <Text style={styles.adminBadgeText}>
-                    {(user?.role || '').toUpperCase()}
+                    {getFormattedRole(user?.role)}
                   </Text>
                 </View>
 
                 <View style={styles.workspaceTag}>
-                  <Text style={styles.workspaceTagText}>Workspace Owner</Text>
+                  <Text style={styles.workspaceTagText}>{getWorkspaceTag(user?.role)}</Text>
                 </View>
               </View>
             </View>
@@ -102,7 +131,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>ACCESS LEVEL</Text>
-              <Text style={styles.metricValue}>Super Admin</Text>
+              <Text style={styles.metricValue}>{getAccessLevel(user?.role)}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
@@ -124,7 +153,7 @@ export const ProfileScreen = ({ navigation }: any) => {
           <View style={styles.infoList}>
             <View style={styles.infoRow}>
               <Text style={styles.infoKey}>Workspace Name</Text>
-              <Text style={styles.infoVal}>Leads Rubix CRM</Text>
+              <Text style={styles.infoVal}>{user?.organizationName || 'Leads Rubix CRM'}</Text>
             </View>
             <View style={styles.rowDivider} />
 
