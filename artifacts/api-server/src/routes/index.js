@@ -104,7 +104,14 @@ router.use('/whatsapp', whatsappRoutes);
 router.use('/resources', resourceItemRoutes);
 router.use('/resource-items', resourceItemRoutes);
 router.use('/api-tokens', apiTokenRoutes);
+const customFieldRoutes = require('./customFieldRoutes');
+const slaRoutes = require('./slaRoutes');
+
+router.use('/custom-fields', customFieldRoutes);
+router.use('/sla-config', slaRoutes);
+router.use('/sla', slaRoutes);
 router.use('/lead-distribution', leadDistributionRoutes);
+
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
 router.use('/webhook', webhookRoutes);

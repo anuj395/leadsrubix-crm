@@ -41,6 +41,10 @@ import { EmailSettingsTab } from '../components/EmailSettingsTab'
 import { ActionEmailTemplatesTab } from '../components/ActionEmailTemplatesTab'
 import { SuperAdminEmailQuotasTab } from '@/features/superAdmin/components/SuperAdminEmailQuotasTab'
 import { SuperAdminEmailLogsTab } from '@/features/superAdmin/components/SuperAdminEmailLogsTab'
+import { CustomFieldsTab } from '../components/CustomFieldsTab'
+import { LeadDistributionTab } from '../components/LeadDistributionTab'
+import { SlaWorkflowsTab } from '../components/SlaWorkflowsTab'
+
 
 interface SettingItem {
   _id: string
@@ -60,7 +64,8 @@ interface Industry {
   name: string
 }
 
-type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities' | 'email-settings' | 'email-templates' | 'email-quotas' | 'super-admin-email-logs'
+type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities' | 'email-settings' | 'email-templates' | 'email-quotas' | 'super-admin-email-logs' | 'custom-fields' | 'lead-distribution' | 'sla-workflows'
+
 
 
 
@@ -385,11 +390,17 @@ export default function SettingsPage() {
             >
               <Tab label="Roles" value="roles" />
               <Tab label="Role Keys" value="role-keys" />
+              <Tab label="Default Email & Domain" value="email-settings" />
+              <Tab label="Email Templates" value="email-templates" />
+              <Tab label="Custom Fields Builder" value="custom-fields" />
+              <Tab label="Lead Distribution Engine" value="lead-distribution" />
+              <Tab label="SLA & Escalations" value="sla-workflows" />
               <Tab label="Notification Capabilities" value="notification-capabilities" />
               <Tab label="Global Email Quotas" value="email-quotas" />
               <Tab label="Global Email Logs" value="super-admin-email-logs" />
             </Tabs>
           ) : (
+
             <Tabs
               value={tab}
               onChange={(_, val: TabType) => setTab(val)}
@@ -406,13 +417,16 @@ export default function SettingsPage() {
               <Tab label="Teams" value="teams" />
               <Tab label="Branches" value="branches" />
               <Tab label="Designations" value="designations" />
+              <Tab label="Custom Fields Builder" value="custom-fields" />
+              <Tab label="Lead Distribution Engine" value="lead-distribution" />
+              <Tab label="SLA & Escalations" value="sla-workflows" />
               <Tab label="Notification Settings" value="notification-settings" />
               <Tab label="Email & Domain Setup" value="email-settings" />
               <Tab label="Action Email Templates" value="email-templates" />
             </Tabs>
           )}
 
-          {!(tab === 'notification-settings' || tab === 'notification-capabilities' || tab === 'email-settings' || tab === 'email-templates' || tab === 'email-quotas' || tab === 'super-admin-email-logs') && (
+          {!(tab === 'notification-settings' || tab === 'notification-capabilities' || tab === 'email-settings' || tab === 'email-templates' || tab === 'email-quotas' || tab === 'super-admin-email-logs' || tab === 'custom-fields' || tab === 'lead-distribution' || tab === 'sla-workflows') && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -435,6 +449,12 @@ export default function SettingsPage() {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress size={40} />
             </Box>
+          ) : tab === 'custom-fields' ? (
+            <CustomFieldsTab showToast={showToast} />
+          ) : tab === 'lead-distribution' ? (
+            <LeadDistributionTab showToast={showToast} />
+          ) : tab === 'sla-workflows' ? (
+            <SlaWorkflowsTab showToast={showToast} />
           ) : tab === 'email-settings' ? (
             <EmailSettingsTab showToast={showToast} />
           ) : tab === 'email-templates' ? (
@@ -444,6 +464,7 @@ export default function SettingsPage() {
           ) : tab === 'super-admin-email-logs' ? (
             <SuperAdminEmailLogsTab showToast={showToast} />
           ) : (tab === 'notification-settings' || tab === 'notification-capabilities') ? (
+
 
             <Stack spacing={4} sx={{ flex: 1, minHeight: 0, p: 0.5 }}>
             {tab === 'notification-capabilities' && (
