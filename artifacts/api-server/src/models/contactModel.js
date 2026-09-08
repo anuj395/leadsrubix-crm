@@ -25,6 +25,7 @@ const contactSchema = new mongoose.Schema(
     property_sub_type: { type: String, alias: 'propertySubType' },
     source: { type: String },
     contact_owner_email: { type: String, alias: 'contactOwnerEmail' },
+    contact_owner_id: { type: String, alias: 'contactOwnerId' },
     adset: { type: String },
     campaign: { type: String },
     notes: { type: String },

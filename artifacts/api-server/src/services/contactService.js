@@ -216,6 +216,7 @@ exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery,
         { created_by: { $in: ownerUids } },
         { uid: { $in: ownerUids } },
         { contact_owner_id: { $in: ownerUids } },
+        { contactOwnerId: { $in: ownerUids } },
         { contactOwnerEmail: { $in: ownerEmails } },
         { contact_owner_email: { $in: ownerEmails } },
         { assignedTo: { $in: ownerEmails } },
@@ -503,6 +504,31 @@ exports.createForUser = async ({ payload, authedUser }) => {
     cleaned.assignedTo = user.email || '';
     cleaned.assigned_to = user.email || '';
     cleaned.uid = user.uid || String(user._id);
+    cleaned.contactOwnerId = String(user._id);
+    cleaned.contact_owner_id = String(user._id);
+  } else if (explicitOwnerEmail || explicitUid) {
+    const User = mongoose.model('User');
+    let targetOwnerUser = null;
+    if (explicitUid) {
+      if (mongoose.Types.ObjectId.isValid(explicitUid)) {
+        targetOwnerUser = await User.findById(explicitUid).lean().exec();
+      }
+      if (!targetOwnerUser) {
+        targetOwnerUser = await User.findOne({ uid: String(explicitUid) }).lean().exec();
+      }
+    }
+    if (!targetOwnerUser && explicitOwnerEmail) {
+      targetOwnerUser = await User.findOne({ email: String(explicitOwnerEmail).toLowerCase().trim() }).lean().exec();
+    }
+    if (targetOwnerUser) {
+      cleaned.contactOwnerEmail = targetOwnerUser.email;
+      cleaned.contact_owner_email = targetOwnerUser.email;
+      cleaned.assignedTo = targetOwnerUser.email;
+      cleaned.assigned_to = targetOwnerUser.email;
+      cleaned.uid = targetOwnerUser.uid || String(targetOwnerUser._id);
+      cleaned.contactOwnerId = String(targetOwnerUser._id);
+      cleaned.contact_owner_id = String(targetOwnerUser._id);
+    }
   }
 
   // Auto-evaluate lead distribution rules if still unassigned (e.g. API / Webhook leads with no logged in user)
@@ -742,11 +768,31 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
     const err = new Error('Records More than 250 are not allowed'); err.status = 400; throw err;
   }
 
-  if (!owner || !owner.email || (!owner.uid && !owner.id)) {
+  if (!owner) {
     const err = new Error('Owner Not Found'); err.status = 400; throw err;
   }
 
-  const targetOwnerUid = owner.uid || owner.id;
+  const User = mongoose.model('User');
+  let targetUserDoc = null;
+  const rawOwnerId = owner.uid || owner.id || owner._id;
+  if (rawOwnerId) {
+    if (mongoose.Types.ObjectId.isValid(rawOwnerId)) {
+      targetUserDoc = await User.findById(rawOwnerId).lean().exec();
+    }
+    if (!targetUserDoc) {
+      targetUserDoc = await User.findOne({ uid: String(rawOwnerId) }).lean().exec();
+    }
+  }
+  if (!targetUserDoc && owner.email) {
+    targetUserDoc = await User.findOne({ email: String(owner.email).toLowerCase().trim() }).lean().exec();
+  }
+
+  if (!targetUserDoc && !owner.email) {
+    const err = new Error('Owner Not Found'); err.status = 400; throw err;
+  }
+
+  const targetOwnerUid = targetUserDoc ? String(targetUserDoc._id) : (owner.uid || owner.id);
+  const targetOwnerEmail = targetUserDoc?.email || owner.email;
   const Contact = mongoose.model('Contact');
   const Task = mongoose.model('Task');
   const Notification = mongoose.model('Notification');
@@ -766,10 +812,10 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       uid: targetOwnerUid,
       contact_owner_id: targetOwnerUid,
       contactOwnerId: targetOwnerUid,
-      contactOwnerEmail: owner.email,
-      contact_owner_email: owner.email,
-      assignedTo: owner.email,
-      assigned_to: owner.email,
+      contactOwnerEmail: targetOwnerEmail,
+      contact_owner_email: targetOwnerEmail,
+      assignedTo: targetOwnerEmail,
+      assigned_to: targetOwnerEmail,
       last_rotation_at: now,
       lastRotationAt: now,
       transferReason: reason,
@@ -937,9 +983,26 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     const err = new Error('No contact IDs specified'); err.status = 400; throw err;
   }
   const Contact = mongoose.model('Contact');
+  const User = mongoose.model('User');
   const Notification = mongoose.model('Notification');
   const LeadReassignmentHistory = mongoose.model('LeadReassignmentHistory');
   const now = new Date();
+
+  let targetUserDoc = null;
+  if (uid) {
+    if (mongoose.Types.ObjectId.isValid(uid)) {
+      targetUserDoc = await User.findById(uid).lean().exec();
+    }
+    if (!targetUserDoc) {
+      targetUserDoc = await User.findOne({ uid: String(uid) }).lean().exec();
+    }
+  }
+  if (!targetUserDoc && contactOwnerEmail) {
+    targetUserDoc = await User.findOne({ email: String(contactOwnerEmail).toLowerCase().trim() }).lean().exec();
+  }
+
+  const resolvedEmail = targetUserDoc?.email || contactOwnerEmail || '';
+  const resolvedUid = targetUserDoc ? String(targetUserDoc._id) : (uid || null);
 
   const leads = await Contact.find({ _id: { $in: ids } }).exec();
 
@@ -947,13 +1010,13 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
     { _id: { $in: ids } },
     {
       $set: {
-        contactOwnerEmail,
-        contact_owner_email: contactOwnerEmail,
-        assignedTo: contactOwnerEmail,
-        assigned_to: contactOwnerEmail,
-        uid: uid || null,
-        contactOwnerId: uid || null,
-        contact_owner_id: uid || null,
+        contactOwnerEmail: resolvedEmail,
+        contact_owner_email: resolvedEmail,
+        assignedTo: resolvedEmail,
+        assigned_to: resolvedEmail,
+        uid: resolvedUid,
+        contactOwnerId: resolvedUid,
+        contact_owner_id: resolvedUid,
         last_rotation_at: now,
         lastRotationAt: now,
         modifiedAt: now

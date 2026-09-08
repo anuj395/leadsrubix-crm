@@ -81,20 +81,22 @@ async function resolveUserFromContact(contact) {
   const User = mongoose.model('User');
   let targetUser = null;
 
-  // 1. Prioritize contactOwnerEmail / assignedTo email lookup
-  const ownerEmail = contact.contactOwnerEmail || contact.contact_owner_email || contact.assignedTo || contact.assigned_to;
-  if (ownerEmail && String(ownerEmail).trim() !== '') {
-    targetUser = await User.findOne({ email: String(ownerEmail).toLowerCase().trim() }).exec();
-  }
-
-  // 2. Fallback to UID / Mongo ObjectId lookup
-  const candidateUid = contact.uid || contact.contactOwnerId || contact.contact_owner_id || contact.createdBy;
-  if (!targetUser && candidateUid) {
-    if (mongoose.Types.ObjectId.isValid(candidateUid)) {
-      targetUser = await User.findById(candidateUid).exec();
+  // 1. Prioritize Mongo ObjectId / UID lookup (Immutable Ground Truth)
+  const candidateId = contact.contactOwnerId || contact.contact_owner_id || contact.uid || (mongoose.Types.ObjectId.isValid(contact.assignedTo) ? contact.assignedTo : null);
+  if (candidateId) {
+    if (mongoose.Types.ObjectId.isValid(candidateId)) {
+      targetUser = await User.findById(candidateId).exec();
     }
     if (!targetUser) {
-      targetUser = await User.findOne({ uid: String(candidateUid) }).exec();
+      targetUser = await User.findOne({ uid: String(candidateId) }).exec();
+    }
+  }
+
+  // 2. Fallback to contactOwnerEmail / assignedTo email lookup if ID lookup yielded no user
+  if (!targetUser) {
+    const ownerEmail = contact.contactOwnerEmail || contact.contact_owner_email || contact.assignedTo || contact.assigned_to || contact.ownerEmail;
+    if (ownerEmail && String(ownerEmail).trim() !== '' && !mongoose.Types.ObjectId.isValid(ownerEmail)) {
+      targetUser = await User.findOne({ email: String(ownerEmail).toLowerCase().trim() }).exec();
     }
   }
 
@@ -276,11 +278,8 @@ async function notifyBulkLeadAssignment({ contacts = [], organizationId, assigne
 
     let targetUser = assignedUser;
     const firstContact = contacts[0];
-    if (!targetUser && firstContact?.uid) {
-      targetUser = await User.findById(firstContact.uid).lean().exec();
-    }
-    if (!targetUser && firstContact?.contactOwnerEmail) {
-      targetUser = await User.findOne({ email: firstContact.contactOwnerEmail }).lean().exec();
+    if ((!targetUser || !targetUser._id) && firstContact) {
+      targetUser = await resolveUserFromContact(firstContact);
     }
 
     let orgDoc = null;
