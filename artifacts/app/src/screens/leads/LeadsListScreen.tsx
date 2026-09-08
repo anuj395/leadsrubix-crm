@@ -38,9 +38,56 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [filterScrollProgress, setFilterScrollProgress] = useState(0);
 
+  // Multi-select & Bulk Copy State
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleLeadSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const exists = prev.includes(id);
+      const next = exists ? prev.filter((i) => i !== id) : [...prev, id];
+      if (next.length === 0) setIsSelectionMode(false);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredLeads.length) {
+      setSelectedIds([]);
+      setIsSelectionMode(false);
+    } else {
+      setSelectedIds(filteredLeads.map((l) => l.id));
+      setIsSelectionMode(true);
+    }
+  };
+
+  const handleBulkCopy = async () => {
+    const selectedList = leads.filter((l) => selectedIds.includes(l.id));
+    if (selectedList.length === 0) return;
+
+    let text = `📋 *${semantics.leadEntityPlural} List (${selectedList.length} Selected)*\n\n`;
+    selectedList.forEach((lead, index) => {
+      text += `*${index + 1}. ${lead.name || 'Inquiry'}*\n`;
+      if (lead.phone) text += `• Phone: ${lead.phone}\n`;
+      if (lead.email) text += `• Email: ${lead.email}\n`;
+      if (lead.project) text += `• Project: ${lead.project}\n`;
+      text += `• Stage: ${lead.stage || lead.status || 'Fresh'}\n`;
+      if (lead.createdAtFull || lead.createdAt) text += `• Punch Time: ${lead.createdAtFull || lead.createdAt}\n`;
+      if (lead.nextFollowUpDateTime) text += `• Callback: ${lead.nextFollowUpDateTime}\n`;
+      text += `\n`;
+    });
+
+    try {
+      await Share.share({ message: text.trim(), title: `${selectedList.length} Leads Export` });
+    } catch (err) {
+      console.warn('Bulk share error:', err);
+    }
+  };
+
   // Post-Call Disposition State
   const [postCallModalVisible, setPostCallModalVisible] = useState(false);
   const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
+
 
   // Sync filter when navigating from Analytics or other screens
   useEffect(() => {
@@ -346,15 +393,46 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
 
-          <TouchableOpacity
-            style={styles.newLeadCTA}
-            onPress={() => navigation.navigate('LeadForm')}
-            activeOpacity={0.88}
-          >
-            <Ionicons name="add-sharp" size={15} color="#FFFFFF" />
-            <Text style={styles.newLeadCTAText}>Add {semantics.leadEntitySingular}</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              style={[
+                styles.newLeadCTA,
+                { backgroundColor: isSelectionMode ? '#334155' : 'rgba(255, 255, 255, 0.12)' },
+              ]}
+              onPress={() => {
+                if (isSelectionMode) {
+                  setIsSelectionMode(false);
+                  setSelectedIds([]);
+                } else {
+                  setIsSelectionMode(true);
+                  if (filteredLeads.length > 0 && selectedIds.length === 0) {
+                    setSelectedIds([filteredLeads[0].id]);
+                  }
+                }
+              }}
+              activeOpacity={0.88}
+            >
+              <Ionicons
+                name={isSelectionMode ? 'close-circle-outline' : 'checkbox-outline'}
+                size={15}
+                color="#FFFFFF"
+              />
+              <Text style={styles.newLeadCTAText}>
+                {isSelectionMode ? 'Cancel Select' : 'Select Leads'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.newLeadCTA}
+              onPress={() => navigation.navigate('LeadForm')}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="add-sharp" size={15} color="#FFFFFF" />
+              <Text style={styles.newLeadCTAText}>Add {semantics.leadEntitySingular}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
 
         {/* Search Bar */}
         <View style={styles.searchBarBox}>
@@ -473,9 +551,24 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
         ) : (
           filteredLeads.map((lead) => {
             const meta = getStageMeta(lead.stage || lead.status);
+            const isSelected = selectedIds.includes(lead.id);
 
             return (
               <View key={lead.id} style={styles.leadCardRow}>
+                {/* Selection Checkbox in Selection Mode */}
+                {isSelectionMode && (
+                  <TouchableOpacity
+                    style={{ paddingRight: 8, justifyContent: 'center' }}
+                    onPress={() => toggleLeadSelection(lead.id)}
+                  >
+                    <Ionicons
+                      name={isSelected ? 'checkbox' : 'square-outline'}
+                      size={24}
+                      color={isSelected ? '#2563EB' : '#94A3B8'}
+                    />
+                  </TouchableOpacity>
+                )}
+
                 {/* Left Vertical Source Badge */}
                 <View style={styles.sourceVerticalContainer}>
                   <Text style={styles.sourceVerticalText} numberOfLines={1}>
@@ -483,10 +576,22 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                   </Text>
                 </View>
 
-                {/* Main Card Body (Tap opens Lead Details) */}
+                {/* Main Card Body (Tap opens Lead Details / toggles selection) */}
                 <TouchableOpacity
-                  style={styles.leadCardBody}
-                  onPress={() => navigation.navigate('LeadDetail', { leadId: lead.id, lead })}
+                  style={[styles.leadCardBody, isSelected && styles.selectedLeadCardBody]}
+                  onPress={() => {
+                    if (isSelectionMode) {
+                      toggleLeadSelection(lead.id);
+                    } else {
+                      navigation.navigate('LeadDetail', { leadId: lead.id, lead });
+                    }
+                  }}
+                  onLongPress={() => {
+                    if (!isSelectionMode) {
+                      setIsSelectionMode(true);
+                    }
+                    toggleLeadSelection(lead.id);
+                  }}
                   activeOpacity={0.75}
                 >
                   <View style={styles.leadInfoSection}>
@@ -591,13 +696,51 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                       </>
                     ) : null}
                   </View>
-
                 </TouchableOpacity>
               </View>
             );
           })
         )}
       </ScrollView>
+
+      {/* Floating Bulk Action Cockpit */}
+      {isSelectionMode && (
+        <View style={styles.floatingBulkDock}>
+          <TouchableOpacity onPress={toggleSelectAll} style={styles.selectAllBtn}>
+            <Ionicons
+              name={selectedIds.length === filteredLeads.length ? 'checkbox' : 'square-outline'}
+              size={18}
+              color="#60A5FA"
+            />
+            <Text style={styles.selectAllText}>
+              {selectedIds.length === filteredLeads.length ? 'Deselect All' : 'Select All'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.bulkCopyActionBtn, selectedIds.length === 0 && styles.btnDisabled]}
+            onPress={handleBulkCopy}
+            disabled={selectedIds.length === 0}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="copy" size={15} color="#FFFFFF" />
+            <Text style={styles.bulkCopyActionText}>
+              Copy Selected ({selectedIds.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.closeDockBtn}
+            onPress={() => {
+              setIsSelectionMode(false);
+              setSelectedIds([]);
+            }}
+          >
+            <Ionicons name="close" size={20} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
+      )}
+
 
       {/* Post-Call Disposition & Logging Modal */}
       <PostCallDispositionModal
@@ -1028,4 +1171,67 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
+
+  // ─── Multi-Select & Bulk Copy Dock ───
+  selectedLeadCardBody: {
+    borderColor: '#2563EB',
+    borderWidth: 1.5,
+    backgroundColor: '#EFF6FF',
+  },
+  floatingBulkDock: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 85 : 75,
+    left: 16,
+    right: 16,
+    backgroundColor: '#151728',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  selectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  selectAllText: {
+    color: '#60A5FA',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  bulkCopyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  bulkCopyActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  closeDockBtn: {
+    padding: 4,
+  },
 });
+
