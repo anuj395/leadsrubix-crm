@@ -76,21 +76,41 @@ async function createNotification({ userId, organizationId, workspaceId, title, 
   }
 }
 
+async function resolveUserFromContact(contact) {
+  if (!contact) return null;
+  const User = mongoose.model('User');
+  let targetUser = null;
+
+  // 1. Prioritize contactOwnerEmail / assignedTo email lookup
+  const ownerEmail = contact.contactOwnerEmail || contact.contact_owner_email || contact.assignedTo || contact.assigned_to;
+  if (ownerEmail && String(ownerEmail).trim() !== '') {
+    targetUser = await User.findOne({ email: String(ownerEmail).toLowerCase().trim() }).exec();
+  }
+
+  // 2. Fallback to UID / Mongo ObjectId lookup
+  const candidateUid = contact.uid || contact.contactOwnerId || contact.contact_owner_id || contact.createdBy;
+  if (!targetUser && candidateUid) {
+    if (mongoose.Types.ObjectId.isValid(candidateUid)) {
+      targetUser = await User.findById(candidateUid).exec();
+    }
+    if (!targetUser) {
+      targetUser = await User.findOne({ uid: String(candidateUid) }).exec();
+    }
+  }
+
+  return targetUser;
+}
+
 async function notifyLeadAssignmentOrCreation({ contact, organizationId, title, message, type }) {
   try {
     const User = mongoose.model('User');
     
-    let assignedUser = null;
-    if (contact.uid) {
-      assignedUser = await User.findById(contact.uid).exec();
-    } else if (contact.contactOwnerEmail) {
-      assignedUser = await User.findOne({ email: contact.contactOwnerEmail }).exec();
-    }
+    let assignedUser = await resolveUserFromContact(contact);
     
     const belongsToOrg = assignedUser && 
-      String(assignedUser.organization_id || assignedUser.organizationId) === String(organizationId);
+      (!organizationId || String(assignedUser.organization_id || assignedUser.organizationId) === String(organizationId) || assignedUser.role === 'superAdmin');
     
-    if (belongsToOrg) {
+    if (belongsToOrg && assignedUser) {
       await createNotification({
         userId: assignedUser._id,
         organizationId,
@@ -121,7 +141,7 @@ async function notifyLeadAssignmentOrCreation({ contact, organizationId, title, 
       }
     }
 
-    // Trigger Email Notification in background
+    // Trigger Email Notification in background to the assigned user
     dispatchLeadEmailNotification({
       type: type || 'LEAD_CREATED',
       contact,
@@ -157,15 +177,9 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
       if (orgDoc) orgName = orgDoc.name || orgDoc.organization_name || orgDoc.organizationName || '';
     }
 
-    let targetUser = assignedUser;
-    if (!targetUser && contact.uid) {
-      targetUser = await User.findById(contact.uid).lean().exec();
-    }
-    if (!targetUser && contact.contactOwnerEmail) {
-      targetUser = await User.findOne({ email: contact.contactOwnerEmail }).lean().exec();
-    }
+    let targetUser = assignedUser || await resolveUserFromContact(contact);
 
-    let recipientEmail = targetUser?.email || contact.contactOwnerEmail || contact.contact_owner_email || '';
+    let recipientEmail = targetUser?.email || contact.contactOwnerEmail || contact.contact_owner_email || contact.assignedTo || contact.assigned_to || '';
     if (!recipientEmail && orgDoc) {
       recipientEmail = orgDoc.email_id || orgDoc.emailId || orgDoc.email || '';
     }
