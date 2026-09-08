@@ -330,7 +330,7 @@ const migrateExistingWorkspaces = async () => {
         }
       }
       if (!indDoc) continue;
-      const overrides = INDUSTRY_MENU_OVERRIDES[indDoc.code];
+      const overrides = INDUSTRY_MENU_OVERRIDES ? INDUSTRY_MENU_OVERRIDES[indDoc.code] : null;
       if (!overrides) continue;
 
       for (const [menuKey, overName] of Object.entries(overrides)) {
@@ -424,6 +424,133 @@ const migrateExistingWorkspaces = async () => {
   }
 };
 
+async function seedLifecycleSidebarMenus() {
+  const mongoose = require('mongoose');
+  const SidebarMenu = mongoose.model('SidebarMenu');
+  const SidebarPermission = mongoose.model('SidebarPermission');
+  const Role = mongoose.model('Role');
+  const Organization = mongoose.model('Organization');
+
+  let globalParentLead = await SidebarMenu.findOne({ key: 'leads', organization_id: null, industry_id: null }).exec();
+  if (!globalParentLead) {
+    globalParentLead = await SidebarMenu.create({
+      key: 'leads',
+      name: 'Lead',
+      route: '',
+      icon: 'leads',
+      module: 'leads',
+      parent_id: null,
+      order: 4,
+      organization_id: null,
+      industry_id: null,
+      is_active: true,
+    });
+  }
+
+  let globalInquiries = await SidebarMenu.findOne({ key: 'leads.inquiries', organization_id: null, industry_id: null }).exec();
+  if (!globalInquiries) {
+    globalInquiries = await SidebarMenu.create({
+      key: 'leads.inquiries',
+      name: 'Raw Inquiries (Tier 1)',
+      route: '/leads/inquiries',
+      icon: 'contact',
+      module: 'leads',
+      parent_id: globalParentLead._id,
+      order: 4.05,
+      organization_id: null,
+      industry_id: null,
+      is_active: true,
+    });
+  } else {
+    await SidebarMenu.updateOne(
+      { _id: globalInquiries._id },
+      { $set: { name: 'Raw Inquiries (Tier 1)', route: '/leads/inquiries', parent_id: globalParentLead._id, order: 4.05, is_active: true } }
+    );
+  }
+
+  await SidebarMenu.updateMany(
+    { key: 'leads.contact', organization_id: null, industry_id: null },
+    { $set: { name: 'Qualified Leads & Contacts (Tier 2)', order: 4.1 } }
+  );
+
+  await SidebarMenu.updateMany(
+    { key: 'deals', organization_id: null, industry_id: null },
+    { $set: { name: 'Deals & Pipeline (Tier 3)', order: 5 } }
+  );
+
+  const allRoles = await Role.find({}).exec();
+  for (const r of allRoles) {
+    const orgId = r.organization_id || r.organizationId || null;
+    const indId = r.industry_id || null;
+
+    let inqMenu = await SidebarMenu.findOne({ key: 'leads.inquiries', organization_id: orgId }).exec();
+    if (!inqMenu) {
+      inqMenu = globalInquiries;
+    }
+
+    if (inqMenu) {
+      try {
+        await SidebarPermission.updateOne(
+          { role_id: r._id, menu_id: inqMenu._id },
+          {
+            $set: {
+              is_visible: true,
+              role_key: r.key,
+              menu_key: 'leads.inquiries',
+              organization_id: orgId,
+              industry_id: indId,
+            },
+          },
+          { upsert: true }
+        );
+      } catch (err) {
+        // ignore duplicate index
+      }
+    }
+  }
+
+  const allOrgs = await Organization.find({}).exec();
+  for (const org of allOrgs) {
+    const orgId = org.id || org._id;
+    let orgParentLead = await SidebarMenu.findOne({ key: 'leads', organization_id: orgId }).exec();
+    if (!orgParentLead) {
+      orgParentLead = await SidebarMenu.create({
+        key: 'leads',
+        name: 'Lead',
+        route: '',
+        icon: 'leads',
+        module: 'leads',
+        parent_id: null,
+        order: 4,
+        organization_id: orgId,
+        is_active: true,
+      });
+    }
+
+    let orgInquiries = await SidebarMenu.findOne({ key: 'leads.inquiries', organization_id: orgId }).exec();
+    if (!orgInquiries) {
+      orgInquiries = await SidebarMenu.create({
+        key: 'leads.inquiries',
+        name: 'Raw Inquiries (Tier 1)',
+        route: '/leads/inquiries',
+        icon: 'contact',
+        module: 'leads',
+        parent_id: orgParentLead._id,
+        order: 4.05,
+        organization_id: orgId,
+        is_active: true,
+      });
+    } else {
+      await SidebarMenu.updateOne(
+        { _id: orgInquiries._id },
+        { $set: { name: 'Raw Inquiries (Tier 1)', route: '/leads/inquiries', parent_id: orgParentLead._id, order: 4.05, is_active: true } }
+      );
+    }
+  }
+
+  console.log('[migration] 3-Tier Lifecycle Sidebar Menus (Raw Inquiries, Qualified Leads, Deals) successfully self-healed.');
+}
+
 const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.PORT : 8080;
 
 (async () => {
@@ -485,6 +612,12 @@ const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.POR
     await seedAdminAnalyticsSidebarPermissions();
   } catch (err) {
     console.error('[seed] failed to seed admin analytics sidebar permissions:', err.message || err);
+  }
+
+  try {
+    await seedLifecycleSidebarMenus();
+  } catch (err) {
+    console.error('[seed] failed to seed lifecycle sidebar menus:', err.message || err);
   }
 
   try {

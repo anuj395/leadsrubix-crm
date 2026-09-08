@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const leadDistributionService = require('../services/leadDistributionService');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authenticate } = require('../middlewares/auth');
 
-router.use(authMiddleware);
+router.use(authenticate);
 
 // GET /api/lead-distribution
 router.get('/', async (req, res) => {

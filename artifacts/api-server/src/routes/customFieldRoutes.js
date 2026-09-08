@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const customFieldService = require('../services/customFieldService');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authenticate } = require('../middlewares/auth');
 
-router.use(authMiddleware);
+router.use(authenticate);
 
 // GET /api/custom-fields?module=leads
 router.get('/', async (req, res) => {

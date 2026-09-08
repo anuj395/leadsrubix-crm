@@ -1,5 +1,6 @@
-const { getDb } = require('../config/db');
-const { ObjectId } = require('mongodb');
+const mongoose = require('mongoose');
+const getDb = () => mongoose.connection.db;
+const ObjectId = mongoose.Types.ObjectId;
 const notificationService = require('./notificationService');
 
 /**

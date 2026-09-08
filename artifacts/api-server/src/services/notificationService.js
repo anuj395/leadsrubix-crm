@@ -239,6 +239,8 @@ async function dispatchLeadEmailNotification({ type, contact, organizationId, as
   } catch (err) {
     console.error('[NotificationService] Failed to dispatch email notification:', err.message);
   }
+}
+
 async function notifyBulkLeadAssignment({ contacts = [], organizationId, assignedUser, transferredBy, reason }) {
   if (!Array.isArray(contacts) || contacts.length === 0) return;
 

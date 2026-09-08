@@ -1,5 +1,6 @@
-const { getDb } = require('../config/db');
-const { ObjectId } = require('mongodb');
+const mongoose = require('mongoose');
+const getDb = () => mongoose.connection.db;
+const ObjectId = mongoose.Types.ObjectId;
 
 /**
  * Automated Lead Distribution Engine (Round-Robin & Capacity Routing)

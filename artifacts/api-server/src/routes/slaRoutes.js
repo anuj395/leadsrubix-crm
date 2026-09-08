@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const slaTriggerService = require('../services/slaTriggerService');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authenticate } = require('../middlewares/auth');
 
-router.use(authMiddleware);
+router.use(authenticate);
 
 // GET /api/sla-config
 router.get('/', async (req, res) => {
