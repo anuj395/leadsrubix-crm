@@ -1576,8 +1576,10 @@ exports.qualifyInquiry = async (contactId, authedUser) => {
     $set: {
       lifecycle_stage: 'LEAD',
       lifecycleStage: 'LEAD',
-      stage: 'Fresh',
-      status: 'FRESH',
+      is_qualified: true,
+      isQualified: true,
+      stage: 'Qualified',
+      status: 'QUALIFIED',
       qualified_at: new Date(),
       qualifiedBy: authedUser?.email || authedUser?.name,
     },

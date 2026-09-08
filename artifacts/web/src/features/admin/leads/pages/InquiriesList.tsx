@@ -79,6 +79,15 @@ export default function InquiriesListPage() {
 
   const filteredInquiries = useMemo(() => {
     return inquiries.filter((item) => {
+      const isAlreadyQualified =
+        item.is_qualified === true ||
+        item.isQualified === true ||
+        (item.lifecycle_stage && String(item.lifecycle_stage).toUpperCase() === 'LEAD') ||
+        (item.lifecycleStage && String(item.lifecycleStage).toUpperCase() === 'LEAD') ||
+        (item.stage && String(item.stage).toUpperCase().includes('QUALIFIED'));
+
+      if (isAlreadyQualified) return false;
+
       if (filterStage === 'FRESH' && item.stage && !String(item.stage).toLowerCase().includes('fresh')) {
         return false
       }
