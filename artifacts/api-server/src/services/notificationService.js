@@ -116,17 +116,133 @@ async function notifyLeadAssignmentOrCreation({ contact, organizationId, title, 
           workspaceId: contact.workspaceId || contact.workspace_id || null,
           title: 'New Lead Created',
           message: `A new lead "${contact.customerName || contact.name || 'Unnamed'}" has been added to your organization.`,
-          type: 'LEAD_CREATED',
           relatedId: contact._id
         });
       }
     }
+
+    // Trigger Email Notification in background
+    dispatchLeadEmailNotification({
+      type: type || 'LEAD_CREATED',
+      contact,
+      organizationId,
+      assignedUser,
+      source: contact.source
+    }).catch(err => console.error('[NotificationService] Email dispatch error:', err));
   } catch (err) {
     console.error('[NotificationService] Failed to notify lead assignment/creation:', err.stack || err.message);
   }
 }
 
+async function dispatchLeadEmailNotification({ type, contact, organizationId, assignedUser, transferredBy, reason, source }) {
+  try {
+    require('../models/organizationModel');
+    require('../models/userModel');
+    const Organization = mongoose.model('Organization');
+    const User = mongoose.model('User');
+    const {
+      sendNewLeadEmail,
+      sendLeadTransferredEmail,
+      sendThirdPartyLeadEmail
+    } = require('../utils/mailer');
+
+    let orgName = '';
+    let orgDoc = null;
+    if (organizationId) {
+      const filterOr = [{ organization_id: organizationId }, { organizationId: organizationId }];
+      if (mongoose.Types.ObjectId.isValid(organizationId)) {
+        filterOr.push({ _id: organizationId });
+      }
+      orgDoc = await Organization.findOne({ $or: filterOr }).lean().exec();
+      if (orgDoc) orgName = orgDoc.name || orgDoc.organization_name || orgDoc.organizationName || '';
+    }
+
+    let targetUser = assignedUser;
+    if (!targetUser && contact.uid) {
+      targetUser = await User.findById(contact.uid).lean().exec();
+    }
+    if (!targetUser && contact.contactOwnerEmail) {
+      targetUser = await User.findOne({ email: contact.contactOwnerEmail }).lean().exec();
+    }
+
+    let recipientEmail = targetUser?.email || contact.contactOwnerEmail || contact.contact_owner_email || '';
+    if (!recipientEmail && orgDoc) {
+      recipientEmail = orgDoc.email_id || orgDoc.emailId || orgDoc.email || '';
+    }
+    if (!recipientEmail && organizationId) {
+      const orgAdmin = await User.findOne({
+        $or: [
+          { organization_id: organizationId },
+          { organizationId: organizationId }
+        ],
+        role: 'admin'
+      }).lean().exec();
+      if (orgAdmin?.email) {
+        recipientEmail = orgAdmin.email;
+      }
+    }
+
+    if (!recipientEmail) {
+      console.log('[NotificationService] No recipient email found for lead email notification.');
+      return;
+    }
+
+    const customerName = contact.customerName || contact.customer_name || contact.name || 'Unnamed';
+    const contactNumber = contact.contactNumber || contact.contact_no || contact.phone || '';
+    const email = contact.email || contact.email_address || '';
+    const leadSource = source || contact.source || 'Direct';
+    const agentName = targetUser?.name || targetUser?.userName || recipientEmail.split('@')[0];
+
+    if (type === 'LEAD_TRANSFERRED') {
+      await sendLeadTransferredEmail({
+        toEmail: recipientEmail,
+        agentName,
+        customerName,
+        contactNumber,
+        email,
+        source: leadSource,
+        leadId: contact._id,
+        orgName,
+        transferredBy: transferredBy || 'Admin',
+        reason: reason || '',
+        organizationId
+      });
+    } else if (type === 'THIRD_PARTY_LEAD') {
+      await sendThirdPartyLeadEmail({
+        toEmail: recipientEmail,
+        agentName,
+        customerName,
+        contactNumber,
+        email,
+        source: leadSource,
+        leadId: contact._id,
+        orgName,
+        campaign: contact.campaign || '',
+        adset: contact.adset || '',
+        organizationId
+      });
+    } else {
+      await sendNewLeadEmail({
+        toEmail: recipientEmail,
+        agentName,
+        customerName,
+        contactNumber,
+        email,
+        source: leadSource,
+        leadId: contact._id,
+        orgName,
+        leadType: contact.leadType || 'Leads',
+        specialtyOrDepartment: contact.projectName || contact.propertyType || contact.department || '',
+        organizationId
+      });
+    }
+  } catch (err) {
+    console.error('[NotificationService] Failed to dispatch email notification:', err.message);
+  }
+}
+
 module.exports = {
   createNotification,
-  notifyLeadAssignmentOrCreation
+  notifyLeadAssignmentOrCreation,
+  dispatchLeadEmailNotification
 };

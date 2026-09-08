@@ -115,6 +115,15 @@ Temp Password: ${tempPassword}
   }
 
   try {
+    const emailQueueService = require('../services/emailQueueService');
+    await emailQueueService.enqueueEmail({
+      organizationId: null,
+      recipient: emailAddress,
+      subject: 'Welcome to Leads Rubix - Your Account Credentials',
+      htmlContent: htmlContent,
+      triggerAction: 'user_created'
+    }).catch(() => null);
+
     await transporter.sendMail(mailOptions);
     console.log(`[mailer] Account credentials email sent successfully to ${emailAddress}`);
   } catch (error) {
@@ -178,7 +187,359 @@ async function sendResetPasswordEmail({ emailAddress, resetLink }) {
   }
 }
 
+function logFallbackEmail({ to, subject, details }) {
+  const fs = require('fs');
+  const path = require('path');
+  const workspaceRoot = path.join(__dirname, '../../../..');
+  const logFile = path.join(workspaceRoot, 'sent_emails.txt');
+
+  const emailLogEntry = `
+========================================
+Timestamp: ${new Date().toISOString()}
+To: ${to}
+Subject: ${subject}
+Details: ${JSON.stringify(details, null, 2)}
+========================================\n`;
+  try {
+    fs.appendFileSync(logFile, emailLogEntry, 'utf8');
+    console.log(`[mailer] Email logged to fallback file: ${logFile}`);
+  } catch (fsErr) {
+    console.error('[mailer] Failed to write fallback email file:', fsErr);
+  }
+}
+
+async function sendNewLeadEmail({ toEmail, agentName, customerName, contactNumber, email, source, leadId, orgName, leadType, specialtyOrDepartment, organizationId }) {
+  if (!toEmail) return;
+
+  const emailQueueService = require('../services/emailQueueService');
+  const orgId = organizationId || 'GLOBAL';
+
+  // Load custom workspace template if available
+  const { templates } = await getTransporterForOrganization(orgId);
+  const customTemplate = templates?.find(t => t.triggerKey === 'lead_created' && t.isEnabled !== false);
+
+  const dataMap = {
+    customerName: customerName || 'Unnamed Lead',
+    agentName: agentName || 'Agent',
+    contactNumber: contactNumber || 'N/A',
+    email: email || '',
+    source: source || 'Direct Entry',
+    orgName: orgName || 'your organization',
+    leadType: leadType || 'Lead',
+    specialtyOrDepartment: specialtyOrDepartment || ''
+  };
+
+  const subject = customTemplate?.subject
+    ? replaceTemplateVariables(customTemplate.subject, dataMap)
+    : `New Lead Assigned: ${customerName || 'Unnamed Lead'}`;
+
+  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
+  const defaultHtml = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px; margin-bottom: 0;">New Lead Notification</p>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">New Lead Assigned</h3>
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 20px;">
+          Hello <strong>${agentName || 'Agent'}</strong>,<br/>
+          A new lead has been created and assigned to you in <strong>${orgName || 'your organization'}</strong>.
+        </p>
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin-bottom: 24px; border: 1px solid #e5e7eb;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; width: 140px; font-weight: 500;">Lead Name:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${customerName || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Phone / Contact:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${contactNumber || 'N/A'}</td>
+            </tr>
+            ${email ? `<tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Email:</td>
+              <td style="padding: 6px 0; color: #111827; font-weight: 600;">${email}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; font-weight: 500;">Source:</td>
+              <td style="padding: 6px 0; color: #2563eb; font-weight: 600;">${source || 'Direct Entry'}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${leadUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px;">
+            View Lead Details
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const htmlContent = customTemplate?.bodyHtml
+    ? replaceTemplateVariables(customTemplate.bodyHtml, dataMap)
+    : defaultHtml;
+
+  // Enqueue into high-speed non-blocking Queue Service
+  await emailQueueService.enqueueEmail({
+    organizationId: orgId,
+    leadId: leadId ? String(leadId) : null,
+    recipient: toEmail,
+    subject,
+    htmlContent,
+    triggerAction: 'lead_created'
+  });
+}
+
+async function sendLeadTransferredEmail({ toEmail, agentName, customerName, contactNumber, email, source, leadId, orgName, transferredBy, reason, organizationId }) {
+  if (!toEmail) return;
+
+  const emailQueueService = require('../services/emailQueueService');
+  const orgId = organizationId || 'GLOBAL';
+
+  const { templates } = await getTransporterForOrganization(orgId);
+  const customTemplate = templates?.find(t => t.triggerKey === 'lead_transferred' && t.isEnabled !== false);
+
+  const dataMap = {
+    customerName: customerName || 'Unnamed Lead',
+    agentName: agentName || 'Agent',
+    contactNumber: contactNumber || 'N/A',
+    email: email || '',
+    source: source || 'Direct Entry',
+    orgName: orgName || 'your organization',
+    transferredBy: transferredBy || 'Admin',
+    reason: reason || ''
+  };
+
+  const subject = customTemplate?.subject
+    ? replaceTemplateVariables(customTemplate.subject, dataMap)
+    : `Lead Transferred to You: ${customerName || 'Unnamed Lead'}`;
+
+  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
+  const defaultHtml = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px; margin-bottom: 0;">Lead Reassignment Notification</p>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">Lead Transferred to You</h3>
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 20px;">
+          Hello <strong>${agentName || 'Agent'}</strong>,<br/>
+          Lead <strong>${customerName || 'N/A'}</strong> has been reassigned to you by <strong>${transferredBy || 'Admin'}</strong>.
+        </p>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${leadUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px;">
+            View Transferred Lead
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const htmlContent = customTemplate?.bodyHtml
+    ? replaceTemplateVariables(customTemplate.bodyHtml, dataMap)
+    : defaultHtml;
+
+  await emailQueueService.enqueueEmail({
+    organizationId: orgId,
+    leadId: leadId ? String(leadId) : null,
+    recipient: toEmail,
+    subject,
+    htmlContent,
+    triggerAction: 'lead_transferred'
+  });
+}
+
+async function sendThirdPartyLeadEmail({ toEmail, agentName, customerName, contactNumber, email, source, leadId, orgName, campaign, adset, organizationId }) {
+  if (!toEmail) return;
+
+  const emailQueueService = require('../services/emailQueueService');
+  const orgId = organizationId || 'GLOBAL';
+
+  const { templates } = await getTransporterForOrganization(orgId);
+  const customTemplate = templates?.find(t => t.triggerKey === 'webhook_ingested' && t.isEnabled !== false);
+
+  const dataMap = {
+    customerName: customerName || 'Unnamed Lead',
+    agentName: agentName || 'Team',
+    contactNumber: contactNumber || 'N/A',
+    email: email || '',
+    source: source || '3rd-Party Integration',
+    orgName: orgName || 'your organization',
+    campaign: campaign || '',
+    adset: adset || ''
+  };
+
+  const subject = customTemplate?.subject
+    ? replaceTemplateVariables(customTemplate.subject, dataMap)
+    : `[${source || '3rd Party'}] New Lead: ${customerName || 'Unnamed'}`;
+
+  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
+  const defaultHtml = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px; margin-bottom: 0;">3rd-Party Lead Alert (${source || 'Webhook'})</p>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">New 3rd-Party Lead Received</h3>
+        <p style="font-size: 15px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 20px;">
+          Hello <strong>${agentName || 'Team'}</strong>,<br/>
+          A new lead has arrived from <strong>${source || '3rd-Party Integration'}</strong> and assigned to you.
+        </p>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${leadUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 8px;">
+            Open Lead in CRM
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const htmlContent = customTemplate?.bodyHtml
+    ? replaceTemplateVariables(customTemplate.bodyHtml, dataMap)
+    : defaultHtml;
+
+  await emailQueueService.enqueueEmail({
+    organizationId: orgId,
+    leadId: leadId ? String(leadId) : null,
+    recipient: toEmail,
+    subject,
+    htmlContent,
+    triggerAction: 'webhook_ingested'
+  });
+}
+
+/**
+ * Replaces {{variable}} placeholders in template text with actual data.
+ */
+function replaceTemplateVariables(templateStr, dataMap = {}) {
+  if (!templateStr) return '';
+  let result = String(templateStr);
+  for (const [key, val] of Object.entries(dataMap)) {
+    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi');
+    result = result.replace(regex, val !== undefined && val !== null ? String(val) : '');
+  }
+  return result;
+}
+
+/**
+ * Dynamically resolves the Nodemailer transporter for an organization.
+ * If the organization has configured a custom SMTP, uses that; otherwise falls back to system CRM SMTP.
+ */
+async function getTransporterForOrganization(organizationId) {
+  if (!organizationId) {
+    return {
+      transporter,
+      fromAddress: `"Leads Rubix CRM" <${config.smtpUser}>`,
+      fromName: 'Leads Rubix CRM',
+      fromEmail: config.smtpUser
+    };
+  }
+
+  try {
+    const mongoose = require('mongoose');
+    const Organization = mongoose.model('Organization');
+    const org = await Organization.findOne({
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(organizationId) ? organizationId : null },
+        { organization_id: organizationId },
+        { organizationId: organizationId }
+      ]
+    }).lean().exec();
+
+    const smtpConfig = org?.smtpConfig || org?.smtp_config;
+    const useCustom = smtpConfig?.useCustomSmtp || smtpConfig?.use_custom_smtp;
+    const host = smtpConfig?.smtpHost || smtpConfig?.smtp_host;
+    const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 465;
+    const user = smtpConfig?.smtpUser || smtpConfig?.smtp_user;
+    const pass = smtpConfig?.smtpPass || smtpConfig?.smtp_pass;
+    const fromEmail = smtpConfig?.fromEmail || smtpConfig?.from_email || user || config.smtpUser;
+    const fromName = smtpConfig?.fromName || smtpConfig?.from_name || org?.organization_name || 'Leads Rubix CRM';
+
+    if (useCustom && host && user && pass) {
+      const customTransporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465 || smtpConfig?.security === 'SSL',
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false }
+      });
+
+      return {
+        transporter: customTransporter,
+        fromAddress: `"${fromName}" <${fromEmail}>`,
+        fromName,
+        fromEmail,
+        templates: org?.emailTemplates || org?.email_templates || []
+      };
+    }
+  } catch (err) {
+    console.error(`[mailer] Failed to load custom SMTP for org ${organizationId}:`, err.message);
+  }
+
+  return {
+    transporter,
+    fromAddress: `"Leads Rubix CRM" <${config.smtpUser}>`,
+    fromName: 'Leads Rubix CRM',
+    fromEmail: config.smtpUser,
+    templates: []
+  };
+}
+
+/**
+ * Tests an SMTP connection configuration live and sends a verification test email.
+ */
+async function testSmtpConnection(smtpConfig, recipientEmail) {
+  const host = smtpConfig?.smtpHost || smtpConfig?.smtp_host;
+  const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 465;
+  const user = smtpConfig?.smtpUser || smtpConfig?.smtp_user;
+  const pass = smtpConfig?.smtpPass || smtpConfig?.smtp_pass;
+  const fromEmail = smtpConfig?.fromEmail || smtpConfig?.from_email || user;
+  const fromName = smtpConfig?.fromName || smtpConfig?.from_name || 'Workspace Test';
+
+  if (!host || !user || !pass) {
+    throw new Error('SMTP host, username, and password are required for connection test.');
+  }
+
+  const testTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465 || smtpConfig?.security === 'SSL',
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }
+  });
+
+  // Verify connection configuration
+  await testTransporter.verify();
+
+  if (recipientEmail) {
+    await testTransporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: recipientEmail,
+      subject: 'SMTP Connection Test - Leads Rubix CRM',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f9; border-radius: 8px;">
+          <h2 style="color: #272944;">SMTP Connection Successful!</h2>
+          <p>Your custom workspace SMTP server (<strong>${host}:${port}</strong>) is configured correctly and verified live.</p>
+          <p style="color: #6b7280; font-size: 12px;">Sent via Leads Rubix CRM Workspace Email Settings.</p>
+        </div>
+      `
+    });
+  }
+
+  return { success: true, message: `SMTP connection to ${host}:${port} verified successfully.` };
+}
+
 module.exports = {
+  transporter,
   sendCredentialsEmail,
   sendResetPasswordEmail,
+  sendNewLeadEmail,
+  sendLeadTransferredEmail,
+  sendThirdPartyLeadEmail,
+  replaceTemplateVariables,
+  getTransporterForOrganization,
+  testSmtpConnection,
 };
+

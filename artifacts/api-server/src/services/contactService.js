@@ -881,6 +881,26 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       console.error('[Notification] Failed to create in-app transfer notification:', err);
     }
 
+    // Email Notification for New Owner
+    try {
+      const { dispatchLeadEmailNotification } = require('./notificationService');
+      dispatchLeadEmailNotification({
+        type: 'LEAD_TRANSFERRED',
+        contact: {
+          ...lead.toObject(),
+          customerName: leadCustomerName,
+          contactNumber: leadContactNo
+        },
+        organizationId: orgId,
+        assignedUser: owner,
+        transferredBy: authedUser?.name || authedUser?.email || 'Admin',
+        reason: reason || 'Manual Lead Transfer',
+        source: leadSource
+      }).catch(e => console.error('[Notification] Transfer email error:', e));
+    } catch (err) {
+      console.error('[Notification] Failed to dispatch transfer email:', err);
+    }
+
     // In-App Notification for Previous Owner (Old Agent)
     if (oldOwner && oldOwner !== owner.email && oldOwner !== 'Unassigned') {
       try {
@@ -1024,6 +1044,27 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
       } catch (err) {
         console.error('[Notification] Failed to create in-app bulk reassignment notifications:', err);
       }
+    }
+
+    // Email Notification for New Owner
+    try {
+      const { dispatchLeadEmailNotification } = require('./notificationService');
+      dispatchLeadEmailNotification({
+        type: 'LEAD_TRANSFERRED',
+        contact: {
+          ...lead.toObject(),
+          customerName: leadCustomerName,
+          contactNumber: leadContactNo,
+          contactOwnerEmail: contactOwnerEmail
+        },
+        organizationId: orgId,
+        assignedUser: ownerUser,
+        transferredBy: authedUser?.name || authedUser?.email || 'Bulk Reassignment',
+        reason: 'Bulk Lead Reassignment',
+        source: lead.source || 'Direct'
+      }).catch(e => console.error('[Notification] Bulk transfer email error:', e));
+    } catch (err) {
+      console.error('[Notification] Failed to dispatch bulk transfer email:', err);
     }
   }
 

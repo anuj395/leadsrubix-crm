@@ -43,6 +43,10 @@ const organizationSchema = new mongoose.Schema(
     logo_url: { type: String, default: '', alias: 'logoUrl' },
     primary_color: { type: String, default: '#1976d2', alias: 'primaryColor' },
     app_name: { type: String, default: 'Leads Rubix CRM', alias: 'appName' },
+    smtp_config: { type: Object, default: null, alias: 'smtpConfig' },
+    email_templates: { type: Array, default: [], alias: 'emailTemplates' },
+    ses_config: { type: Object, default: null, alias: 'sesConfig' },
+    email_quota: { type: Object, default: null, alias: 'emailQuota' },
   },
   { 
     timestamps: true, 
@@ -110,6 +114,17 @@ function shapePublic(org) {
     logoUrl: o.logoUrl || o.logo_url || '',
     primaryColor: o.primaryColor || o.primary_color || '#1976d2',
     appName: o.appName || o.app_name || 'Leads Rubix CRM',
+    smtpConfig: o.smtpConfig || o.smtp_config || null,
+    emailTemplates: o.emailTemplates || o.email_templates || [],
+    sesConfig: o.sesConfig || o.ses_config || null,
+    emailQuota: o.emailQuota || o.email_quota || {
+      dailyLimit: 2000,
+      monthlyLimit: 50000,
+      rateLimitPerMinute: 300,
+      usedToday: 0,
+      usedThisMonth: 0,
+      lastResetDate: new Date()
+    },
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   };
