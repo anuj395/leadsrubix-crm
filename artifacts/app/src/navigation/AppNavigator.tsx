@@ -27,6 +27,7 @@ import { NotificationsScreen } from '../screens/notifications/NotificationsScree
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { MenuScreen } from '../screens/menu/MenuScreen';
 import { UpdatePasswordScreen } from '../screens/account/UpdatePasswordScreen';
+import { DealsScreen } from '../screens/deals/DealsScreen';
 
 type ScreenName =
   | 'Onboarding'
@@ -34,6 +35,7 @@ type ScreenName =
   | 'Leads'
   | 'LeadDetail'
   | 'LeadForm'
+  | 'Deals'
   | 'Tasks'
   | 'TaskForm'
   | 'CallLogs'
@@ -45,6 +47,7 @@ type ScreenName =
   | 'Menu'
   | 'Login'
   | 'Signup';
+
 
 export const AppNavigator = () => {
   const { token, user, isLoading } = useAuth();
@@ -249,7 +252,10 @@ export const AppNavigator = () => {
         return <LeadDetailScreen route={{ params: routeParams }} navigation={navigation} />;
       case 'LeadForm':
         return <LeadFormScreen route={{ params: routeParams }} navigation={navigation} />;
+      case 'Deals':
+        return <DealsScreen navigation={navigation} />;
       case 'Tasks':
+
         return <TasksScreen navigation={navigation} />;
       case 'TaskForm':
         return <TaskFormScreen route={{ params: routeParams }} navigation={navigation} />;

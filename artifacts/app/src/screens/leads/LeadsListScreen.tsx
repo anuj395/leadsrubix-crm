@@ -13,7 +13,9 @@ import {
   Linking,
   Modal,
   Alert,
+  Share,
   NativeSyntheticEvent,
+
   NativeScrollEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -224,6 +226,16 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
     const body = `Hello ${name || 'Sir/Madam'},\n\nThank you for reaching out to ${user?.organizationName || 'Leads Rubix'}. How can we assist you with your property inquiry today?\n\nBest regards,\n${user?.name || 'Sales Team'}`;
     openEmail(email, subject, body);
   };
+
+  const handleCopyLead = async (lead: LeadItem) => {
+    const text = `📌 *${semantics.leadEntitySingular} Details*\n• Name: ${lead.name || 'N/A'}\n• Phone: ${lead.phone || 'N/A'}\n• Email: ${lead.email || 'N/A'}\n• Project/Requirement: ${lead.project || lead.propertyType || 'N/A'}\n• Stage: ${lead.stage || lead.status || 'Fresh'}\n• Punch Time: ${lead.createdAtFull || lead.createdAt || 'N/A'}${lead.nextFollowUpDateTime ? `\n• Scheduled Callback: ${lead.nextFollowUpDateTime}` : ''}`;
+    try {
+      await Share.share({ message: text, title: `${semantics.leadEntitySingular}: ${lead.name}` });
+    } catch (err) {
+      console.warn('Share error:', err);
+    }
+  };
+
 
   const formatSource = (src?: string) => {
     if (!src) return 'Direct';
@@ -517,23 +529,40 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                       </TouchableOpacity>
                     ) : null}
 
-                    {!lead.phone && !lead.email ? (
-                      <Text style={styles.leadSubDetailText} numberOfLines={1}>
-                        {lead.project ? `${lead.project} • ` : ''}{lead.createdAt}
+                    {/* Punch Time & Scheduled Callback Badges */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                      <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '500' }}>
+                        Punch: {lead.createdAtFull || lead.createdAt}
                       </Text>
-                    ) : null}
+                      {lead.nextFollowUpDateTime ? (
+                        <Text style={{ fontSize: 10, color: '#D97706', fontWeight: '600' }}>
+                          • Callback: {lead.nextFollowUpDateTime}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
 
-                  {/* Right Quick Action Icons Cockpit (Call | Email | WhatsApp) */}
+                  {/* Right Quick Action Icons Cockpit (Copy | Call | Email | WhatsApp) */}
                   <View style={styles.rightActionCockpit}>
+                    <TouchableOpacity
+                      style={[styles.circleActionBtnMail, { backgroundColor: '#475569' }]}
+                      onPress={() => handleCopyLead(lead)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="copy-outline" size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
+
                     {lead.phone ? (
-                      <TouchableOpacity
-                        style={styles.circleActionBtnCall}
-                        onPress={() => handleCall(lead)}
-                        activeOpacity={0.75}
-                      >
-                        <Ionicons name="call" size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
+                      <>
+                        <View style={styles.actionDividerLine} />
+                        <TouchableOpacity
+                          style={styles.circleActionBtnCall}
+                          onPress={() => handleCall(lead)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="call" size={14} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </>
                     ) : null}
 
                     {lead.email ? (
@@ -562,6 +591,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
                       </>
                     ) : null}
                   </View>
+
                 </TouchableOpacity>
               </View>
             );

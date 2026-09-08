@@ -17,3 +17,5 @@ export * from './communicationService';
 export * from './automationService';
 export * from './licenseService';
 export * from './translationService';
+export * from './dealsService';
+

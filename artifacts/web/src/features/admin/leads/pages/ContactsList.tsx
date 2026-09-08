@@ -9,9 +9,9 @@ import Stack from '@mui/material/Stack'
 import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import Chip from '@mui/material/Chip'
-import { SwapHoriz as SwapHorizIcon, Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { SwapHoriz as SwapHorizIcon, Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, ContentCopy as ContentCopyIcon } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -122,6 +122,25 @@ export default function ContactsListPage() {
     })
   }
 
+  const [searchParams] = useSearchParams()
+  const stageParam = searchParams.get('stage') || searchParams.get('filter')
+
+  const handleCopyLeads = (leadsToCopy?: Contact[]) => {
+    const list = leadsToCopy || items.filter(it => selectedIds.includes(it._id))
+    if (list.length === 0) return
+
+    const text = list.map((l, idx) => {
+      const name = l.customerName || (l as any).customer_name || (l as any).name || 'Unnamed'
+      const phone = l.contactNumber || (l as any).contact_no || (l as any).phone || '-'
+      const proj = l.projectName || (l as any).project_name || (l as any).propertyType || '-'
+      const source = l.source || (l as any).lead_source || 'Direct'
+      return `${idx + 1}. ${name} | 📞 ${phone} | 🏢 ${proj} | 🌐 ${source}`
+    }).join('\n')
+
+    navigator.clipboard.writeText(text)
+    setToast({ open: true, msg: `📋 ${list.length} lead details copied to clipboard!`, sev: 'success' })
+  }
+
   const handleImport = () => {
     setOpenImportModal(true)
   }
@@ -165,11 +184,51 @@ export default function ContactsListPage() {
       }
     }
 
+    const createdAtCol: GridColDef<Contact> = {
+      field: 'createdAt',
+      headerName: 'Punch Date & Time',
+      flex: 1,
+      minWidth: 170,
+      valueGetter: (_v: unknown, row: Contact) => row.createdAt || (row as any).created_at,
+      renderCell: (p) => {
+        const v = p.value
+        if (!v) return <Box sx={{ color: 'text.secondary' }}>—</Box>
+        try {
+          return new Date(v as string).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true
+          })
+        } catch (e) {
+          return String(v)
+        }
+      }
+    }
+
+    const nextFollowUpCol: GridColDef<Contact> = {
+      field: 'nextFollowUpDateTime',
+      headerName: 'Scheduled Callback',
+      flex: 1,
+      minWidth: 170,
+      valueGetter: (_v: unknown, row: Contact) => (row as any).nextFollowUpDateTime || (row as any).next_follow_up_date_time,
+      renderCell: (p) => {
+        const v = p.value
+        if (!v) return <Box sx={{ color: 'text.secondary' }}>—</Box>
+        try {
+          return new Date(v as string).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true
+          })
+        } catch (e) {
+          return String(v)
+        }
+      }
+    }
+
     const emailIdx = dataCols.findIndex((col) => col.field === 'emailId')
     if (emailIdx !== -1) {
-      dataCols.splice(emailIdx + 1, 0, stageCol)
+      dataCols.splice(emailIdx + 1, 0, stageCol, createdAtCol, nextFollowUpCol)
     } else {
-      dataCols.push(stageCol)
+      dataCols.push(stageCol, createdAtCol, nextFollowUpCol)
     }
 
     const sNoCol: GridColDef<Contact> = {
@@ -195,9 +254,14 @@ export default function ContactsListPage() {
           disableColumnMenu: true,
           align: 'right',
           headerAlign: 'right',
-          width: 120,
+          width: 140,
           renderCell: (p) => (
             <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+              <Tooltip title="Copy Lead Details">
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleCopyLeads([p.row]); }}>
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
               {can_edit && (
                 <Tooltip title="Edit">
                   <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/leads/contacts/${p.row._id}/edit`); }}>
@@ -368,6 +432,15 @@ export default function ContactsListPage() {
           <Stack direction="row" spacing={1.5}>
             {selectedIds.length > 0 && (
               <>
+                <Tooltip title={`Copy details of ${selectedIds.length} selected ${labels.leads}`}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ContentCopyIcon />}
+                    onClick={() => handleCopyLeads()}
+                  >
+                    Copy ({selectedIds.length})
+                  </Button>
+                </Tooltip>
                 {can_edit && (
                   <Tooltip title={`Reassign selected ${labels.leads} to a different team member`}>
                     <Button
@@ -375,7 +448,7 @@ export default function ContactsListPage() {
                       startIcon={<SwapHorizIcon />}
                       onClick={() => setOpenOwnerModal(true)}
                     >
-                      Reassign Owner ({selectedIds.length})
+                      Reassign Lead ({selectedIds.length})
                     </Button>
                   </Tooltip>
                 )}

@@ -449,7 +449,7 @@ const SCREEN_DEFAULTS = [
       { field_key: 'organizationId', label: 'Organization Name', type: 'select', is_required: true, order: 1, dropdown_source: 'api', dropdown_api: 'options/organizations', is_table_visible: true },
       { field_key: 'customerName', label: 'Customer Name', type: 'text', is_required: true, order: 2 },
       { field_key: 'contactNumber', label: 'Contact Number', type: 'phone', is_required: true, order: 3 },
-      { field_key: 'emailId', label: 'Email ID', type: 'email', is_required: true, order: 4 },
+      { field_key: 'emailId', label: 'Email ID', type: 'email', is_required: false, order: 4 },
       { field_key: 'alternateNo', label: 'Alternate Number', type: 'phone', is_required: false, order: 5 },
       { field_key: 'leadType', label: 'Lead Type', type: 'select', is_required: true, order: 6, dropdown_source: 'api', dropdown_api: '/api/options/leadType' },
       { field_key: 'location', label: 'Location', type: 'select', is_required: false, order: 7, dropdown_source: 'api', dropdown_api: '/api/options/location' },

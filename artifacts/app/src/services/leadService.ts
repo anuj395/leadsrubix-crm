@@ -22,6 +22,8 @@ export interface LeadItem {
   notes?: string;
   contactOwnerEmail?: string;
   createdAt?: string;
+  createdAtFull?: string;
+  nextFollowUpDateTime?: string;
   isConverted?: boolean;
   is_converted?: boolean;
 }
@@ -50,6 +52,7 @@ export const leadService = {
 
       return items.map((item: any) => {
         let createdFormatted = 'Recently';
+        let createdFull = '';
         if (item.createdAt || item.created_at) {
           const d = new Date(item.createdAt || item.created_at);
           if (!isNaN(d.getTime())) {
@@ -57,6 +60,18 @@ export const leadService = {
               month: 'short',
               day: 'numeric',
             });
+            createdFull = `${d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          }
+        }
+
+        let followUpFull = '';
+        if (item.nextFollowUpDateTime || item.next_follow_up_date_time || item.followUpDate || item.follow_up_date) {
+          const fDate = item.nextFollowUpDateTime || item.next_follow_up_date_time || item.followUpDate || item.follow_up_date;
+          const fd = new Date(fDate);
+          if (!isNaN(fd.getTime())) {
+            followUpFull = `${fd.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${fd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          } else {
+            followUpFull = String(fDate);
           }
         }
 
@@ -88,8 +103,11 @@ export const leadService = {
           notes: item.notes || item.description || '',
           contactOwnerEmail: item.contactOwnerEmail || item.contact_owner_email || '',
           createdAt: createdFormatted,
+          createdAtFull: createdFull || createdFormatted,
+          nextFollowUpDateTime: followUpFull,
         };
       });
+
     } catch (err) {
       console.warn('[leadService] Error loading leads from backend:', err);
       return [];

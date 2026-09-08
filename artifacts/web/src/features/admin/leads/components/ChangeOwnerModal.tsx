@@ -146,7 +146,7 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, textAlign: 'center' }}>
-        Reassign Owner ({selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''})
+        Reassign Lead ({selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''})
       </DialogTitle>
 
       <DialogContent dividers>
@@ -159,10 +159,10 @@ export function ChangeOwnerModal({ open, onClose, selectedIds, onSuccess }: Chan
         {step === 1 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 1 }}>
             <FormControl fullWidth size="small" disabled={loadingUsers}>
-              <InputLabel>Choose Owner</InputLabel>
+              <InputLabel>Assign New Lead Owner / Agent</InputLabel>
               <Select
                 value={selectedUserId}
-                label="Choose Owner"
+                label="Assign New Lead Owner / Agent"
                 onChange={(e) => setSelectedUserId(e.target.value)}
               >
                 {users.map((u) => (

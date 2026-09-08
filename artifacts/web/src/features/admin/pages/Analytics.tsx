@@ -260,23 +260,14 @@ export default function AnalyticsPage() {
       }
       navigate('/task-drilldown-data', { state: { taskDrilldownData, ts: Date.now() } })
     } else {
-      if (label === 'Fresh') leadFilter.stage = ['FRESH', 'Fresh', 'fresh']
-      else if (label === 'Call Back') leadFilter.stage = ['CALLBACK', 'CALL BACK', 'Call Back', 'callback', 'Call back']
-      else if (label === 'Interested') leadFilter.stage = ['INTERESTED', 'Interested', 'interested']
-      else if (label === 'Closed Won') leadFilter.stage = ['WON', 'CLOSED WON', 'Closed Won', 'won', 'Closed won']
-      else if (label === 'Not Interested') leadFilter.stage = ['NOT INTERESTED', 'Not Interested', 'not interested', 'Not interested']
-      else if (label === 'Closed Lost') leadFilter.stage = ['LOST', 'CLOSED LOST', 'Closed Lost', 'lost', 'Closed lost']
+      let stageKey = 'fresh'
+      if (label.toLowerCase().includes('fresh')) stageKey = 'fresh'
+      else if (label.toLowerCase().includes('call')) stageKey = 'callback'
+      else if (label.toLowerCase().includes('interest') && !label.toLowerCase().includes('not')) stageKey = 'interested'
+      else if (label.toLowerCase().includes('won') || label.toLowerCase().includes('deal')) stageKey = 'deals'
+      else if (label.toLowerCase().includes('lost') || label.toLowerCase().includes('not')) stageKey = 'lost'
 
-      const drilldownData = {
-        uid: targetUid,
-        organizationId: orgId,
-        industryId: indId,
-        leadFilter,
-        taskFilter: {},
-        source: isSource,
-        role: roleFlag
-      }
-      navigate('/drilldown-data', { state: { drilldownData, ts: Date.now() } })
+      navigate(`/leads/contacts?stage=${stageKey}`)
     }
   }
 

@@ -97,7 +97,41 @@ export const MenuScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* ─── SECTION 0: SALES & PIPELINE ─── */}
+        <View style={styles.sectionBlock}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>SALES & PIPELINE</Text>
+            <InfoGuideBadge
+              title="Deals & Opportunities"
+              description="Track high-value opportunities through customizable pipeline stages."
+            />
+          </View>
+
+          <View style={styles.cardGroup}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => navigation.navigate('Deals')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconBox, { backgroundColor: '#EEF2FF' }]}>
+                <Ionicons name="briefcase-sharp" size={20} color="#4F46E5" />
+              </View>
+              <View style={styles.actionTextGroup}>
+                <Text style={styles.actionTitle}>Deals & Pipeline</Text>
+                <Text style={styles.actionSubtitle}>
+                  Track sales stages, opportunity values & closes
+                </Text>
+              </View>
+              <View style={[styles.tagPill, { backgroundColor: '#EEF2FF' }]}>
+                <Text style={[styles.tagPillText, { color: '#4338CA' }]}>Pipeline</Text>
+              </View>
+              <Ionicons name="chevron-forward-sharp" size={16} color="#CBD5E1" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* ─── SECTION 1: COMMUNICATIONS & DIALER ─── */}
+
         <View style={styles.sectionBlock}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>COMMUNICATIONS & DIALER</Text>
