@@ -741,7 +741,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                             textOverflow: 'ellipsis',
                                         }}
                                     >
-                                        {user ? `${roleConfig[user.role].label} - ${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code] || ''}` : 'Guest'}
+                                        {user ? `${roleConfig[user.role]?.label || (user.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'User')}${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code] ? ` - ${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code]}` : ''}` : 'Guest'}
                                     </Typography>
                                 </Box>
 
@@ -825,7 +825,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                     fontWeight: 400,
                                 }}
                             >
-                                {user ? `${roleConfig[user.role].label} (${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code] || ''})` : 'Guest'}
+                                {user ? `${roleConfig[user.role]?.label || (user.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'User')}${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code] ? ` (${INDUSTRY_NAMES[user.industryId || (user as any).industry_id || (user as any).industryCode || (user as any).industry_code]})` : ''}` : 'Guest'}
                             </Typography>
                         </Box>
                     </Stack>

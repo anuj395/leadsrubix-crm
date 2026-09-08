@@ -29,6 +29,17 @@ export const MenuScreen = ({ navigation }: any) => {
     .join('')
     .toUpperCase();
 
+  const getFormattedRole = (role?: string) => {
+    if (!role) return 'USER';
+    const normalized = role.toLowerCase().trim();
+    if (normalized === 'admin' || normalized === 'clientadmin' || normalized === 'client_admin') return 'ADMIN';
+    if (normalized === 'superadmin' || normalized === 'super_admin') return 'SUPER ADMIN';
+    if (normalized === 'sales_manager' || normalized === 'manager') return 'SALES MANAGER';
+    if (normalized === 'sales_agent' || normalized === 'agent') return 'SALES AGENT';
+    if (normalized === 'team_lead') return 'TEAM LEAD';
+    return role.replace(/_/g, ' ').toUpperCase();
+  };
+
   const handleSignOut = () => {
     Alert.alert(
       'Sign Out',
@@ -83,7 +94,7 @@ export const MenuScreen = ({ navigation }: any) => {
               </View>
             </View>
             <Text style={styles.userRoleText}>
-              {(user?.role || 'Administrator').toUpperCase()} • Leads Rubix Workspace
+              {getFormattedRole(user?.role)} • {user?.organizationName || 'Leads Rubix Workspace'}
             </Text>
           </View>
 
