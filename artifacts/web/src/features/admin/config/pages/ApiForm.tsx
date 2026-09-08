@@ -96,7 +96,7 @@ export default function ApiFormPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', overflowY: 'auto', flex: 1, minHeight: 0 }}>
       <AppCard
         title={id ? 'Edit API Connection' : 'Create API Connection'}
         subtitle="Manage inbound campaign integrations, API access keys, and lead router mappings."

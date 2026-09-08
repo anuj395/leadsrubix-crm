@@ -149,7 +149,7 @@ const AddContactPage = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, width: "100%", minWidth: 0 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, width: "100%", minWidth: 0, height: '100%', overflowY: 'auto', flex: 1, minHeight: 0 }}>
       <AppCard
         title={id ? `Edit ${labels.contact}` : `Add New ${labels.contact}`}
         subtitle={`Manage client ${labels.contact.toLowerCase()} and profiles. Fields and requirements are configured dynamically.`}

@@ -51,7 +51,7 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!contact?._id) return
+    if (!contact?._id || loading) return
 
     setLoading(true)
     try {

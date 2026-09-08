@@ -411,6 +411,89 @@ async function sendThirdPartyLeadEmail({ toEmail, agentName, customerName, conta
 }
 
 /**
+ * Send a single consolidated Bulk Lead Reassignment Digest Email.
+ * @param {Object} params
+ * @param {string} params.toEmail
+ * @param {string} params.agentName
+ * @param {Array<Object>} params.leads
+ * @param {string} params.orgName
+ * @param {string} params.transferredBy
+ * @param {string} params.reason
+ * @param {string} params.organizationId
+ */
+async function sendBulkLeadTransferredEmail({ toEmail, agentName, leads = [], orgName, transferredBy, reason, organizationId }) {
+  const loginUrl = process.env.FRONTEND_URL || 'http://localhost:3000/login';
+  const leadCount = leads.length;
+  const leadRowsHtml = leads.map((lead, idx) => `
+    <tr style="border-bottom: 1px solid #e5e7eb;">
+      <td style="padding: 10px 8px; font-weight: 600; color: #111827; font-size: 13px;">${idx + 1}</td>
+      <td style="padding: 10px 8px; font-weight: 600; color: #111827; font-size: 13px;">${lead.customerName || lead.customer_name || 'Unnamed'}</td>
+      <td style="padding: 10px 8px; color: #4b5563; font-size: 13px;">${lead.contactNumber || lead.phone || '-'}</td>
+      <td style="padding: 10px 8px; color: #4b5563; font-size: 13px;">${lead.projectName || lead.propertyType || lead.leadType || '-'}</td>
+      <td style="padding: 10px 8px; color: #4b5563; font-size: 13px;">${lead.source || 'Direct'}</td>
+    </tr>
+  `).join('');
+
+  const defaultHtml = `
+    <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
+      <div style="background-color: #ffffff; border-radius: 12px; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
+        
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #272944; margin: 0; font-size: 24px; font-weight: 800;">LEADS RUBIX</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">Bulk Lead Assignment Digest</p>
+        </div>
+
+        <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin: 0 0 6px 0;">📊 ${leadCount} New Leads Transferred to You</h3>
+          <p style="margin: 0; font-size: 14px; color: #1e3a8a;">
+            Hello <strong>${agentName}</strong>, <strong>${transferredBy}</strong> has transferred <strong>${leadCount} leads</strong> to your workspace pipeline.
+            ${reason ? `<br/><em>Reason: "${reason}"</em>` : ''}
+          </p>
+        </div>
+
+        <div style="overflow-x: auto; margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="background-color: #f3f4f6; border-bottom: 1px solid #e5e7eb;">
+                <th style="padding: 10px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280;">#</th>
+                <th style="padding: 10px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280;">Customer Name</th>
+                <th style="padding: 10px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280;">Phone</th>
+                <th style="padding: 10px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280;">Project / Specialty</th>
+                <th style="padding: 10px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280;">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${leadRowsHtml}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${loginUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 6px;">
+            Open CRM Pipeline
+          </a>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
+          This is an automated consolidated lead digest notification from ${orgName || 'Leads Rubix CRM'}.
+        </p>
+      </div>
+    </div>
+  `;
+
+  const emailQueueService = require('../services/emailQueueService');
+  await emailQueueService.enqueueEmail({
+    organizationId: organizationId ? String(organizationId) : null,
+    leadId: null,
+    recipient: toEmail,
+    subject: `📊 [${leadCount} New Leads] Transferred to your pipeline`,
+    htmlContent: defaultHtml,
+    triggerAction: 'bulk_lead_transferred'
+  });
+}
+
+/**
  * Replaces {{variable}} placeholders in template text with actual data.
  */
 function replaceTemplateVariables(templateStr, dataMap = {}) {
@@ -537,6 +620,7 @@ module.exports = {
   sendResetPasswordEmail,
   sendNewLeadEmail,
   sendLeadTransferredEmail,
+  sendBulkLeadTransferredEmail,
   sendThirdPartyLeadEmail,
   replaceTemplateVariables,
   getTransporterForOrganization,
