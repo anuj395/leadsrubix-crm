@@ -425,6 +425,41 @@ function buildController({
       if (req.user?.uid) {
         payload.uid = String(req.user.uid);
       }
+
+      if (resourceName === 'Task') {
+        const cId = payload.contact_id || payload.contactId;
+        if (cId) {
+          const mongoose = require('mongoose');
+          let ContactModel = null;
+          try {
+            ContactModel = mongoose.model('Contact');
+          } catch {
+            ContactModel = require('../models/contactModel').Contact;
+          }
+          if (ContactModel) {
+            const contact = await ContactModel.findById(cId).lean().exec();
+            if (contact) {
+              if (!payload.customer_name) payload.customer_name = contact.customer_name || contact.customerName || '';
+              if (!payload.contact_number) payload.contact_number = contact.contact_number || contact.contactNumber || '';
+              if (!payload.project_name) payload.project_name = contact.project_name || contact.projectName || '';
+              if (!payload.location) payload.location = contact.location || '';
+              if (!payload.budget) payload.budget = contact.budget || '';
+              if (!payload.stage) payload.stage = contact.stage || '';
+              if (!payload.source) payload.source = contact.source || contact.lead_source || '';
+              if (!payload.contact_owner_email) payload.contact_owner_email = contact.contact_owner_email || contact.contactOwnerEmail || '';
+            }
+          }
+        }
+        if (payload.due_date) {
+          const dTime = new Date(payload.due_date).getTime();
+          if (!isNaN(dTime) && dTime < Date.now() - 5 * 60 * 1000) {
+            return res.status(400).json({ message: 'Due date & time cannot be in the past' });
+          }
+        }
+        if (!payload.status) payload.status = 'PENDING';
+        if (!payload.priority) payload.priority = 'Medium';
+      }
+
       const doc = await Model.create(payload);
       const docObj = doc.toObject();
 

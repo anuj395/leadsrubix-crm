@@ -145,6 +145,14 @@ const getFieldTooltip = (key: string, label: string, indCode?: string) => {
     apiUrl: 'API URL:\nIntegration target endpoint URL\nfor lead payload data.',
     webhookUrl: 'Webhook URL:\nTarget URL to post real-time\nevent payloads.',
     integrationName: 'Integration Name:\nFriendly identifier name\nfor the integration.',
+    contactId: 'Customer / Contact:\nSelect the associated customer\nor lead for this task.',
+    taskType: 'Task Type:\nActivity classification\n(Call Back, Site Visit, Meeting, etc.).',
+    dueDate: 'Due Date & Time:\nScheduled deadline for completing\nthis activity. Cannot be in the past.',
+    assignedTo: 'Assigned Representative:\nSales rep or team member\nresponsible for this task.',
+    callbackReason: 'Callback Reason:\nCustomer reason for\nrequesting a callback.',
+    unitNumber: 'Unit / Flat Number:\nSpecific inventory unit\nor flat booked.',
+    bookingAmount: 'Booking Token Amount:\nAmount received for\nbooking confirmation.',
+    bookingDate: 'Booking Date:\nOfficial registration or\npayment date of booking.',
   }
   return map[normalizedKey] || map[key] || `Configure the\n${label} field.`
 }
@@ -365,7 +373,9 @@ export function DynamicForm({
           organizationId: finalOrgId,
         })
         if (cancelled) return
-        let loadedFields = data.formFields || data.form_fields || []
+        let loadedFields = (data.formFields || data.form_fields || []).filter(
+          (f: any) => f.is_form_visible !== false && f.isFormVisible !== false
+        )
         const isEdit = !!(initialValues?.id || initialValues?._id || initialValues?.organizationId)
         if (!isEdit && screen === 'organization') {
           loadedFields = loadedFields.filter(
@@ -493,6 +503,33 @@ export function DynamicForm({
       const snake = key.replace(/([A-Z])/g, '_$1').toLowerCase()
       next[camel] = value
       next[snake] = value
+
+      if (key === 'contactId' || key === 'contact_id') {
+        const rawList = [
+          ...(rawDropdowns['options/contacts'] || []),
+          ...(rawDropdowns['/api/options/contacts'] || []),
+          ...(rawDropdowns[key] || []),
+        ]
+        const matched = rawList.find(o => String(o.value || o._id || o.id) === String(value))
+        if (matched) {
+          if (matched.customerName) {
+            next.customerName = matched.customerName
+            next.customer_name = matched.customerName
+          }
+          if (matched.contactNumber) {
+            next.contactNumber = matched.contactNumber
+            next.contact_number = matched.contactNumber
+          }
+          if (matched.projectName) {
+            next.projectName = matched.projectName
+            next.project_name = matched.projectName
+          }
+          if (matched.location) {
+            next.location = matched.location
+          }
+        }
+      }
+
       return next
     })
     // Clear field-level error on change
@@ -568,6 +605,13 @@ export function DynamicForm({
               next[f.key] = `${f.label} must be a valid number.`
             }
           }
+
+          if (f.key === 'dueDate' || f.key === 'due_date' || f.key === 'nextFollowUp' || f.key === 'next_follow_up') {
+            const dTime = new Date(String(v)).getTime()
+            if (!isNaN(dTime) && dTime < Date.now() - 5 * 60 * 1000) {
+              next[f.key] = `${f.label} cannot be scheduled in the past`
+            }
+          }
         }
       }
 
@@ -635,7 +679,13 @@ export function DynamicForm({
           if ((f.key === 'organizationId' || f.key === 'organizationId') && !isSuperAdmin) {
             return null
           }
+          if ((f as any).is_form_visible === false || (f as any).isFormVisible === false) {
+            return null
+          }
           if (f.key === 'otherNotIntReason' && values.notIntReason !== 'Other') {
+            return null
+          }
+          if ((f.key === 'callbackReason' || f.key === 'callback_reason') && values.taskType !== 'Call Back' && values.type !== 'Call Back') {
             return null
           }
           if (f.key === 'distributionType') {
@@ -736,10 +786,17 @@ export function DynamicForm({
             }
 
             if (f.key === 'status' && opts.length === 0) {
-              opts = [
-                { value: 'ACTIVE', label: 'Active' },
-                { value: 'INACTIVE', label: 'Inactive' }
-              ];
+              opts = (activeScreenKey === 'tasks' || activeScreenKey === 'leads.tasks')
+                ? [
+                    { value: 'PENDING', label: 'Pending / Scheduled' },
+                    { value: 'IN_PROGRESS', label: 'In Progress' },
+                    { value: 'COMPLETED', label: 'Completed' },
+                    { value: 'CANCELLED', label: 'Cancelled' },
+                  ]
+                : [
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'INACTIVE', label: 'Inactive' }
+                  ];
             }
             const isApiSource = f.dropdown_source === 'api' || (f as any).dropdownSource === 'api'
             const isLoading = isApiSource && (dropdownLoading[f.key] || (apiUrl ? dropdownLoading[apiUrl] : false))

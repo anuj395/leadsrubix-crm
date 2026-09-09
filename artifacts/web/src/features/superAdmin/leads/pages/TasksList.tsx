@@ -124,8 +124,8 @@ export default function TasksListPage() {
   const gridColumns = useMemo<GridColDef<Task>[]>(() => {
     const sNoCol: GridColDef<Task> = {
       field: 'sNo',
-      headerName: 'S. No.',
-      width: 70,
+      headerName: '#',
+      width: 55,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -215,15 +215,26 @@ export default function TasksListPage() {
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<Record<string, boolean>>({})
 
+  const HIDDEN_TELEMETRY_KEYS = useMemo(() => new Set([
+    'latitude', 'longitude', 'transferStatus', 'transfer_status',
+    'completedAt', 'completed_at', 'uniqueMeeting', 'unique_meeting',
+    'uniqueSiteVisit', 'unique_site_visit', 'createdAt', 'created_at',
+    'contactId', 'contact_id'
+  ]), [])
+
   useEffect(() => {
     if (columns.length > 0) {
       const model: Record<string, boolean> = {}
       columns.forEach((col) => {
-        model[col.key] = col.visible !== false
+        if (HIDDEN_TELEMETRY_KEYS.has(col.key)) {
+          model[col.key] = false
+        } else {
+          model[col.key] = col.visible !== false
+        }
       })
       setColumnVisibilityModel(model)
     }
-  }, [columns])
+  }, [columns, HIDDEN_TELEMETRY_KEYS])
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -260,29 +271,43 @@ export default function TasksListPage() {
         />
       </AppCard>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>New Task</DialogTitle>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AddIcon color="primary" fontSize="small" /> Schedule New Task
+        </DialogTitle>
         <DialogContent dividers>
           <DynamicForm
             screen="tasks"
+            industryCode={selectedIndustry || 'temp0001'}
+            organizationId={selectedOrg || undefined}
+            initialValues={{ taskType: 'Call Back', priority: 'Medium' }}
             onCancel={() => setDialogOpen(false)}
-            submitLabel="Create"
+            submitLabel="Schedule Task"
             onSubmit={async (values) => {
-              await api.post('tasks', values)
-              setDialogOpen(false)
-              setToast({ open: true, msg: 'Task created successfully', sev: 'success' })
-              await refresh()
+              try {
+                await api.post('tasks', values)
+                setDialogOpen(false)
+                setToast({ open: true, msg: 'Task scheduled successfully!', sev: 'success' })
+                await refresh()
+              } catch (e: unknown) {
+                const err = e as { response?: { data?: { message?: string } } }
+                setToast({ open: true, msg: err?.response?.data?.message ?? 'Failed to schedule task', sev: 'error' })
+              }
             }}
           />
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(editingTask)} onClose={() => setEditingTask(null)} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Task</DialogTitle>
+      <Dialog open={Boolean(editingTask)} onClose={() => setEditingTask(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <EditIcon color="primary" fontSize="small" /> Edit Task
+        </DialogTitle>
         <DialogContent dividers>
           {editingTask && (
             <DynamicForm
               screen="tasks"
+              industryCode={selectedIndustry || 'temp0001'}
+              organizationId={selectedOrg || undefined}
               initialValues={toFormValues(editingTask)}
               onCancel={() => setEditingTask(null)}
               submitLabel="Save Changes"
