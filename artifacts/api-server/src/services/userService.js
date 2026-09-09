@@ -349,10 +349,56 @@ exports.create = async ({ payload, authedUser }) => {
       }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
     ]);
 
-    if (!hasTeam || !hasBranch || !hasDesignation) {
-      const err = new Error('Please go to Settings and configure Team, Branch, and Designation before adding users.');
-      err.status = 400;
-      throw err;
+    // Self-healing: if any baseline setup is missing, auto-provision standard defaults
+    if (!hasTeam) {
+      await Team.findOneAndUpdate(
+        { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] },
+        {
+          $setOnInsert: {
+            organization_id: targetOrgId,
+            industry_id: industryId,
+          },
+          $push: {
+            teams: { name: 'General Sales Team', code: 'GST', is_active: true }
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+    if (!hasBranch) {
+      await Branch.findOneAndUpdate(
+        { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] },
+        {
+          $setOnInsert: {
+            organization_id: targetOrgId,
+            industry_id: industryId,
+          },
+          $push: {
+            branches: { name: 'Head Office', code: 'HQ', is_active: true }
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+    if (!hasDesignation) {
+      const defaultDesignations = [
+        { name: 'Sales Executive', value: 'sales_executive', label: 'Sales Executive' },
+        { name: 'Team Lead', value: 'team_lead', label: 'Team Lead' },
+        { name: 'Sales Manager', value: 'sales_manager', label: 'Sales Manager' }
+      ];
+      await Designation.findOneAndUpdate(
+        { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] },
+        {
+          $setOnInsert: {
+            organization_id: targetOrgId,
+            industry_id: industryId,
+          },
+          $push: {
+            designations: { $each: defaultDesignations }
+          }
+        },
+        { upsert: true, new: true }
+      );
     }
   }
   if (payload.isActive !== false && targetOrgId) {
@@ -474,7 +520,16 @@ exports.create = async ({ payload, authedUser }) => {
   void (async () => {
     try {
       const Organization = mongoose.model('Organization');
-      const org = await Organization.findOne({ industryId: industryId }).exec();
+      let org = null;
+      if (targetOrgId) {
+        org = await Organization.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(targetOrgId) ? targetOrgId : null },
+            { organizationId: targetOrgId },
+            { organization_id: targetOrgId }
+          ]
+        }).exec();
+      }
       let orgName = org ? (org.name || org.organizationName) : '';
       if (!orgName) {
         const Industry = mongoose.model('Industry');
@@ -585,8 +640,20 @@ exports.update = async ({ id, payload, authedUser }) => {
   const nextReportingTo = payload.reportingTo !== undefined ? payload.reportingTo : (payload.reporting_to !== undefined ? payload.reporting_to : target.reportingTo);
 
   if (nextReportingTo) {
+    const targetIdStr = String(target.id || target._id);
+    if (String(nextReportingTo) === targetIdStr) {
+      const err = new Error('A user cannot report to themselves.');
+      err.status = 400;
+      throw err;
+    }
     const manager = await userModel.findById(nextReportingTo);
     if (manager) {
+      const managerReportingTo = String(manager.reportingTo || manager.reporting_to || '');
+      if (managerReportingTo === targetIdStr) {
+        const err = new Error(`Circular reporting detected: "${manager.firstName || manager.name || manager.email}" already reports to this user.`);
+        err.status = 400;
+        throw err;
+      }
       const allowedManagers = {
         sales: ['teamLead', 'leadManager', 'admin'],
         teamLead: ['leadManager', 'admin'],
@@ -780,11 +847,19 @@ exports.remove = async ({ id, authedUser }) => {
   const User = mongoose.model('User');
   const Task = mongoose.model('Task');
   const Contact = mongoose.model('Contact');
+  const Lead = mongoose.model('Lead');
 
   await Promise.all([
     User.updateMany({ reporting_to: id }, { $set: { reporting_to: '' } }),
     Task.updateMany({ uid: id }, { $set: { uid: null, assigned_to: '' } }),
-    Contact.updateMany({ contact_owner_email: target.email }, { $set: { contact_owner_email: '' } }),
+    Contact.updateMany(
+      { $or: [{ contact_owner_email: target.email }, { contact_owner_id: id }] },
+      { $set: { contact_owner_email: '', contact_owner_id: null } }
+    ),
+    Lead.updateMany(
+      { owner_id: target._id },
+      { $set: { owner_id: null } }
+    ),
     userModel.remove(id)
   ]);
 };

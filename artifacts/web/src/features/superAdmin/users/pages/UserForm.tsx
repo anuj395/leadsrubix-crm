@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Snackbar from '@mui/material/Snackbar'
@@ -16,6 +17,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { useAppSelector } from '@/store/hooks'
 import {
+  getUser,
   listUsers,
   createUser,
   updateUser,
@@ -126,6 +128,29 @@ export default function UserFormPage() {
     sev: 'success',
   })
 
+  const [provisioningDefaults, setProvisioningDefaults] = useState(false)
+
+  const handleQuickProvisionDefaults = async () => {
+    const orgId = isSuperAdmin ? core.organizationId : (authedUser as any)?.organizationId;
+    const indId = isSuperAdmin ? core.industryId : authedUser?.industryId;
+    if (!orgId) return;
+
+    setProvisioningDefaults(true);
+    try {
+      await Promise.allSettled([
+        api.post('teams', { name: 'General Sales Team', code: 'GST', organizationId: orgId, industryId: indId }),
+        api.post('branches', { name: 'Head Office', code: 'HQ', organizationId: orgId, industryId: indId }),
+        api.post('designations', { name: 'Sales Executive', organizationId: orgId, industryId: indId }),
+      ]);
+      setConfigMissing(false);
+      setToast({ open: true, msg: 'Baseline team, branch, and designation provisioned successfully!', sev: 'success' });
+    } catch (e: any) {
+      setToast({ open: true, msg: 'Failed to provision default setup', sev: 'error' });
+    } finally {
+      setProvisioningDefaults(false);
+    }
+  };
+
   // Load industries, organizations, and edit-mode user details
   useEffect(() => {
     void (async () => {
@@ -138,8 +163,7 @@ export default function UserFormPage() {
         setOrganizations(orgsData.items)
 
         if (id) {
-          const allUsers = await listUsers(isSuperAdmin ? undefined : authedUser?.industryId)
-          const match = allUsers.find(u => u._id === id || u.id === id)
+          const match = await getUser(id)
           if (match) {
             setEditingItem(match)
             setCore({
@@ -389,28 +413,42 @@ export default function UserFormPage() {
               </Typography>
 
               {!isSuperAdmin && (
-                <Button
-                  variant="contained"
-                  onClick={() => navigate('/settings')}
-                  sx={{
-                    borderRadius: '12px',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    px: 4,
-                    py: 1.5,
-                    fontSize: '1rem',
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                    boxShadow: '0 4px 14px 0 rgba(15, 23, 42, 0.3)',
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 20px 0 rgba(15, 23, 42, 0.4)',
-                      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                    },
-                  }}
-                >
-                  Go to Settings
-                </Button>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center' }}>
+                  <Button
+                    variant="contained"
+                    disabled={provisioningDefaults}
+                    onClick={handleQuickProvisionDefaults}
+                    sx={{
+                      borderRadius: '12px',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      px: 3.5,
+                      py: 1.5,
+                      fontSize: '0.95rem',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.3)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                      },
+                    }}
+                  >
+                    {provisioningDefaults ? 'Provisioning Defaults...' : 'Quick Setup Defaults'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/settings')}
+                    sx={{
+                      borderRadius: '12px',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      px: 3.5,
+                      py: 1.5,
+                      fontSize: '0.95rem',
+                    }}
+                  >
+                    Go to Settings
+                  </Button>
+                </Stack>
               )}
             </Box>
           ) : (

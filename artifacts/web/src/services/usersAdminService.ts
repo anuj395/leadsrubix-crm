@@ -121,6 +121,11 @@ export async function listUsersPaged(args: ListUsersPagedArgs): Promise<PagedUse
   }
 }
 
+export async function getUser(id: string): Promise<AdminUser> {
+  const res = await api.get(`users/${id}`)
+  return res.data as AdminUser
+}
+
 export async function createUser(data: CreateUserInput): Promise<AdminUser> {
   const res = await api.post('users', data)
   return res.data as AdminUser
