@@ -4,7 +4,6 @@ import {
   DataGrid,
   GridToolbarContainer,
   GridToolbarColumnsButton,
-  GridToolbarFilterButton,
   GridToolbarDensitySelector,
   GridToolbarExport,
   GridToolbarQuickFilter,
@@ -12,7 +11,7 @@ import {
   type GridColDef
 } from '@mui/x-data-grid'
 import useMediaQuery from '@mui/material/useMediaQuery'
-import { useTheme } from '@mui/material/styles'
+import { alpha, useTheme } from '@mui/material/styles'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -23,6 +22,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import TableChartIcon from '@mui/icons-material/TableChart'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
+import TuneIcon from '@mui/icons-material/Tune'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
@@ -32,6 +32,8 @@ import Avatar from '@mui/material/Avatar'
 import Paper from '@mui/material/Paper'
 import TablePagination from '@mui/material/TablePagination'
 import Chip from '@mui/material/Chip'
+import { LaymanFilterDrawer, type FilterState } from './LaymanFilterDrawer'
+import { ActiveFilterChips, type ActiveFilterItem } from './ActiveFilterChips'
 
 export type AppDataGridProps = DataGridProps & {
   onReload?: () => void
@@ -59,8 +61,184 @@ export function AppDataGrid({
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>(defaultViewMode)
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+  const [filterState, setFilterState] = useState<FilterState>({ datePreset: 'all' })
 
-  const totalCount = rest.rowCount ?? rest.rows?.length ?? 0
+  const rawRows = (rest.rows || []) as any[]
+
+  const filteredRows = useMemo(() => {
+    if (!rawRows || rawRows.length === 0) return []
+
+    const hasDateFilter = Boolean(
+      filterState.datePreset &&
+      filterState.datePreset !== 'all' &&
+      (filterState.startDate || filterState.endDate)
+    )
+    const hasCategoricalFilter = Boolean(
+      filterState.categoricals && Object.keys(filterState.categoricals).length > 0
+    )
+    const hasTextFilter = Boolean(
+      filterState.textSearches && Object.keys(filterState.textSearches).length > 0
+    )
+
+    if (!hasDateFilter && !hasCategoricalFilter && !hasTextFilter) {
+      return rawRows
+    }
+
+    return rawRows.filter((row: any) => {
+      // 1. Date Filter
+      if (hasDateFilter && filterState.dateField) {
+        const rawDateVal = row[filterState.dateField]
+        if (!rawDateVal) return false
+        const rowTime = new Date(rawDateVal).getTime()
+        if (isNaN(rowTime)) return false
+
+        if (filterState.startDate) {
+          const startObj = new Date(filterState.startDate)
+          startObj.setHours(0, 0, 0, 0)
+          if (rowTime < startObj.getTime()) return false
+        }
+        if (filterState.endDate) {
+          const endObj = new Date(filterState.endDate)
+          endObj.setHours(23, 59, 59, 999)
+          if (rowTime > endObj.getTime()) return false
+        }
+      }
+
+      // 2. Categoricals
+      if (hasCategoricalFilter && filterState.categoricals) {
+        for (const [field, filterVal] of Object.entries(filterState.categoricals)) {
+          if (!filterVal || filterVal === 'ALL') continue
+          const col = columns?.find((c) => c.field === field)
+          const cellVal =
+            col?.valueGetter && typeof col.valueGetter === 'function'
+              ? (() => {
+                  try {
+                    return (col.valueGetter as any)(row[field], row)
+                  } catch {
+                    return row[field]
+                  }
+                })()
+              : row[field]
+
+          if (cellVal === null || cellVal === undefined) return false
+          if (String(cellVal).trim().toLowerCase() !== String(filterVal).trim().toLowerCase()) {
+            return false
+          }
+        }
+      }
+
+      // 3. Text Searches
+      if (hasTextFilter && filterState.textSearches) {
+        for (const [field, searchVal] of Object.entries(filterState.textSearches)) {
+          if (!searchVal || !searchVal.trim()) continue
+          const col = columns?.find((c) => c.field === field)
+          const cellVal =
+            col?.valueGetter && typeof col.valueGetter === 'function'
+              ? (() => {
+                  try {
+                    return (col.valueGetter as any)(row[field], row)
+                  } catch {
+                    return row[field]
+                  }
+                })()
+              : row[field]
+
+          if (cellVal === null || cellVal === undefined) return false
+          if (!String(cellVal).toLowerCase().includes(searchVal.trim().toLowerCase())) {
+            return false
+          }
+        }
+      }
+
+      return true
+    })
+  }, [rawRows, filterState, columns])
+
+  const activeFilterItems = useMemo<ActiveFilterItem[]>(() => {
+    const items: ActiveFilterItem[] = []
+
+    // Date Preset
+    if (filterState.datePreset && filterState.datePreset !== 'all') {
+      const presetLabels: Record<string, string> = {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        last_7_days: 'Last 7 Days',
+        this_month: 'This Month',
+        last_month: 'Last Month',
+        custom: `${filterState.startDate || ''} to ${filterState.endDate || ''}`
+      }
+      const dateCol = (columns || []).find((c) => c.field === filterState.dateField)
+      const label = dateCol?.headerName || filterState.dateField || 'Date'
+      items.push({
+        id: 'date-preset',
+        field: filterState.dateField || 'date',
+        fieldLabel: label,
+        valueLabel: presetLabels[filterState.datePreset] || filterState.datePreset,
+        onRemove: () => {
+          setFilterState((prev) => ({
+            ...prev,
+            datePreset: 'all',
+            startDate: '',
+            endDate: ''
+          }))
+        }
+      })
+    }
+
+    // Categoricals
+    if (filterState.categoricals) {
+      for (const [field, val] of Object.entries(filterState.categoricals)) {
+        if (!val || val === 'ALL') continue
+        const col = (columns || []).find((c) => c.field === field)
+        items.push({
+          id: `cat-${field}`,
+          field,
+          fieldLabel: col?.headerName || field,
+          valueLabel: val,
+          onRemove: () => {
+            setFilterState((prev) => {
+              const nextCat = { ...(prev.categoricals || {}) }
+              delete nextCat[field]
+              return { ...prev, categoricals: nextCat }
+            })
+          }
+        })
+      }
+    }
+
+    // Text Searches
+    if (filterState.textSearches) {
+      for (const [field, val] of Object.entries(filterState.textSearches)) {
+        if (!val || !val.trim()) continue
+        const col = (columns || []).find((c) => c.field === field)
+        items.push({
+          id: `text-${field}`,
+          field,
+          fieldLabel: col?.headerName || field,
+          valueLabel: `"${val.trim()}"`,
+          onRemove: () => {
+            setFilterState((prev) => {
+              const nextText = { ...(prev.textSearches || {}) }
+              delete nextText[field]
+              return { ...prev, textSearches: nextText }
+            })
+          }
+        })
+      }
+    }
+
+    return items
+  }, [filterState, columns])
+
+  const activeFilterCount = activeFilterItems.length
+
+  const handleResetFilters = () => {
+    setFilterState({ datePreset: 'all' })
+  }
+
+  const isFiltered = activeFilterCount > 0
+  const totalCount = isFiltered ? filteredRows.length : (rest.rowCount ?? rawRows.length)
 
   const computedPageSizeOptions = useMemo(() => {
     if (pageSizeOptions) return pageSizeOptions
@@ -97,7 +275,7 @@ export function AppDataGrid({
         const id = getRowId
           ? getRowId(params.row)
           : ((params.row as any)._id ?? (params.row as any).id ?? JSON.stringify(params.row))
-        const idx = rest.rows?.findIndex((r: any) => {
+        const idx = filteredRows?.findIndex((r: any) => {
           const rId = getRowId
             ? getRowId(r)
             : ((r as any)._id ?? (r as any).id ?? JSON.stringify(r))
@@ -193,7 +371,7 @@ export function AppDataGrid({
 
       return updated
     })
-  }, [columns, isMobile, rest.rows, getRowId])
+  }, [columns, isMobile, filteredRows, getRowId])
 
   const CustomToolbar = useMemo(() => {
     return () => {
@@ -209,7 +387,38 @@ export function AppDataGrid({
         <GridToolbarContainer sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <GridToolbarColumnsButton />
-            <GridToolbarFilterButton />
+            <Button
+              size="small"
+              variant={activeFilterCount > 0 ? 'contained' : 'text'}
+              color={activeFilterCount > 0 ? 'primary' : 'inherit'}
+              startIcon={<TuneIcon />}
+              onClick={() => setFilterDrawerOpen(true)}
+              sx={{
+                fontSize: '0.8125rem',
+                textTransform: 'none',
+                fontWeight: 600,
+                p: '4px 10px',
+                borderRadius: '8px',
+                ...(activeFilterCount > 0
+                  ? {
+                      boxShadow: 'none',
+                      bgcolor: 'primary.main',
+                      color: '#fff',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                        boxShadow: 'none',
+                      },
+                    }
+                  : {
+                      color: 'text.secondary',
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.text.primary, 0.05),
+                      },
+                    }),
+              }}
+            >
+              Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+            </Button>
             <GridToolbarDensitySelector />
             <GridToolbarExport />
             {onImport && (
@@ -277,9 +486,9 @@ export function AppDataGrid({
         </GridToolbarContainer>
       )
     }
-  }, [onReload, onImport, viewMode, theme])
+  }, [onReload, onImport, viewMode, theme, activeFilterCount])
 
-  const rowsList = rest.rows || []
+  const rowsList = filteredRows
   const dataColumns = (columns || []).filter((c) => c.field !== 'sNo')
   const actionColumn = dataColumns.find((c) => c.field === '__actions' || c.field === 'actions')
   const contentColumns = dataColumns.filter((c) => c.field !== '__actions' && c.field !== 'actions')
@@ -342,6 +551,10 @@ export function AppDataGrid({
 
   return (
     <Box sx={{ height, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <ActiveFilterChips
+        filters={activeFilterItems}
+        onClearAll={handleResetFilters}
+      />
       {viewMode === 'table' ? (
         <DataGrid
           columns={responsiveColumns}
@@ -473,24 +686,44 @@ export function AppDataGrid({
             ...(sx ?? {}),
           }}
           {...rest}
+          rows={filteredRows}
+          {...(isFiltered ? { rowCount: filteredRows.length } : {})}
         />
       ) : (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
           {/* View Mode Header Bar */}
           <Box sx={{ p: 1.5, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 22, 43, 0.5)' : 'rgba(245, 246, 250, 0.7)' }}>
-            <ToggleButtonGroup
-              value={viewMode}
-              exclusive
-              size="small"
-              onChange={(_, nextMode) => {
-                if (nextMode) setViewMode(nextMode)
-              }}
-              sx={{ height: 32 }}
-            >
-              <ToggleButton value="table"><TableChartIcon fontSize="small" sx={{ mr: 0.5 }} /> Table</ToggleButton>
-              <ToggleButton value="grid"><GridViewIcon fontSize="small" sx={{ mr: 0.5 }} /> Cards</ToggleButton>
-              <ToggleButton value="list"><ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> List</ToggleButton>
-            </ToggleButtonGroup>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button
+                size="small"
+                variant={activeFilterCount > 0 ? 'contained' : 'outlined'}
+                color={activeFilterCount > 0 ? 'primary' : 'inherit'}
+                startIcon={<TuneIcon />}
+                onClick={() => setFilterDrawerOpen(true)}
+                sx={{
+                  fontSize: '0.75rem',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  height: 32,
+                  borderRadius: '8px',
+                }}
+              >
+                Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+              </Button>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                size="small"
+                onChange={(_, nextMode) => {
+                  if (nextMode) setViewMode(nextMode)
+                }}
+                sx={{ height: 32 }}
+              >
+                <ToggleButton value="table"><TableChartIcon fontSize="small" sx={{ mr: 0.5 }} /> Table</ToggleButton>
+                <ToggleButton value="grid"><GridViewIcon fontSize="small" sx={{ mr: 0.5 }} /> Cards</ToggleButton>
+                <ToggleButton value="list"><ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> List</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
 
             {onReload && (
               <IconButton onClick={onReload} size="small" color="primary">
@@ -635,6 +868,15 @@ export function AppDataGrid({
           />
         </Box>
       )}
+      <LaymanFilterDrawer
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        columns={columns || []}
+        rows={rest.rows || []}
+        currentFilters={filterState}
+        onApply={(newFilters) => setFilterState(newFilters)}
+        onReset={handleResetFilters}
+      />
     </Box>
   )
 }
