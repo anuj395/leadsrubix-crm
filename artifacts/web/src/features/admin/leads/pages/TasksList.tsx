@@ -400,15 +400,23 @@ export default function TasksListPage() {
           <Tabs
             value={activeTab}
             onChange={(_, val) => setActiveTab(val)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{
               minHeight: 40,
+              flex: 1,
               '& .MuiTab-root': {
                 minHeight: 40,
                 textTransform: 'none',
                 fontWeight: 600,
-                fontSize: '13px',
+                fontSize: { xs: '12px', sm: '13px' },
                 py: 0.5,
-              }
+                px: { xs: 1.25, sm: 2 },
+              },
+              '& .MuiTabs-scrollButtons': {
+                '&.Mui-disabled': { opacity: 0.3 },
+              },
             }}
           >
             <Tab label={`All Tasks (${counts.all})`} value="ALL" />
@@ -418,7 +426,7 @@ export default function TasksListPage() {
             <Tab label={`✅ Completed (${counts.completed})`} value="COMPLETED" />
           </Tabs>
 
-          <Stack direction="row" spacing={1} sx={{ pb: 0.5 }}>
+          <Stack direction="row" spacing={1} sx={{ pb: 0.5, flexShrink: 0 }}>
             <Chip
               icon={<StarIcon sx={{ fontSize: '0.9rem !important' }} />}
               label="Assigned to Me"

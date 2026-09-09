@@ -1014,7 +1014,7 @@ overflowY: 'auto',
           {/* ── TOP CONTROL BAR (Unified inline dashboard filters) ─────────────────── */}
           <Card
             sx={{
-              p: 2,
+              p: { xs: 1.25, sm: 2 },
               borderRadius: '16px',
               boxShadow: '0 4px 30px rgba(0,0,0,0.03)',
               border: '1px solid',
@@ -1026,163 +1026,188 @@ overflowY: 'auto',
           >
             <Stack
               direction={{ xs: 'column', lg: 'row' }}
-              spacing={2}
+              spacing={1.5}
               alignItems={{ xs: 'stretch', lg: 'center' }}
               justifyContent="space-between"
               flexWrap="wrap"
             >
-              {/* Left Controls: Grouping Selection */}
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            {user?.role !== 'sales' ? (
+              {/* Left Controls: Grouping Selection + Presets on mobile */}
               <Stack
                 direction="row"
-                spacing={0.5}
-                sx={{
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                  p: 0.5,
-                  borderRadius: '10px',
-                  width: 'fit-content'
-                }}
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+                flexWrap="wrap"
+                sx={{ gap: 1 }}
               >
-                {(['team', 'source', 'teamWise'] as const).map(mode => (
+                {user?.role !== 'sales' ? (
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    sx={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                      p: 0.5,
+                      borderRadius: '10px',
+                      width: 'fit-content'
+                    }}
+                  >
+                    {(['team', 'source', 'teamWise'] as const).map(mode => (
+                      <Button
+                        key={mode}
+                        size="small"
+                        variant={groupBy === mode ? 'contained' : 'text'}
+                        onClick={() => setGroupBy(mode)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          borderRadius: '8px',
+                          px: { xs: 1, sm: 1.5 },
+                          py: 0.5,
+                          boxShadow: groupBy === mode ? '0 2px 10px rgba(0,0,0,0.1)' : 'none',
+                          backgroundColor: groupBy === mode ? theme.palette.secondary.main : 'transparent',
+                          color: groupBy === mode ? '#ffffff' : theme.palette.text.secondary,
+                          '&:hover': {
+                            backgroundColor: groupBy === mode ? theme.palette.secondary.dark : 'rgba(0,0,0,0.04)'
+                          }
+                        }}
+                      >
+                        {mode === 'team' ? 'Associate' : mode === 'source' ? 'Source' : 'Team'}
+                      </Button>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: '10px',
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                      border: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Personal Dashboard
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Range Presets (7D / 30D) */}
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    p: 0.5,
+                    borderRadius: '10px'
+                  }}
+                >
                   <Button
-                    key={mode}
                     size="small"
-                    variant={groupBy === mode ? 'contained' : 'text'}
-                    onClick={() => setGroupBy(mode)}
+                    variant={activePreset === 7 ? 'contained' : 'text'}
+                    color={activePreset === 7 ? 'secondary' : 'inherit'}
+                    onClick={() => applyPresetFilter(7)}
                     sx={{
                       textTransform: 'none',
                       fontWeight: 600,
                       fontSize: '0.75rem',
-                      borderRadius: '8px',
-                      px: 1.5,
+                      px: 1.25,
                       py: 0.5,
-                      boxShadow: groupBy === mode ? '0 2px 10px rgba(0,0,0,0.1)' : 'none',
-                      backgroundColor: groupBy === mode ? theme.palette.secondary.main : 'transparent',
-                      color: groupBy === mode ? '#ffffff' : theme.palette.text.secondary,
-                      '&:hover': {
-                        backgroundColor: groupBy === mode ? theme.palette.secondary.dark : 'rgba(0,0,0,0.04)'
-                      }
+                      borderRadius: '8px',
+                      boxShadow: 'none',
+                      '&:hover': { boxShadow: 'none' }
                     }}
                   >
-                    {mode === 'team' ? 'Associate' : mode === 'source' ? 'Source' : 'Team'}
+                    7 Days
                   </Button>
-                ))}
+                  <Button
+                    size="small"
+                    variant={activePreset === 30 ? 'contained' : 'text'}
+                    color={activePreset === 30 ? 'secondary' : 'inherit'}
+                    onClick={() => applyPresetFilter(30)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      px: 1.25,
+                      py: 0.5,
+                      borderRadius: '8px',
+                      boxShadow: 'none',
+                      '&:hover': { boxShadow: 'none' }
+                    }}
+                  >
+                    30 Days
+                  </Button>
+                </Stack>
               </Stack>
-            ) : (
-              <Box
-                sx={{
-                  px: 2,
-                  py: 1,
-                  borderRadius: '10px',
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                  border: '1px solid',
-                  borderColor: 'divider'
-                }}
-              >
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Personal Dashboard Mode
-                </Typography>
-              </Box>
-            )}
-          </Stack>
 
-          {/* Right Controls: Presets + Date Pickers + Reset */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.5}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
-            flexWrap="wrap"
-          >
-            {/* Range Presets */}
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                p: 0.5,
-                borderRadius: '10px'
-              }}
-            >
-              <Button
-                size="small"
-                variant={activePreset === 7 ? 'contained' : 'text'}
-                color={activePreset === 7 ? 'secondary' : 'inherit'}
-                onClick={() => applyPresetFilter(7)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  px: 1.5,
-                  borderRadius: '8px',
-                  boxShadow: 'none',
-                  '&:hover': { boxShadow: 'none' }
-                }}
+              {/* Right Controls: Date Inputs + Reset */}
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ width: { xs: '100%', lg: 'auto' } }}
               >
-                7 Days
-              </Button>
-              <Button
-                size="small"
-                variant={activePreset === 30 ? 'contained' : 'text'}
-                color={activePreset === 30 ? 'secondary' : 'inherit'}
-                onClick={() => applyPresetFilter(30)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  px: 1.5,
-                  borderRadius: '8px',
-                  boxShadow: 'none',
-                  '&:hover': { boxShadow: 'none' }
-                }}
-              >
-                30 Days
-              </Button>
-            </Stack>
+                <TextField
+                  type="date"
+                  size="small"
+                  label="Start Date"
+                  InputLabelProps={{ shrink: true }}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  sx={{
+                    flex: { xs: 1, sm: 'none' },
+                    width: { sm: 135 },
+                    minWidth: 0,
+                    '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+                    '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.85rem' }, py: '7.5px' },
+                    '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.85rem' } },
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>to</Typography>
+                <TextField
+                  type="date"
+                  size="small"
+                  label="End Date"
+                  InputLabelProps={{ shrink: true }}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  sx={{
+                    flex: { xs: 1, sm: 'none' },
+                    width: { sm: 135 },
+                    minWidth: 0,
+                    '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+                    '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.85rem' }, py: '7.5px' },
+                    '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.85rem' } },
+                  }}
+                />
 
-            {/* Date Inputs Inline */}
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TextField
-                type="date"
-                size="small"
-                label="Start Date"
-                InputLabelProps={{ shrink: true }}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                sx={{ width: 140, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>to</Typography>
-              <TextField
-                type="date"
-                size="small"
-                label="End Date"
-                InputLabelProps={{ shrink: true }}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                sx={{ width: 140, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              />
+                <Tooltip title="Reset date filters">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ClearAllOutlinedIcon />}
+                    onClick={handleClearFilters}
+                    sx={{
+                      textTransform: 'none',
+                      borderRadius: '10px',
+                      fontWeight: 600,
+                      borderColor: 'divider',
+                      color: 'text.primary',
+                      px: { xs: 1, sm: 1.5 },
+                      height: 36,
+                      minWidth: 0,
+                      whiteSpace: 'nowrap',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Reset</Box>
+                  </Button>
+                </Tooltip>
+              </Stack>
             </Stack>
-            
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ClearAllOutlinedIcon />}
-              onClick={handleClearFilters}
-              sx={{
-                textTransform: 'none',
-                borderRadius: '10px',
-                fontWeight: 600,
-                borderColor: 'divider',
-                color: 'text.primary',
-                px: 1.75,
-                height: 38
-              }}
-            >
-              Reset
-            </Button>
-          </Stack>
-        </Stack>
-      </Card>
+          </Card>
 
       {loading && !data ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 15, flexGrow: 1 }}>
