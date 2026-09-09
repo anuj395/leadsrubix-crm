@@ -13,6 +13,11 @@ import Alert from '@mui/material/Alert'
 import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Checkbox from '@mui/material/Checkbox'
+import EventNoteIcon from '@mui/icons-material/EventNote'
+import Divider from '@mui/material/Divider'
+import Typography from '@mui/material/Typography'
 import { api } from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
@@ -35,6 +40,11 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
   const [durationMinutes, setDurationMinutes] = useState('2')
   const [notes, setNotes] = useState('')
 
+  // Integrated Quick Callback Scheduler
+  const [scheduleCallback, setScheduleCallback] = useState(false)
+  const [callbackDateTime, setCallbackDateTime] = useState('')
+  const [callbackReason, setCallbackReason] = useState('Customer Busy / Call Later')
+
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -47,11 +57,49 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
     setCallStatus('Answered')
     setDurationMinutes('2')
     setNotes('')
+    setScheduleCallback(false)
+
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(11, 0, 0, 0)
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    setCallbackDateTime(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`)
+    setCallbackReason('Customer Busy / Call Later')
   }, [open])
+
+  const handleStatusChange = (status: string) => {
+    setCallStatus(status)
+    if (status === 'Answered') {
+      if (durationMinutes === '0') setDurationMinutes('2')
+      setScheduleCallback(false)
+    } else {
+      // Unanswered, Busy, Missed, etc. -> Duration must be 0
+      setDurationMinutes('0')
+      // Auto-suggest scheduling a callback for Busy / No Answer / Unreachable calls
+      setScheduleCallback(true)
+      if (status === 'Busy') setCallbackReason('Customer Busy / Call Later')
+      else if (status === 'No Answer' || status === 'Missed') setCallbackReason('Ringing / Not Picked')
+      else if (status === 'Wrong Number') setCallbackReason('Other')
+      else setCallbackReason('Decision Maker Unavailable')
+    }
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!contact?._id || loading) return
+
+    if (scheduleCallback && !callbackDateTime) {
+      setToast({ open: true, msg: 'Please select a valid Callback Date & Time', sev: 'error' })
+      return
+    }
+
+    if (scheduleCallback && callbackDateTime) {
+      const selectedDate = new Date(callbackDateTime)
+      if (selectedDate.getTime() < Date.now() - 5 * 60 * 1000) {
+        setToast({ open: true, msg: 'Callback date cannot be in the past', sev: 'error' })
+        return
+      }
+    }
 
     setLoading(true)
     try {
@@ -67,7 +115,9 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
         console.warn('Geolocation capture failed', e)
       }
 
-      const durNum = Math.max(0, parseInt(durationMinutes, 10) || 0) * 60
+      // If status is not Answered, ensure duration is strictly 0
+      const effectiveMinutes = callStatus === 'Answered' ? Math.max(0, parseInt(durationMinutes, 10) || 0) : 0
+      const durNum = effectiveMinutes * 60
 
       await api.post('call-logs/create', {
         leadId: contact._id,
@@ -104,6 +154,24 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
           })
         } catch (nErr) {
           console.warn('Note copy failed:', nErr)
+        }
+      }
+
+      // Automatically create the follow-up callback task if enabled
+      if (scheduleCallback && callbackDateTime) {
+        try {
+          await api.post('tasks', {
+            contactId: contact._id,
+            taskType: 'Call Back',
+            priority: 'Medium',
+            dueDate: new Date(callbackDateTime),
+            callbackReason: callbackReason,
+            notes: `Follow-up scheduled from Call Log (${callStatus}): ${notes.trim() || 'No notes provided'}`,
+            assignedTo: user?.email || user?.name || '',
+            status: 'PENDING'
+          })
+        } catch (taskErr) {
+          console.error('Failed to create scheduled callback task:', taskErr)
         }
       }
 
@@ -148,7 +216,7 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
                 <TextField
                   select
                   size="small"
-                  label="Call Type *"
+                  label="Call Type"
                   value={callType}
                   onChange={(e) => setCallType(e.target.value)}
                   fullWidth
@@ -161,9 +229,9 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
                 <TextField
                   select
                   size="small"
-                  label="Call Outcome / Status *"
+                  label="Call Outcome / Status"
                   value={callStatus}
-                  onChange={(e) => setCallStatus(e.target.value)}
+                  onChange={(e) => handleStatusChange(e.target.value)}
                   fullWidth
                   required
                 >
@@ -182,21 +250,75 @@ export default function LogCallModal({ open, onClose, contact, onSuccess }: LogC
                 type="number"
                 inputProps={{ min: 0, max: 300 }}
                 value={durationMinutes}
+                disabled={callStatus !== 'Answered'}
                 onChange={(e) => setDurationMinutes(e.target.value)}
                 fullWidth
-                helperText="Approximate duration of the conversation"
+                helperText={callStatus !== 'Answered' ? 'Duration locked at 0 min for unanswered / busy calls' : 'Approximate duration of the conversation'}
               />
 
               <TextField
                 size="small"
                 label="Call Discussion & Notes"
                 multiline
-                rows={4}
+                rows={3}
                 placeholder="Enter summary of discussion, customer requirements, or remarks..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 fullWidth
               />
+
+              {callStatus !== 'Answered' && (
+                <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={scheduleCallback}
+                        onChange={(e) => setScheduleCallback(e.target.checked)}
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <EventNoteIcon fontSize="small" color="primary" />
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          Schedule Follow-up / Callback Task
+                        </Typography>
+                      </Box>
+                    }
+                  />
+
+                  {scheduleCallback && (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 1.5 }}>
+                      <TextField
+                        size="small"
+                        label="Callback Date & Time"
+                        type="datetime-local"
+                        value={callbackDateTime}
+                        onChange={(e) => setCallbackDateTime(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        fullWidth
+                        required={scheduleCallback}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label="Callback Reason"
+                        value={callbackReason}
+                        onChange={(e) => setCallbackReason(e.target.value)}
+                        fullWidth
+                      >
+                        <MenuItem value="Customer Busy / Call Later">Customer Busy / Call Later</MenuItem>
+                        <MenuItem value="Price / Budget Discussion">Price / Budget Discussion</MenuItem>
+                        <MenuItem value="Location / Layout Clarification">Location / Layout Clarification</MenuItem>
+                        <MenuItem value="Decision Maker Unavailable">Decision Maker Unavailable</MenuItem>
+                        <MenuItem value="Ringing / Not Picked">Ringing / Not Picked</MenuItem>
+                        <MenuItem value="Other">Other</MenuItem>
+                      </TextField>
+                    </Box>
+                  )}
+                </Box>
+              )}
 
               <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'flex-end' }}>
                 <Button onClick={onClose} disabled={loading}>

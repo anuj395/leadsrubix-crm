@@ -372,11 +372,12 @@ export default function AdminRolesPage() {
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField size="small" label="Name" value={core.name}
               onChange={(e) => setCore({ ...core, name: e.target.value })} fullWidth />
-            <TextField size="small" label="Email *" type="email" value={core.email}
+            <TextField size="small" label="Email" type="email" value={core.email}
+              required
               onChange={(e) => setCore({ ...core, email: e.target.value })}
               disabled={!!editing} fullWidth />
             <InputField
-              label={editing ? 'New Password (leave blank to keep)' : 'Password *'}
+              label={editing ? 'New Password (leave blank to keep)' : 'Password'}
               type="password" value={core.password}
               onChange={(e) => setCore({ ...core, password: e.target.value })} />
             <TextField select size="small" label="Status"

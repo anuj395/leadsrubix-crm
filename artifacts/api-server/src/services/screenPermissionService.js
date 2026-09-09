@@ -869,6 +869,100 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     }
   };
 
+  const BOOKINGS_TRANSLATIONS = {
+    temp0001: {
+      customerName: 'Buyer / Customer Name',
+      contactNumber: 'Phone Number',
+      project: 'Property Project',
+      location: 'Project Location',
+      unitNumber: 'Unit / Flat Number',
+      bookingAmount: 'Booking Token Amount (₹)',
+      bookingDate: 'Booking Date',
+      status: 'Booking Status',
+      branch: 'Branch Office',
+      team: 'Sales Team',
+      notes: 'Booking Remarks & Unit Notes',
+    },
+    temp0002: {
+      customerName: 'Customer Name',
+      contactNumber: 'Contact Number',
+      project: 'Product Catalog / Store',
+      location: 'Delivery / Fulfillment Hub',
+      unitNumber: 'Order / SKU Reference',
+      bookingAmount: 'Paid Order Amount (₹)',
+      bookingDate: 'Order Date',
+      status: 'Order Status',
+      branch: 'Store / Regional Hub',
+      team: 'Fulfillment Team',
+      notes: 'Order Notes & Instructions',
+    },
+    temp0003: {
+      customerName: 'Patient Name',
+      contactNumber: 'Patient Contact Number',
+      project: 'Clinical Department / Specialty',
+      location: 'Clinic / Hospital Center',
+      unitNumber: 'Room / OPD Slot Number',
+      bookingAmount: 'Consultation / Procedure Fee (₹)',
+      bookingDate: 'Appointment / Admission Date',
+      status: 'Appointment Status',
+      branch: 'Hospital Wing / Branch',
+      team: 'Care Team',
+      notes: 'Clinical Notes / Doctor Instructions',
+    },
+    temp0004: {
+      customerName: 'Student / Applicant Name',
+      contactNumber: 'Student Phone Number',
+      project: 'Academic Program / Course',
+      location: 'Campus / Center',
+      unitNumber: 'Roll / Batch Number',
+      bookingAmount: 'Admission / Seat Fee (₹)',
+      bookingDate: 'Enrollment Date',
+      status: 'Enrollment Status',
+      branch: 'Campus / Center',
+      team: 'Admissions Team',
+      notes: 'Admission Remarks / Electives',
+    },
+    temp0005: {
+      customerName: 'Client / Investor Name',
+      contactNumber: 'Client Phone Number',
+      project: 'Financial Product / Scheme',
+      location: 'Branch Office',
+      unitNumber: 'Folio / Account Reference',
+      bookingAmount: 'Disbursal / Investment Amount (₹)',
+      bookingDate: 'Disbursal / Mandate Date',
+      status: 'Disbursal Status',
+      branch: 'Wealth Management Branch',
+      team: 'Advisory Team',
+      notes: 'Mandate Terms & Advisory Remarks',
+    },
+    temp0006: {
+      customerName: 'Client / Account Name',
+      contactNumber: 'Client Point of Contact',
+      project: 'Service SOW / Solution',
+      location: 'Delivery Center',
+      unitNumber: 'SOW / Contract ID',
+      bookingAmount: 'Milestone / SOW Advance (₹)',
+      bookingDate: 'Contract Signing Date',
+      status: 'Engagement Status',
+      branch: 'Delivery Unit',
+      team: 'Practice / Delivery Team',
+      notes: 'Scope & Milestone Deliverables',
+    },
+    temp0007: {
+      customerName: 'Distributor / Dealer Name',
+      contactNumber: 'Dealer Contact Number',
+      project: 'Product Line / Batch Spec',
+      location: 'Dispatch Plant / Warehouse',
+      unitNumber: 'Batch / Lot Number',
+      bookingAmount: 'PO Advance Amount (₹)',
+      bookingDate: 'PO / Dispatch Date',
+      status: 'Batch Status',
+      branch: 'Manufacturing Unit',
+      team: 'Dispatch & Logistics Team',
+      notes: 'PO Terms & Packaging Specs',
+    },
+  };
+
   const resTranslations = RESOURCE_FIELD_TRANSLATIONS[finalScreenKey] ? (RESOURCE_FIELD_TRANSLATIONS[finalScreenKey][indCode] || {}) : {};
 
   const translations = ((finalScreenKey === 'configProjects' || finalScreenKey === 'projects' || finalScreenKey === 'configuration.projects') && PROJECT_TRANSLATIONS[indCode]) || 
@@ -878,6 +972,7 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
                        ((finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact' || finalScreenKey === 'leads' || finalScreenKey === 'sorted' || finalScreenKey === 'leads.sorted') && CONTACTS_TRANSLATIONS[indCode]) || 
                        ((finalScreenKey === 'tasks' || finalScreenKey === 'leads.tasks') && TASKS_TRANSLATIONS[indCode]) || 
                        ((finalScreenKey === 'deals' || finalScreenKey === 'leads.deals') && DEALS_TRANSLATIONS[indCode]) || 
+                       ((finalScreenKey === 'bookings' || finalScreenKey === 'leads.bookings') && BOOKINGS_TRANSLATIONS[indCode]) || 
                        resTranslations || {};
 
   let resolvedScreenName = screen.name;
@@ -895,6 +990,14 @@ exports.resolve = async ({ screen_key, industry_code, role_key, screenKey, indus
     else if (indCode === 'temp0005') resolvedScreenName = 'Investment Deals & Mandates';
     else if (indCode === 'temp0006') resolvedScreenName = 'Contracts & SOW Pipeline';
     else if (indCode === 'temp0007') resolvedScreenName = 'Commercial Orders & Deals';
+  } else if (finalScreenKey === 'bookings' || finalScreenKey === 'leads.bookings') {
+    if (indCode === 'temp0002') resolvedScreenName = 'Order Purchases & Bookings';
+    else if (indCode === 'temp0003') resolvedScreenName = 'Appointments & Admissions';
+    else if (indCode === 'temp0004') resolvedScreenName = 'Enrollments & Admissions';
+    else if (indCode === 'temp0005') resolvedScreenName = 'Disbursal & Mandate Bookings';
+    else if (indCode === 'temp0006') resolvedScreenName = 'SOW & Project Bookings';
+    else if (indCode === 'temp0007') resolvedScreenName = 'Batch & PO Bookings';
+    else resolvedScreenName = 'Customer Bookings';
   } else if (finalScreenKey === 'contacts' || finalScreenKey === 'leads.contact' || finalScreenKey === 'leads' || finalScreenKey === 'sorted' || finalScreenKey === 'leads.sorted') {
     if (indCode === 'temp0002') resolvedScreenName = 'Customer Inquiries & Leads';
     else if (indCode === 'temp0003') resolvedScreenName = 'Patient Inquiries & Leads';

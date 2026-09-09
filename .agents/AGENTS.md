@@ -8,12 +8,17 @@ All code changes and additions must strictly adhere to the project's naming conv
 
 ## Core Agent Operational Guidelines & Zero Gap Tolerance
 1. **System-Level Sweeps (Never Stop at First Occurrence)**:
-   - When modifying, fixing, or auditing any function, endpoint, or utility, ALWAYS perform a repository-wide check for all callers, related services, routes, and imports. Never do single-file or partial fixes.
-2. **Zero Gap Tolerance & Core Integrity**:
+   - When modifying, fixing, or auditing any function, endpoint, screen, or utility, ALWAYS perform a repository-wide check for all callers, related services, routes, imports, screens, and modals. Never do single-file or partial fixes. Every form, model, field, and dropdown across the entire CRM must be kept in perfect sync.
+2. **Product-Expert & Layman Experience Standard**:
+   - Every form, field, and dropdown must make intuitive sense to a non-technical layman in any industry.
+   - Eliminate all unprofessional artifacts: no double asterisks (`* *`) in labels, no nonsensical default values (e.g. durations on unanswered/busy calls), and no disconnected dependent dropdowns.
+   - Intelligent dependencies (Country ➔ State, Property Type ➔ Sub Type, Deal Stage ➔ Probability %, Call Outcome ➔ Duration/Callback) must be consistently implemented.
+3. **Multi-Tenant Workspace & Dynamic Industry Integrity**:
+   - Maintain multi-tenant data isolation and clean template propagation (`organization_id: null` -> tenant organizations via `workspaceCloner.js` and `syncScreenFields.js`).
+   - Preserve dynamic industry semantics across all 7 supported industry verticals (`temp0001` to `temp0007`).
+4. **Zero Gap Tolerance & Core Integrity**:
    - Ensure backwards compatibility, fallback defaults, defensive checks, and robust logging on every critical path (Webhooks, Lead Routing, Auth, Notifications, Multi-Tenancy).
-3. **End-to-End Empirical Verification**:
-   - Never declare success without running build (`pnpm build` / `node -c`), checking imports, and verifying that no existing contract or function signature was broken.
-4. **Comprehensive Logging & Human Awareness**:
-   - Add clear, contextual error logs on all backend try-catch blocks and API middleware to ensure complete auditability and instant root-cause identification.
-5. **Mission Goal**:
+5. **End-to-End Empirical Verification**:
+   - Never declare success without running build (`pnpm build` / `node -c`), checking imports, and empirically verifying the live UI in Chrome DevTools with visual proof.
+6. **Mission Goal**:
    - Every change must move the product closer to being the industry's best, most reliable, multi-tenant enterprise CRM.

@@ -230,12 +230,18 @@ callLogController.Create = async (req, res) => {
       durationSeconds = mapSeconds(req.body.callTime || req.body.call_time);
     }
 
+    const finalStage = req.body.stage || req.body.status || req.body.outcome || 'Answered';
+    const UNCONNECTED_STAGES = ['busy', 'no answer', 'missed', 'wrong number', 'switched off', 'not reachable', 'left voicemail'];
+    if (UNCONNECTED_STAGES.includes(String(finalStage).toLowerCase().trim())) {
+      durationSeconds = 0;
+    }
+
     const data = new CallLog({
       contact_id: req.body.contactId || req.body.contact_id || null,
       lead_id: req.body.leadId || req.body.lead_id || '',
       customer_name: req.body.customerName || req.body.customer_name || req.body.buyerName || req.body.name || 'Contact',
       contact_number: req.body.contactNumber || req.body.contact_number || req.body.contact_no || req.body.phone || req.body.phoneNumber || '',
-      stage: req.body.stage || req.body.status || req.body.outcome || 'Answered',
+      stage: finalStage,
       contact_owner_email: req.body.contactOwnerEmail || req.body.contact_owner_email || user?.email || '',
       location: req.body.location || '',
       project_name: req.body.projectName || req.body.project_name || req.body.project || '',

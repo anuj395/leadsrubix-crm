@@ -430,6 +430,10 @@ export function DynamicForm({
     if (url.includes('options/states') && values.country) {
       url = `${url}${url.includes('?') ? '&' : '?'}country=${encodeURIComponent(String(values.country))}`
     }
+    if ((url.includes('options/resourcePropertySubTypes') || url.includes('options/propertySubType')) && (values.propertyType || values.property_type)) {
+      const pType = String(values.propertyType || values.property_type)
+      url = `${url}${url.includes('?') ? '&' : '?'}propertyType=${encodeURIComponent(pType)}`
+    }
     const finalIndustryCode = industryCode || industry_code
     if (finalIndustryCode && !url.includes('industryId=') && !url.includes('industry_code=')) {
       url = `${url}${url.includes('?') ? '&' : '?'}industryId=${encodeURIComponent(String(finalIndustryCode))}&industry_code=${encodeURIComponent(String(finalIndustryCode))}`
@@ -494,7 +498,7 @@ export function DynamicForm({
           }
         })
     }
-  }, [fields, values.country, industry_code, values.organizationId, values.role])
+  }, [fields, values.country, industry_code, values.organizationId, values.role, values.propertyType, values.property_type])
 
   const setValue = (key: string, value: Value) => {
     setValues((prev) => {
@@ -503,6 +507,24 @@ export function DynamicForm({
       const snake = key.replace(/([A-Z])/g, '_$1').toLowerCase()
       next[camel] = value
       next[snake] = value
+
+      if (key === 'propertyType' || key === 'property_type') {
+        if (prev[key] !== value) {
+          next.propertySubType = ''
+          next.property_sub_type = ''
+        }
+      }
+
+      if (key === 'stage') {
+        const stageOpts = customOptions?.stage || dropdowns['stage'] || []
+        const matched = stageOpts.find((s: any) => String(s.value) === String(value))
+        if (matched) {
+          const m = String(matched.label || '').match(/\((\d+)%\)/)
+          if (m) {
+            next.probability = Number(m[1])
+          }
+        }
+      }
 
       if (key === 'contactId' || key === 'contact_id') {
         const rawList = [
@@ -515,14 +537,24 @@ export function DynamicForm({
           if (matched.customerName) {
             next.customerName = matched.customerName
             next.customer_name = matched.customerName
+            next.contactName = matched.customerName
+            next.contact_name = matched.customerName
           }
           if (matched.contactNumber) {
             next.contactNumber = matched.contactNumber
             next.contact_number = matched.contactNumber
+            next.contactPhone = matched.contactNumber
+            next.contact_phone = matched.contactNumber
+          }
+          if (matched.emailId || matched.email) {
+            next.emailId = matched.emailId || matched.email
+            next.contactEmail = matched.emailId || matched.email
+            next.contact_email = matched.emailId || matched.email
           }
           if (matched.projectName) {
             next.projectName = matched.projectName
             next.project_name = matched.projectName
+            next.project = matched.projectName
           }
           if (matched.location) {
             next.location = matched.location
@@ -560,10 +592,11 @@ export function DynamicForm({
         const camel = f.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
         const snake = f.key.replace(/([A-Z])/g, '_$1').toLowerCase()
         const v = values[f.key] ?? values[camel] ?? values[snake]
+        const cleanLabel = (f.label || '').replace(/\s*\*+\s*$/, '').trim()
 
         if (f.required) {
           if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) {
-            next[f.key] = `${f.label} is required`
+            next[f.key] = `${cleanLabel} is required`
             continue
           }
         }
@@ -602,14 +635,56 @@ export function DynamicForm({
 
           if (f.type === 'number') {
             if (isNaN(Number(v))) {
-              next[f.key] = `${f.label} must be a valid number.`
+              next[f.key] = `${cleanLabel} must be a valid number.`
             }
           }
 
-          if (f.key === 'dueDate' || f.key === 'due_date' || f.key === 'nextFollowUp' || f.key === 'next_follow_up') {
+          const monetaryKeys = [
+            'bookingAmount', 'booking_amount', 'amount', 'orderValue', 'order_value',
+            'costPerLicense', 'cost_per_license', 'requestedAmount', 'requested_amount',
+            'estimatedBudget', 'estimated_budget'
+          ]
+          if (monetaryKeys.includes(f.key) || monetaryKeys.includes(camel) || monetaryKeys.includes(snake)) {
+            const numVal = Number(v)
+            if (isNaN(numVal) || numVal <= 0) {
+              next[f.key] = `${cleanLabel} must be greater than 0`
+            }
+          }
+
+          if (f.key === 'probability' || camel === 'probability') {
+            const pVal = Number(v)
+            if (isNaN(pVal) || pVal < 0 || pVal > 100) {
+              next[f.key] = `${cleanLabel} must be between 0% and 100%`
+            }
+          }
+
+          if (f.key === 'rotationTime' || f.key === 'rotation_time' || camel === 'rotationTime') {
+            const rVal = Number(v)
+            if (isNaN(rVal) || rVal < 1) {
+              next[f.key] = `${cleanLabel} must be at least 1 minute`
+            }
+          }
+
+          const urlKeys = ['url', 'reraLink', 'rera_link', 'walkthroughLink', 'walkthrough_link', 'logoUrl', 'logo_url', 'apiUrl', 'api_url', 'webhookUrl', 'webhook_url']
+          if (urlKeys.includes(f.key) || urlKeys.includes(camel) || urlKeys.includes(snake)) {
+            const urlStr = String(v).trim()
+            const urlRx = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/.*)?$/
+            if (!urlRx.test(urlStr)) {
+              next[f.key] = `Please enter a valid URL (e.g. https://example.com)`
+            }
+          }
+
+          if (f.key === 'dueDate' || f.key === 'due_date' || f.key === 'nextFollowUp' || f.key === 'next_follow_up' || camel === 'dueDate' || camel === 'nextFollowUp') {
             const dTime = new Date(String(v)).getTime()
             if (!isNaN(dTime) && dTime < Date.now() - 5 * 60 * 1000) {
-              next[f.key] = `${f.label} cannot be scheduled in the past`
+              next[f.key] = `${cleanLabel} cannot be scheduled in the past`
+            }
+          }
+
+          if (['expectedCloseDate', 'expected_close_date', 'validTill', 'valid_till'].includes(f.key) || ['expectedCloseDate', 'validTill'].includes(camel)) {
+            const dTime = new Date(String(v)).getTime()
+            if (!isNaN(dTime) && dTime < Date.now() - 24 * 60 * 60 * 1000) {
+              next[f.key] = `${cleanLabel} cannot be in the past`
             }
           }
         }
@@ -685,6 +760,9 @@ export function DynamicForm({
           if (f.key === 'otherNotIntReason' && values.notIntReason !== 'Other') {
             return null
           }
+          if (f.key === 'otherLostReason' && values.lostReason !== 'Other') {
+            return null
+          }
           if ((f.key === 'callbackReason' || f.key === 'callback_reason') && values.taskType !== 'Call Back' && values.type !== 'Call Back') {
             return null
           }
@@ -699,10 +777,11 @@ export function DynamicForm({
           const value = values[f.key] ?? values[camel] ?? values[snake]
           const err = errors[f.key] || ''
           const activeIndustry = industryCode || industry_code || (user as any)?.industryId || (user as any)?.industry_id
+          const cleanLabel = (f.label || '').replace(/\s*\*+\s*$/, '').trim()
           const labelWithRequired = (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <span>{f.required ? `${f.label} *` : f.label}</span>
-              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{getFieldTooltip(f.key, f.label, activeIndustry)}</Box>} placement="top">
+              <span>{f.required ? `${cleanLabel} *` : cleanLabel}</span>
+              <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{getFieldTooltip(f.key, cleanLabel, activeIndustry)}</Box>} placement="top">
                 <InfoOutlinedIcon sx={{ fontSize: '0.85rem', color: 'text.disabled', opacity: 0.6, cursor: 'help' }} />
               </Tooltip>
             </Box>
