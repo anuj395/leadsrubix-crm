@@ -102,7 +102,9 @@ export default function BookingsListPage() {
   }
 
   const gridColumns = useMemo<GridColDef<Booking>[]>(() => {
-    const dataCols = dbColumns.map((col): GridColDef<Booking> => {
+    const dataCols = dbColumns
+      .filter(col => col.key !== 'contactId' && col.key !== 'contact_id' && (col as any).is_table_visible !== false && (col as any).visible !== false)
+      .map((col): GridColDef<Booking> => {
       const base: GridColDef<Booking> = {
         field: col.key,
         headerName: col.label,
