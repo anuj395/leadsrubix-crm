@@ -201,13 +201,95 @@ router.get('/:key', (req, res, next) => {
       } else if (orgId) {
         query.organization_id = orgId;
       }
-      const usersList = await User.find(query).select('email').lean().exec();
-      const options = usersList.map(u => ({ value: u.email, label: u.email }));
+      const usersList = await User.find(query).select('firstName lastName email name role').lean().exec();
+      const options = usersList.map(u => {
+        const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name;
+        const label = fullName ? `${fullName} (${u.email})` : u.email;
+        return { value: u.email, label };
+      });
       return res.json({ items: options });
     } catch (err) {
       console.error('Failed to load organization users', err);
       return res.status(500).json({ message: 'Failed to fetch users' });
     }
+  }
+
+  if (key === 'contacts') {
+    try {
+      const Contact = mongoose.model('Contact');
+      const orgId = req.user?.role === 'superAdmin'
+        ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
+        : (req.user?.organizationId || req.user?.organization_id);
+      const query = {};
+      if (req.user?.role !== 'superAdmin') {
+        query.organization_id = orgId || 'non-existent-org-id';
+      } else if (orgId) {
+        query.organization_id = orgId;
+      }
+      const contactsList = await Contact.find(query)
+        .select('customer_name customerName contact_number contactNumber project_name projectName email_id emailId location')
+        .sort({ updated_at: -1, created_at: -1 })
+        .limit(250)
+        .lean()
+        .exec();
+
+      const options = contactsList.map(c => {
+        const name = c.customer_name || c.customerName || 'Unnamed Lead';
+        const phone = c.contact_number || c.contactNumber || '';
+        const project = c.project_name || c.projectName || '';
+        const label = `${name}${phone ? ` (${phone})` : ''}${project ? ` • ${project}` : ''}`;
+        return {
+          value: String(c._id || c.id),
+          label,
+          customerName: name,
+          contactNumber: phone,
+          projectName: project,
+          location: c.location || '',
+        };
+      });
+      return res.json({ items: options });
+    } catch (err) {
+      console.error('Failed to load contacts for options', err);
+      return res.status(500).json({ message: 'Failed to fetch contacts' });
+    }
+  }
+
+  if (key === 'taskTypes' || key === 'task_types') {
+    return res.json({
+      items: [
+        { value: 'Call Back', label: '📞 Call Back (Follow-up Call)' },
+        { value: 'Site Visit', label: '🏢 Site Visit (Property / Tour)' },
+        { value: 'Meeting', label: '🤝 In-Person Meeting' },
+        { value: 'Online Demo', label: '💻 Online Demo / Video Call' },
+        { value: 'Follow-up', label: '💬 WhatsApp / Quick Follow-up' },
+        { value: 'Document Collection / KYC', label: '📋 Document Collection / KYC' },
+      ]
+    });
+  }
+
+  if (key === 'taskPriorities' || key === 'task_priorities') {
+    return res.json({
+      items: [
+        { value: 'Urgent', label: '⚡ Urgent (Highest)' },
+        { value: 'High', label: '🔴 High Priority' },
+        { value: 'Medium', label: '🟡 Medium Priority' },
+        { value: 'Low', label: '🟢 Low Priority' },
+      ]
+    });
+  }
+
+  if (key === 'callbackReasons' || key === 'callback_reasons') {
+    return res.json({
+      items: [
+        { value: 'Customer Busy / Call Later', label: 'Customer Busy / Call Later' },
+        { value: 'Price / Budget Discussion', label: 'Price / Budget Discussion' },
+        { value: 'Location / Layout Clarification', label: 'Location / Layout Clarification' },
+        { value: 'Site Visit Booking', label: 'Site Visit Booking' },
+        { value: 'Decision Maker Unavailable', label: 'Decision Maker Unavailable' },
+        { value: 'Ringing / Not Picked', label: 'Ringing / Not Picked' },
+        { value: 'Other', label: 'Other Reason' },
+      ]
+    });
   }
 
   const keyMap = {

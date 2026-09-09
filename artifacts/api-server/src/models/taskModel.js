@@ -13,6 +13,7 @@ const taskSchema = new mongoose.Schema(
     type:               { type: String, required: true }, // e.g., Call Back, Site Visit
     due_date:            { type: Date, required: true, alias: 'dueDate' },
     status:             { type: String, default: 'PENDING' }, // e.g., PENDING, COMPLETED, ACTIVE, CANCELLED
+    priority:           { type: String, default: 'Medium' }, // e.g., Urgent, High, Medium, Low
     callback_reason:     { type: String, default: '', alias: 'callbackReason' },
     customer_name:       { type: String, default: '', alias: 'customerName' },
     contact_number:      { type: String, default: '', alias: 'contactNumber' },
@@ -45,6 +46,8 @@ const taskSchema = new mongoose.Schema(
 taskSchema.pre('validate', function(next) {
   if (this.type && !this.taskType) this.taskType = this.type;
   if (this.taskType && !this.type) this.type = this.taskType;
+
+  if (!this.priority) this.priority = 'Medium';
 
   if (this.dueDate && !this.nextFollowUp) this.nextFollowUp = this.dueDate;
   if (this.nextFollowUp && !this.dueDate) this.dueDate = this.nextFollowUp;
