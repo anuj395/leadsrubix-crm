@@ -65,6 +65,16 @@ import ContactDrilldownPage from '@/features/admin/pages/drilldown/ContactDrilld
 import TaskDrilldownPage from '@/features/admin/pages/drilldown/TaskDrilldown'
 import CallLogDrilldownPage from '@/features/admin/pages/drilldown/CallLogDrilldown'
 import DealsListPage from '@/features/admin/leads/pages/DealsList'
+import LeadsListPage from '@/features/admin/leads/pages/LeadsList'
+import AccountsListPage from '@/features/admin/leads/pages/AccountsList'
+import QuotesListPage from '@/features/admin/leads/pages/QuotesList'
+import InquiriesListPage from '@/features/admin/leads/pages/InquiriesList'
+import HolidayConfigFormPage from '@/features/admin/config/pages/HolidayConfigForm'
+import DomainSettingsPage from '@/features/admin/config/pages/DomainSettings'
+import LeadDistributionListPage from '@/features/admin/leaddistribution/pages/LeadDistributionList'
+import LeadDistributionLogicPage from '@/features/admin/leaddistribution/pages/LeadDistributionLogic'
+import ReassignListPage from '@/features/admin/leaddistribution/pages/ReassignList'
+import ReassignLogicPage from '@/features/admin/leaddistribution/pages/ReassignLogic'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
@@ -153,4 +163,20 @@ export const routeComponentMap: Record<string, any> = {
   "/tool/area-converter": AreaConverterPage,
   "/tool/calculator": CalculatorPage,
   "/tool/emi-calculator": EmiCalculatorPage,
+
+  "/leads/leads-list": LeadsListPage,
+  "/leads/accounts-list": AccountsListPage,
+  "/leads/quotes-list": QuotesListPage,
+  "/leads/inquiries": InquiriesListPage,
+  "/leads/tasks-list": TasksListPage,
+  "/leads/call-logs-list": CallLogsListPage,
+
+  "/configuration/holiday-config/new": HolidayConfigFormPage,
+  "/configuration/holiday-config/:id/edit": HolidayConfigFormPage,
+  "/configuration/domain-settings": DomainSettingsPage,
+
+  "/lead-distribution/list": LeadDistributionListPage,
+  "/lead-distribution/logic": LeadDistributionLogicPage,
+  "/reassign/list": ReassignListPage,
+  "/reassign/logic": ReassignLogicPage,
 }
