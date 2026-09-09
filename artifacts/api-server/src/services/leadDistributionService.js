@@ -110,7 +110,7 @@ const leadDistributionService = {
       industryId: rule.industry_id || rule.industryId,
       distributionType: rule.distribution_type || rule.distributionType || 'Normal',
       usersQueue: rule.users_queue || rule.usersQueue || [],
-      userIndex: rule.user_index ?? r.userIndex ?? 0,
+      userIndex: rule.user_index ?? rule.userIndex ?? 0,
       leadDistId: rule.lead_dist_id || rule.leadDistId,
     };
   },

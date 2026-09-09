@@ -349,7 +349,24 @@ exports.create = async ({ payload, authedUser }) => {
       }).then(doc => !!(doc && doc.designations && doc.designations.some(d => d.isActive !== false)))
     ]);
 
-    // Self-healing: if any baseline setup is missing, auto-provision standard defaults
+    // Self-healing: if any baseline setup is missing, auto-provision from industry baseline defaults
+    let indDoc = null;
+    try {
+      const Industry = mongoose.model('Industry');
+      if (mongoose.Types.ObjectId.isValid(industryId)) {
+        indDoc = await Industry.findById(industryId);
+      } else {
+        indDoc = await Industry.findOne({ code: String(industryId).toLowerCase().trim() });
+      }
+    } catch (e) {
+      // fallback to standard defaults on lookup error
+    }
+
+    const teamName = indDoc?.default_team_name || 'General Sales Team';
+    const teamCode = indDoc?.default_team_code || 'GST';
+    const branchName = indDoc?.default_branch_name || 'Head Office';
+    const branchCode = indDoc?.default_branch_code || 'HQ';
+
     if (!hasTeam) {
       await Team.findOneAndUpdate(
         { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] },
@@ -359,7 +376,7 @@ exports.create = async ({ payload, authedUser }) => {
             industry_id: industryId,
           },
           $push: {
-            teams: { name: 'General Sales Team', code: 'GST', is_active: true }
+            teams: { name: teamName, code: teamCode, is_active: true }
           }
         },
         { upsert: true, new: true }
@@ -374,18 +391,31 @@ exports.create = async ({ payload, authedUser }) => {
             industry_id: industryId,
           },
           $push: {
-            branches: { name: 'Head Office', code: 'HQ', is_active: true }
+            branches: { name: branchName, code: branchCode, is_active: true }
           }
         },
         { upsert: true, new: true }
       );
     }
     if (!hasDesignation) {
-      const defaultDesignations = [
+      let defaultDesignations = [
         { name: 'Sales Executive', value: 'sales_executive', label: 'Sales Executive' },
         { name: 'Team Lead', value: 'team_lead', label: 'Team Lead' },
         { name: 'Sales Manager', value: 'sales_manager', label: 'Sales Manager' }
       ];
+      if (indDoc?.baseline_designations && Array.isArray(indDoc.baseline_designations) && indDoc.baseline_designations.length > 0) {
+        defaultDesignations = indDoc.baseline_designations.map(d => {
+          if (typeof d === 'string') {
+            const val = d.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'role';
+            return { name: d, value: val, label: d };
+          }
+          return {
+            name: d.name || d.label || d.value || 'Role',
+            value: d.value || (d.name ? d.name.toLowerCase().replace(/[^a-z0-9]+/g, '_') : 'role'),
+            label: d.label || d.name || 'Role'
+          };
+        });
+      }
       await Designation.findOneAndUpdate(
         { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] },
         {
