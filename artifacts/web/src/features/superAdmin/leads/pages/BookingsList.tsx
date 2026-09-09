@@ -78,7 +78,8 @@ export default function BookingsListPage() {
 
   const gridColumns = useMemo<GridColDef<Booking>[]>(() => {
     const sorted = [...columns].sort((a, b) => a.order - b.order)
-    const dataCols = sorted.map((c): GridColDef<Booking> => ({
+    const filtered = sorted.filter(c => c.key !== 'contactId' && c.key !== 'contact_id' && (c as any).is_table_visible !== false && (c as any).visible !== false)
+    const dataCols = filtered.map((c): GridColDef<Booking> => ({
       field: c.key,
       headerName: c.label,
       flex: 1,
