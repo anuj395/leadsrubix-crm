@@ -20,31 +20,54 @@ exports.getSettings = async (req, res, next) => {
 
     // 2. Org Admin or standard User fetching settings
     const orgId = req.user.organization_id || req.user.organizationId;
-    if (!orgId) {
-      return res.json({ industrySettings: [], orgSettings: [], userSettings: [] });
+    let industryId = null;
+
+    if (orgId) {
+      // Find organization to get its industryId
+      const org = await Organization.findOne({
+        $or: [
+          { organization_id: orgId },
+          { _id: mongoose.Types.ObjectId.isValid(orgId) ? orgId : null }
+        ].filter(Boolean)
+      }).lean().exec();
+      industryId = org ? org.industry_id || org.industryId : null;
     }
 
-    // Find organization to get its industryId
-    const org = await Organization.findOne({
-      $or: [
+    let orgIdFilter = [];
+    if (orgId) {
+      orgIdFilter = [
         { organization_id: orgId },
-        { _id: mongoose.Types.ObjectId.isValid(orgId) ? orgId : null }
-      ].filter(Boolean)
-    }).lean().exec();
-    
-    const industryId = org ? org.industry_id || org.industryId : null;
+        { organizationId: orgId },
+        { organization_id: String(orgId) },
+        { organizationId: String(orgId) }
+      ];
+      if (mongoose.Types.ObjectId.isValid(orgId)) {
+        orgIdFilter.push({ organization_id: new mongoose.Types.ObjectId(orgId) });
+        orgIdFilter.push({ organizationId: new mongoose.Types.ObjectId(orgId) });
+      }
+    }
+
+    const userQuery = (role === 'superAdmin' || !orgId || orgIdFilter.length === 0)
+      ? User.find({}).select('_id email firstName lastName role device_id aws_push_tokens is_active status').lean().exec()
+      : User.find({ $or: orgIdFilter }).select('_id email firstName lastName role device_id aws_push_tokens is_active status').lean().exec();
 
     // Query all relevant settings in parallel
-    const [industrySettings, orgSettings, userSettings] = await Promise.all([
-      industryId ? NotificationSetting.find({ organization_id: `industry_${industryId}`, user_id: null }).lean().exec() : [],
-      NotificationSetting.find({ organization_id: orgId, user_id: null }).lean().exec(),
-      NotificationSetting.find({ organization_id: orgId, user_id: String(req.user.id || req.user._id) }).lean().exec()
+    const [industrySettings, orgSettings, userSettings, allUsersSettings, orgUsers] = await Promise.all([
+      (industryId && orgId) ? NotificationSetting.find({ organization_id: `industry_${industryId}`, user_id: null }).lean().exec() : [],
+      orgId ? NotificationSetting.find({ organization_id: orgId, user_id: null }).lean().exec() : [],
+      orgId ? NotificationSetting.find({ organization_id: orgId, user_id: String(req.user.id || req.user._id) }).lean().exec() : [],
+      NotificationSetting.find({ user_id: { $ne: null } }).lean().exec(),
+      userQuery
     ]);
 
+    const finalOrgUsers = (orgUsers && orgUsers.length > 0) ? orgUsers : [req.user];
+
     res.json({
-      industrySettings,
-      orgSettings,
-      userSettings
+      industrySettings: industrySettings || [],
+      orgSettings: orgSettings || [],
+      userSettings: userSettings || [],
+      allUsersSettings: allUsersSettings || [],
+      orgUsers: finalOrgUsers
     });
   } catch (err) {
     next(err);
@@ -54,7 +77,7 @@ exports.getSettings = async (req, res, next) => {
 exports.updateSetting = async (req, res, next) => {
   try {
     const NotificationSetting = mongoose.model('NotificationSetting');
-    const { level, notificationType, isEnabled, industryId } = req.body;
+    const { level, notificationType, isEnabled, industryId, userId } = req.body;
 
     if (!level || !notificationType) {
       const err = new Error('Level and notificationType are required');
@@ -95,12 +118,23 @@ exports.updateSetting = async (req, res, next) => {
         targetOrgId = req.body.organizationId || req.user.organization_id || req.user.organizationId;
       }
     } else if (level === 'user') {
-      targetOrgId = req.user.organization_id || req.user.organizationId;
-      targetUserId = String(req.user.id || req.user._id);
-      if (req.body.userId && String(req.body.userId) !== String(targetUserId)) {
-        const err = new Error("Access denied: You cannot modify another user's settings");
-        err.status = 403;
-        throw err;
+      if (role === 'admin' || role === 'superAdmin') {
+        targetUserId = String(userId || req.user.id || req.user._id);
+        targetOrgId = req.user.organization_id || req.user.organizationId || req.body.organizationId || null;
+        if (!targetOrgId && targetUserId) {
+          const targetUserDoc = await User.findById(targetUserId).lean().exec();
+          if (targetUserDoc) {
+            targetOrgId = targetUserDoc.organization_id || targetUserDoc.organizationId || null;
+          }
+        }
+      } else {
+        targetOrgId = req.user.organization_id || req.user.organizationId;
+        targetUserId = String(req.user.id || req.user._id);
+        if (userId && String(userId) !== String(targetUserId)) {
+          const err = new Error("Access denied: You cannot modify another user's settings");
+          err.status = 403;
+          throw err;
+        }
       }
     } else {
       const err = new Error('Invalid setting level');
@@ -109,9 +143,7 @@ exports.updateSetting = async (req, res, next) => {
     }
 
     if (!targetOrgId) {
-      const err = new Error('Organization context not found');
-      err.status = 400;
-      throw err;
+      targetOrgId = 'default_org';
     }
 
     // Upsert preference in database

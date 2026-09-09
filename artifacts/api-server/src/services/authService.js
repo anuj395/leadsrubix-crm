@@ -240,3 +240,59 @@ exports.resetPassword = async (token, newPassword) => {
 
   return { message: 'Password has been reset successfully.' };
 };
+
+exports.registerPushToken = async ({ userId, pushToken, platform }) => {
+  if (!userId || !pushToken) {
+    const err = new Error('User ID and push token are required');
+    err.status = 400;
+    throw err;
+  }
+
+  const awsSnsService = require('./awsSnsService');
+  const snsRes = await awsSnsService.registerDevicePushToken({
+    token: pushToken,
+    platform: platform || 'android',
+    userId
+  });
+
+  const endpointArn = snsRes.endpointArn || null;
+  const userDoc = await userModel.User.findById(userId);
+  if (!userDoc) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const existingTokens = Array.isArray(userDoc.aws_push_tokens) ? userDoc.aws_push_tokens : [];
+  const filtered = existingTokens.filter(t => t && t.token !== pushToken);
+  filtered.push({
+    token: pushToken,
+    endpointArn,
+    platform: platform || 'android',
+    updatedAt: new Date()
+  });
+
+  userDoc.aws_push_tokens = filtered;
+  if (endpointArn) {
+    userDoc.sns_endpoint_arn = endpointArn;
+  }
+  userDoc.device_id = pushToken;
+  await userDoc.save();
+
+  return {
+    success: true,
+    message: 'Push token registered successfully with AWS SNS',
+    endpointArn
+  };
+};
+
+exports.unregisterPushToken = async ({ userId, pushToken }) => {
+  if (!userId) return { success: true };
+  const userDoc = await userModel.User.findById(userId);
+  if (userDoc) {
+    const existingTokens = Array.isArray(userDoc.aws_push_tokens) ? userDoc.aws_push_tokens : [];
+    userDoc.aws_push_tokens = existingTokens.filter(t => t && t.token !== pushToken);
+    await userDoc.save();
+  }
+  return { success: true, message: 'Push token unregistered successfully' };
+};

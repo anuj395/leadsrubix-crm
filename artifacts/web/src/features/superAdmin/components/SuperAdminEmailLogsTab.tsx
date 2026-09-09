@@ -23,6 +23,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import EmailIcon from '@mui/icons-material/Email'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '@/services/api'
+import { useAuth } from '@/hooks/useAuth'
 
 interface OrgItem {
   organizationId: string
@@ -43,6 +44,9 @@ interface EmailLogItem {
 }
 
 export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string, sev?: 'success' | 'error') => void }) {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'superAdmin' || (user as any)?.roleKey === 'superAdmin'
+
   const [loading, setLoading] = useState(true)
   const [orgs, setOrgs] = useState<OrgItem[]>([])
   const [logs, setLogs] = useState<EmailLogItem[]>([])
@@ -51,6 +55,7 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
   const [searchQuery, setSearchQuery] = useState<string>('')
 
   const loadOrganizations = async () => {
+    if (!isSuperAdmin) return
     try {
       let res = await api.get('admin/email-settings/quotas').catch(() => null)
       if (!res?.data?.items) {
@@ -65,7 +70,7 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
   const fetchLogs = async (orgIdFilter = selectedOrgFilter, statusFilter = selectedStatusFilter) => {
     setLoading(true)
     try {
-      const orgParam = orgIdFilter !== 'all' ? `&organizationId=${orgIdFilter}` : ''
+      const orgParam = (isSuperAdmin && orgIdFilter !== 'all') ? `&organizationId=${orgIdFilter}` : ''
       const statusParam = statusFilter !== 'all' ? `&status=${statusFilter}` : ''
       let res = await api.get(`organization/email-settings/logs?pageSize=100${orgParam}${statusParam}`).catch(() => null)
       if (!res?.data) {
@@ -73,16 +78,18 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
       }
       setLogs(res?.data?.items || [])
     } catch {
-      showToast('Failed to load system email logs', 'error')
+      showToast('Failed to load email logs', 'error')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadOrganizations()
+    if (isSuperAdmin) {
+      void loadOrganizations()
+    }
     void fetchLogs()
-  }, [])
+  }, [isSuperAdmin])
 
   useEffect(() => {
     void fetchLogs(selectedOrgFilter, selectedStatusFilter)
@@ -108,10 +115,12 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
             <EmailIcon color="primary" sx={{ fontSize: 32 }} />
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                Global System-Wide Email Delivery Logs
+                {isSuperAdmin ? 'Global System-Wide Email Delivery Logs' : 'Workspace Email Delivery Logs'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Track real-time email dispatches, delivery statuses, AWS SES notifications, and fallbacks across all enterprise tenant workspaces.
+                {isSuperAdmin 
+                  ? 'Track real-time email dispatches, delivery statuses, AWS SES notifications, and fallbacks across all enterprise tenant workspaces.'
+                  : 'Track real-time automated email dispatches, trigger actions, and delivery status history for your organization.'}
               </Typography>
             </Box>
           </Stack>
@@ -129,7 +138,7 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
             >
               <TextField
                 size="small"
-                placeholder="Search recipient, subject, workspace..."
+                placeholder="Search recipient, subject, trigger..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 InputProps={{
@@ -139,21 +148,23 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
               />
 
               <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-                <FormControl size="small" sx={{ minWidth: 190 }}>
-                  <InputLabel>Filter Workspace</InputLabel>
-                  <Select
-                    value={selectedOrgFilter}
-                    label="Filter Workspace"
-                    onChange={(e) => setSelectedOrgFilter(e.target.value)}
-                  >
-                    <MenuItem value="all">All Workspaces</MenuItem>
-                    {orgs.map((org) => (
-                      <MenuItem key={org.organizationId} value={org.organizationId}>
-                        {org.organizationName}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {isSuperAdmin && (
+                  <FormControl size="small" sx={{ minWidth: 190 }}>
+                    <InputLabel>Filter Workspace</InputLabel>
+                    <Select
+                      value={selectedOrgFilter}
+                      label="Filter Workspace"
+                      onChange={(e) => setSelectedOrgFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">All Workspaces</MenuItem>
+                      {orgs.map((org) => (
+                        <MenuItem key={org.organizationId} value={org.organizationId}>
+                          {org.organizationName}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
 
                 <FormControl size="small" sx={{ minWidth: 140 }}>
                   <InputLabel>Status</InputLabel>
@@ -185,40 +196,38 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
 
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={40} />
+                <CircularProgress size={36} />
               </Box>
             ) : (
-              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', maxHeight: 500, overflowY: 'auto' }}>
-                <Table size="small" stickyHeader>
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', maxHeight: 480, overflowY: 'auto' }}>
+                <Table stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Workspace Organization</TableCell>
-                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Recipient</TableCell>
-                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Subject</TableCell>
-                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Trigger Action</TableCell>
-                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Timestamp</TableCell>
+                      {isSuperAdmin && <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>WORKSPACE ORGANIZATION</TableCell>}
+                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>RECIPIENT</TableCell>
+                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>SUBJECT</TableCell>
+                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>TRIGGER ACTION</TableCell>
+                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>STATUS</TableCell>
+                      <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>TIMESTAMP</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {filteredLogs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                          No email delivery logs found matching the selected filters.
+                        <TableCell colSpan={isSuperAdmin ? 6 : 5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                          No email delivery logs found matching the current filters.
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredLogs.map((log) => (
                         <TableRow key={log._id} hover>
-                          <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>
-                            {log.organizationName || 'Global System'}
-                          </TableCell>
+                          {isSuperAdmin && <TableCell sx={{ fontWeight: 600 }}>{log.organizationName || 'Workspace'}</TableCell>}
                           <TableCell sx={{ fontWeight: 600 }}>{log.recipient}</TableCell>
                           <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {log.subject}
                           </TableCell>
                           <TableCell>
-                            <Chip label={log.trigger_action} size="small" variant="outlined" />
+                            <Chip label={log.trigger_action} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                           </TableCell>
                           <TableCell>
                             <Chip
@@ -227,12 +236,12 @@ export function SuperAdminEmailLogsTab({ showToast }: { showToast: (msg: string,
                               color={
                                 log.status === 'SENT' ? 'success' :
                                 log.status === 'BOUNCED' || log.status === 'FAILED' ? 'error' :
-                                log.status === 'SUPPRESSED' ? 'warning' : 'default'
+                                log.status === 'SUPPRESSED' ? 'warning' : 'info'
                               }
                               sx={{ fontWeight: 700 }}
                             />
                           </TableCell>
-                          <TableCell sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                          <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                             {new Date(log.createdAt).toLocaleString()}
                           </TableCell>
                         </TableRow>

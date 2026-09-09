@@ -68,6 +68,9 @@ require('./models/sidebarModel');
 require('./models/taskModel');
 require('./models/notificationModel');
 require('./models/notificationSettingModel');
+require('./models/pushTemplateModel');
+require('./models/pushLogModel');
+require('./models/pushQuotaModel');
 require('./models/emailLogModel');
 require('./models/emailSuppressionModel');
 

@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema(
     reporting_to: { type: String, default: '', alias: 'reportingTo' },
     needs_password_change: { type: Boolean, default: false, alias: 'needsPasswordChange' },
     device_id: { type: String, default: '', alias: 'deviceId' },
+    sns_endpoint_arn: { type: String, default: '', alias: 'snsEndpointArn' },
+    aws_push_tokens: { type: mongoose.Schema.Types.Mixed, default: [], alias: 'awsPushTokens' },
     uid: { type: String, unique: true, index: true },
     latest_update_profile: { type: Boolean, default: false, alias: 'latestUpdateProfile' },
     activated_at: { type: Date, default: null, alias: 'activatedAt' },

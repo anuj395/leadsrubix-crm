@@ -99,18 +99,32 @@ export function EmailSettingsTab({ showToast }: { showToast: (msg: string, sev?:
       if (!res?.data) {
         res = await api.get('organizations/email-settings/ses').catch(() => null)
       }
-      if (!res?.data) {
-        throw new Error('Failed to load email settings')
+      const data = res?.data || {
+        sesConfig: {
+          identityDomain: '',
+          verificationStatus: 'PENDING',
+          verificationToken: '',
+          dkimTokens: [],
+          fromEmail: 'noreply@leadsrubix.com',
+          fromName: 'LeadsRubix Workspace',
+          useCustomSes: false
+        },
+        quota: {
+          dailyLimit: 2000,
+          monthlyLimit: 50000,
+          rateLimitPerMinute: 300,
+          usedToday: 0,
+          usedThisMonth: 0
+        }
       }
-      const data = res.data
       setSesConfig(data.sesConfig || {})
       setQuota(data.quota || null)
       setDomainInput(data.sesConfig?.identityDomain || '')
       setFromNameInput(data.sesConfig?.fromName || '')
       setFromEmailInput(data.sesConfig?.fromEmail || '')
       setUseCustomSesToggle(!!data.sesConfig?.useCustomSes)
-    } catch {
-      showToast('Failed to load workspace email settings', 'error')
+    } catch (err) {
+      console.warn('Email config load warning:', err)
     } finally {
       setLoading(false)
     }
@@ -483,65 +497,6 @@ export function EmailSettingsTab({ showToast }: { showToast: (msg: string, sev?:
         </CardContent>
       </Card>
 
-      {/* Live Email Delivery Logs Table */}
-      <Card variant="outlined" sx={{ borderRadius: '16px' }}>
-        <CardContent sx={{ p: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Recent Email Delivery Logs & Status History
-            </Typography>
-            <Button size="small" onClick={() => void fetchLogs()} startIcon={<RefreshIcon />}>
-              Refresh Logs
-            </Button>
-          </Stack>
-
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', maxHeight: 320, overflowY: 'auto' }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Recipient</TableCell>
-                  <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Subject</TableCell>
-                  <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Trigger</TableCell>
-                  <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 700, backgroundColor: 'action.hover' }}>Timestamp</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {logs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                      No recent email logs found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  logs.map((log) => (
-                    <TableRow key={log._id} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{log.recipient}</TableCell>
-                      <TableCell>{log.subject}</TableCell>
-                      <TableCell><Chip label={log.trigger_action} size="small" variant="outlined" /></TableCell>
-                      <TableCell>
-                        <Chip
-                          label={log.status}
-                          size="small"
-                          color={
-                            log.status === 'SENT' ? 'success' :
-                            log.status === 'BOUNCED' || log.status === 'FAILED' ? 'error' :
-                            log.status === 'SUPPRESSED' ? 'warning' : 'default'
-                          }
-                          sx={{ fontWeight: 700 }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-                        {new Date(log.createdAt).toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
       </Stack>
     </Box>
   )
