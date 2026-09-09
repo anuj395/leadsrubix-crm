@@ -54,8 +54,10 @@ const Contact = mongoose.model('Contact', contactSchema, 'contacts');
 
 exports.Contact = Contact;
 
-exports.list = async ({ filter = {}, limit = 200 } = {}) => {
-  const docs = await Contact.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
+exports.list = async ({ filter = {}, limit = 5000 } = {}) => {
+  const q = Contact.find(filter).sort({ createdAt: -1 });
+  if (limit > 0) q.limit(limit);
+  const docs = await q.lean().exec();
   return mapWithDualCase(docs);
 };
 

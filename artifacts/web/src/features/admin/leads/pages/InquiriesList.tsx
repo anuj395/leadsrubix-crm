@@ -1,18 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Stack from '@mui/material/Stack'
 import Chip from '@mui/material/Chip'
-import TextField from '@mui/material/TextField'
-import InputAdornment from '@mui/material/InputAdornment'
 import Paper from '@mui/material/Paper'
 import Tooltip from '@mui/material/Tooltip'
-import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
-import SearchIcon from '@mui/icons-material/Search'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import HandshakeIcon from '@mui/icons-material/Handshake'
 import PhoneIcon from '@mui/icons-material/Phone'
@@ -21,6 +15,8 @@ import RepeatIcon from '@mui/icons-material/Repeat'
 import PersonOffIcon from '@mui/icons-material/PersonOff'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import PhoneCallbackIcon from '@mui/icons-material/PhoneCallback'
+import BlockIcon from '@mui/icons-material/Block'
+import PersonIcon from '@mui/icons-material/Person'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import { AppCard } from '@/components/ui/AppCard'
@@ -31,17 +27,18 @@ import { api } from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { useNavigate } from 'react-router-dom'
+import { normalizeStage } from '@/utils/stageUtils'
 import ConvertLeadModal from '../components/ConvertLeadModal'
 import LogCallModal from '../components/LogCallModal'
 import CallbackModal from '../components/CallbackModal'
+import NotInterestedModal from '../components/NotInterestedModal'
 
 export default function InquiriesListPage() {
   const navigate = useNavigate()
   const { user } = useAppSelector(selectAuth)
   const [loading, setLoading] = useState(false)
   const [inquiries, setInquiries] = useState<any[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterStage, setFilterStage] = useState('ALL')
+  const [filterStage, setFilterStage] = useState<'FRESH' | 'CALLBACK' | 'CONTACTED' | 'UNASSIGNED' | 'ALL'>('FRESH')
 
   // Modals state
   const [convertModalOpen, setConvertModalOpen] = useState(false)
@@ -50,6 +47,8 @@ export default function InquiriesListPage() {
   const [selectedContactForCall, setSelectedContactForCall] = useState<any | null>(null)
   const [callbackOpen, setCallbackOpen] = useState(false)
   const [selectedContactIdForCallback, setSelectedContactIdForCallback] = useState<string>('')
+  const [notIntModalOpen, setNotIntModalOpen] = useState(false)
+  const [selectedContactIdForNotInt, setSelectedContactIdForNotInt] = useState<string>('')
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
@@ -60,7 +59,7 @@ export default function InquiriesListPage() {
   const fetchInquiries = async () => {
     setLoading(true)
     try {
-      const res = await api.get('contacts', { params: { limit: 300 } })
+      const res = await api.get('contacts', { params: { limit: 5000 } })
       const rawItems = res.data?.items || res.data?.contacts || res.data || []
       setInquiries(Array.isArray(rawItems) ? rawItems : [])
     } catch (err: any) {
@@ -99,16 +98,29 @@ export default function InquiriesListPage() {
     setCallbackOpen(true)
   }
 
-  // Summary Metrics
-  const metrics = useMemo(() => {
+  const handleOpenNotInt = (inquiryId: string) => {
+    setSelectedContactIdForNotInt(inquiryId)
+    setNotIntModalOpen(true)
+  }
+
+  // Summary Metrics & Triage Counts
+  const { metrics, triageCounts } = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0]
     let unassigned = 0
     let contactedToday = 0
     let qualifiedToday = 0
+    let freshCount = 0
+    let callbackCount = 0
+    let contactedCount = 0
 
     inquiries.forEach((item) => {
-      const hasOwner = item.contactOwnerEmail || item.contact_owner_email || item.contactOwnerId
+      const stage = normalizeStage(item.stage || item.lifecycle_stage)
+      const hasOwner = Boolean(item.contactOwnerEmail || item.contact_owner_email || item.contactOwnerId || item.contact_owner_id)
       if (!hasOwner) unassigned++
+
+      if (stage === 'FRESH') freshCount++
+      else if (stage === 'CALLBACK') callbackCount++
+      else if (stage === 'INTERESTED' || stage === 'QUALIFIED') contactedCount++
 
       const cDate = item.last_contacted_at || item.lastContactedAt || item.call_response_time
       if (cDate && new Date(cDate).toISOString().split('T')[0] === todayStr) {
@@ -122,45 +134,42 @@ export default function InquiriesListPage() {
     })
 
     return {
-      total: inquiries.length,
-      unassigned,
-      contactedToday,
-      qualifiedToday,
+      metrics: {
+        total: inquiries.length,
+        unassigned,
+        contactedToday,
+        qualifiedToday,
+      },
+      triageCounts: {
+        fresh: freshCount,
+        callback: callbackCount,
+        contacted: contactedCount,
+        unassigned,
+        all: inquiries.length,
+      }
     }
   }, [inquiries])
 
   const filteredInquiries = useMemo(() => {
     return inquiries.filter((item) => {
-      const isAlreadyConverted =
-        item.is_converted === true ||
-        item.isConverted === true ||
-        (item.stage && String(item.stage).toUpperCase().includes('DEAL'))
+      const stage = normalizeStage(item.stage || item.lifecycle_stage)
+      const hasOwner = Boolean(item.contactOwnerEmail || item.contact_owner_email || item.contactOwnerId || item.contact_owner_id)
 
-      if (isAlreadyConverted) return false
-
-      const st = String(item.stage || '').toUpperCase()
-
-      if (filterStage === 'FRESH' && (st.includes('CALLBACK') || st.includes('CONTACTED') || st.includes('INTERESTED') || st.includes('QUALIFIED'))) {
-        return false
+      if (filterStage === 'FRESH') {
+        return stage === 'FRESH'
       }
-      if (filterStage === 'CALLBACK' && !(st.includes('CALLBACK') || st.includes('CALL_BACK'))) {
-        return false
+      if (filterStage === 'CALLBACK') {
+        return stage === 'CALLBACK'
       }
-      if (filterStage === 'CONTACTED' && !(st.includes('CONTACTED') || st.includes('INTERESTED'))) {
-        return false
+      if (filterStage === 'CONTACTED') {
+        return stage === 'INTERESTED' || stage === 'QUALIFIED'
       }
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase()
-        const nameMatch = (item.customer_name || item.customerName || '').toLowerCase().includes(q)
-        const phoneMatch = (item.contact_number || item.contactNumber || '').toLowerCase().includes(q)
-        const emailMatch = (item.email_id || item.emailId || '').toLowerCase().includes(q)
-        const projMatch = (item.project_name || item.projectName || '').toLowerCase().includes(q)
-        if (!nameMatch && !phoneMatch && !emailMatch && !projMatch) return false
+      if (filterStage === 'UNASSIGNED') {
+        return !hasOwner
       }
       return true
     })
-  }, [inquiries, filterStage, searchQuery])
+  }, [inquiries, filterStage])
 
   const columns: GridColDef[] = [
     {
@@ -197,58 +206,138 @@ export default function InquiriesListPage() {
       },
     },
     {
+      field: 'urgency',
+      headerName: 'SLA / URGENCY',
+      flex: 1,
+      minWidth: 135,
+      renderCell: (params) => {
+        const row = params.row
+        const created = row.createdAt || row.created_at
+        const stage = normalizeStage(row.stage || row.lifecycle_stage)
+        const isContacted = Boolean(row.last_contacted_at || row.lastContactedAt || stage === 'INTERESTED' || stage === 'QUALIFIED' || stage === 'CALLBACK' || stage === 'WON')
+
+        if (!created) return <Typography variant="caption" color="text.secondary">—</Typography>
+
+        const elapsedMin = Math.floor((Date.now() - new Date(created).getTime()) / 60000)
+
+        if (isContacted) {
+          return (
+            <Chip
+              size="small"
+              icon={<CheckCircleIcon style={{ fontSize: 12 }} />}
+              label="Responded"
+              color="success"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.68rem', fontWeight: 600 }}
+            />
+          )
+        }
+
+        if (elapsedMin < 15) {
+          return (
+            <Tooltip title="Arrived within last 15 minutes - First call urgent!">
+              <Chip
+                size="small"
+                icon={<AlarmIcon style={{ fontSize: 12, color: '#fff' }} />}
+                label="< 15m Urgent"
+                color="error"
+                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700, bgcolor: 'error.main', color: '#fff' }}
+              />
+            </Tooltip>
+          )
+        } else if (elapsedMin < 120) {
+          return (
+            <Chip
+              size="small"
+              label={`${Math.round(elapsedMin / 60)}h ago`}
+              color="warning"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.68rem', fontWeight: 600 }}
+            />
+          )
+        } else {
+          const days = Math.floor(elapsedMin / 1440)
+          const label = days > 0 ? `${days}d overdue` : `${Math.floor(elapsedMin / 60)}h overdue`
+          return (
+            <Chip
+              size="small"
+              label={label}
+              color="default"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.68rem', fontWeight: 600, color: 'text.secondary' }}
+            />
+          )
+        }
+      },
+    },
+    {
       field: 'contact_number',
       headerName: 'PHONE NUMBER',
       flex: 1,
-      minWidth: 130,
+      minWidth: 125,
       valueGetter: (_, row) => row.contact_number || row.contactNumber || '—',
     },
     {
       field: 'project_name',
       headerName: 'PROJECT / REQUIREMENT',
       flex: 1.1,
-      minWidth: 150,
+      minWidth: 140,
       valueGetter: (_, row) => row.project_name || row.projectName || row.propertyType || '—',
     },
     {
       field: 'source',
-      headerName: 'SOURCE',
+      headerName: 'CHANNEL SOURCE',
       flex: 0.9,
-      minWidth: 110,
-      renderCell: (params) => (
-        <Chip
-          label={params.row.source || params.row.lead_source || 'Direct'}
-          size="small"
-          variant="outlined"
-          color="info"
-        />
-      ),
+      minWidth: 120,
+      renderCell: (params) => {
+        const src = String(params.row.source || params.row.lead_source || 'Inbound').trim()
+        const isMeta = src.toLowerCase().includes('meta') || src.toLowerCase().includes('facebook')
+        const isPortal = src.toLowerCase().includes('99') || src.toLowerCase().includes('acre') || src.toLowerCase().includes('magic')
+        return (
+          <Chip
+            label={src}
+            size="small"
+            variant="outlined"
+            color={isMeta ? 'primary' : isPortal ? 'secondary' : 'info'}
+            sx={{ fontWeight: 600, fontSize: '0.7rem', height: 22 }}
+          />
+        )
+      },
     },
     {
-      field: 'stage',
-      headerName: 'STAGE',
+      field: 'owner',
+      headerName: 'ASSIGNED SDR / REP',
       flex: 1,
-      minWidth: 130,
-      renderCell: (params) => (
-        <StatusBadge value={params.row.stage || params.row.lifecycle_stage || 'INBOUND'} />
-      ),
-    },
-    {
-      field: 'createdAt',
-      headerName: 'RECEIVED AT',
-      flex: 1.1,
-      minWidth: 150,
-      valueGetter: (_, row) => {
-        const d = row.createdAt || row.created_at
-        if (!d) return '—'
-        return new Date(d).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      minWidth: 140,
+      renderCell: (params) => {
+        const owner = params.row.contactOwnerEmail || params.row.contact_owner_email || params.row.ownerName
+        if (!owner) {
+          return (
+            <Chip
+              icon={<PersonOffIcon style={{ fontSize: 12 }} />}
+              label="Unassigned Pool"
+              size="small"
+              color="warning"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.68rem', fontWeight: 600 }}
+            />
+          )
+        }
+        return (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <PersonIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+            <Typography variant="caption" noWrap sx={{ fontWeight: 500 }}>
+              {owner}
+            </Typography>
+          </Stack>
+        )
       },
     },
     {
       field: 'actions',
-      headerName: 'FAST ACTIONS',
-      flex: 1.8,
-      minWidth: 320,
+      headerName: 'FAST TRIAGE ACTIONS',
+      flex: 2,
+      minWidth: 350,
       sortable: false,
       renderCell: (params) => {
         const row = params.row
@@ -281,7 +370,7 @@ export default function InquiriesListPage() {
               </Button>
             </Tooltip>
 
-            <Tooltip title="Promote to Qualified Sales Lead">
+            <Tooltip title="Qualify and promote into Verified Contacts">
               <Button
                 size="small"
                 variant="contained"
@@ -306,6 +395,19 @@ export default function InquiriesListPage() {
                 Deal
               </Button>
             </Tooltip>
+
+            <Tooltip title="Mark as Junk / Spam / Disqualified">
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<BlockIcon />}
+                onClick={() => handleOpenNotInt(id)}
+                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.3 }}
+              >
+                Junk
+              </Button>
+            </Tooltip>
           </Stack>
         )
       },
@@ -316,10 +418,10 @@ export default function InquiriesListPage() {
     <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Box sx={{ flexShrink: 0, mb: 2 }}>
         <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, color: 'text.primary' }}>
-          Inbound Inquiries
+          Inbound Inquiries Triage Desk
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          High-velocity triage inbox for newly received customer inquiries, webhook submissions, and incoming calls.
+          High-velocity queue for incoming leads, ad submissions, and webhooks. Act quickly on fresh inquiries to maintain SLA.
         </Typography>
       </Box>
 
@@ -366,53 +468,49 @@ export default function InquiriesListPage() {
         </Grid>
       </Grid>
 
-      <AppCard fullHeight title="Inquiries Triage" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2 }}>
-          <TextField
-            size="small"
-            placeholder="Search by customer name, phone, email, project..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ width: { xs: '100%', sm: 340 } }}
+      <AppCard fullHeight title="Operational Triage Queue" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* Operational Triage Tabs Bar */}
+        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.75, overflowX: 'auto', pb: 0.5 }}>
+          <Chip
+            label={`🚨 Needs First Response (${triageCounts.fresh})`}
+            clickable
+            color={filterStage === 'FRESH' ? 'primary' : 'default'}
+            variant={filterStage === 'FRESH' ? 'filled' : 'outlined'}
+            onClick={() => setFilterStage('FRESH')}
+            sx={{ fontWeight: 700 }}
           />
-
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5, overflowX: 'auto', pb: 0.5 }}>
-            <Chip
-              label="All Inquiries"
-              clickable
-              color={filterStage === 'ALL' ? 'primary' : 'default'}
-              variant={filterStage === 'ALL' ? 'filled' : 'outlined'}
-              onClick={() => setFilterStage('ALL')}
-            />
-            <Chip
-              label="Fresh Inbound"
-              clickable
-              color={filterStage === 'FRESH' ? 'primary' : 'default'}
-              variant={filterStage === 'FRESH' ? 'filled' : 'outlined'}
-              onClick={() => setFilterStage('FRESH')}
-            />
-            <Chip
-              label="Callbacks Scheduled"
-              clickable
-              color={filterStage === 'CALLBACK' ? 'warning' : 'default'}
-              variant={filterStage === 'CALLBACK' ? 'filled' : 'outlined'}
-              onClick={() => setFilterStage('CALLBACK')}
-            />
-            <Chip
-              label="Contacted / In Progress"
-              clickable
-              color={filterStage === 'CONTACTED' ? 'info' : 'default'}
-              variant={filterStage === 'CONTACTED' ? 'filled' : 'outlined'}
-              onClick={() => setFilterStage('CONTACTED')}
-            />
-          </Stack>
+          <Chip
+            label={`⏰ Callbacks Due (${triageCounts.callback})`}
+            clickable
+            color={filterStage === 'CALLBACK' ? 'warning' : 'default'}
+            variant={filterStage === 'CALLBACK' ? 'filled' : 'outlined'}
+            onClick={() => setFilterStage('CALLBACK')}
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip
+            label={`💬 In Discussion (${triageCounts.contacted})`}
+            clickable
+            color={filterStage === 'CONTACTED' ? 'info' : 'default'}
+            variant={filterStage === 'CONTACTED' ? 'filled' : 'outlined'}
+            onClick={() => setFilterStage('CONTACTED')}
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip
+            label={`👤 Unassigned Queue (${triageCounts.unassigned})`}
+            clickable
+            color={filterStage === 'UNASSIGNED' ? 'secondary' : 'default'}
+            variant={filterStage === 'UNASSIGNED' ? 'filled' : 'outlined'}
+            onClick={() => setFilterStage('UNASSIGNED')}
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip
+            label={`📋 All Incoming (${triageCounts.all})`}
+            clickable
+            color={filterStage === 'ALL' ? 'default' : 'default'}
+            variant={filterStage === 'ALL' ? 'filled' : 'outlined'}
+            onClick={() => setFilterStage('ALL')}
+            sx={{ fontWeight: 600 }}
+          />
         </Stack>
 
         <Box sx={{ flex: 1, minHeight: 0 }}>
@@ -461,6 +559,19 @@ export default function InquiriesListPage() {
           onSuccess={() => {
             fetchInquiries()
             setToast({ open: true, msg: 'Deal created successfully!', sev: 'success' })
+          }}
+        />
+      )}
+
+      {/* Not Interested / Junk Modal */}
+      {notIntModalOpen && selectedContactIdForNotInt && (
+        <NotInterestedModal
+          open={notIntModalOpen}
+          onClose={() => setNotIntModalOpen(false)}
+          contactId={selectedContactIdForNotInt}
+          onSuccess={() => {
+            fetchInquiries()
+            setToast({ open: true, msg: 'Inquiry marked as junk/lost', sev: 'success' })
           }}
         />
       )}

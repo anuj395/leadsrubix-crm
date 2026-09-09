@@ -135,7 +135,7 @@ function fillExtraFields(aligned, user) {
  *   - SuperAdmin → sees all contacts across all industries.
  *   - Everyone else → scoped to their own industry only (multi-tenant isolation).
  */
-exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery, limit = 200 }) => {
+exports.listForUser = async ({ authedUser, industryIdQuery, organizationIdQuery, limit = 5000 }) => {
   if (!authedUser?.id) {
     const err = new Error('Authentication required'); err.status = 401; throw err;
   }

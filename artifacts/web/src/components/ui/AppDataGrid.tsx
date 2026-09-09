@@ -692,21 +692,37 @@ export function AppDataGrid({
     return String(val)
   }
 
-  const currentPage = rest.paginationModel?.page ?? 0
-  const currentPageSize = rest.paginationModel?.pageSize ?? 25
+  // Synchronized Pagination State (Controlled or Uncontrolled)
+  const [internalPaginationModel, setInternalPaginationModel] = useState({ page: 0, pageSize: 25 })
+  const paginationModel = rest.paginationModel ?? internalPaginationModel
+
+  const handlePaginationModelChange = (newModel: { page: number; pageSize: number }) => {
+    if (rest.onPaginationModelChange) {
+      (rest.onPaginationModelChange as any)(newModel)
+    } else {
+      setInternalPaginationModel(newModel)
+    }
+  }
+
+  const currentPage = paginationModel.page
+  const currentPageSize = paginationModel.pageSize
 
   const handlePageChange = (_: any, newPage: number) => {
-    if (rest.onPaginationModelChange) {
-      (rest.onPaginationModelChange as any)({ page: newPage, pageSize: currentPageSize })
-    }
+    handlePaginationModelChange({ page: newPage, pageSize: currentPageSize })
   }
 
   const handlePageSizeChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const newSize = parseInt(event.target.value, 10)
-    if (rest.onPaginationModelChange) {
-      (rest.onPaginationModelChange as any)({ page: 0, pageSize: newSize })
-    }
+    handlePaginationModelChange({ page: 0, pageSize: newSize })
   }
+
+  const effectiveTotalCount = quickSearchText.trim() ? rowsList.length : totalCount
+
+  // Paginated subset for Card & List views to prevent rendering all rows simultaneously
+  const paginatedRows = useMemo(() => {
+    const start = currentPage * currentPageSize
+    return rowsList.slice(start, start + currentPageSize)
+  }, [rowsList, currentPage, currentPageSize])
 
   return (
     <Box sx={{ height, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -718,6 +734,8 @@ export function AppDataGrid({
         <DataGrid
           columns={responsiveColumns}
           pagination
+          paginationModel={paginationModel}
+          onPaginationModelChange={handlePaginationModelChange}
           disableVirtualization={true}
           slots={hideToolbar ? slots : { toolbar: CustomToolbar, ...(slots ?? {}) }}
           slotProps={
@@ -955,9 +973,18 @@ export function AppDataGrid({
 
           {/* Body Content: Grid or List */}
           <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-            {viewMode === 'grid' ? (
+            {paginatedRows.length === 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4, height: '100%', color: 'text.secondary' }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
+                  No records found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try adjusting your search query or clearing active filters.
+                </Typography>
+              </Box>
+            ) : viewMode === 'grid' ? (
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2.5 }}>
-                {rowsList.map((row: any) => {
+                {paginatedRows.map((row: any) => {
                   const id = getRowId ? getRowId(row) : (row._id || row.id)
                   const titleVal = titleCol ? renderCellContent(row, titleCol) : 'Record'
                   const displayCols = contentColumns.filter((c) => c.field !== titleCol?.field).slice(0, 6)
@@ -1017,7 +1044,7 @@ export function AppDataGrid({
               </Box>
             ) : (
               <Stack spacing={1.5}>
-                {rowsList.map((row: any) => {
+                {paginatedRows.map((row: any) => {
                   const id = getRowId ? getRowId(row) : (row._id || row.id)
                   const titleVal = titleCol ? renderCellContent(row, titleCol) : 'Record'
                   const displayCols = contentColumns.filter((c) => c.field !== titleCol?.field).slice(0, 4)
@@ -1079,7 +1106,7 @@ export function AppDataGrid({
           {/* Footer Pagination Bar */}
           <TablePagination
             component="div"
-            count={totalCount}
+            count={effectiveTotalCount}
             page={currentPage}
             rowsPerPage={currentPageSize}
             onPageChange={handlePageChange}
