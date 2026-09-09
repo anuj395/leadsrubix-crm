@@ -91,6 +91,7 @@ interface TabConfig {
 interface AnalyticsConfig {
   _id?: string
   industry_id: string
+  industryId?: string
   dashboard_key: string
   tabs: TabConfig[]
   organization_id?: string

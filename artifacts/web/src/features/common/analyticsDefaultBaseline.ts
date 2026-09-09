@@ -372,6 +372,258 @@ export const HEALTHCARE_BASELINE_TABS: DefaultTabConfig[] = [
   }
 ]
 
+// ── E-COMMERCE BASELINE (temp0002) ──────────────────────────────────────────
+export const ECOMMERCE_BASELINE_TABS: DefaultTabConfig[] = [
+  {
+    id: 0,
+    label: 'Store & Sales Overview',
+    sections: [
+      {
+        id: 'ecom_kpis',
+        title: 'Key E-Commerce Metrics',
+        order: 0,
+        is_active: true,
+        widgets: [
+          { id: 'totalOrders', type: 'KPI', title: 'Total Orders', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'ShoppingBagIcon', data_key: 'cards.totalLeads' },
+          { id: 'cartRecovered', type: 'KPI', title: 'Cart Recovered', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'ShoppingCartIcon', data_key: 'cards.fresh' },
+          { id: 'repeatCustomers', type: 'KPI', title: 'Repeat Buyers', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'RepeatIcon', data_key: 'cards.interested' },
+          { id: 'grossSales', type: 'KPI', title: 'Gross Sales', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'AttachMoneyIcon', data_key: 'cards.closedWon' },
+          { id: 'refundClaims', type: 'KPI', title: 'Refund Claims', color: '#F97316', bg: 'rgba(249,115,22,0.06)', icon: 'AssignmentReturnIcon', data_key: 'cards.notInterested' }
+        ]
+      },
+      {
+        id: 'ecom_breakdown',
+        title: 'Order Status & Conversion',
+        order: 1,
+        is_active: true,
+        widgets: [
+          {
+            id: 'ecom_table',
+            type: 'TABLE',
+            title: 'Order Fulfillment Breakdown',
+            data_key: 'contacts.feedbackSummary',
+            columns: [
+              { key: 'associate', label: 'Store Rep' },
+              { key: 'total', label: 'Total Orders' },
+              { key: 'fresh', label: 'Pending Payment' },
+              { key: 'interested', label: 'Processing' },
+              { key: 'won', label: 'Shipped' },
+              { key: 'lost', label: 'Canceled' }
+            ]
+          },
+          {
+            id: 'ecom_donut',
+            type: 'CHART',
+            title: 'Fulfillment Status Distribution',
+            chart_type: 'donut',
+            data_key: 'contacts.chartData'
+          }
+        ]
+      }
+    ]
+  }
+]
+
+// ── EDUCATION BASELINE (temp0004) ───────────────────────────────────────────
+export const EDUCATION_BASELINE_TABS: DefaultTabConfig[] = [
+  {
+    id: 0,
+    label: 'Admissions & Enrollment',
+    sections: [
+      {
+        id: 'edu_kpis',
+        title: 'Enrollment Metrics',
+        order: 0,
+        is_active: true,
+        widgets: [
+          { id: 'totalApplicants', type: 'KPI', title: 'Total Applicants', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'SchoolIcon', data_key: 'cards.totalLeads' },
+          { id: 'counseling', type: 'KPI', title: 'Counseling Scheduled', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'AssignmentIcon', data_key: 'cards.fresh' },
+          { id: 'entrancePassed', type: 'KPI', title: 'Entrance Passed', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.interested' },
+          { id: 'enrolled', type: 'KPI', title: 'Total Enrolled', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'GradeIcon', data_key: 'cards.closedWon' }
+        ]
+      },
+      {
+        id: 'edu_breakdown',
+        title: 'Program Application Summary',
+        order: 1,
+        is_active: true,
+        widgets: [
+          {
+            id: 'edu_table',
+            type: 'TABLE',
+            title: 'Degree / Program Conversion',
+            data_key: 'contacts.feedbackSummary',
+            columns: [
+              { key: 'associate', label: 'Admissions Counselor' },
+              { key: 'total', label: 'Total Inquiries' },
+              { key: 'fresh', label: 'Counseling' },
+              { key: 'interested', label: 'Test Passed' },
+              { key: 'won', label: 'Enrolled' }
+            ]
+          },
+          {
+            id: 'edu_donut',
+            type: 'CHART',
+            title: 'Course Admissions Distribution',
+            chart_type: 'donut',
+            data_key: 'contacts.chartData'
+          }
+        ]
+      }
+    ]
+  }
+]
+
+// ── FINANCIAL SERVICES BASELINE (temp0005) ───────────────────────────────────
+export const FINANCIAL_BASELINE_TABS: DefaultTabConfig[] = [
+  {
+    id: 0,
+    label: 'Loan & Policy Portfolio',
+    sections: [
+      {
+        id: 'fin_kpis',
+        title: 'Portfolio & Application KPIs',
+        order: 0,
+        is_active: true,
+        widgets: [
+          { id: 'loanApps', type: 'KPI', title: 'Applications', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'AccountBalanceIcon', data_key: 'cards.totalLeads' },
+          { id: 'kycDone', type: 'KPI', title: 'KYC Verified', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'VerifiedUserIcon', data_key: 'cards.fresh' },
+          { id: 'sanctioned', type: 'KPI', title: 'Underwriting Passed', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'ThumbUpIcon', data_key: 'cards.interested' },
+          { id: 'disbursed', type: 'KPI', title: 'Disbursed', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' }
+        ]
+      },
+      {
+        id: 'fin_breakdown',
+        title: 'Financial Product Conversion',
+        order: 1,
+        is_active: true,
+        widgets: [
+          {
+            id: 'fin_table',
+            type: 'TABLE',
+            title: 'Product Line Performance',
+            data_key: 'contacts.feedbackSummary',
+            columns: [
+              { key: 'associate', label: 'Financial Advisor' },
+              { key: 'total', label: 'Applications' },
+              { key: 'fresh', label: 'KYC Done' },
+              { key: 'interested', label: 'Sanctioned' },
+              { key: 'won', label: 'Disbursed' }
+            ]
+          },
+          {
+            id: 'fin_donut',
+            type: 'CHART',
+            title: 'Product Line Distribution',
+            chart_type: 'donut',
+            data_key: 'contacts.chartData'
+          }
+        ]
+      }
+    ]
+  }
+]
+
+// ── IT & TECH SERVICES BASELINE (temp0006) ───────────────────────────────────
+export const IT_TECH_BASELINE_TABS: DefaultTabConfig[] = [
+  {
+    id: 0,
+    label: 'RFP & Proposal Pipeline',
+    sections: [
+      {
+        id: 'it_kpis',
+        title: 'Tech Pipeline Metrics',
+        order: 0,
+        is_active: true,
+        widgets: [
+          { id: 'activeRfps', type: 'KPI', title: 'RFPs Received', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'ComputerIcon', data_key: 'cards.totalLeads' },
+          { id: 'techDiscovery', type: 'KPI', title: 'Tech Discovery', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'SearchIcon', data_key: 'cards.fresh' },
+          { id: 'proposalsSent', type: 'KPI', title: 'Proposals Sent', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'DescriptionIcon', data_key: 'cards.interested' },
+          { id: 'sowSigned', type: 'KPI', title: 'SOW Signed', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' }
+        ]
+      },
+      {
+        id: 'it_breakdown',
+        title: 'Service Line RFP Conversion',
+        order: 1,
+        is_active: true,
+        widgets: [
+          {
+            id: 'it_table',
+            type: 'TABLE',
+            title: 'Service Line Conversion',
+            data_key: 'contacts.feedbackSummary',
+            columns: [
+              { key: 'associate', label: 'Tech Lead / BD' },
+              { key: 'total', label: 'Total RFPs' },
+              { key: 'fresh', label: 'Discovery' },
+              { key: 'interested', label: 'Proposal Sent' },
+              { key: 'won', label: 'SOW Signed' }
+            ]
+          },
+          {
+            id: 'it_donut',
+            type: 'CHART',
+            title: 'Service Line Distribution',
+            chart_type: 'donut',
+            data_key: 'contacts.chartData'
+          }
+        ]
+      }
+    ]
+  }
+]
+
+// ── MANUFACTURING BASELINE (temp0007) ───────────────────────────────────────
+export const MANUFACTURING_BASELINE_TABS: DefaultTabConfig[] = [
+  {
+    id: 0,
+    label: 'Dealer & Supply Network',
+    sections: [
+      {
+        id: 'mfg_kpis',
+        title: 'Supply Chain Metrics',
+        order: 0,
+        is_active: true,
+        widgets: [
+          { id: 'dealerRfqs', type: 'KPI', title: 'Dealer RFQs', color: '#F43F5E', bg: 'rgba(244,63,94,0.06)', icon: 'BuildIcon', data_key: 'cards.totalLeads' },
+          { id: 'moqApproved', type: 'KPI', title: 'MOQ Approved', color: '#EC4899', bg: 'rgba(236,72,153,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.fresh' },
+          { id: 'productionBatches', type: 'KPI', title: 'In Production', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'PrecisionManufacturingIcon', data_key: 'cards.interested' },
+          { id: 'shippedOrders', type: 'KPI', title: 'Shipped Orders', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'LocalShippingIcon', data_key: 'cards.closedWon' }
+        ]
+      },
+      {
+        id: 'mfg_breakdown',
+        title: 'Product Line Order Breakdown',
+        order: 1,
+        is_active: true,
+        widgets: [
+          {
+            id: 'mfg_table',
+            type: 'TABLE',
+            title: 'Dealer Category Order Summary',
+            data_key: 'contacts.feedbackSummary',
+            columns: [
+              { key: 'associate', label: 'Dealer Rep' },
+              { key: 'total', label: 'Total RFQs' },
+              { key: 'fresh', label: 'MOQ Approved' },
+              { key: 'interested', label: 'Production' },
+              { key: 'won', label: 'Shipped' }
+            ]
+          },
+          {
+            id: 'mfg_donut',
+            type: 'CHART',
+            title: 'Product Category Distribution',
+            chart_type: 'donut',
+            data_key: 'contacts.chartData'
+          }
+        ]
+      }
+    ]
+  }
+]
+
 // Single source of truth baseline resolver
 export function getIndustryBaselineTabs(industryCode?: string | null): DefaultTabConfig[] {
   if (!industryCode) {
@@ -380,6 +632,21 @@ export function getIndustryBaselineTabs(industryCode?: string | null): DefaultTa
   const code = String(industryCode).toLowerCase().trim()
   if (code.includes('health') || code.includes('medic') || code.includes('clinic') || code.includes('hospital') || code.includes('patient') || code === 'temp0003') {
     return JSON.parse(JSON.stringify(HEALTHCARE_BASELINE_TABS))
+  }
+  if (code.includes('ecom') || code.includes('store') || code.includes('retail') || code.includes('shop') || code === 'temp0002') {
+    return JSON.parse(JSON.stringify(ECOMMERCE_BASELINE_TABS))
+  }
+  if (code.includes('edu') || code.includes('school') || code.includes('college') || code.includes('admiss') || code === 'temp0004') {
+    return JSON.parse(JSON.stringify(EDUCATION_BASELINE_TABS))
+  }
+  if (code.includes('fin') || code.includes('bank') || code.includes('loan') || code.includes('insur') || code === 'temp0005') {
+    return JSON.parse(JSON.stringify(FINANCIAL_BASELINE_TABS))
+  }
+  if (code.includes('tech') || code.includes('soft') || code.includes('it') || code.includes('rfp') || code === 'temp0006') {
+    return JSON.parse(JSON.stringify(IT_TECH_BASELINE_TABS))
+  }
+  if (code.includes('mfg') || code.includes('manufactur') || code.includes('factory') || code.includes('dealer') || code === 'temp0007') {
+    return JSON.parse(JSON.stringify(MANUFACTURING_BASELINE_TABS))
   }
   return JSON.parse(JSON.stringify(REAL_ESTATE_BASELINE_TABS))
 }
