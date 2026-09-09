@@ -177,8 +177,8 @@ export default function InquiriesListPage() {
     {
       field: 'customer_name',
       headerName: 'CUSTOMER / INQUIRY',
-      flex: 1.2,
-      minWidth: 170,
+      flex: 1.1,
+      minWidth: 145,
       renderCell: (params) => {
         const name = params.row.customer_name || params.row.customerName || 'New Inquiry'
         const inqCount = params.row.inquiryCount || (params.row.inquiries && params.row.inquiries.length) || 1
@@ -210,8 +210,8 @@ export default function InquiriesListPage() {
     {
       field: 'urgency',
       headerName: 'SLA / URGENCY',
-      flex: 0.8,
-      minWidth: 125,
+      width: 115,
+      minWidth: 115,
       renderCell: (params) => {
         const row = params.row
         const created = row.createdAt || row.created_at
@@ -275,22 +275,22 @@ export default function InquiriesListPage() {
     {
       field: 'contact_number',
       headerName: 'PHONE',
-      flex: 0.9,
-      minWidth: 125,
+      width: 110,
+      minWidth: 110,
       valueGetter: (_, row) => row.contact_number || row.contactNumber || '—',
     },
     {
       field: 'project_name',
       headerName: 'PROJECT / REQ',
-      flex: 1.2,
-      minWidth: 160,
+      flex: 1.1,
+      minWidth: 135,
       valueGetter: (_, row) => row.project_name || row.projectName || row.propertyType || '—',
     },
     {
       field: 'source',
       headerName: 'SOURCE',
-      flex: 0.9,
-      minWidth: 120,
+      width: 105,
+      minWidth: 105,
       renderCell: (params) => {
         const src = String(params.row.source || params.row.lead_source || 'Inbound').trim()
         const isMeta = src.toLowerCase().includes('meta') || src.toLowerCase().includes('facebook')
@@ -309,8 +309,8 @@ export default function InquiriesListPage() {
     {
       field: 'owner',
       headerName: 'ASSIGNED REP',
-      flex: 1.1,
-      minWidth: 150,
+      flex: 1,
+      minWidth: 130,
       renderCell: (params) => {
         const owner = params.row.contactOwnerEmail || params.row.contact_owner_email || params.row.ownerName
         if (!owner) {
@@ -338,8 +338,8 @@ export default function InquiriesListPage() {
     {
       field: 'actions',
       headerName: 'FAST ACTIONS',
-      width: 270,
-      minWidth: 270,
+      width: 235,
+      minWidth: 235,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -347,7 +347,7 @@ export default function InquiriesListPage() {
         const row = params.row
         const id = row._id || row.id
         return (
-          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ height: '100%' }}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: '100%' }}>
             <Tooltip title="Log phone conversation outcome">
               <Button
                 size="small"
@@ -356,13 +356,13 @@ export default function InquiriesListPage() {
                 startIcon={<PhoneIcon sx={{ fontSize: '13px !important' }} />}
                 onClick={() => handleOpenCall(row)}
                 sx={{
-                  height: 26,
-                  px: 0.85,
+                  height: 24,
+                  px: 0.75,
                   py: 0,
-                  fontSize: '0.72rem',
+                  fontSize: '0.7rem',
                   fontWeight: 600,
                   textTransform: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '5px',
                   whiteSpace: 'nowrap',
                   minWidth: 'auto',
                 }}
@@ -379,13 +379,13 @@ export default function InquiriesListPage() {
                 startIcon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
                 onClick={() => handleQualify(id)}
                 sx={{
-                  height: 26,
-                  px: 0.85,
+                  height: 24,
+                  px: 0.75,
                   py: 0,
-                  fontSize: '0.72rem',
+                  fontSize: '0.7rem',
                   fontWeight: 600,
                   textTransform: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '5px',
                   boxShadow: 'none',
                   whiteSpace: 'nowrap',
                   minWidth: 'auto',
@@ -400,18 +400,18 @@ export default function InquiriesListPage() {
                 size="small"
                 onClick={() => handleOpenCallback(id)}
                 sx={{
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   color: 'warning.main',
                   bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08),
                   border: (theme) => `1px solid ${alpha(theme.palette.warning.main, 0.25)}`,
-                  borderRadius: '6px',
+                  borderRadius: '5px',
                   '&:hover': {
                     bgcolor: (theme) => alpha(theme.palette.warning.main, 0.18),
                   },
                 }}
               >
-                <AlarmIcon sx={{ fontSize: 14 }} />
+                <AlarmIcon sx={{ fontSize: 13 }} />
               </IconButton>
             </Tooltip>
 
@@ -420,18 +420,18 @@ export default function InquiriesListPage() {
                 size="small"
                 onClick={() => handleOpenConvert(row)}
                 sx={{
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   color: 'secondary.main',
                   bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
                   border: (theme) => `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
-                  borderRadius: '6px',
+                  borderRadius: '5px',
                   '&:hover': {
                     bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.18),
                   },
                 }}
               >
-                <HandshakeIcon sx={{ fontSize: 14 }} />
+                <HandshakeIcon sx={{ fontSize: 13 }} />
               </IconButton>
             </Tooltip>
 
@@ -440,18 +440,18 @@ export default function InquiriesListPage() {
                 size="small"
                 onClick={() => handleOpenNotInt(id)}
                 sx={{
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   color: 'error.main',
                   bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
                   border: (theme) => `1px solid ${alpha(theme.palette.error.main, 0.25)}`,
-                  borderRadius: '6px',
+                  borderRadius: '5px',
                   '&:hover': {
                     bgcolor: (theme) => alpha(theme.palette.error.main, 0.18),
                   },
                 }}
               >
-                <BlockIcon sx={{ fontSize: 14 }} />
+                <BlockIcon sx={{ fontSize: 13 }} />
               </IconButton>
             </Tooltip>
           </Stack>
