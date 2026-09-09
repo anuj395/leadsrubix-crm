@@ -49,6 +49,11 @@ exports.create = async (payload) => {
     description: payload.description,
     isActive: payload.isActive,
     status: payload.status,
+    baseline_designations: payload.baseline_designations || payload.baselineDesignations,
+    default_team_name: payload.default_team_name || payload.defaultTeamName,
+    default_team_code: payload.default_team_code || payload.defaultTeamCode,
+    default_branch_name: payload.default_branch_name || payload.defaultBranchName,
+    default_branch_code: payload.default_branch_code || payload.defaultBranchCode,
   });
 };
 
@@ -61,7 +66,25 @@ exports.update = async (id, patch) => {
       throw err;
     }
   }
-  const doc = await industryModel.update(id, patch || {});
+
+  const normalizedPatch = { ...(patch || {}) };
+  if (normalizedPatch.baselineDesignations !== undefined && normalizedPatch.baseline_designations === undefined) {
+    normalizedPatch.baseline_designations = normalizedPatch.baselineDesignations;
+  }
+  if (normalizedPatch.defaultTeamName !== undefined && normalizedPatch.default_team_name === undefined) {
+    normalizedPatch.default_team_name = normalizedPatch.defaultTeamName;
+  }
+  if (normalizedPatch.defaultTeamCode !== undefined && normalizedPatch.default_team_code === undefined) {
+    normalizedPatch.default_team_code = normalizedPatch.defaultTeamCode;
+  }
+  if (normalizedPatch.defaultBranchName !== undefined && normalizedPatch.default_branch_name === undefined) {
+    normalizedPatch.default_branch_name = normalizedPatch.defaultBranchName;
+  }
+  if (normalizedPatch.defaultBranchCode !== undefined && normalizedPatch.default_branch_code === undefined) {
+    normalizedPatch.default_branch_code = normalizedPatch.defaultBranchCode;
+  }
+
+  const doc = await industryModel.update(id, normalizedPatch);
   if (!doc) {
     const err = new Error('Industry not found');
     err.status = 404;

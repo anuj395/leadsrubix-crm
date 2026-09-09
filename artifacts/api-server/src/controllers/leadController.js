@@ -38,6 +38,35 @@ exports.create = async (req, res, next) => {
     const source = payload.source || payload.lead_source || payload.leadSource || 'Self Generated';
     const notes = payload.notes || '';
 
+    // Evaluate Ownership / Rule-based Distribution
+    let ownerEmail = payload.contact_owner_email || payload.contactOwnerEmail || payload.owner_email || payload.ownerEmail || '';
+    let ownerId = payload.owner_id || payload.ownerId || payload.contact_owner_id || payload.contactOwnerId || '';
+
+    if (!ownerEmail && !ownerId) {
+      try {
+        const { assignLeadByRules } = require('../services/leadDistributionService');
+        const assignment = await assignLeadByRules({
+          organizationId: orgId,
+          source: source,
+          project: project,
+          location: location,
+          budget: budget,
+          propertyType: propertyType,
+        });
+        if (assignment && (assignment.ownerEmail || assignment.uid)) {
+          ownerEmail = assignment.ownerEmail;
+          ownerId = assignment.uid;
+        }
+      } catch (err) {
+        console.error('[leadController] assignLeadByRules error:', err.message || err);
+      }
+    }
+
+    if (!ownerEmail && !ownerId) {
+      ownerEmail = req.user.email || '';
+      ownerId = String(userId || '');
+    }
+
     // 1. Create in Contact collection (Single source of truth for Web CRM)
     const contactDoc = await contactModel.create({
       customer_name: fullName,
@@ -54,7 +83,9 @@ exports.create = async (req, res, next) => {
       notes: notes,
       organization_id: orgId,
       created_by: userId,
-      contact_owner_email: req.user.email || '',
+      contact_owner_email: ownerEmail,
+      contact_owner_id: ownerId,
+      assigned_to: ownerEmail,
     }).catch(err => {
       console.error('[leadController] Error saving to Contact model:', err);
       return null;
@@ -76,6 +107,7 @@ exports.create = async (req, res, next) => {
       lead_type: leadType,
       organization_id: orgId,
       created_by: userId,
+      owner_id: ownerId,
     }).catch(err => {
       console.error('[leadController] Error saving to Lead model:', err);
       return null;
