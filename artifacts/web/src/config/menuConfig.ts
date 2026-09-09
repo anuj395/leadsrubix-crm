@@ -178,7 +178,6 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     icon: "call",
     module: "Leads"
   },
-  /* Hidden: Bookings functionality
   {
     key: "leads.bookings",
     name: "Bookings List",
@@ -186,7 +185,6 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     icon: "booking",
     module: "Leads"
   },
-  */
   {
     key: "configuration.projects",
     name: "Projects List",
