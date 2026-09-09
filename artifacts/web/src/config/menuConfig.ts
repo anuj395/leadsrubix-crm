@@ -88,11 +88,10 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
   { key: "deals", name: "Deals & Pipeline", route: "/leads/deals-list", icon: "deals", module: "deals" },
 
-  { key: "leads.inquiries", name: "Raw Inquiries", route: "/leads/inquiries", icon: "contact", module: "leads" },
-  { key: "leads.contacts", name: "Qualified Leads & Contacts", route: "/leads/contacts", icon: "contact", module: "leads" },
-  { key: "leads.tasks", name: "Tasks List", route: "/leads/tasks", icon: "tasks", module: "leads" },
-  { key: "leads.callLogs", name: "Call Logs List", route: "/leads/call-logs", icon: "call", module: "leads" },
-  { key: "leads.sorted", name: "Sorted List", route: "/leads/sort", icon: "sort", module: "leads" },
+  { key: "leads.inquiries", name: "Inbound Inquiries", route: "/leads/inquiries", icon: "contact", module: "leads" },
+  { key: "leads.contacts", name: "Leads & Contacts", route: "/leads/contacts", icon: "contact", module: "leads" },
+  { key: "leads.tasks", name: "Tasks & Follow-ups", route: "/leads/tasks", icon: "tasks", module: "leads" },
+  { key: "leads.callLogs", name: "Call Logs", route: "/leads/call-logs", icon: "call", module: "leads" },
 
   { key: "configuration.industries", name: "Industry", route: "/configuration/industries", icon: "organization", module: "configuration" },
   { key: "configuration.projects", name: "Project", route: "/configuration/projects", icon: "projects", module: "configuration" },
@@ -152,14 +151,14 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.inquiries",
-    name: "Raw Inquiries",
+    name: "Inbound Inquiries",
     route: "/leads/inquiries",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.contacts",
-    name: "Qualified Leads & Contacts",
+    name: "Leads & Contacts",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
@@ -167,14 +166,14 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
 
   {
     key: "leads.tasks",
-    name: "Tasks List",
+    name: "Tasks & Follow-ups",
     route: "/leads/tasks",
     icon: "tasks",
     module: "Leads"
   },
   {
     key: "leads.callLogs",
-    name: "Call Logs List",
+    name: "Call Logs",
     route: "/leads/call-logs",
     icon: "call",
     module: "Leads"
@@ -333,14 +332,14 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.inquiries",
-    name: "Raw Inquiries",
+    name: "Inbound Inquiries",
     route: "/leads/inquiries",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.contacts",
-    name: "Qualified Leads & Contacts",
+    name: "Leads & Contacts",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
@@ -354,14 +353,14 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.tasks",
-    name: "Tasks List",
+    name: "Tasks & Follow-ups",
     route: "/leads/tasks",
     icon: "tasks",
     module: "Leads"
   },
   {
     key: "leads.callLogs",
-    name: "Call Logs List",
+    name: "Call Logs",
     route: "/leads/call-logs",
     icon: "call",
     module: "Leads"
@@ -413,14 +412,14 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.inquiries",
-    name: "Raw Inquiries",
+    name: "Inbound Inquiries",
     route: "/leads/inquiries",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.contacts",
-    name: "Qualified Leads & Contacts",
+    name: "Leads & Contacts",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
@@ -434,14 +433,14 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.tasks",
-    name: "Tasks List",
+    name: "Tasks & Follow-ups",
     route: "/leads/tasks",
     icon: "tasks",
     module: "Leads"
   },
   {
     key: "leads.callLogs",
-    name: "Call Logs List",
+    name: "Call Logs",
     route: "/leads/call-logs",
     icon: "call",
     module: "Leads"
@@ -493,14 +492,14 @@ export const salesMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.inquiries",
-    name: "Raw Inquiries",
+    name: "Inbound Inquiries",
     route: "/leads/inquiries",
     icon: "contact",
     module: "Leads"
   },
   {
     key: "leads.contacts",
-    name: "Qualified Leads & Contacts",
+    name: "Leads & Contacts",
     route: "/leads/contacts",
     icon: "contact",
     module: "Leads"
@@ -514,14 +513,14 @@ export const salesMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "leads.tasks",
-    name: "Tasks List",
+    name: "Tasks & Follow-ups",
     route: "/leads/tasks",
     icon: "tasks",
     module: "Leads"
   },
   {
     key: "leads.callLogs",
-    name: "Call Logs List",
+    name: "Call Logs",
     route: "/leads/call-logs",
     icon: "call",
     module: "Leads"

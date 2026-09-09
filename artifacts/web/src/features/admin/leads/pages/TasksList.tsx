@@ -9,7 +9,17 @@ import Alert from '@mui/material/Alert'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
+import Chip from '@mui/material/Chip'
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Phone as PhoneIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  Star as StarIcon
+} from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
@@ -22,6 +32,8 @@ import { useConfirm } from '@/components/common/ConfirmContext'
 import { selectAuth } from '@/features/auth'
 import { useActionPermission } from '@/hooks/useActionPermission'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import LogCallModal from '../components/LogCallModal'
+import { type Contact } from '@/services/contactsService'
 
 export interface Task {
   _id: string
@@ -89,6 +101,11 @@ export default function TasksListPage() {
     open: false, msg: '', sev: 'success',
   })
 
+  // Quick Status Filter Tabs & My Tasks toggle
+  const [activeTab, setActiveTab] = useState<'ALL' | 'DUE_TODAY' | 'OVERDUE' | 'UPCOMING' | 'COMPLETED'>('ALL')
+  const [onlyMyTasks, setOnlyMyTasks] = useState(false)
+  const [callModalContact, setCallModalContact] = useState<Contact | null>(null)
+
   // Load screen config using useTableConfig
   const { columns: dbColumns, loading: configLoading, error: configError, screenName } =
     useTableConfig('tasks', industryId)
@@ -119,6 +136,104 @@ export default function TasksListPage() {
     void refresh()
   }, [])
 
+  const counts = useMemo(() => {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000
+
+    let dueToday = 0
+    let overdue = 0
+    let upcoming = 0
+    let completed = 0
+
+    items.forEach((t: any) => {
+      const status = String(t.status || '').toUpperCase()
+      if (status === 'COMPLETED' || status === 'DONE') {
+        completed++
+        return
+      }
+      const dueStr = t.dueDate || t.due_date || t.nextFollowUp || t.next_follow_up
+      if (dueStr) {
+        const dTime = new Date(dueStr).getTime()
+        if (dTime < todayStart) {
+          overdue++
+        } else if (dTime >= todayStart && dTime < todayEnd) {
+          dueToday++
+        } else {
+          upcoming++
+        }
+      } else {
+        dueToday++
+      }
+    })
+
+    return {
+      all: items.length,
+      dueToday,
+      overdue,
+      upcoming,
+      completed,
+      todayStart,
+      todayEnd
+    }
+  }, [items])
+
+  const filteredItems = useMemo(() => {
+    let list = items
+    if (onlyMyTasks && user?.email) {
+      const userEmail = user.email.toLowerCase()
+      list = list.filter((t: any) => {
+        const owner = String(t.contact_owner_email || t.contactOwnerEmail || t.assignedTo || t.assigned_to || t.createdBy || '').toLowerCase()
+        return owner === userEmail
+      })
+    }
+
+    if (activeTab === 'ALL') return list
+
+    return list.filter((t: any) => {
+      const status = String(t.status || '').toUpperCase()
+      if (activeTab === 'COMPLETED') {
+        return status === 'COMPLETED' || status === 'DONE'
+      }
+      if (status === 'COMPLETED' || status === 'DONE') {
+        return false
+      }
+      const dueStr = t.dueDate || t.due_date || t.nextFollowUp || t.next_follow_up
+      if (!dueStr) {
+        return activeTab === 'DUE_TODAY'
+      }
+      const dTime = new Date(dueStr).getTime()
+      if (activeTab === 'OVERDUE') return dTime < counts.todayStart
+      if (activeTab === 'DUE_TODAY') return dTime >= counts.todayStart && dTime < counts.todayEnd
+      if (activeTab === 'UPCOMING') return dTime >= counts.todayEnd
+      return true
+    })
+  }, [items, activeTab, onlyMyTasks, user?.email, counts.todayStart, counts.todayEnd])
+
+  const handleCompleteTask = async (task: Task) => {
+    try {
+      await api.put(`tasks/${task._id}`, { status: 'COMPLETED' })
+      setToast({ open: true, msg: 'Task marked as Completed!', sev: 'success' })
+      await refresh()
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } }
+      setToast({ open: true, msg: err?.response?.data?.message ?? 'Failed to complete task', sev: 'error' })
+    }
+  }
+
+  const handleInitiateCall = (task: any) => {
+    const cId = task.contactId || task.contact_id || task._id
+    const cName = task.customerName || task.customer_name || task.clientName || 'Customer'
+    const cPhone = task.contactNumber || task.contact_number || task.phone || ''
+    setCallModalContact({
+      _id: cId,
+      customerName: cName,
+      contactNumber: cPhone,
+      contactOwnerEmail: task.contact_owner_email || task.contactOwnerEmail || user?.email,
+      projectName: task.project_name || task.projectName || ''
+    } as any)
+  }
+
   const { confirmDelete } = useConfirm()
 
   const handleDelete = async (row: Task) => {
@@ -147,7 +262,7 @@ export default function TasksListPage() {
       filterable: false,
       disableColumnMenu: true,
       valueGetter: (_v, row) => {
-        const idx = items.findIndex((item) => item._id === row._id)
+        const idx = filteredItems.findIndex((item) => item._id === row._id)
         return idx !== -1 ? idx + 1 : ''
       }
     }
@@ -187,30 +302,45 @@ export default function TasksListPage() {
           disableColumnMenu: true,
           align: 'right',
           headerAlign: 'right',
-          width: 120,
-          renderCell: (p) => (
-            <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
-              {can_edit && (
-                <Tooltip title="Edit">
-                  <IconButton size="small" onClick={() => setEditingTask(p.row)}>
-                    <EditIcon fontSize="small" />
+          width: 170,
+          renderCell: (p) => {
+            const isCompleted = String(p.row.status || '').toUpperCase() === 'COMPLETED'
+            return (
+              <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
+                <Tooltip title="Log Call">
+                  <IconButton size="small" color="primary" onClick={() => handleInitiateCall(p.row)}>
+                    <PhoneIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              )}
-              {can_delete && (
-                <Tooltip title="Delete">
-                  <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Stack>
-          ),
+                {!isCompleted && can_edit && (
+                  <Tooltip title="Mark Completed">
+                    <IconButton size="small" color="success" onClick={() => handleCompleteTask(p.row)}>
+                      <CheckCircleOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {can_edit && (
+                  <Tooltip title="Edit">
+                    <IconButton size="small" onClick={() => setEditingTask(p.row)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {can_delete && (
+                  <Tooltip title="Delete">
+                    <IconButton size="small" color="error" onClick={() => handleDelete(p.row)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
+            )
+          },
         }
       : null
 
     return [sNoCol, ...dataCols, ...(actionsCol ? [actionsCol] : [])]
-  }, [dbColumns, items, can_edit, can_delete])
+  }, [dbColumns, filteredItems, can_edit, can_delete])
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<Record<string, boolean>>({})
 
@@ -248,13 +378,63 @@ export default function TasksListPage() {
       )}
 
       <AppCard
-        title={screenName || 'Tasks'}
-        subtitle="Dynamic lead follow-up tasks list driven by the Screen Configuration system."
+        title={screenName || 'Tasks & Follow-ups'}
+        subtitle="Manage scheduled callbacks, follow-ups, and lead interaction tasks with closed-loop updates."
         fullHeight
+        action={
+          can_add && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => setDialogOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              + New Task
+            </Button>
+          )
+        }
       >
+        {/* Status Tabs and Quick Filters */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(_, val) => setActiveTab(val)}
+            sx={{
+              minHeight: 40,
+              '& .MuiTab-root': {
+                minHeight: 40,
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '13px',
+                py: 0.5,
+              }
+            }}
+          >
+            <Tab label={`All Tasks (${counts.all})`} value="ALL" />
+            <Tab label={`⏰ Due Today (${counts.dueToday})`} value="DUE_TODAY" sx={{ color: counts.dueToday > 0 ? 'warning.main' : undefined }} />
+            <Tab label={`🚨 Overdue (${counts.overdue})`} value="OVERDUE" sx={{ color: counts.overdue > 0 ? 'error.main' : undefined }} />
+            <Tab label={`📅 Upcoming (${counts.upcoming})`} value="UPCOMING" />
+            <Tab label={`✅ Completed (${counts.completed})`} value="COMPLETED" />
+          </Tabs>
+
+          <Stack direction="row" spacing={1} sx={{ pb: 0.5 }}>
+            <Chip
+              icon={<StarIcon sx={{ fontSize: '0.9rem !important' }} />}
+              label="Assigned to Me"
+              size="small"
+              clickable
+              color={onlyMyTasks ? 'primary' : 'default'}
+              variant={onlyMyTasks ? 'filled' : 'outlined'}
+              onClick={() => setOnlyMyTasks(!onlyMyTasks)}
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
+        </Box>
+
         <AppDataGrid
           height="100%"
-          rows={items}
+          rows={filteredItems}
           columns={gridColumns}
           columnVisibilityModel={columnVisibilityModel}
           onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
@@ -331,6 +511,19 @@ export default function TasksListPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {callModalContact && (
+        <LogCallModal
+          open={Boolean(callModalContact)}
+          onClose={() => setCallModalContact(null)}
+          contact={callModalContact}
+          onSuccess={async () => {
+            setCallModalContact(null)
+            setToast({ open: true, msg: 'Call logged successfully!', sev: 'success' })
+            await refresh()
+          }}
+        />
+      )}
 
       <Snackbar
         open={toast.open}
