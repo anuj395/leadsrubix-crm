@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
+import { alpha } from '@mui/material/styles'
 import Typography from '@mui/material/Typography'
 import Stack from '@mui/material/Stack'
 import Chip from '@mui/material/Chip'
@@ -175,8 +177,8 @@ export default function InquiriesListPage() {
     {
       field: 'customer_name',
       headerName: 'CUSTOMER / INQUIRY',
-      flex: 1.3,
-      minWidth: 180,
+      flex: 1.2,
+      minWidth: 170,
       renderCell: (params) => {
         const name = params.row.customer_name || params.row.customerName || 'New Inquiry'
         const inqCount = params.row.inquiryCount || (params.row.inquiries && params.row.inquiries.length) || 1
@@ -208,8 +210,8 @@ export default function InquiriesListPage() {
     {
       field: 'urgency',
       headerName: 'SLA / URGENCY',
-      flex: 1,
-      minWidth: 135,
+      flex: 0.8,
+      minWidth: 125,
       renderCell: (params) => {
         const row = params.row
         const created = row.createdAt || row.created_at
@@ -273,22 +275,22 @@ export default function InquiriesListPage() {
     {
       field: 'contact_number',
       headerName: 'PHONE NUMBER',
-      flex: 1,
-      minWidth: 125,
+      flex: 0.9,
+      minWidth: 120,
       valueGetter: (_, row) => row.contact_number || row.contactNumber || '—',
     },
     {
       field: 'project_name',
       headerName: 'PROJECT / REQUIREMENT',
-      flex: 1.1,
-      minWidth: 140,
+      flex: 1.2,
+      minWidth: 160,
       valueGetter: (_, row) => row.project_name || row.projectName || row.propertyType || '—',
     },
     {
       field: 'source',
       headerName: 'CHANNEL SOURCE',
       flex: 0.9,
-      minWidth: 120,
+      minWidth: 130,
       renderCell: (params) => {
         const src = String(params.row.source || params.row.lead_source || 'Inbound').trim()
         const isMeta = src.toLowerCase().includes('meta') || src.toLowerCase().includes('facebook')
@@ -306,9 +308,9 @@ export default function InquiriesListPage() {
     },
     {
       field: 'owner',
-      headerName: 'ASSIGNED SDR / REP',
-      flex: 1,
-      minWidth: 140,
+      headerName: 'ASSIGNED REP',
+      flex: 1.1,
+      minWidth: 150,
       renderCell: (params) => {
         const owner = params.row.contactOwnerEmail || params.row.contact_owner_email || params.row.ownerName
         if (!owner) {
@@ -335,38 +337,37 @@ export default function InquiriesListPage() {
     },
     {
       field: 'actions',
-      headerName: 'FAST TRIAGE ACTIONS',
-      flex: 2,
-      minWidth: 350,
+      headerName: 'FAST ACTIONS',
+      width: 240,
+      minWidth: 240,
       sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
       renderCell: (params) => {
         const row = params.row
         const id = row._id || row.id
         return (
-          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ height: '100%' }}>
+          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ height: '100%' }}>
             <Tooltip title="Log phone conversation outcome">
               <Button
                 size="small"
                 variant="outlined"
                 color="primary"
-                startIcon={<PhoneIcon />}
+                startIcon={<PhoneIcon sx={{ fontSize: '13px !important' }} />}
                 onClick={() => handleOpenCall(row)}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.3 }}
+                sx={{
+                  height: 26,
+                  px: 0.85,
+                  py: 0,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  borderRadius: '6px',
+                  whiteSpace: 'nowrap',
+                  minWidth: 'auto',
+                }}
               >
                 Call
-              </Button>
-            </Tooltip>
-
-            <Tooltip title="Schedule redial / callback">
-              <Button
-                size="small"
-                variant="outlined"
-                color="warning"
-                startIcon={<AlarmIcon />}
-                onClick={() => handleOpenCallback(id)}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.3 }}
-              >
-                Callback
               </Button>
             </Tooltip>
 
@@ -375,38 +376,83 @@ export default function InquiriesListPage() {
                 size="small"
                 variant="contained"
                 color="success"
-                startIcon={<CheckCircleIcon />}
+                startIcon={<CheckCircleIcon sx={{ fontSize: '13px !important' }} />}
                 onClick={() => handleQualify(id)}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.3 }}
+                sx={{
+                  height: 26,
+                  px: 0.85,
+                  py: 0,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  borderRadius: '6px',
+                  boxShadow: 'none',
+                  whiteSpace: 'nowrap',
+                  minWidth: 'auto',
+                }}
               >
                 Qualify
               </Button>
             </Tooltip>
 
-            <Tooltip title="Create Deal in Revenue Pipeline">
-              <Button
+            <Tooltip title="Schedule redial / callback">
+              <IconButton
                 size="small"
-                variant="contained"
-                color="secondary"
-                startIcon={<HandshakeIcon />}
-                onClick={() => handleOpenConvert(row)}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.3 }}
+                onClick={() => handleOpenCallback(id)}
+                sx={{
+                  width: 26,
+                  height: 26,
+                  color: 'warning.main',
+                  bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08),
+                  border: (theme) => `1px solid ${alpha(theme.palette.warning.main, 0.25)}`,
+                  borderRadius: '6px',
+                  '&:hover': {
+                    bgcolor: (theme) => alpha(theme.palette.warning.main, 0.18),
+                  },
+                }}
               >
-                Deal
-              </Button>
+                <AlarmIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Create Deal in Revenue Pipeline">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenConvert(row)}
+                sx={{
+                  width: 26,
+                  height: 26,
+                  color: 'secondary.main',
+                  bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
+                  border: (theme) => `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
+                  borderRadius: '6px',
+                  '&:hover': {
+                    bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.18),
+                  },
+                }}
+              >
+                <HandshakeIcon sx={{ fontSize: 14 }} />
+              </IconButton>
             </Tooltip>
 
             <Tooltip title="Mark as Junk / Spam / Disqualified">
-              <Button
+              <IconButton
                 size="small"
-                variant="outlined"
-                color="error"
-                startIcon={<BlockIcon />}
                 onClick={() => handleOpenNotInt(id)}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.3 }}
+                sx={{
+                  width: 26,
+                  height: 26,
+                  color: 'error.main',
+                  bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                  border: (theme) => `1px solid ${alpha(theme.palette.error.main, 0.25)}`,
+                  borderRadius: '6px',
+                  '&:hover': {
+                    bgcolor: (theme) => alpha(theme.palette.error.main, 0.18),
+                  },
+                }}
               >
-                Junk
-              </Button>
+                <BlockIcon sx={{ fontSize: 14 }} />
+              </IconButton>
             </Tooltip>
           </Stack>
         )
@@ -416,53 +462,53 @@ export default function InquiriesListPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Box sx={{ flexShrink: 0, mb: 2 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, color: 'text.primary' }}>
+      <Box sx={{ flexShrink: 0, mb: 1.5 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.25, color: 'text.primary', fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
           Inbound Inquiries Triage Desk
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
           High-velocity queue for incoming leads, ad submissions, and webhooks. Act quickly on fresh inquiries to maintain SLA.
         </Typography>
       </Box>
 
       {/* KPI Metric Summary Cards */}
-      <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 1.5, sm: 2 }, flexShrink: 0 }}>
+      <Grid container spacing={{ xs: 1, sm: 1.5 }} sx={{ mb: 1.5, flexShrink: 0 }}>
         <Grid item xs={6} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
-            <TrendingUpIcon color="primary" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+          <Paper variant="outlined" sx={{ p: { xs: 1, sm: 1.25 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <TrendingUpIcon color="primary" sx={{ fontSize: { xs: 24, sm: 28 } }} />
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>TOTAL INCOMING</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.total}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.62rem', sm: '0.7rem' }, display: 'block' }}>TOTAL INCOMING</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, fontSize: { xs: '1.05rem', sm: '1.2rem' } }}>{metrics.total}</Typography>
             </Box>
           </Paper>
         </Grid>
 
         <Grid item xs={6} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
-            <PersonOffIcon color="warning" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+          <Paper variant="outlined" sx={{ p: { xs: 1, sm: 1.25 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <PersonOffIcon color="warning" sx={{ fontSize: { xs: 24, sm: 28 } }} />
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>UNASSIGNED POOL</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'warning.main', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.unassigned}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.62rem', sm: '0.7rem' }, display: 'block' }}>UNASSIGNED POOL</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'warning.main', fontSize: { xs: '1.05rem', sm: '1.2rem' } }}>{metrics.unassigned}</Typography>
             </Box>
           </Paper>
         </Grid>
 
         <Grid item xs={6} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
-            <PhoneCallbackIcon color="info" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+          <Paper variant="outlined" sx={{ p: { xs: 1, sm: 1.25 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <PhoneCallbackIcon color="info" sx={{ fontSize: { xs: 24, sm: 28 } }} />
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>CONTACTED TODAY</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'info.main', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.contactedToday}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.62rem', sm: '0.7rem' }, display: 'block' }}>CONTACTED TODAY</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'info.main', fontSize: { xs: '1.05rem', sm: '1.2rem' } }}>{metrics.contactedToday}</Typography>
             </Box>
           </Paper>
         </Grid>
 
         <Grid item xs={6} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
-            <CheckCircleIcon color="success" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+          <Paper variant="outlined" sx={{ p: { xs: 1, sm: 1.25 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <CheckCircleIcon color="success" sx={{ fontSize: { xs: 24, sm: 28 } }} />
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>QUALIFIED TODAY</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'success.main', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.qualifiedToday}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.62rem', sm: '0.7rem' }, display: 'block' }}>QUALIFIED TODAY</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'success.main', fontSize: { xs: '1.05rem', sm: '1.2rem' } }}>{metrics.qualifiedToday}</Typography>
             </Box>
           </Paper>
         </Grid>
@@ -470,14 +516,36 @@ export default function InquiriesListPage() {
 
       <AppCard fullHeight title="Operational Triage Queue" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Operational Triage Tabs Bar */}
-        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.75, overflowX: 'auto', pb: 0.5 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            mb: 1.5,
+            overflowX: 'auto',
+            pb: 0.5,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
           <Chip
             label={`🚨 Needs First Response (${triageCounts.fresh})`}
             clickable
             color={filterStage === 'FRESH' ? 'primary' : 'default'}
             variant={filterStage === 'FRESH' ? 'filled' : 'outlined'}
             onClick={() => setFilterStage('FRESH')}
-            sx={{ fontWeight: 700 }}
+            sx={{
+              height: 32,
+              px: 1.5,
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              borderRadius: '16px',
+              border: filterStage === 'FRESH' ? 'none' : '1px solid',
+              borderColor: 'divider',
+              flexShrink: 0,
+            }}
           />
           <Chip
             label={`⏰ Callbacks Due (${triageCounts.callback})`}
@@ -485,7 +553,16 @@ export default function InquiriesListPage() {
             color={filterStage === 'CALLBACK' ? 'warning' : 'default'}
             variant={filterStage === 'CALLBACK' ? 'filled' : 'outlined'}
             onClick={() => setFilterStage('CALLBACK')}
-            sx={{ fontWeight: 600 }}
+            sx={{
+              height: 32,
+              px: 1.5,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              borderRadius: '16px',
+              border: filterStage === 'CALLBACK' ? 'none' : '1px solid',
+              borderColor: 'divider',
+              flexShrink: 0,
+            }}
           />
           <Chip
             label={`💬 In Discussion (${triageCounts.contacted})`}
@@ -493,7 +570,16 @@ export default function InquiriesListPage() {
             color={filterStage === 'CONTACTED' ? 'info' : 'default'}
             variant={filterStage === 'CONTACTED' ? 'filled' : 'outlined'}
             onClick={() => setFilterStage('CONTACTED')}
-            sx={{ fontWeight: 600 }}
+            sx={{
+              height: 32,
+              px: 1.5,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              borderRadius: '16px',
+              border: filterStage === 'CONTACTED' ? 'none' : '1px solid',
+              borderColor: 'divider',
+              flexShrink: 0,
+            }}
           />
           <Chip
             label={`👤 Unassigned Queue (${triageCounts.unassigned})`}
@@ -501,20 +587,39 @@ export default function InquiriesListPage() {
             color={filterStage === 'UNASSIGNED' ? 'secondary' : 'default'}
             variant={filterStage === 'UNASSIGNED' ? 'filled' : 'outlined'}
             onClick={() => setFilterStage('UNASSIGNED')}
-            sx={{ fontWeight: 600 }}
+            sx={{
+              height: 32,
+              px: 1.5,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              borderRadius: '16px',
+              border: filterStage === 'UNASSIGNED' ? 'none' : '1px solid',
+              borderColor: 'divider',
+              flexShrink: 0,
+            }}
           />
           <Chip
             label={`📋 All Incoming (${triageCounts.all})`}
             clickable
-            color={filterStage === 'ALL' ? 'default' : 'default'}
+            color={filterStage === 'ALL' ? 'primary' : 'default'}
             variant={filterStage === 'ALL' ? 'filled' : 'outlined'}
             onClick={() => setFilterStage('ALL')}
-            sx={{ fontWeight: 600 }}
+            sx={{
+              height: 32,
+              px: 1.5,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              borderRadius: '16px',
+              border: filterStage === 'ALL' ? 'none' : '1px solid',
+              borderColor: 'divider',
+              flexShrink: 0,
+            }}
           />
         </Stack>
 
-        <Box sx={{ flex: 1, minHeight: 0 }}>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <AppDataGrid
+            height="100%"
             rows={filteredInquiries}
             columns={columns}
             loading={loading}

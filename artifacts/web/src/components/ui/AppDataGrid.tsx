@@ -47,7 +47,7 @@ export type AppDataGridProps = DataGridProps & {
 }
 
 export function AppDataGrid({
-  height = '80vh',
+  height = '100%',
   hideToolbar = false,
   defaultViewMode = 'table',
   onReload,
@@ -269,9 +269,9 @@ export function AppDataGrid({
     const hasSNo = columns.some((col) => col.field === 'sNo')
     const snColumn: GridColDef = {
       field: 'sNo',
-      headerName: 'S. No.',
-      width: 60,
-      minWidth: 60,
+      headerName: '#',
+      width: 55,
+      minWidth: 55,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -301,9 +301,9 @@ export function AppDataGrid({
 
       let defaultMinWidth = 120
       if (fieldLower === 'sno') {
-        defaultMinWidth = 60
-        updated.width = 60
-        updated.minWidth = 60
+        defaultMinWidth = 55
+        updated.width = 55
+        updated.minWidth = 55
         delete updated.flex
       } else if (fieldLower.includes('email')) {
         defaultMinWidth = 180
@@ -534,21 +534,44 @@ export function AppDataGrid({
       }
 
       return (
-        <GridToolbarContainer sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-            <GridToolbarColumnsButton />
+        <GridToolbarContainer sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', flexWrap: 'wrap' }}>
+            <GridToolbarColumnsButton
+              slotProps={{
+                button: {
+                  size: 'small',
+                  sx: {
+                    height: 32,
+                    px: 1.25,
+                    py: 0.5,
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    color: 'text.secondary',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.text.primary, 0.05),
+                    },
+                  }
+                }
+              }}
+            />
             <Button
               size="small"
-              variant={activeFilterCount > 0 ? 'contained' : 'text'}
+              variant={activeFilterCount > 0 ? 'contained' : 'outlined'}
               color={activeFilterCount > 0 ? 'primary' : 'inherit'}
-              startIcon={<TuneIcon />}
+              startIcon={<TuneIcon sx={{ fontSize: '1rem !important' }} />}
               onClick={() => setFilterDrawerOpen(true)}
               sx={{
-                fontSize: '0.8125rem',
+                fontSize: '0.78rem',
                 textTransform: 'none',
                 fontWeight: 600,
-                p: '4px 10px',
+                height: 32,
+                px: 1.25,
+                py: 0.5,
                 borderRadius: '8px',
+                border: activeFilterCount > 0 ? 'none' : `1px solid ${theme.palette.divider}`,
                 ...(activeFilterCount > 0
                   ? {
                       boxShadow: 'none',
@@ -569,14 +592,67 @@ export function AppDataGrid({
             >
               Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
             </Button>
-            <GridToolbarDensitySelector />
-            <GridToolbarExport />
+            <GridToolbarDensitySelector
+              slotProps={{
+                button: {
+                  size: 'small',
+                  sx: {
+                    height: 32,
+                    px: 1.25,
+                    py: 0.5,
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    color: 'text.secondary',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.text.primary, 0.05),
+                    },
+                  }
+                }
+              }}
+            />
+            <GridToolbarExport
+              slotProps={{
+                button: {
+                  size: 'small',
+                  sx: {
+                    height: 32,
+                    px: 1.25,
+                    py: 0.5,
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    color: 'text.secondary',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.text.primary, 0.05),
+                    },
+                  }
+                }
+              }}
+            />
             {onImport && (
               <Button
                 size="small"
-                startIcon={<FileUploadIcon />}
+                startIcon={<FileUploadIcon sx={{ fontSize: '1rem !important' }} />}
                 onClick={onImport}
-                sx={{ fontSize: '0.8125rem', textTransform: 'none', fontWeight: 500, p: '4px 5px' }}
+                sx={{
+                  height: 32,
+                  px: 1.25,
+                  py: 0.5,
+                  fontSize: '0.78rem',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: 'text.secondary',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.text.primary, 0.05),
+                  },
+                }}
               >
                 Import
               </Button>
@@ -589,15 +665,17 @@ export function AppDataGrid({
                 if (nextMode) setViewMode(nextMode)
               }}
               sx={{
-                height: 30,
-                ml: 1,
+                height: 32,
+                ml: 0.5,
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                borderRadius: '8px',
                 '& .MuiToggleButton-root': {
                   px: 1,
                   py: 0.2,
                   textTransform: 'none',
                   fontSize: '0.75rem',
                   fontWeight: 600,
+                  border: 'none',
                   '&.Mui-selected': {
                     bgcolor: theme.palette.primary.main,
                     color: '#fff',
@@ -625,11 +703,29 @@ export function AppDataGrid({
               </Tooltip>
             </ToggleButtonGroup>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-            <GridToolbarQuickFilter />
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <GridToolbarQuickFilter
+              sx={{
+                '& .MuiInputBase-root': {
+                  height: 32,
+                  fontSize: '0.8rem',
+                  borderRadius: '8px',
+                },
+              }}
+            />
             <Tooltip title="Reload Data">
-              <IconButton onClick={handleReload} size="small" color="primary">
-                <RefreshIcon />
+              <IconButton
+                onClick={handleReload}
+                size="small"
+                color="primary"
+                sx={{
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '8px',
+                  height: 32,
+                  width: 32,
+                }}
+              >
+                <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Box>
@@ -725,7 +821,7 @@ export function AppDataGrid({
   }, [rowsList, currentPage, currentPageSize])
 
   return (
-    <Box sx={{ height, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <Box sx={{ height: height ?? '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <ActiveFilterChips
         filters={activeFilterItems}
         onClearAll={handleResetFilters}

@@ -83,8 +83,9 @@ export default function AccountsListPage() {
         <Box sx={{ typography: 'h5', fontWeight: 700 }}>Accounts Management</Box>
       </Stack>
 
-      <AppCard title="" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <AppCard title="" fullHeight sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <AppDataGrid
+          height="100%"
           rows={items}
           columns={columns}
           getRowId={(row) => row._id}
