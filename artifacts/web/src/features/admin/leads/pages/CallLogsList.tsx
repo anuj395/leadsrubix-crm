@@ -526,8 +526,9 @@ export default function CallLogsListPage() {
           </TextField>
         }
       >
-        <Box sx={{ flex: 1, minHeight: 400, width: '100%' }}>
+        <Box sx={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
           <AppDataGrid
+            height="100%"
             rows={filteredLogs}
             columns={columns}
             loading={loading}
