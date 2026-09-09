@@ -247,11 +247,13 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
   });
   if (!existingTeam) {
+    const teamName = industryDoc?.default_team_name || 'General Sales Team';
+    const teamCode = industryDoc?.default_team_code || 'GST';
     await Team.create({
       organization_id: organizationId,
       industry_id: String(industryDbId),
       teams: [
-        { name: 'General Sales Team', code: 'GST', is_active: true }
+        { name: teamName, code: teamCode, is_active: true }
       ]
     });
   }
@@ -260,11 +262,13 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
   });
   if (!existingBranch) {
+    const branchName = industryDoc?.default_branch_name || 'Head Office';
+    const branchCode = industryDoc?.default_branch_code || 'HQ';
     await Branch.create({
       organization_id: organizationId,
       industry_id: String(industryDbId),
       branches: [
-        { name: 'Head Office', code: 'HQ', is_active: true }
+        { name: branchName, code: branchCode, is_active: true }
       ]
     });
   }
@@ -273,7 +277,9 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
   });
   if (!existingDesignation) {
-    const designationsList = getIndustryDesignations(industryDoc.code || industryId);
+    const designationsList = (industryDoc?.baseline_designations && Array.isArray(industryDoc.baseline_designations) && industryDoc.baseline_designations.length > 0)
+      ? industryDoc.baseline_designations
+      : getIndustryDesignations(industryDoc?.code || industryId);
     await Designation.create({
       organization_id: organizationId,
       industry_id: String(industryDbId),

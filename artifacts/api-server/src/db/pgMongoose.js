@@ -221,7 +221,7 @@ function compileQuery(query, params = [], schema = null) {
             parts.push(isId ? `_id IS NOT NULL` : `(data->>'${key}') IS NOT NULL`);
           } else {
             params.push(String(opVal));
-            parts.push(isId ? `_id <> $${params.length}` : `(data->>'${key}') <> $${params.length}`);
+            parts.push(isId ? `(_id IS NULL OR _id <> $${params.length})` : `((data->>'${key}') IS NULL OR (data->>'${key}') <> $${params.length})`);
           }
         } else if (op === '$nin') {
           if (Array.isArray(opVal) && opVal.length > 0) {
@@ -981,13 +981,14 @@ function createModel(modelName, schema) {
         const row = res.rows[0];
         const nextData = applyUpdateQuery(row.data, updateQuery);
         const now = new Date();
+        const createdAtVal = (nextData.createdAt || nextData.created_at) ? new Date(nextData.createdAt || nextData.created_at) : row.created_at;
         await pool.query(`
           UPDATE ${tableName} 
-          SET data = $1, updated_at = $2 
-          WHERE _id = $3
-        `, [JSON.stringify(nextData), now, String(id)]);
+          SET data = $1, updated_at = $2, created_at = $3
+          WHERE _id = $4
+        `, [JSON.stringify(nextData), now, createdAtVal, String(id)]);
 
-        const returned = { _id: id, ...nextData, createdAt: row.created_at, updatedAt: now };
+        const returned = { _id: id, ...nextData, createdAt: createdAtVal, updatedAt: now };
         if (options.new) {
           return new this(returned);
         }

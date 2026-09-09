@@ -1,6 +1,11 @@
 import { api } from './api'
 
-// ── Industry ─────────────────────────────────────────────────────────────────
+export interface IndustryDesignation {
+  name: string
+  value: string
+  label: string
+}
+
 export interface Industry {
   _id: string
   code: string
@@ -8,6 +13,16 @@ export interface Industry {
   description?: string
   isActive: boolean
   status?: string
+  baseline_designations?: IndustryDesignation[]
+  baselineDesignations?: IndustryDesignation[]
+  default_team_name?: string
+  defaultTeamName?: string
+  default_team_code?: string
+  defaultTeamCode?: string
+  default_branch_name?: string
+  defaultBranchName?: string
+  default_branch_code?: string
+  defaultBranchCode?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -18,6 +33,16 @@ export interface IndustryInput {
   description?: string
   isActive?: boolean
   status?: string
+  baseline_designations?: IndustryDesignation[]
+  baselineDesignations?: IndustryDesignation[]
+  default_team_name?: string
+  defaultTeamName?: string
+  default_team_code?: string
+  defaultTeamCode?: string
+  default_branch_name?: string
+  defaultBranchName?: string
+  default_branch_code?: string
+  defaultBranchCode?: string
 }
 
 // Helper for endpoints that wrap responses as `{ items: [...] }`.

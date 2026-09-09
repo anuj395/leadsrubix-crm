@@ -84,6 +84,12 @@ const leadReassignmentHistorySchema = new mongoose.Schema(
   }
 );
 
-mongoose.model('LeadDistributionRule', leadDistributionRuleSchema, 'lead_distribution_rules');
-mongoose.model('LeadRotationRule', leadRotationRuleSchema, 'lead_rotation_rules');
-mongoose.model('LeadReassignmentHistory', leadReassignmentHistorySchema, 'lead_reassignment_histories');
+const LeadDistributionRule = mongoose.model('LeadDistributionRule', leadDistributionRuleSchema, 'lead_distribution_rules');
+const LeadRotationRule = mongoose.model('LeadRotationRule', leadRotationRuleSchema, 'lead_rotation_rules');
+const LeadReassignmentHistory = mongoose.model('LeadReassignmentHistory', leadReassignmentHistorySchema, 'lead_reassignment_histories');
+
+module.exports = {
+  LeadDistributionRule,
+  LeadRotationRule,
+  LeadReassignmentHistory,
+};

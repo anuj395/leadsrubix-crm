@@ -287,7 +287,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
 
   const isSuperAdmin = (user.role || authedUser.role) === 'superAdmin';
 
-  let resolvedIndustryId = user.industryId;
+  let resolvedIndustryId = user.industryId || user.industry_id || payload?.industryId || payload?.industry_id;
   if (isSuperAdmin) {
     const orgId = payload?.organizationId || payload?.fields?.organizationId || payload?.organization_id;
     if (orgId) {
@@ -497,16 +497,14 @@ exports.createForUser = async ({ payload, authedUser }) => {
     }
   }
 
-  // Default to logged-in user if no explicit owner was selected during manual creation
-  if (!explicitOwnerEmail && !explicitUid && user) {
-    cleaned.contactOwnerEmail = user.email || '';
-    cleaned.contact_owner_email = user.email || '';
-    cleaned.assignedTo = user.email || '';
-    cleaned.assigned_to = user.email || '';
-    cleaned.uid = user.uid || String(user._id);
-    cleaned.contactOwnerId = String(user._id);
-    cleaned.contact_owner_id = String(user._id);
-  } else if (explicitOwnerEmail || explicitUid) {
+  // Resolve lead ownership:
+  // 1. Explicit owner provided
+  const hasExplicitOwner = Boolean(
+    (explicitOwnerEmail && !['auto', 'unassigned', ''].includes(String(explicitOwnerEmail).toLowerCase().trim())) ||
+    (explicitUid && !['auto', 'unassigned', ''].includes(String(explicitUid).toLowerCase().trim()))
+  );
+
+  if (hasExplicitOwner) {
     const User = mongoose.model('User');
     let targetOwnerUser = null;
     if (explicitUid) {
@@ -531,7 +529,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
     }
   }
 
-  // Auto-evaluate lead distribution rules if still unassigned (e.g. API / Webhook leads with no logged in user)
+  // 2. If no explicit owner provided, evaluate automated lead distribution rules
   if (!cleaned.contactOwnerEmail && !cleaned.uid) {
     try {
       const { assignLeadByRules } = require('./leadDistributionService');
@@ -544,7 +542,7 @@ exports.createForUser = async ({ payload, authedUser }) => {
         budget: cleaned.budget,
         propertyType: cleaned.propertyType
       });
-      if (assignment.ownerEmail || assignment.uid) {
+      if (assignment && (assignment.ownerEmail || assignment.uid)) {
         cleaned.uid = assignment.uid;
         cleaned.contactOwnerId = assignment.uid;
         cleaned.contact_owner_id = assignment.uid;
@@ -554,8 +552,19 @@ exports.createForUser = async ({ payload, authedUser }) => {
         cleaned.assigned_to = assignment.ownerEmail;
       }
     } catch (e) {
-      console.error('[ContactService] Lead distribution assignment error:', e);
+      console.error('[ContactService] Lead distribution assignment error:', e.message || e);
     }
+  }
+
+  // 3. Fallback to logged-in user if still unassigned
+  if (!cleaned.contactOwnerEmail && !cleaned.uid && user) {
+    cleaned.contactOwnerEmail = user.email || '';
+    cleaned.contact_owner_email = user.email || '';
+    cleaned.assignedTo = user.email || '';
+    cleaned.assigned_to = user.email || '';
+    cleaned.uid = user.uid || String(user._id || user.id || '');
+    cleaned.contactOwnerId = String(user._id || user.id || '');
+    cleaned.contact_owner_id = String(user._id || user.id || '');
   }
 
   const docPayload = fillExtraFields(

@@ -7,6 +7,11 @@ const industrySchema = new mongoose.Schema(
     description: { type: String, default: '' },
     is_active: { type: Boolean, default: true, alias: 'isActive' },
     status: { type: String, enum: ['Launched', 'Pre-Launched', 'Pending'], default: 'Launched' },
+    baseline_designations: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    default_team_name: { type: String, default: 'General Sales Team' },
+    default_team_code: { type: String, default: 'GST' },
+    default_branch_name: { type: String, default: 'Head Office' },
+    default_branch_code: { type: String, default: 'HQ' },
   },
   { 
     timestamps: true,
@@ -42,13 +47,29 @@ exports.findByCode = async (code) => {
   return doc;
 };
 
-exports.create = async ({ code, name, description, isActive, status }) => {
+exports.create = async ({
+  code,
+  name,
+  description,
+  isActive,
+  status,
+  baseline_designations,
+  default_team_name,
+  default_team_code,
+  default_branch_name,
+  default_branch_code,
+}) => {
   const doc = await Industry.create({
     code: String(code).toLowerCase().trim(),
     name: String(name).trim(),
     description: description || '',
     is_active: isActive !== false,
     status: status || 'Launched',
+    baseline_designations: Array.isArray(baseline_designations) ? baseline_designations : [],
+    default_team_name: default_team_name || 'General Sales Team',
+    default_team_code: default_team_code || 'GST',
+    default_branch_name: default_branch_name || 'Head Office',
+    default_branch_code: default_branch_code || 'HQ',
   });
   return doc;
 };
@@ -60,6 +81,13 @@ exports.update = async (id, patch) => {
   if (patch.description !== undefined) update.description = String(patch.description);
   if (patch.isActive !== undefined) update.is_active = !!patch.isActive;
   if (patch.status !== undefined) update.status = String(patch.status);
+  if (patch.baseline_designations !== undefined) {
+    update.baseline_designations = Array.isArray(patch.baseline_designations) ? patch.baseline_designations : [];
+  }
+  if (patch.default_team_name !== undefined) update.default_team_name = String(patch.default_team_name);
+  if (patch.default_team_code !== undefined) update.default_team_code = String(patch.default_team_code);
+  if (patch.default_branch_name !== undefined) update.default_branch_name = String(patch.default_branch_name);
+  if (patch.default_branch_code !== undefined) update.default_branch_code = String(patch.default_branch_code);
   return Industry.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
 };
 
