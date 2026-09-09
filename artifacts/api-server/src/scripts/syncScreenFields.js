@@ -29,15 +29,50 @@ require.cache[require.resolve('mongoose')] = {
 
 const { connect, disconnect, mongoose } = require('../db');
 
-// Register models
+// Register all models before seeding / migrations
 require('../models/userModel');
 require('../models/industryModel');
 require('../models/roleModel');
+require('../models/sidebarMenuModel');
+require('../models/sidebarPermissionModel');
 require('../models/screenModel');
 require('../models/screenFieldModel');
 require('../models/screenPermissionModel');
+require('../models/roleActionPermissionModel');
 require('../models/contactModel');
+require('../models/organizationModel');
+require('../models/accountModel');
+require('../models/bookingModel');
+require('../models/dealModel');
+require('../models/quoteModel');
+require('../models/pricingPlanModel');
+require('../models/couponModel');
+require('../models/faqModel');
+require('../models/newsModel');
+require('../models/whatsappConfigModel');
+require('../models/resourceItemModel');
+require('../models/apiTokenModel');
+require('../models/apiDataModel');
+require('../models/leadDistributionModel');
+require('../models/dropdownOptionModel');
+require('../models/teamModel');
+require('../models/branchModel');
+require('../models/designationModel');
+require('../models/holidayModel');
+require('../models/workingDayModel');
+require('../models/workspaceModel');
+require('../models/analyticsConfigModel');
+require('../models/importLogModel');
+require('../models/callLogModel');
+require('../models/sidebarModel');
 require('../models/taskModel');
+require('../models/notificationModel');
+require('../models/notificationSettingModel');
+require('../models/pushTemplateModel');
+require('../models/pushLogModel');
+require('../models/pushQuotaModel');
+require('../models/emailLogModel');
+require('../models/emailSuppressionModel');
 
 const { seedScreens } = require('../seed');
 
