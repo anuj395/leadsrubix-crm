@@ -391,6 +391,7 @@ export default function DealsListPage() {
     const defaultStageVal = firstStage ? (firstStage.stageId || firstStage.stage_id || firstStage.name) : 'New Enquiry'
     setEditingDeal(null)
     setDealForm({
+      contactId: '',
       title: '',
       amount: '',
       currency: 'INR',
@@ -409,6 +410,7 @@ export default function DealsListPage() {
   const handleOpenEdit = (deal: Deal) => {
     setEditingDeal(deal)
     setDealForm({
+      contactId: (deal.contactId || deal.contact_id || '') as string,
       title: deal.title || deal.name || '',
       amount: deal.amount || 0,
       currency: deal.currency || 'INR',
@@ -441,6 +443,7 @@ export default function DealsListPage() {
 
       const payload: Partial<Deal> = {
         ...formValues,
+        contactId: formValues.contactId || formValues.contact_id || dealForm.contactId || undefined,
         title: titleVal,
         name: titleVal,
         amount: Number(formValues.amount || dealForm.amount || 0),
@@ -711,6 +714,19 @@ export default function DealsListPage() {
               </Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
+
+          {/* Add Deal Button */}
+          {can_add && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAdd}
+              sx={{ order: { xs: 1, sm: 4 }, fontWeight: 600 }}
+            >
+              Add Deal
+            </Button>
+          )}
 
         </Stack>
       </Box>
