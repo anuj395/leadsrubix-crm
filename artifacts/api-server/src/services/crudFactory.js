@@ -421,6 +421,8 @@ function buildController({
       }
       if (req.user?.organizationId) {
         payload.organization_id = String(req.user.organizationId);
+      } else if (payload.organization_id || payload.organizationId || req.query.organizationId) {
+        payload.organization_id = String(payload.organization_id || payload.organizationId || req.query.organizationId);
       }
       if (req.user?.uid) {
         payload.uid = String(req.user.uid);
@@ -439,6 +441,12 @@ function buildController({
           if (ContactModel) {
             const contact = await ContactModel.findById(cId).lean().exec();
             if (contact) {
+              if (!payload.organization_id) {
+                payload.organization_id = contact.organization_id || contact.organizationId || '';
+              }
+              if (!payload.industry_id) {
+                payload.industry_id = contact.industry_id || contact.industryId || '';
+              }
               if (!payload.customer_name) payload.customer_name = contact.customer_name || contact.customerName || '';
               if (!payload.contact_number) payload.contact_number = contact.contact_number || contact.contactNumber || '';
               if (!payload.project_name) payload.project_name = contact.project_name || contact.projectName || '';
