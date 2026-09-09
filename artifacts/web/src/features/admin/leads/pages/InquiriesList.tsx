@@ -274,23 +274,23 @@ export default function InquiriesListPage() {
     },
     {
       field: 'contact_number',
-      headerName: 'PHONE NUMBER',
+      headerName: 'PHONE',
       flex: 0.9,
-      minWidth: 120,
+      minWidth: 125,
       valueGetter: (_, row) => row.contact_number || row.contactNumber || '—',
     },
     {
       field: 'project_name',
-      headerName: 'PROJECT / REQUIREMENT',
+      headerName: 'PROJECT / REQ',
       flex: 1.2,
       minWidth: 160,
       valueGetter: (_, row) => row.project_name || row.projectName || row.propertyType || '—',
     },
     {
       field: 'source',
-      headerName: 'CHANNEL SOURCE',
+      headerName: 'SOURCE',
       flex: 0.9,
-      minWidth: 130,
+      minWidth: 120,
       renderCell: (params) => {
         const src = String(params.row.source || params.row.lead_source || 'Inbound').trim()
         const isMeta = src.toLowerCase().includes('meta') || src.toLowerCase().includes('facebook')
@@ -338,8 +338,8 @@ export default function InquiriesListPage() {
     {
       field: 'actions',
       headerName: 'FAST ACTIONS',
-      width: 240,
-      minWidth: 240,
+      width: 270,
+      minWidth: 270,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
