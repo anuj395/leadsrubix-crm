@@ -15,6 +15,8 @@ import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
 
 
+import { getSmartFollowUpDateTime } from '@/utils/formatDate'
+
 interface CallbackModalProps {
   open: boolean;
   onClose: () => void;
@@ -45,8 +47,8 @@ export default function CallbackModal({ open, onClose, contactId, onSuccess }: C
           setContact(match)
           
           const initVals: Record<string, any> = {}
-          initVals.callBackReason = match.callBackReason || match.call_back_reason || ''
-          initVals.nextFollowUp = ''
+          initVals.callBackReason = match.callBackReason || match.call_back_reason || 'Customer Busy / Call Later'
+          initVals.nextFollowUp = getSmartFollowUpDateTime()
           initVals.notes = ''
           
           setInitialValues(initVals)

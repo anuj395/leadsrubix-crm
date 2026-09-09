@@ -34,6 +34,8 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
   const [nextFollowUpType, setNextFollowUpType] = useState('Call Back')
   const [nextFollowUpDate, setNextFollowUpDate] = useState('')
   const [callbackReason, setCallbackReason] = useState('Customer Busy / Call Later')
+  const [meetingLocation, setMeetingLocation] = useState('')
+  const [demoLink, setDemoLink] = useState('')
   const [noteText, setNoteText] = useState('')
   
   // Existing task status
@@ -67,10 +69,12 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
 
     setNextFollowUpType('Call Back')
     setCallbackReason('Customer Busy / Call Later')
+    setMeetingLocation(contact?.projectName || (contact as any)?.project_name || contact?.location || '')
+    setDemoLink('')
     setNextFollowUpDate(localIso)
     setNoteText('')
     setExistingTaskSelected('')
-  }, [open, tasksData])
+  }, [open, tasksData, contact])
 
   // Fetch all tasks for this customer to evaluate unique meetings/site visits
   useEffect(() => {
@@ -188,6 +192,12 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
         console.warn('Prior task status update warning:', tErr)
       }
 
+      const combinedNotes = [
+        noteText.trim(),
+        demoLink ? `Online Demo Link: ${demoLink.trim()}` : '',
+        (nextFollowUpType === 'Site Visit' || nextFollowUpType === 'Meeting') && meetingLocation ? `Venue / Location: ${meetingLocation.trim()}` : ''
+      ].filter(Boolean).join('\n')
+
       // 3. Create new follow-up task
       await api.post('tasks', {
         contactId: contact._id,
@@ -205,10 +215,10 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
         stage: contact.stage || '',
         contactOwnerEmail: contact.contactOwnerEmail || (contact as any).contact_owner_email || user?.email || '',
         projectName: contact.projectName || (contact as any).project_name || '',
-        location: contact.location || '',
+        location: meetingLocation || contact.location || '',
         budget: contact.budget || '',
         source: contact.source || (contact as any).lead_source || '',
-        notes: noteText.trim(),
+        notes: combinedNotes,
         latitude: lat,
         longitude: lng,
       })
@@ -218,17 +228,18 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
         await updateContact(contact._id, {
           nextFollowUpType: nextFollowUpType,
           nextFollowUpDateTime: new Date(nextFollowUpDate),
+          location: meetingLocation || contact.location || undefined,
           modifiedAt: new Date(),
         })
       } catch (cErr) {
-        console.warn('Contact follow-up sync warning:', cErr)
+        console.warn('Contact follow-up info update warning:', cErr)
       }
 
-      setToast({ open: true, msg: 'Task Created Successfully!!', sev: 'success' })
+      setToast({ open: true, msg: 'Task Created Successfully!', sev: 'success' })
       setTimeout(() => {
         onSuccess()
         onClose()
-      }, 500)
+      }, 1000)
     } catch (err) {
       console.error('Failed to create task:', err)
       setToast({ open: true, msg: 'Failed to create task', sev: 'error' })
@@ -302,6 +313,31 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
                   <MenuItem value="Ringing / Not Picked">Ringing / Not Picked</MenuItem>
                   <MenuItem value="Other">Other</MenuItem>
                 </TextField>
+              )}
+
+              {(nextFollowUpType === 'Site Visit' || nextFollowUpType === 'Meeting') && (
+                <TextField
+                  size="small"
+                  label={nextFollowUpType === 'Site Visit' ? 'Site / Project Location *' : 'Meeting Venue / Location *'}
+                  value={meetingLocation}
+                  onChange={(e) => setMeetingLocation(e.target.value)}
+                  placeholder={nextFollowUpType === 'Site Visit' ? 'e.g. Site Office / Project Location' : 'e.g. Head Office / Client Conference Room / Cafe'}
+                  fullWidth
+                  required
+                  InputLabelProps={{ shrink: true }}
+                />
+              )}
+
+              {nextFollowUpType === 'Online Demo' && (
+                <TextField
+                  size="small"
+                  label="Meeting Link / Platform"
+                  value={demoLink}
+                  onChange={(e) => setDemoLink(e.target.value)}
+                  placeholder="e.g. https://meet.google.com/... or Zoom URL"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
               )}
 
               <TextField

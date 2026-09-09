@@ -67,6 +67,11 @@ export default function LostModal({ open, onClose, contactId, onSuccess }: LostM
       return
     }
 
+    if (values.lostReason === 'Other' && !values.otherLostReason?.trim()) {
+      setToast({ open: true, msg: 'Please enter the specific reason for Other', sev: 'error' })
+      return
+    }
+
     setSaving(true)
 
     const contactFields: Record<string, any> = {}

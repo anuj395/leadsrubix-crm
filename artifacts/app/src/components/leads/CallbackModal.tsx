@@ -76,6 +76,30 @@ const DEFAULT_CALLBACK_FIELDS: CallbackFormField[] = [
   },
 ];
 
+function getSmartMobileFollowUp(): string {
+  const d = new Date();
+  const currentHour = d.getHours();
+  if (currentHour >= 9 && currentHour < 17) {
+    d.setHours(d.getHours() + 2);
+    d.setMinutes(0);
+  } else if (currentHour >= 17) {
+    d.setDate(d.getDate() + 1);
+    d.setHours(11, 0, 0, 0);
+  } else {
+    d.setHours(11, 0, 0, 0);
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = String(hours).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}, ${strHours}:${minutes} ${ampm}`;
+}
+
 interface Props {
   visible: boolean;
   lead: LeadItem;
@@ -156,8 +180,8 @@ export const CallbackModal: React.FC<Props> = ({
     if (!visible) return;
 
     const initialVals: Record<string, any> = {
-      callBackReason: (lead as any).callBackReason || (lead as any).call_back_reason || '',
-      nextFollowUp: '',
+      callBackReason: (lead as any).callBackReason || (lead as any).call_back_reason || 'Customer Busy / Call Later',
+      nextFollowUp: getSmartMobileFollowUp(),
       notes: '',
     };
 

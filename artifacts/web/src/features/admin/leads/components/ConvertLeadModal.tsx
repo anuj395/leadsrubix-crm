@@ -57,6 +57,8 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
     setError(null)
     const customerName = contact.customerName || contact.customer_name || 'Qualified Lead'
     setAccountName(`${customerName} Co.`)
+    const projectName = contact.projectName || (contact as any).project_name || 'Opportunity'
+    setDealTitle(`${customerName} - ${projectName}`)
     const parsedBudget = contact.budget ? Number(String(contact.budget).replace(/[^0-9]/g, '')) : 0
     setDealAmount(parsedBudget || 0)
     setExpectedCloseDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
@@ -97,9 +99,22 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
       setError('Account name is required')
       return
     }
-    if (createDeal && !dealTitle.trim()) {
-      setError('Deal title is required')
-      return
+    if (createDeal) {
+      if (!dealTitle.trim()) {
+        setError('Deal title is required')
+        return
+      }
+      if (Number(dealAmount) <= 0) {
+        setError('Deal amount must be greater than 0')
+        return
+      }
+      if (expectedCloseDate) {
+        const closeTime = new Date(expectedCloseDate).getTime()
+        if (!isNaN(closeTime) && closeTime < Date.now() - 24 * 60 * 60 * 1000) {
+          setError('Expected close date cannot be in the past')
+          return
+        }
+      }
     }
 
     try {
