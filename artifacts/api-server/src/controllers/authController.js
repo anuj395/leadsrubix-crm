@@ -40,3 +40,25 @@ exports.resetPassword = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.registerPushToken = async (req, res, next) => {
+  try {
+    const { pushToken, platform } = req.body || {};
+    const userId = req.user?.id || req.user?._id;
+    const result = await authService.registerPushToken({ userId, pushToken, platform });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.unregisterPushToken = async (req, res, next) => {
+  try {
+    const { pushToken } = req.body || {};
+    const userId = req.user?.id || req.user?._id;
+    const result = await authService.unregisterPushToken({ userId, pushToken });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};

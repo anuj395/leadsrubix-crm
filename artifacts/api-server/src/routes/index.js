@@ -51,6 +51,7 @@ const paymentRoutes = require('./paymentRoutes');
 const screenController = require('../controllers/screenController');
 const { authenticate } = require('../middlewares/auth');
 
+const pushNotificationRoutes = require('./pushNotificationRoutes');
 const router = express.Router();
 
 const workspaceController = require('../controllers/workspaceController');
@@ -58,6 +59,7 @@ router.get('/workspace/resolve-domain', workspaceController.resolveDomain);
 
 router.use('/auth', authRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/push-notifications', pushNotificationRoutes);
 router.use('/users', userRoutes);
 router.use('/pricing-plans', pricingPlanRoutes);
 router.use('/coupons', couponRoutes);

@@ -22,10 +22,24 @@ export async function markAllAsRead(): Promise<void> {
   await axiosInstance.put('/notifications/mark-all-read')
 }
 
+export interface OrgUserItem {
+  _id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  role?: string
+  device_id?: string
+  aws_push_tokens?: Array<{ token: string; endpointArn?: string; platform?: string }>
+  is_active?: boolean
+  status?: string
+}
+
 export interface NotificationSettingsResponse {
   industrySettings: Array<{ notification_type: string; is_enabled: boolean }>
   orgSettings: Array<{ notification_type: string; is_enabled: boolean }>
   userSettings: Array<{ notification_type: string; is_enabled: boolean }>
+  allUsersSettings?: Array<{ user_id: string; notification_type: string; is_enabled: boolean }>
+  orgUsers?: OrgUserItem[]
 }
 
 export async function fetchNotificationSettings(industryId?: string): Promise<NotificationSettingsResponse> {
@@ -40,6 +54,7 @@ export async function updateNotificationSetting(payload: {
   notificationType: string
   isEnabled: boolean
   industryId?: string
+  userId?: string
 }): Promise<void> {
   await axiosInstance.put('/notifications/settings', payload)
 }

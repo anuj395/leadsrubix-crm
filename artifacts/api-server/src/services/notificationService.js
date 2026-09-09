@@ -70,9 +70,154 @@ async function createNotification({ userId, organizationId, workspaceId, title, 
       is_read: false,
       related_id: relatedId ? String(relatedId) : null
     });
+
+    // Trigger AWS SNS Push Notification to Mobile App Devices
+    dispatchAwsSnsPushNotification({ userId, title, message, type, relatedId, contact: { customerName: title, source: 'CRM Notification' } })
+      .catch(err => console.error('[NotificationService] AWS SNS Push dispatch error:', err.message));
+
     return notification;
   } catch (err) {
     console.error('[NotificationService] Failed to create in-app notification:', err.stack || err.message);
+  }
+}
+
+async function dispatchAwsSnsPushNotification({ userId, title, message, type, relatedId, contact }) {
+  try {
+    const User = mongoose.model('User');
+    const PushLog = mongoose.model('PushLog');
+    const PushTemplate = mongoose.model('PushTemplate');
+    const PushQuota = mongoose.model('PushQuota');
+
+    const userDoc = await User.findById(userId).lean().exec();
+    if (!userDoc) return;
+
+    const orgId = userDoc.organization_id || userDoc.organizationId || 'default';
+    const userName = `${userDoc.firstName || ''} ${userDoc.lastName || ''}`.trim() || userDoc.email.split('@')[0];
+
+    // 1. Check if Push Notifications are active for target user
+    const isUserPushEnabled = await isNotificationEnabled({ userId, organizationId: orgId, type: type || 'LEAD_ASSIGNED' });
+    if (!isUserPushEnabled) {
+      await PushLog.create({
+        organization_id: orgId,
+        user_id: String(userId),
+        user_email: userDoc.email,
+        user_name: userName,
+        event_type: type || 'LEAD_ASSIGNED',
+        title: title || 'CRM Alert',
+        body: message || '',
+        status: 'SUPPRESSED_INACTIVE',
+        error_message: 'Push notification disabled by Admin/User settings'
+      });
+      return;
+    }
+
+    // 2. Check Organization Monthly Quota
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    let quotaDoc = await PushQuota.findOne({ organization_id: orgId, billing_month: currentMonth }).exec();
+    if (!quotaDoc) {
+      quotaDoc = await PushQuota.create({ organization_id: orgId, monthly_limit: 10000, used_count: 0, billing_month: currentMonth });
+    }
+
+    if (quotaDoc.used_count >= quotaDoc.monthly_limit) {
+      await PushLog.create({
+        organization_id: orgId,
+        user_id: String(userId),
+        user_email: userDoc.email,
+        user_name: userName,
+        event_type: type || 'LEAD_ASSIGNED',
+        title: title || 'CRM Alert',
+        body: message || '',
+        status: 'SUPPRESSED_QUOTA',
+        error_message: `Monthly push quota limit reached (${quotaDoc.used_count}/${quotaDoc.monthly_limit})`
+      });
+      return;
+    }
+
+    // 3. Resolve Custom Push Template
+    let finalTitle = title || '🎯 New CRM Alert';
+    let finalBody = message || '';
+
+    const customTemplate = await PushTemplate.findOne({
+      $or: [{ organization_id: orgId }, { organization_id: null }],
+      event_type: type || 'LEAD_ASSIGNED',
+      is_active: true
+    }).lean().exec();
+
+    if (customTemplate) {
+      const customerName = contact?.customerName || contact?.customer_name || contact?.name || 'Customer';
+      const leadSource = contact?.source || 'Direct';
+      const assignedBy = contact?.reassigned_by || contact?.reassignedBy || 'Admin';
+      const projectName = contact?.projectName || contact?.project_name || '';
+
+      finalTitle = customTemplate.title_template
+        .replace(/\{customer_name\}/g, customerName)
+        .replace(/\{lead_source\}/g, leadSource)
+        .replace(/\{assigned_by\}/g, assignedBy)
+        .replace(/\{project_name\}/g, projectName);
+
+      finalBody = customTemplate.body_template
+        .replace(/\{customer_name\}/g, customerName)
+        .replace(/\{lead_source\}/g, leadSource)
+        .replace(/\{assigned_by\}/g, assignedBy)
+        .replace(/\{project_name\}/g, projectName)
+        .replace(/\{message\}/g, message || '');
+    }
+
+    // 4. Dispatch Push Notification via AWS SNS
+    const awsSnsService = require('./awsSnsService');
+    const pushTokens = Array.isArray(userDoc.aws_push_tokens) && userDoc.aws_push_tokens.length > 0
+      ? userDoc.aws_push_tokens
+      : (userDoc.device_id ? [{ token: userDoc.device_id, endpointArn: userDoc.sns_endpoint_arn || null }] : []);
+
+    if (pushTokens.length === 0) {
+      await PushLog.create({
+        organization_id: orgId,
+        user_id: String(userId),
+        user_email: userDoc.email,
+        user_name: userName,
+        event_type: type || 'LEAD_ASSIGNED',
+        title: finalTitle,
+        body: finalBody,
+        status: 'FAILED',
+        error_message: 'No registered push token / AWS endpoint found for user'
+      });
+      return;
+    }
+
+    for (const t of pushTokens) {
+      const res = await awsSnsService.sendPushNotification({
+        endpointArn: t.endpointArn || userDoc.sns_endpoint_arn || null,
+        token: t.token,
+        title: finalTitle,
+        message: finalBody,
+        data: {
+          type: type || 'GENERAL_ALERT',
+          relatedId: relatedId ? String(relatedId) : null,
+          leadId: relatedId ? String(relatedId) : null,
+          screen: type?.includes('LEAD') ? 'LeadDetails' : 'Notifications'
+        }
+      });
+
+      const isSuccess = res && res.success;
+      await PushLog.create({
+        organization_id: orgId,
+        user_id: String(userId),
+        user_email: userDoc.email,
+        user_name: userName,
+        event_type: type || 'LEAD_ASSIGNED',
+        title: finalTitle,
+        body: finalBody,
+        status: isSuccess ? 'DELIVERED' : 'FAILED',
+        aws_message_id: res?.messageId || '',
+        error_message: isSuccess ? '' : (res?.error || 'Dispatch error')
+      });
+
+      if (isSuccess) {
+        await PushQuota.updateOne({ _id: quotaDoc._id }, { $inc: { used_count: 1 } });
+      }
+    }
+  } catch (err) {
+    console.error('[NotificationService] Failed to dispatch AWS SNS push notification:', err.message);
   }
 }
 

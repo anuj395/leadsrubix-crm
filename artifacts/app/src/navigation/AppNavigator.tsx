@@ -28,6 +28,7 @@ import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { MenuScreen } from '../screens/menu/MenuScreen';
 import { UpdatePasswordScreen } from '../screens/account/UpdatePasswordScreen';
 import { DealsScreen } from '../screens/deals/DealsScreen';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 type ScreenName =
   | 'Onboarding'
@@ -71,6 +72,23 @@ export const AppNavigator = () => {
       }
     });
   }, [currentScreen]);
+
+  useEffect(() => {
+    if (token) {
+      pushNotificationService.registerForPushNotifications();
+      const cleanup = pushNotificationService.setupNotificationListeners((targetScreen, params) => {
+        if (targetScreen === 'LeadDetails' && params?.leadId) {
+          setCurrentScreen('LeadDetail');
+          setRouteParams({ leadId: params.leadId });
+          setNavStack(prev => [...prev, { screen: 'LeadDetail', params: { leadId: params.leadId } }]);
+        } else if (targetScreen === 'Notifications') {
+          setCurrentScreen('Notifications');
+          setNavStack(prev => [...prev, { screen: 'Notifications', params: {} }]);
+        }
+      });
+      return () => cleanup();
+    }
+  }, [token]);
 
   useEffect(() => {
     const checkOnboarding = async () => {

@@ -41,6 +41,7 @@ import { EmailSettingsTab } from '../components/EmailSettingsTab'
 import { ActionEmailTemplatesTab } from '../components/ActionEmailTemplatesTab'
 import { SuperAdminEmailQuotasTab } from '@/features/superAdmin/components/SuperAdminEmailQuotasTab'
 import { SuperAdminEmailLogsTab } from '@/features/superAdmin/components/SuperAdminEmailLogsTab'
+import { PushNotificationsTab } from '../components/PushNotificationsTab'
 import { CustomFieldsTab } from '../components/CustomFieldsTab'
 import { LeadDistributionTab } from '../components/LeadDistributionTab'
 import { SlaWorkflowsTab } from '../components/SlaWorkflowsTab'
@@ -64,7 +65,7 @@ interface Industry {
   name: string
 }
 
-type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities' | 'email-settings' | 'email-templates' | 'email-quotas' | 'super-admin-email-logs' | 'custom-fields' | 'lead-distribution' | 'sla-workflows'
+type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities' | 'email-settings' | 'email-templates' | 'email-quotas' | 'super-admin-email-logs' | 'push-notifications' | 'custom-fields' | 'lead-distribution' | 'sla-workflows' | 'email-logs'
 
 
 
@@ -161,13 +162,14 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTogglePreference = async (level: 'industry' | 'org' | 'user', notificationType: string, currentVal: boolean) => {
+  const handleTogglePreference = async (level: 'industry' | 'org' | 'user', notificationType: string, currentVal: boolean, targetUserId?: string) => {
     try {
       await updateNotificationSetting({
         level,
         notificationType,
         isEnabled: !currentVal,
-        industryId: level === 'industry' ? selectedIndustryId : undefined
+        industryId: level === 'industry' ? selectedIndustryId : undefined,
+        userId: targetUserId
       })
       showToast('Preference updated successfully')
       void loadNotificationSettings(selectedIndustryId)
@@ -177,10 +179,10 @@ export default function SettingsPage() {
   }
 
   const loadItems = async (currentTab: TabType, industryIdFilter?: string) => {
-    if (currentTab === 'email-settings' || currentTab === 'email-templates' || currentTab === 'email-quotas' || currentTab === 'super-admin-email-logs') {
+    if (currentTab === 'email-settings' || currentTab === 'email-templates' || currentTab === 'email-quotas' || currentTab === 'super-admin-email-logs' || currentTab === 'email-logs') {
       return
     }
-    if (currentTab === 'notification-settings' || currentTab === 'notification-capabilities') {
+    if (currentTab === 'notification-settings' || currentTab === 'notification-capabilities' || currentTab === 'push-notifications') {
       return loadNotificationSettings(industryIdFilter)
     }
     setLoading(true)
@@ -373,18 +375,25 @@ export default function SettingsPage() {
         subtitle={isSuperAdmin ? 'Configure global tenant roles' : 'Configure system parameters for teams, branches, and designations'}
         sx={{ flex: 1, minHeight: 0 }}
       >
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3, flexShrink: 0 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3, flexShrink: 0, width: '100%' }}>
           {isSuperAdmin ? (
             <Tabs
               value={tab}
               onChange={(_, val: TabType) => setTab(val)}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
               sx={{
+                flex: 1,
+                minWidth: 0,
                 borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
                   fontWeight: 600,
                   textTransform: 'none',
-                  minWidth: 100,
+                  whiteSpace: 'nowrap',
+                  minWidth: 'auto',
+                  px: 2,
                 },
               }}
             >
@@ -392,41 +401,45 @@ export default function SettingsPage() {
               <Tab label="Role Keys" value="role-keys" />
               <Tab label="Default Email & Domain" value="email-settings" />
               <Tab label="Email Templates" value="email-templates" />
-              <Tab label="Custom Fields Builder" value="custom-fields" />
-              <Tab label="Lead Distribution Engine" value="lead-distribution" />
-              <Tab label="SLA & Escalations" value="sla-workflows" />
               <Tab label="Notification Capabilities" value="notification-capabilities" />
               <Tab label="Global Email Quotas" value="email-quotas" />
               <Tab label="Global Email Logs" value="super-admin-email-logs" />
+              <Tab label="📲 Push Notifications" value="push-notifications" />
             </Tabs>
           ) : (
 
             <Tabs
               value={tab}
               onChange={(_, val: TabType) => setTab(val)}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
               sx={{
+                flex: 1,
+                minWidth: 0,
                 borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
                   fontWeight: 600,
                   textTransform: 'none',
-                  minWidth: 100,
+                  whiteSpace: 'nowrap',
+                  minWidth: 'auto',
+                  px: 2,
                 },
               }}
             >
               <Tab label="Teams" value="teams" />
               <Tab label="Branches" value="branches" />
               <Tab label="Designations" value="designations" />
-              <Tab label="Custom Fields Builder" value="custom-fields" />
-              <Tab label="Lead Distribution Engine" value="lead-distribution" />
-              <Tab label="SLA & Escalations" value="sla-workflows" />
               <Tab label="Notification Settings" value="notification-settings" />
               <Tab label="Email & Domain Setup" value="email-settings" />
               <Tab label="Action Email Templates" value="email-templates" />
+              <Tab label="Email Logs" value="email-logs" />
+              <Tab label="📲 Push Notifications" value="push-notifications" />
             </Tabs>
           )}
 
-          {!(tab === 'notification-settings' || tab === 'notification-capabilities' || tab === 'email-settings' || tab === 'email-templates' || tab === 'email-quotas' || tab === 'super-admin-email-logs' || tab === 'custom-fields' || tab === 'lead-distribution' || tab === 'sla-workflows') && (
+          {!(tab === 'notification-settings' || tab === 'notification-capabilities' || tab === 'email-settings' || tab === 'email-templates' || tab === 'email-quotas' || tab === 'super-admin-email-logs' || tab === 'email-logs' || tab === 'push-notifications') && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -449,19 +462,15 @@ export default function SettingsPage() {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress size={40} />
             </Box>
-          ) : tab === 'custom-fields' ? (
-            <CustomFieldsTab showToast={showToast} />
-          ) : tab === 'lead-distribution' ? (
-            <LeadDistributionTab showToast={showToast} />
-          ) : tab === 'sla-workflows' ? (
-            <SlaWorkflowsTab showToast={showToast} />
+          ) : tab === 'push-notifications' ? (
+            <PushNotificationsTab showToast={showToast} notificationPrefs={notificationPrefs} loadNotificationSettings={loadNotificationSettings} />
           ) : tab === 'email-settings' ? (
             <EmailSettingsTab showToast={showToast} />
           ) : tab === 'email-templates' ? (
             <ActionEmailTemplatesTab showToast={showToast} />
           ) : tab === 'email-quotas' ? (
             <SuperAdminEmailQuotasTab showToast={showToast} />
-          ) : tab === 'super-admin-email-logs' ? (
+          ) : (tab === 'super-admin-email-logs' || tab === 'email-logs') ? (
             <SuperAdminEmailLogsTab showToast={showToast} />
           ) : (tab === 'notification-settings' || tab === 'notification-capabilities') ? (
 
@@ -492,6 +501,85 @@ export default function SettingsPage() {
                                 checked={isEnabled}
                                 onChange={() => handleTogglePreference('industry', type.value, isEnabled)}
                               />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+
+            {(user?.role !== 'sales' && (notificationPrefs?.orgUsers || []).length > 0) && (
+              <Box sx={{ mt: 1, mb: 2 }}>
+                <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 700, color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  📲 Agent Mobile Push Notification Access Controls
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enable or disable real-time mobile push notifications for individual sales agents and team members in your organization.
+                </Typography>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', mb: 3 }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                        <TableCell sx={{ fontWeight: 700, width: '25%' }}>Team Member / Agent</TableCell>
+                        <TableCell sx={{ fontWeight: 700, width: '15%' }}>Role</TableCell>
+                        <TableCell sx={{ fontWeight: 700, width: '20%' }}>Device Push Status</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, width: '15%' }}>Mobile Push Active</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>Granular Notification Types</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(notificationPrefs?.orgUsers || []).map((u) => {
+                        const hasToken = !!(u.device_id || (u.aws_push_tokens && u.aws_push_tokens.length > 0));
+                        const leadAssignedSetting = notificationPrefs?.allUsersSettings?.find(s => String(s.user_id) === String(u._id) && s.notification_type === 'LEAD_ASSIGNED');
+                        const isPushActive = leadAssignedSetting ? leadAssignedSetting.is_enabled !== false : true;
+
+                        return (
+                          <TableRow key={u._id} hover>
+                            <TableCell sx={{ fontWeight: 600 }}>
+                              {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : u.email.split('@')[0]}
+                              <Typography variant="caption" display="block" color="text.secondary">
+                                {u.email}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Alert severity="info" icon={false} sx={{ display: 'inline-flex', py: 0, px: 1, fontSize: '0.75rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+                                {u.role || 'Sales Agent'}
+                              </Alert>
+                            </TableCell>
+                            <TableCell>
+                              <Alert severity={hasToken ? "success" : "warning"} icon={false} sx={{ display: 'inline-flex', py: 0, px: 1, fontSize: '0.75rem', borderRadius: '4px' }}>
+                                {hasToken ? '📱 Device Token Active' : '⚠️ No Push Token'}
+                              </Alert>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Switch
+                                checked={isPushActive}
+                                onChange={() => handleTogglePreference('user', 'LEAD_ASSIGNED', isPushActive, u._id)}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={{ pr: 3 }}>
+                              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                {NOTIFICATION_TYPES.map((nt) => {
+                                  const userSetting = notificationPrefs?.allUsersSettings?.find(s => String(s.user_id) === String(u._id) && s.notification_type === nt.value);
+                                  const isEnabled = userSetting ? userSetting.is_enabled !== false : true;
+                                  return (
+                                    <FormControlLabel
+                                      key={nt.value}
+                                      control={
+                                        <Switch
+                                          size="small"
+                                          checked={isEnabled}
+                                          onChange={() => handleTogglePreference('user', nt.value, isEnabled, u._id)}
+                                        />
+                                      }
+                                      label={<Typography variant="caption" sx={{ fontSize: '0.7rem' }}>{nt.label.split(' ')[0]}</Typography>}
+                                    />
+                                  );
+                                })}
+                              </Stack>
                             </TableCell>
                           </TableRow>
                         );
