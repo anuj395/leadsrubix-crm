@@ -12,6 +12,11 @@ router.get('/importHistory', authenticate, requireScreenAction('contacts', 'view
 router.delete('/importHistory/:id', authenticate, requireScreenAction('contacts', 'delete'), ctrl.deleteImportHistory);
 router.delete('/import-history/:id', authenticate, requireScreenAction('contacts', 'delete'), ctrl.deleteImportHistory);
 router.post('/masterSortSearch', authenticate, requireScreenAction('contacts', 'view'), ctrl.masterSortSearch);
+router.get('/check-duplicate', authenticate, requireScreenAction('contacts', 'view'), ctrl.checkDuplicate);
+router.get('/stats', authenticate, requireScreenAction('contacts', 'view'), ctrl.getStats);
+router.post('/:id/inquiries', authenticate, requireScreenAction('contacts', 'add'), ctrl.appendInquiry);
+router.post('/:id/schedule-callback', authenticate, requireScreenAction('contacts', 'edit'), ctrl.scheduleCallback);
+router.post('/:id/log-call', authenticate, requireScreenAction('contacts', 'edit'), ctrl.logCall);
 router.post('/:id/convert', authenticate, requireScreenAction('contacts', 'edit'), ctrl.convert);
 router.post('/:id/qualify', authenticate, requireScreenAction('contacts', 'edit'), ctrl.qualifyInquiry);
 

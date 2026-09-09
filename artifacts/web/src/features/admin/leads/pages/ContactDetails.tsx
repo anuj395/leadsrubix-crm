@@ -47,6 +47,8 @@ import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import DeleteIcon from '@mui/icons-material/Delete'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import DynamicFeedIcon from '@mui/icons-material/DynamicFeed'
+import RepeatIcon from '@mui/icons-material/Repeat'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -290,6 +292,65 @@ export default function ContactDetailsPage() {
     }
   }, [deals])
 
+  // Multi-Inquiry history list for this customer
+  const inquiriesList = useMemo(() => {
+    const arr = (contact as any)?.inquiries
+    if (Array.isArray(arr) && arr.length > 0) {
+      return arr
+    }
+    if (!contact) return []
+    return [{
+      inquiry_id: 'INQ-ORIG-001',
+      created_at: contact.createdAt || new Date().toISOString(),
+      source: contact.source || 'Direct',
+      campaign: (contact as any)?.campaign || '',
+      project_name: (contact as any)?.projectName || (contact as any)?.project_name || '',
+      property_type: (contact as any)?.propertyType || (contact as any)?.property_type || '',
+      budget: contact.budget || '',
+      notes: 'Initial Lead Registration',
+      status: (contact as any)?.stage || 'ACTIVE',
+      assigned_to: contact.contactOwnerEmail || contact.contactOwnerName || ''
+    }]
+  }, [contact])
+
+  const [inquiryModalOpen, setInquiryModalOpen] = useState(false)
+  const [inquiryForm, setInquiryForm] = useState({
+    projectName: '',
+    propertyType: '',
+    budget: '',
+    source: 'Website',
+    campaign: '',
+    notes: ''
+  })
+  const [savingInquiry, setSavingInquiry] = useState(false)
+
+  const handleSaveInquiry = async () => {
+    if (!inquiryForm.projectName.trim() && !inquiryForm.notes.trim()) {
+      setToast({ open: true, msg: 'Please provide a Project / Requirement name or notes', sev: 'error' })
+      return
+    }
+    try {
+      setSavingInquiry(true)
+      await api.post(`contacts/${id}/inquiries`, inquiryForm)
+      setToast({ open: true, msg: 'New inquiry appended successfully!', sev: 'success' })
+      setInquiryModalOpen(false)
+      setInquiryForm({
+        projectName: '',
+        propertyType: '',
+        budget: '',
+        source: 'Website',
+        campaign: '',
+        notes: ''
+      })
+      await loadData()
+    } catch (err: any) {
+      console.error('Failed to append inquiry', err)
+      setToast({ open: true, msg: err?.response?.data?.message || 'Failed to append inquiry', sev: 'error' })
+    } finally {
+      setSavingInquiry(false)
+    }
+  }
+
   const [resolvedDealsScreen, setResolvedDealsScreen] = useState<ResolvedScreen | null>(null)
 
   useEffect(() => {
@@ -494,10 +555,28 @@ export default function ContactDetailsPage() {
                   {customerNameStr}
                 </Typography>
                 <StatusBadge value={currentStage} />
-                {isConverted && (
+                {inquiriesList.length > 1 && (
+                  <Chip
+                    label={`Repeat Customer (${inquiriesList.length} Inquiries)`}
+                    color="secondary"
+                    size="small"
+                    icon={<RepeatIcon sx={{ fontSize: '0.9rem !important' }} />}
+                    sx={{ fontWeight: 700, height: 24 }}
+                  />
+                )}
+                {dealMetrics.wonVal > 0 && (
+                  <Chip
+                    label={`Won Customer (LTV: ${formatCurrency(dealMetrics.wonVal)})`}
+                    color="success"
+                    size="small"
+                    icon={<CheckCircleIcon sx={{ fontSize: '0.9rem !important' }} />}
+                    sx={{ fontWeight: 700, height: 24 }}
+                  />
+                )}
+                {isConverted && dealMetrics.wonVal === 0 && (
                   <Chip
                     label="Converted to Deal"
-                    color="success"
+                    color="primary"
                     icon={<CheckCircleIcon />}
                     size="small"
                     sx={{ fontWeight: 600, height: 24 }}
@@ -624,6 +703,7 @@ export default function ContactDetailsPage() {
           >
             <Tab label="Activity & Timeline" />
             <Tab label="Profile Information" />
+            <Tab label={`Inquiries & Requests (${inquiriesList.length})`} />
             <Tab label={`Deals & Pipeline (${deals.length})`} />
             <Tab label={`Notes & Attachments (${notes.length + ((contact as any)?.attachments?.length || 0)})`} />
           </Tabs>
@@ -752,9 +832,155 @@ export default function ContactDetailsPage() {
             </Box>
           )}
 
-          {/* Tab 2: Deals & Pipeline */}
+          {/* Tab 2: Inquiries & Requirements */}
           {activeTab === 2 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', py: 1 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 1 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <DynamicFeedIcon color="primary" />
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Inquiry History & Requirements ({inquiriesList.length})
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      All multi-inquiry touchpoints, campaigns, and requirements recorded for this customer.
+                    </Typography>
+                  </Box>
+                  {can_edit && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={() => setInquiryModalOpen(true)}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                      + Add New Inquiry
+                    </Button>
+                  )}
+                </Stack>
+                <Divider sx={{ mb: 2 }} />
+
+                {inquiriesList.length === 0 ? (
+                  <Box sx={{ py: 6, textAlign: 'center' }}>
+                    <DynamicFeedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1, opacity: 0.5 }} />
+                    <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                      No Inquiries Recorded
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Click "+ Add New Inquiry" to log a new requirement or campaign entry.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead sx={{ bgcolor: 'background.default' }}>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700 }}>Inquiry ID</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Date Received</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Project / Requirement</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Source / Channel</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Campaign</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Budget</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Notes</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {inquiriesList.map((inq: any, idx: number) => {
+                          const inqDate = inq.created_at || inq.createdAt ? new Date(inq.created_at || inq.createdAt).toLocaleString() : '—'
+                          return (
+                            <TableRow key={inq.inquiry_id || idx} hover>
+                              <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'text.secondary' }}>
+                                {inq.inquiry_id || `INQ-${idx + 1}`}
+                              </TableCell>
+                              <TableCell sx={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
+                                {inqDate}
+                              </TableCell>
+                              <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                {inq.project_name || inq.projectName || inq.project || 'General Inquiry'}
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={inq.source || 'Direct'} size="small" variant="outlined" sx={{ fontWeight: 500 }} />
+                              </TableCell>
+                              <TableCell sx={{ color: 'text.secondary' }}>
+                                {inq.campaign || '—'}
+                              </TableCell>
+                              <TableCell sx={{ fontWeight: 600 }}>
+                                {inq.budget ? (String(inq.budget).startsWith('₹') ? inq.budget : `₹${inq.budget}`) : '—'}
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge value={inq.status || 'INBOUND_FRESH'} />
+                              </TableCell>
+                              <TableCell sx={{ maxWidth: 260, fontSize: '0.85rem' }}>
+                                {inq.notes || inq.requirement || '—'}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </Paper>
+            </Box>
+          )}
+
+          {/* Tab 3: Deals & Pipeline */}
+          {activeTab === 3 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', py: 1 }}>
+              {/* Deals KPI Summary Banner */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 1, bgcolor: 'background.paper', borderLeft: 4, borderColor: 'primary.main' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
+                    Total Pipeline Value
+                  </Typography>
+                  <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5 }}>
+                    {formatCurrency(dealMetrics.totalVal)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {deals.length} Total Deal{deals.length === 1 ? '' : 's'}
+                  </Typography>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 1, bgcolor: 'background.paper', borderLeft: 4, borderColor: 'success.main' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
+                    Customer Lifetime Value (LTV)
+                  </Typography>
+                  <Typography variant="h6" fontWeight={700} color="success.main" sx={{ mt: 0.5 }}>
+                    {formatCurrency(dealMetrics.wonVal)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {deals.filter(d => String(d.stage).toUpperCase().includes('WON') || String(d.stage).toUpperCase().includes('BOOKED')).length} Closed Won
+                  </Typography>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 1, bgcolor: 'background.paper', borderLeft: 4, borderColor: 'info.main' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
+                    Active Pipeline
+                  </Typography>
+                  <Typography variant="h6" fontWeight={700} color="info.main" sx={{ mt: 0.5 }}>
+                    {formatCurrency(dealMetrics.totalVal - dealMetrics.wonVal)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {deals.filter(d => !String(d.stage).toUpperCase().includes('WON') && !String(d.stage).toUpperCase().includes('LOST')).length} In Negotiation
+                  </Typography>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 1, bgcolor: 'background.paper', borderLeft: 4, borderColor: 'warning.main' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
+                    Conversion Rate
+                  </Typography>
+                  <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5 }}>
+                    {deals.length > 0 ? Math.round((deals.filter(d => String(d.stage).toUpperCase().includes('WON') || String(d.stage).toUpperCase().includes('BOOKED')).length / deals.length) * 100) : 0}%
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Won vs Total Deals
+                  </Typography>
+                </Paper>
+              </Box>
+
               {/* Deals List Table & Actions */}
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 1 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
@@ -765,6 +991,17 @@ export default function ContactDetailsPage() {
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1}>
+                    {can_add && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<HandshakeOutlinedIcon />}
+                        onClick={handleOpenAddDeal}
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                      >
+                        + New Deal
+                      </Button>
+                    )}
                     <Button
                       variant="outlined"
                       size="small"
@@ -855,8 +1092,8 @@ export default function ContactDetailsPage() {
             </Box>
           )}
 
-          {/* Tab 3: Notes & Attachments */}
-          {activeTab === 3 && (
+          {/* Tab 4: Notes & Attachments */}
+          {activeTab === 4 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, width: '100%', py: 1 }}>
               {/* Left Side: Notes list */}
               <Box>
@@ -1135,6 +1372,96 @@ export default function ContactDetailsPage() {
             sx={{ textTransform: 'none', fontWeight: 600, px: 3 }}
           >
             {uploadingAttach ? <CircularProgress size={20} color="inherit" /> : 'Upload'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add New Inquiry Dialog */}
+      <Dialog open={inquiryModalOpen} onClose={() => setInquiryModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DynamicFeedIcon color="primary" />
+          <Typography variant="h6" fontWeight="bold">Add New Customer Inquiry</Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+            Append a new inbound inquiry or requirement to this customer's record without creating duplicate contacts.
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="Project / Requirement Name"
+              required
+              fullWidth
+              size="small"
+              placeholder="e.g. 3BHK Luxury Villa, Enterprise CRM, Solar Rooftop"
+              value={inquiryForm.projectName}
+              onChange={(e) => setInquiryForm(prev => ({ ...prev, projectName: e.target.value }))}
+            />
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Source Channel</InputLabel>
+                <Select
+                  value={inquiryForm.source}
+                  label="Source Channel"
+                  onChange={(e) => setInquiryForm(prev => ({ ...prev, source: e.target.value }))}
+                >
+                  <MenuItem value="Website">Website</MenuItem>
+                  <MenuItem value="Meta Ads">Meta Ads</MenuItem>
+                  <MenuItem value="Google Ads">Google Ads</MenuItem>
+                  <MenuItem value="Referral">Referral</MenuItem>
+                  <MenuItem value="Walk-in">Walk-in</MenuItem>
+                  <MenuItem value="Direct">Direct Call</MenuItem>
+                  <MenuItem value="WhatsApp">WhatsApp</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                label="Campaign (Optional)"
+                fullWidth
+                size="small"
+                placeholder="e.g. Diwali Promo, Summer Sale"
+                value={inquiryForm.campaign}
+                onChange={(e) => setInquiryForm(prev => ({ ...prev, campaign: e.target.value }))}
+              />
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField
+                label="Budget / Est. Value"
+                fullWidth
+                size="small"
+                placeholder="e.g. 75,00,000"
+                value={inquiryForm.budget}
+                onChange={(e) => setInquiryForm(prev => ({ ...prev, budget: e.target.value }))}
+              />
+              <TextField
+                label="Property / Item Type"
+                fullWidth
+                size="small"
+                placeholder="e.g. Commercial, Villa, Apartment"
+                value={inquiryForm.propertyType}
+                onChange={(e) => setInquiryForm(prev => ({ ...prev, propertyType: e.target.value }))}
+              />
+            </Box>
+            <TextField
+              label="Specific Requirement / Notes"
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Customer's specific preferences, timeline, or requests..."
+              value={inquiryForm.notes}
+              onChange={(e) => setInquiryForm(prev => ({ ...prev, notes: e.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setInquiryModalOpen(false)} disabled={savingInquiry} sx={{ textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveInquiry}
+            variant="contained"
+            disabled={savingInquiry}
+            sx={{ textTransform: 'none', fontWeight: 600, px: 3 }}
+          >
+            {savingInquiry ? <CircularProgress size={20} color="inherit" /> : 'Append Inquiry'}
           </Button>
         </DialogActions>
       </Dialog>

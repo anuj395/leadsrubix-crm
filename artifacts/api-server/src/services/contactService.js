@@ -1661,4 +1661,343 @@ exports.qualifyInquiry = async (contactId, authedUser) => {
 };
 
 
+exports.checkDuplicateContact = async ({ orgId, phone, email }) => {
+  if (!orgId) return { isDuplicate: false };
+  const queries = [];
+  if (phone) {
+    const rawClean = String(phone).replace(/\D/g, '').slice(-10);
+    if (rawClean.length >= 7) {
+      queries.push({ contact_number: { $regex: rawClean } });
+      queries.push({ contactNumber: { $regex: rawClean } });
+    }
+  }
+  if (email && String(email).trim()) {
+    const cleanEmail = String(email).trim().toLowerCase();
+    queries.push({ email_id: cleanEmail });
+    queries.push({ emailId: cleanEmail });
+  }
+
+  if (queries.length === 0) return { isDuplicate: false };
+
+  const match = await contactModel.Contact.findOne({
+    $and: [
+      {
+        $or: [
+          { organization_id: orgId },
+          { organizationId: orgId }
+        ]
+      },
+      { $or: queries }
+    ]
+  }).lean().exec();
+
+  if (match) {
+    return {
+      isDuplicate: true,
+      contact: {
+        _id: match._id,
+        customerName: match.customer_name || match.customerName || 'Unnamed',
+        contactNumber: match.contact_number || match.contactNumber || '',
+        emailId: match.email_id || match.emailId || '',
+        stage: match.stage || 'FRESH',
+        ownerEmail: match.contact_owner_email || match.contactOwnerEmail || '',
+        inquiryCount: (Array.isArray(match.inquiries) && match.inquiries.length) || match.inquiry_count || 1,
+        activeDealCount: match.active_deal_count || 0
+      }
+    };
+  }
+  return { isDuplicate: false };
+};
+
+exports.getContactStats = async (orgId, authedUser) => {
+  const query = {};
+  if (authedUser?.role !== 'superAdmin' && orgId) {
+    query.$or = [
+      { organization_id: orgId },
+      { organizationId: orgId }
+    ];
+  }
+  if (authedUser?.role === 'sales') {
+    query.$and = [
+      ...(query.$or ? [{ $or: query.$or }] : []),
+      {
+        $or: [
+          { contact_owner_email: authedUser.email },
+          { contactOwnerEmail: authedUser.email },
+          { contact_owner_id: authedUser.id },
+          { created_by: authedUser.id }
+        ]
+      }
+    ];
+    delete query.$or;
+  }
+
+  const allContacts = await contactModel.Contact.find(query).lean().exec();
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  let total = allContacts.length;
+  let fresh = 0;
+  let callback = 0;
+  let inProgress = 0;
+  let qualified = 0;
+  let deals = 0;
+  let lost = 0;
+  let dueToday = 0;
+
+  for (const c of allContacts) {
+    const stage = String(c.stage || '').toUpperCase();
+    const isConverted = c.is_converted || c.isConverted;
+    const isQual = c.is_qualified || c.isQualified || stage.includes('QUALIFIED');
+
+    if (isConverted || stage.includes('DEAL') || stage.includes('CONVERTED') || stage.includes('BOOKED')) {
+      deals++;
+    } else if (stage.includes('LOST') || stage.includes('NOT_INTERESTED') || stage.includes('REFUSED')) {
+      lost++;
+    } else if (isQual) {
+      qualified++;
+    } else if (stage.includes('CALLBACK')) {
+      callback++;
+    } else if (stage.includes('PROGRESS') || stage.includes('INTERESTED') || stage.includes('CONTACTED')) {
+      inProgress++;
+    } else {
+      fresh++;
+    }
+
+    const followUp = c.next_follow_up_date_time || c.nextFollowUpDateTime;
+    if (followUp) {
+      const fDateStr = new Date(followUp).toISOString().split('T')[0];
+      if (fDateStr === todayStr) {
+        dueToday++;
+      }
+    }
+  }
+
+  return {
+    total,
+    fresh,
+    callback,
+    inProgress,
+    qualified,
+    deals,
+    lost,
+    dueToday
+  };
+};
+
+exports.appendInquiry = async (contactId, inquiryData, authedUser) => {
+  const contact = await contactModel.Contact.findById(contactId).exec();
+  if (!contact) throw new Error('Contact not found');
+
+  const newInquiry = {
+    inquiry_id: 'inq_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    created_at: new Date().toISOString(),
+    source: inquiryData.source || contact.source || 'Direct',
+    campaign: inquiryData.campaign || '',
+    project_name: inquiryData.projectName || inquiryData.project_name || contact.project_name || '',
+    property_type: inquiryData.propertyType || inquiryData.property_type || contact.property_type || '',
+    budget: inquiryData.budget || contact.budget || '',
+    notes: inquiryData.notes || '',
+    status: 'INBOUND_FRESH',
+    assigned_to: authedUser?.email || contact.contact_owner_email || ''
+  };
+
+  const currentInquiries = Array.isArray(contact.inquiries) ? [...contact.inquiries] : [];
+  currentInquiries.push(newInquiry);
+
+  const updateFields = {
+    inquiries: currentInquiries,
+    inquiry_count: currentInquiries.length,
+    inquiryCount: currentInquiries.length,
+    stage: 'FRESH',
+    status: 'FRESH',
+    modified_at: new Date(),
+    modifiedAt: new Date()
+  };
+
+  if (inquiryData.projectName || inquiryData.project_name) {
+    updateFields.project_name = inquiryData.projectName || inquiryData.project_name;
+    updateFields.projectName = updateFields.project_name;
+  }
+  if (inquiryData.budget) updateFields.budget = inquiryData.budget;
+  if (inquiryData.source) updateFields.source = inquiryData.source;
+
+  await contactModel.Contact.findByIdAndUpdate(contactId, { $set: updateFields }).exec();
+
+  return {
+    success: true,
+    message: 'New inquiry appended successfully!',
+    inquiry: newInquiry,
+    inquiryCount: currentInquiries.length
+  };
+};
+
+exports.scheduleCallbackAtomic = async ({
+  contactId,
+  nextFollowUp,
+  callBackReason,
+  notes,
+  authedUser,
+  latitude = null,
+  longitude = null
+}) => {
+  const contact = await contactModel.Contact.findById(contactId).exec();
+  if (!contact) throw new Error('Contact not found');
+
+  const followUpDate = nextFollowUp ? new Date(nextFollowUp) : new Date();
+  const now = new Date();
+
+  // 1. Update Contact stage & follow-up
+  const contactUpdates = {
+    stage: 'CALLBACK',
+    call_back_reason: callBackReason || '',
+    callBackReason: callBackReason || '',
+    next_follow_up_date_time: followUpDate,
+    nextFollowUpDateTime: followUpDate,
+    next_follow_up_type: 'Call Back',
+    nextFollowUpType: 'Call Back',
+    modified_at: now,
+    modifiedAt: now,
+    stage_change_at: now,
+    stageChangeAt: now
+  };
+  if (latitude !== null && latitude !== undefined) contactUpdates.latitude = latitude;
+  if (longitude !== null && longitude !== undefined) contactUpdates.longitude = longitude;
+
+  await contactModel.Contact.findByIdAndUpdate(contactId, { $set: contactUpdates }).exec();
+
+  // 2. Mark previous pending callback tasks as superseded
+  try {
+    await taskModel.Task.updateMany(
+      {
+        $or: [{ contact_id: contactId }, { contactId: contactId }],
+        status: 'PENDING'
+      },
+      {
+        $set: {
+          status: 'COMPLETED',
+          isCompleted: true,
+          completed_at: now,
+          completedAt: now,
+          notes: 'Superseded by new callback scheduled on ' + now.toLocaleString()
+        }
+      }
+    ).exec();
+  } catch (taskErr) {
+    console.warn('Failed to supersede previous tasks', taskErr.message);
+  }
+
+  // 3. Create newly scheduled Task
+  let createdTask = null;
+  try {
+    createdTask = await taskModel.Task.create({
+      contact_id: contactId,
+      contactId: contactId,
+      organization_id: contact.organization_id || authedUser?.organizationId,
+      industry_id: contact.industry_id || authedUser?.industryId,
+      type: 'Call Back',
+      task_type: 'Call Back',
+      taskType: 'Call Back',
+      due_date: followUpDate,
+      dueDate: followUpDate,
+      status: 'PENDING',
+      callback_reason: callBackReason || '',
+      callbackReason: callBackReason || '',
+      customer_name: contact.customer_name || contact.customerName || '',
+      contact_number: contact.contact_number || contact.contactNumber || '',
+      notes: notes || '',
+      created_by: authedUser?.email || authedUser?.id || '',
+      assigned_to: contact.contact_owner_email || authedUser?.email || '',
+      latitude,
+      longitude
+    });
+  } catch (createErr) {
+    console.error('Failed to create atomic Task', createErr);
+  }
+
+  return {
+    success: true,
+    message: 'Callback scheduled and synchronized successfully',
+    nextFollowUp: followUpDate,
+    task: createdTask
+  };
+};
+
+exports.logCallAtomic = async ({
+  contactId,
+  duration = 0,
+  disposition,
+  details = '',
+  authedUser
+}) => {
+  const contact = await contactModel.Contact.findById(contactId).exec();
+  if (!contact) throw new Error('Contact not found');
+
+  const now = new Date();
+
+  // 1. Create CallLog
+  let createdLog = null;
+  try {
+    createdLog = await callLogModel.CallLog.create({
+      contact_id: contactId,
+      contactId: contactId,
+      organization_id: contact.organization_id || authedUser?.organizationId,
+      industry_id: contact.industry_id || authedUser?.industryId,
+      customer_name: contact.customer_name || contact.customerName || '',
+      contact_number: contact.contact_number || contact.contactNumber || '',
+      duration: Number(duration) || 0,
+      details: details || '',
+      type: disposition || 'Connected',
+      stage: contact.stage || 'CONTACTED',
+      created_by: authedUser?.email || authedUser?.id || 'Agent',
+      contact_owner_email: contact.contact_owner_email || authedUser?.email || ''
+    });
+  } catch (logErr) {
+    console.error('Failed to create atomic CallLog', logErr);
+  }
+
+  // 2. Update Contact last contacted timestamp
+  await contactModel.Contact.findByIdAndUpdate(contactId, {
+    $set: {
+      last_contacted_at: now,
+      lastContactedAt: now,
+      call_response_time: now,
+      callResponseTime: now,
+      modified_at: now,
+      modifiedAt: now
+    }
+  }).exec();
+
+  // 3. Auto-complete any pending callback task if call was connected
+  if (disposition && disposition.toUpperCase() !== 'CALLBACK') {
+    try {
+      await taskModel.Task.updateMany(
+        {
+          $or: [{ contact_id: contactId }, { contactId: contactId }],
+          status: 'PENDING',
+          type: 'Call Back'
+        },
+        {
+          $set: {
+            status: 'COMPLETED',
+            isCompleted: true,
+            completed_at: now,
+            completedAt: now,
+            notes: `Completed by call on ${now.toLocaleString()} (${disposition})`
+          }
+        }
+      ).exec();
+    } catch (taskErr) {
+      console.warn('Failed to complete pending task upon call log', taskErr.message);
+    }
+  }
+
+  return {
+    success: true,
+    message: 'Call logged and contact updated successfully',
+    callLog: createdLog
+  };
+};
+
 exports.fillExtraFields = fillExtraFields;

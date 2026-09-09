@@ -441,4 +441,69 @@ exports.qualifyInquiry = async (req, res, next) => {
   }
 };
 
+exports.checkDuplicate = async (req, res, next) => {
+  try {
+    const orgId = req.query.organizationId || req.user?.organizationId;
+    const phone = req.query.phone;
+    const email = req.query.email;
+    const result = await service.checkDuplicateContact({ orgId, phone, email });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStats = async (req, res, next) => {
+  try {
+    const orgId = req.query.organizationId || req.user?.organizationId;
+    const stats = await service.getContactStats(orgId, req.user);
+    res.json(stats);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.appendInquiry = async (req, res, next) => {
+  try {
+    const result = await service.appendInquiry(req.params.id, req.body, req.user);
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.scheduleCallback = async (req, res, next) => {
+  try {
+    const { nextFollowUp, callBackReason, notes, latitude, longitude } = req.body;
+    const result = await service.scheduleCallbackAtomic({
+      contactId: req.params.id,
+      nextFollowUp,
+      callBackReason,
+      notes,
+      authedUser: req.user,
+      latitude,
+      longitude
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.logCall = async (req, res, next) => {
+  try {
+    const { duration, disposition, details } = req.body;
+    const result = await service.logCallAtomic({
+      contactId: req.params.id,
+      duration,
+      disposition,
+      details,
+      authedUser: req.user
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 
