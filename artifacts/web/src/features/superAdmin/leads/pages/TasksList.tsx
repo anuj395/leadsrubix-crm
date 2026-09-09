@@ -242,6 +242,17 @@ export default function TasksListPage() {
         title={dynamicTitle}
         subtitle="Dynamic follow-up tasks list driven by the Screen Configuration system per Industry."
         fullHeight
+        action={
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={() => setDialogOpen(true)}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            + New Task
+          </Button>
+        }
       >
         <SuperAdminScopeSelector
           isSuperAdmin={isSuperAdmin}
