@@ -277,9 +277,20 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
   });
   if (!existingDesignation) {
-    const designationsList = (industryDoc?.baseline_designations && Array.isArray(industryDoc.baseline_designations) && industryDoc.baseline_designations.length > 0)
+    const rawDesignations = (industryDoc?.baseline_designations && Array.isArray(industryDoc.baseline_designations) && industryDoc.baseline_designations.length > 0)
       ? industryDoc.baseline_designations
       : getIndustryDesignations(industryDoc?.code || industryId);
+    const designationsList = rawDesignations.map(d => {
+      if (typeof d === 'string') {
+        const val = d.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'role';
+        return { name: d, value: val, label: d };
+      }
+      return {
+        name: d.name || d.label || d.value || 'Role',
+        value: d.value || (d.name ? d.name.toLowerCase().replace(/[^a-z0-9]+/g, '_') : 'role'),
+        label: d.label || d.name || 'Role'
+      };
+    });
     await Designation.create({
       organization_id: organizationId,
       industry_id: String(industryDbId),
