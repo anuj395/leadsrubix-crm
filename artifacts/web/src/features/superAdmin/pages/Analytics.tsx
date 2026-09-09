@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Typography from '@mui/material/Typography'
@@ -122,6 +123,7 @@ interface DashboardPayload {
 }
 
 export default function AnalyticsPage() {
+  const navigate = useNavigate()
   const theme = useTheme()
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'superAdmin'
@@ -162,26 +164,24 @@ export default function AnalyticsPage() {
         if (tab.id === 1 && tab.label) {
           tasksAndMeetingsTab = tab.label
         }
-        if (tab.sections) {
-          for (const sec of tab.sections) {
-            if (sec.widgets) {
-              for (const w of sec.widgets) {
-                if (w.data_key === 'cards.completedVisits' && w.title) {
-                  completedVisits = w.title
-                }
-                if (w.data_key === 'cards.scheduledVisits' && w.title) {
-                  scheduledVisits = w.title
-                }
-                if (w.columns && Array.isArray(w.columns)) {
-                  const mv = w.columns.find((c: any) => c.key === 'meeting')
-                  if (mv?.label) meeting = mv.label
-                  const sv = w.columns.find((c: any) => c.key === 'siteVisit')
-                  if (sv?.label) {
-                    siteVisit = sv.label
-                    visitsDesc = sv.label
-                  }
-                }
-              }
+        const allWidgets = [
+          ...(Array.isArray(tab.widgets) ? tab.widgets : []),
+          ...(Array.isArray(tab.sections) ? tab.sections.flatMap((s: any) => Array.isArray(s?.widgets) ? s.widgets : []) : [])
+        ]
+        for (const w of allWidgets) {
+          if (w.data_key === 'cards.completedVisits' && w.title) {
+            completedVisits = w.title
+          }
+          if (w.data_key === 'cards.scheduledVisits' && w.title) {
+            scheduledVisits = w.title
+          }
+          if (w.columns && Array.isArray(w.columns)) {
+            const mv = w.columns.find((c: any) => c.key === 'meeting')
+            if (mv?.label) meeting = mv.label
+            const sv = w.columns.find((c: any) => c.key === 'siteVisit')
+            if (sv?.label) {
+              siteVisit = sv.label
+              visitsDesc = sv.label
             }
           }
         }
@@ -330,12 +330,24 @@ export default function AnalyticsPage() {
     if (!data?.cards) return []
 
     if (dashboardConfig?.tabs) {
-      const tab0 = dashboardConfig.tabs.find((t: any) => t.id === 0)
+      const tab0 = dashboardConfig.tabs.find((t: any) => t.id === 0) || dashboardConfig.tabs[0]
       if (tab0) {
-        const kpis = tab0.widgets.filter((w: any) => w.type === 'KPI')
+        let widgetsList: any[] = []
+        if (Array.isArray(tab0.widgets) && tab0.widgets.length > 0) {
+          widgetsList = tab0.widgets
+        } else if (Array.isArray(tab0.sections)) {
+          const kmSec = tab0.sections.find((s: any) => s.title === 'Key Metrics Overview')
+          if (kmSec && Array.isArray(kmSec.widgets)) {
+            widgetsList = kmSec.widgets
+          } else {
+            widgetsList = tab0.sections.flatMap((s: any) => Array.isArray(s?.widgets) ? s.widgets : [])
+          }
+        }
+
+        const kpis = widgetsList.filter((w: any) => w?.type === 'KPI')
         if (kpis.length > 0) {
           return kpis.map((w: any) => {
-            const path = w.data_key.split('.')
+            const path = (w.data_key || '').split('.')
             let val = data as any
             for (const key of path) {
               val = val?.[key]
@@ -377,12 +389,18 @@ export default function AnalyticsPage() {
     ]
   }, [data, dashboardConfig, labels])
 
-  // Key Metrics Overview section lookup
+  // Key Metrics Overview section lookup (identifies the primary headline KPI summary section)
   const keyMetricsSection = useMemo(() => {
     if (!dashboardConfig?.tabs) return null
     for (const t of dashboardConfig.tabs) {
       if (t.sections) {
-        const found = t.sections.find((s: any) => s.title === 'Key Metrics Overview')
+        const found = t.sections.find((s: any) =>
+          s.id === 'contacts_kpis' ||
+          s.id === 'health_kpis' ||
+          s.title === 'Key Metrics Overview' ||
+          s.title === 'Patient Care Metrics' ||
+          (Array.isArray(s.widgets) && s.widgets.length > 0 && s.widgets.every((w: any) => w.type === 'KPI'))
+        )
         if (found) return found
       }
     }
@@ -661,12 +679,21 @@ export default function AnalyticsPage() {
       return null
     }
 
+    const isTopKpiSec = (s: any) => {
+      if (!s) return false
+      if (keyMetricsSection && s.id === keyMetricsSection.id) return true
+      if (s.title === 'Key Metrics Overview' || s.title === 'Patient Care Metrics') return true
+      if (s.id === 'contacts_kpis' || s.id === 'health_kpis') return true
+      if (Array.isArray(s.widgets) && s.widgets.length > 0 && s.widgets.every((w: any) => w.type === 'KPI')) return true
+      return false
+    }
+
     if (tab.sections && tab.sections.length > 0) {
       return (
         <Stack spacing={4}>
-          {tab.sections.filter((s: any) => s.is_active !== false && s.title !== 'Key Metrics Overview').map((sec: any) => {
-            const secKPIs = sec.widgets.filter((w: any) => w.type === 'KPI')
-            const secLayoutWidgets = sec.widgets.filter((w: any) => w.type !== 'KPI')
+          {tab.sections.filter((s: any) => s.is_active !== false && !isTopKpiSec(s)).map((sec: any) => {
+            const secKPIs = (sec.widgets || []).filter((w: any) => w.type === 'KPI')
+            const secLayoutWidgets = (sec.widgets || []).filter((w: any) => w.type !== 'KPI')
 
             return (
               <Box key={sec.id}>
@@ -864,31 +891,49 @@ export default function AnalyticsPage() {
       }}
     >
       {/* ── DASHBOARD TITLE & SUBTITLE ────────────────────────────────────────── */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flexShrink: 0 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.025em' }}>
-            Analytics Overview
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5, flexShrink: 0 }}>
+        <Box>
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.025em' }}>
+              Global Platform Dashboard
+            </Typography>
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.5,
+                borderRadius: '20px',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                backgroundColor: isDark ? 'rgba(79, 106, 245, 0.15)' : 'rgba(79, 106, 245, 0.08)',
+                color: 'secondary.main',
+                border: `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
+              }}
+            >
+              Super Admin
+            </Box>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Global platform analytics, tenant health, and performance pipeline across all registered organizations.
           </Typography>
-          <Box
-            sx={{
-              px: 1.5,
-              py: 0.5,
-              borderRadius: '20px',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              backgroundColor: isDark ? 'rgba(79, 106, 245, 0.15)' : 'rgba(79, 106, 245, 0.08)',
-              color: 'secondary.main',
-              border: `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
-            }}
-          >
-            Super Admin
-          </Box>
-        </Stack>
-        <Typography variant="body2" color="text.secondary">
-          Global platform analytics across all registered organizations.
-        </Typography>
+        </Box>
+
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AssessmentOutlinedIcon />}
+          onClick={() => {
+            const params = new URLSearchParams()
+            if (selectedIndustry) params.set('industryId', selectedIndustry)
+            if (selectedOrg) params.set('organizationId', selectedOrg)
+            const searchStr = params.toString() ? `?${params.toString()}` : ''
+            navigate(`/ui-navigation/analytics-config${searchStr}`)
+          }}
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+        >
+          Customize Dashboard Layout
+        </Button>
       </Box>
 
       {/* ── TOP CONTROL BAR (Unified inline dashboard filters) ─────────────────── */}
@@ -1112,7 +1157,7 @@ export default function AnalyticsPage() {
           {keyMetricsSection && (
             <Box sx={{ flexShrink: 0, mb: 3 }}>
               <Typography variant="caption" sx={{ display: 'block', mb: 1.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Key Metrics Overview
+                {keyMetricsSection.title || 'Key Metrics Overview'}
               </Typography>
               <Box
                 sx={{
@@ -1121,12 +1166,12 @@ export default function AnalyticsPage() {
                     xs: 'repeat(2, 1fr)',
                     sm: 'repeat(3, 1fr)',
                     md: 'repeat(5, 1fr)',
-                    lg: `repeat(${Math.min(9, keyMetricsSection.widgets.length)}, 1fr)`,
+                    lg: `repeat(${Math.min(9, Math.max(1, (keyMetricsSection.widgets || []).length))}, 1fr)`,
                   },
                   gap: 1.25,
                 }}
               >
-                {keyMetricsSection.widgets.map((w: any) => {
+                {(keyMetricsSection.widgets || []).map((w: any) => {
                   const path = w.data_key.split('.')
                   let val = data as any
                   for (const key of path) {
@@ -1189,7 +1234,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* ── KPI METRICS CARDS GRID (Compact & Branded) ───── */}
-          {!dashboardConfig?.tabs && (
+          {!keyMetricsSection && cardConfigs.length > 0 && (
             <Box sx={{ flexShrink: 0 }}>
               <Typography variant="caption" sx={{ display: 'block', mb: 1.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Workspace Performance Metrics

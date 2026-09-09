@@ -1749,7 +1749,7 @@ async function seedAnalyticsConfig() {
       tabs: [
         {
           id: 0,
-          label: 'Clinical & Patient Overview',
+          label: 'Patient Care Overview',
           sections: [
             {
               id: 'health_kpis',
@@ -1757,37 +1757,161 @@ async function seedAnalyticsConfig() {
               order: 0,
               is_active: true,
               widgets: [
-                { id: 'totalPatients', type: 'KPI', title: 'Patient Inquiries', color: '#14B8A6', bg: 'rgba(20,184,166,0.06)', icon: 'PeopleIcon', data_key: 'cards.totalLeads' },
-                { id: 'newAppointments', type: 'KPI', title: 'New Appointments', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'EventIcon', data_key: 'cards.fresh' },
-                { id: 'consultations', type: 'KPI', title: 'Consultations', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'LocalHospitalIcon', data_key: 'cards.interested' },
-                { id: 'treatmentPlans', type: 'KPI', title: 'Treatment Plans', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' }
+                { id: 'totalPatients', type: 'KPI', title: 'Total Patient Inquiries', color: '#0D9488', bg: 'rgba(13,148,136,0.06)', icon: 'PeopleIcon', data_key: 'cards.totalLeads' },
+                { id: 'freshInquiries', type: 'KPI', title: 'Fresh Inquiries', color: '#06B6D4', bg: 'rgba(6,182,212,0.06)', icon: 'AssignmentIcon', data_key: 'cards.fresh' },
+                { id: 'callBack', type: 'KPI', title: 'Follow-up / Call Back', color: '#3B82F6', bg: 'rgba(59,130,246,0.06)', icon: 'PhoneCallbackIcon', data_key: 'cards.callBack' },
+                { id: 'consulted', type: 'KPI', title: 'Consulted / Diagnosis', color: '#F59E0B', bg: 'rgba(245,158,11,0.06)', icon: 'ThumbUpIcon', data_key: 'cards.interested' },
+                { id: 'treatmentApproved', type: 'KPI', title: 'Treatment Approved (Won)', color: '#10B981', bg: 'rgba(16,185,129,0.06)', icon: 'CheckCircleIcon', data_key: 'cards.closedWon' },
+                { id: 'declined', type: 'KPI', title: 'Not Interested / Declined', color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)', icon: 'CancelIcon', data_key: 'cards.notInterested' },
+                { id: 'dropped', type: 'KPI', title: 'Dropped Cases (Lost)', color: '#EF4444', bg: 'rgba(239,68,68,0.06)', icon: 'TrendingDownIcon', data_key: 'cards.closedLost' },
+                { id: 'completedConsultations', type: 'KPI', title: 'Completed Consultations', color: '#14B8A6', bg: 'rgba(20,184,166,0.06)', icon: 'EventAvailableIcon', data_key: 'cards.completedVisits' },
+                { id: 'scheduledConsultations', type: 'KPI', title: 'Scheduled Consultations', color: '#0284C7', bg: 'rgba(2,132,199,0.06)', icon: 'EventIcon', data_key: 'cards.scheduledVisits' }
               ]
             },
             {
-              id: 'health_breakdown',
-              title: 'Specialty & Department Breakdown',
+              id: 'health_details',
+              title: 'Specialty & Consultation Breakdown',
               order: 1,
               is_active: true,
               widgets: [
                 {
-                  id: 'health_table',
+                  id: 'contacts_feedback',
                   type: 'TABLE',
-                  title: 'Specialty Consultation Summary',
+                  title: 'Patient Inquiries & Consultation Breakdown',
                   data_key: 'contacts.feedbackSummary',
                   columns: [
-                    { key: 'associate', label: 'Medical Rep / Doctor' },
+                    { key: 'associate', label: 'Doctor / Coordinator' },
                     { key: 'total', label: 'Total Inquiries' },
-                    { key: 'fresh', label: 'Scheduled' },
+                    { key: 'fresh', label: 'Fresh' },
+                    { key: 'callBack', label: 'Follow-up' },
                     { key: 'interested', label: 'Consulted' },
-                    { key: 'won', label: 'In-Treatment' }
+                    { key: 'won', label: 'Treatment Approved' },
+                    { key: 'notInterested', label: 'Declined' },
+                    { key: 'lost', label: 'Dropped' },
+                    { key: 'completedVisits', label: 'Completed Consultations' }
                   ]
                 },
                 {
-                  id: 'health_donut',
+                  id: 'contacts_callback',
+                  type: 'TABLE',
+                  title: 'Follow-up / Reschedule Reasons Summary',
+                  data_key: 'contacts.callBackReasons',
+                  columns: [
+                    { key: 'associate', label: 'Doctor / Coordinator' },
+                    { key: 'total', label: 'Total Follow-ups' }
+                  ]
+                },
+                {
+                  id: 'contacts_conversion_donut',
                   type: 'CHART',
-                  title: 'Specialty Inquiry Distribution',
+                  title: 'Patient Care & Conversion Distribution',
                   chart_type: 'donut',
                   data_key: 'contacts.chartData'
+                },
+                {
+                  id: 'contacts_callback_chart',
+                  type: 'CHART',
+                  title: 'Follow-up Reasons Distribution',
+                  chart_type: 'bar',
+                  data_key: 'contacts.callBackReasons'
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: 1,
+          label: 'Consultations & Clinical Tasks',
+          sections: [
+            {
+              id: 'tasks_overview',
+              title: 'Completed Consultation Metrics',
+              order: 0,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'tasks_completed',
+                  type: 'TABLE',
+                  title: 'Completed Consultations by Doctor / Staff',
+                  data_key: 'tasks.completedTasks',
+                  columns: [
+                    { key: 'associate', label: 'Doctor / Coordinator' },
+                    { key: 'total', label: 'Total Completed' },
+                    { key: 'meeting', label: 'Clinical Meeting' },
+                    { key: 'callBack', label: 'Telehealth / Follow-up' },
+                    { key: 'siteVisit', label: 'In-Clinic Consultation' }
+                  ]
+                },
+                {
+                  id: 'tasks_completed_donut',
+                  type: 'CHART',
+                  title: 'Completed Consultations Distribution',
+                  chart_type: 'rose',
+                  data_key: 'tasks.completedChartData'
+                }
+              ]
+            },
+            {
+              id: 'tasks_pending_section',
+              title: 'Pending Consultation Metrics',
+              order: 1,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'tasks_pending',
+                  type: 'TABLE',
+                  title: 'Pending Consultations by Doctor / Staff',
+                  data_key: 'tasks.pendingTasks',
+                  columns: [
+                    { key: 'associate', label: 'Doctor / Coordinator' },
+                    { key: 'total', label: 'Total Pending' },
+                    { key: 'meeting', label: 'Clinical Meeting' },
+                    { key: 'callBack', label: 'Telehealth / Follow-up' },
+                    { key: 'siteVisit', label: 'In-Clinic Consultation' }
+                  ]
+                },
+                {
+                  id: 'tasks_pending_donut',
+                  type: 'CHART',
+                  title: 'Pending Consultations Distribution',
+                  chart_type: 'bar',
+                  data_key: 'tasks.pendingChartData'
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: 2,
+          label: 'Telehealth & Calling Analytics',
+          sections: [
+            {
+              id: 'calling_insights',
+              title: 'Telehealth & Consultation Call Durations',
+              order: 0,
+              is_active: true,
+              widgets: [
+                {
+                  id: 'call_trends_trend',
+                  type: 'CHART',
+                  title: 'Telehealth & Call Trends',
+                  chart_type: 'trend',
+                  data_key: 'callLogs.callingTrends'
+                },
+                {
+                  id: 'call_logs_table',
+                  type: 'TABLE',
+                  title: 'Consultation Call Duration Summary',
+                  data_key: 'callLogs.callLogSummary',
+                  columns: [
+                    { key: 'associate', label: 'Doctor / Coordinator' },
+                    { key: 'total', label: 'Total Calls' },
+                    { key: 'duration0', label: '0 Sec' },
+                    { key: 'duration0_30', label: '0-30 Sec' },
+                    { key: 'duration31_60', label: '31-60 Sec' },
+                    { key: 'duration61_120', label: '61-120 Sec' },
+                    { key: 'durationAbove120', label: '>120 Sec' }
+                  ]
                 }
               ]
             }
@@ -2010,17 +2134,29 @@ async function seedAnalyticsConfig() {
     if (!indDoc) continue;
     const indIdStr = String(indDoc._id);
 
-    const existing = await AnalyticsConfig.findOne({ industry_id: indIdStr });
-    if (!existing || !existing.tabs || existing.tabs.length === 0) {
+    const existing = await AnalyticsConfig.findOne({
+      $or: [
+        { industry_id: indIdStr },
+        { industryId: indIdStr },
+        { industry_id: item.code },
+        { industryId: item.code }
+      ],
+      $and: [
+        { $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }] },
+        { $or: [{ organizationId: null }, { organizationId: { $exists: false } }, { organizationId: '' }] }
+      ]
+    });
+    if (!existing || !existing.tabs || existing.tabs.length < item.tabs.length) {
       if (existing) {
         await AnalyticsConfig.deleteOne({ _id: existing._id });
       }
       await AnalyticsConfig.create({
         industry_id: indIdStr,
+        industryId: item.code,
         dashboard_key: 'default',
         tabs: item.tabs
       });
-      console.log(`[seed] Seeded AnalyticsConfig for ${item.name} (${item.code})`);
+      console.log(`[seed] Seeded/Updated AnalyticsConfig for ${item.name} (${item.code})`);
     }
   }
 

@@ -186,7 +186,7 @@ exports.forgotPassword = async (email) => {
   userDoc.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour expiry
   await userDoc.save();
 
-  const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:22333';
+  const baseUrl = (process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
   const resetLink = `${baseUrl}/reset-password?token=${token}`;
   console.log('=====================================================');
   console.log(`[PASSWORD RESET LINK for ${email}]: ${resetLink}`);

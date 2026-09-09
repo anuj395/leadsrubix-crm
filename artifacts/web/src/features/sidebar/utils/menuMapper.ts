@@ -22,6 +22,37 @@ export function toIconKey(icon?: string): MenuIconKey {
   return (icon && ICON_MAP[icon.toLowerCase()]) ? ICON_MAP[icon.toLowerCase()] : 'data'
 }
 
+function formatMenuName(key: string, route?: string, rawName?: string): string {
+  const k = (key || '').toLowerCase();
+  const r = (route || '').toLowerCase();
+  const n = (rawName || '').trim();
+
+  if (k === 'analytics' || r === '/analytics' || r === '/dashboard') {
+    if (!n || n.toLowerCase() === 'analytics') {
+      return 'Dashboard';
+    }
+    return n;
+  }
+
+  if (k === 'uinavigation.analyticsconfig' || k === 'configuration.analyticsconfig' || r === '/ui-navigation/analytics-config' || r === '/configuration/analytics-config') {
+    if (!n || n.toLowerCase() === 'analytics layout builder') {
+      return 'Dashboard Layout Builder';
+    }
+    return n;
+  }
+
+  return n;
+}
+
+function resolveIconKey(key: string, route?: string, icon?: string): MenuIconKey {
+  const k = (key || '').toLowerCase();
+  const r = (route || '').toLowerCase();
+  if (k === 'analytics' || r === '/analytics' || r === '/dashboard') {
+    return 'dashboard';
+  }
+  return toIconKey(icon);
+}
+
 /**
  * Maps raw flat menu records from the database into a sorted parent-child hierarchy tree.
  * 
@@ -75,16 +106,16 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], _roleKey?: stri
 
     const mappedChildren: SidebarChildItem[] = children.map(child => ({
       id: child.key,
-      name: child.name,
+      name: formatMenuName(child.key, child.route, child.name),
       route: child.route ?? '#',
-      icon: toIconKey(child.icon),
+      icon: resolveIconKey(child.key, child.route, child.icon),
     }))
 
     result.push({
       id: root.key,
-      name: root.name,
+      name: formatMenuName(root.key, root.route, root.name),
       route: root.route,
-      icon: toIconKey(root.icon),
+      icon: resolveIconKey(root.key, root.route, root.icon),
       module: root.module ?? root.key,
       order: root.order ?? 999,
       children: mappedChildren.length > 0 ? mappedChildren : undefined

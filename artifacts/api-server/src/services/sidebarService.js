@@ -7,6 +7,19 @@ const menuModel = require('../models/sidebarMenuModel');
 const permModel = require('../models/sidebarPermissionModel');
 
 const INDUSTRY_MENU_OVERRIDES = {
+  temp0001: {
+    'analytics': 'Dashboard',
+    'leads': 'Lead',
+    'leads.inquiries': 'Raw Inquiries',
+    'leads.contact': 'Qualified Leads & Contacts',
+    'leads.tasks': 'Tasks List',
+    'leads.call': 'Call Logs List',
+    'leads.booking': 'Bookings List',
+    'configuration.projects': 'Project',
+    'configuration.resources': 'Resource',
+    'configuration.analyticsConfig': 'Dashboard Layout Builder',
+    'uiNavigation.analyticsConfig': 'Dashboard Layout Builder',
+  },
   temp0002: {
     'analytics': 'Sales Dashboard',
     'leads': 'Customers',
@@ -30,7 +43,7 @@ const INDUSTRY_MENU_OVERRIDES = {
     'tool.emiCalculator': 'Tax Calculator'
   },
   temp0003: {
-    'analytics': 'Patient Analytics',
+    'analytics': 'Patient Dashboard',
     'leads': 'Patients',
     'leads.inquiries': 'Raw Patient Inquiries',
     'leads.contact': 'Patient Inquiries & Leads',
@@ -52,7 +65,7 @@ const INDUSTRY_MENU_OVERRIDES = {
     'tool.emiCalculator': 'Premium Calculator'
   },
   temp0004: {
-    'analytics': 'Academic Analytics',
+    'analytics': 'Admissions Dashboard',
     'leads': 'Students',
     'leads.inquiries': 'Raw Student Inquiries',
     'leads.contact': 'Student Inquiries & Leads',
@@ -74,7 +87,7 @@ const INDUSTRY_MENU_OVERRIDES = {
     'tool.emiCalculator': 'Tuition EMI'
   },
   temp0005: {
-    'analytics': 'Client Analytics',
+    'analytics': 'Portfolio Dashboard',
     'leads': 'Clients',
     'leads.inquiries': 'Raw Investor Inquiries',
     'leads.contact': 'Investor Inquiries & Leads',
@@ -96,7 +109,7 @@ const INDUSTRY_MENU_OVERRIDES = {
     'tool.emiCalculator': 'Loan EMI'
   },
   temp0006: {
-    'analytics': 'Project Metrics',
+    'analytics': 'Project Dashboard',
     'leads': 'Accounts',
     'leads.inquiries': 'Raw Client Inquiries',
     'leads.contact': 'Client Inquiries & Leads',
@@ -118,7 +131,7 @@ const INDUSTRY_MENU_OVERRIDES = {
     'tool.emiCalculator': 'Billing Estimator'
   },
   temp0007: {
-    'analytics': 'Production Metrics',
+    'analytics': 'Operations Dashboard',
     'leads': 'Dealers',
     'leads.inquiries': 'Raw Dealer Inquiries',
     'leads.contact': 'Distributor Inquiries & Leads',
@@ -338,12 +351,22 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
         typeof orderOverride === 'number'
           ? orderOverride
           : (typeof m.order === 'number' ? m.order : 999);
-      const translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : m.name;
+      let translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : m.name;
+      let iconKey = m.icon || '';
+
+      // Standard Default Nomenclature across all roles
+      if (m.key === 'analytics' || m.route === '/analytics' || m.route === '/dashboard') {
+        translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : 'Dashboard';
+        iconKey = 'dashboard';
+      } else if (m.key === 'uiNavigation.analyticsConfig' || m.key === 'configuration.analyticsConfig') {
+        translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : 'Dashboard Layout Builder';
+      }
+
       return {
         _id: String(m._id),
         key: m.key,
         name: translatedName,
-        icon: m.icon || '',
+        icon: iconKey,
         route: m.route || '',
         parent_id: m.parent_id ? String(m.parent_id) : null,
         parentId: m.parent_id ? String(m.parent_id) : null,

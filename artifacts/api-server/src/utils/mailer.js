@@ -24,7 +24,8 @@ const transporter = nodemailer.createTransport({
  * @param {string} params.tempPassword
  */
 async function sendCredentialsEmail({ orgName, userName, emailAddress, tempPassword }) {
-  const loginUrl = process.env.FRONTEND_URL || 'http://localhost:3000/login';
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const loginUrl = `${frontendBase}/login`;
 
   const htmlContent = `
     <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
@@ -218,6 +219,9 @@ async function sendNewLeadEmail({ toEmail, agentName, customerName, contactNumbe
   const { templates } = await getTransporterForOrganization(orgId);
   const customTemplate = templates?.find(t => t.triggerKey === 'lead_created' && t.isEnabled !== false);
 
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const leadUrl = leadId ? `${frontendBase}/leads/contacts/${leadId}` : `${frontendBase}/leads/contacts`;
+
   const dataMap = {
     customerName: customerName || 'Unnamed Lead',
     agentName: agentName || 'Agent',
@@ -226,14 +230,14 @@ async function sendNewLeadEmail({ toEmail, agentName, customerName, contactNumbe
     source: source || 'Direct Entry',
     orgName: orgName || 'your organization',
     leadType: leadType || 'Lead',
-    specialtyOrDepartment: specialtyOrDepartment || ''
+    specialtyOrDepartment: specialtyOrDepartment || '',
+    leadUrl,
+    loginUrl: `${frontendBase}/login`
   };
 
   const subject = customTemplate?.subject
     ? replaceTemplateVariables(customTemplate.subject, dataMap)
     : `New Lead Assigned: ${customerName || 'Unnamed Lead'}`;
-
-  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
   const defaultHtml = `
     <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
       <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
@@ -299,6 +303,9 @@ async function sendLeadTransferredEmail({ toEmail, agentName, customerName, cont
   const { templates } = await getTransporterForOrganization(orgId);
   const customTemplate = templates?.find(t => t.triggerKey === 'lead_transferred' && t.isEnabled !== false);
 
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const leadUrl = leadId ? `${frontendBase}/leads/contacts/${leadId}` : `${frontendBase}/leads/contacts`;
+
   const dataMap = {
     customerName: customerName || 'Unnamed Lead',
     agentName: agentName || 'Agent',
@@ -307,14 +314,14 @@ async function sendLeadTransferredEmail({ toEmail, agentName, customerName, cont
     source: source || 'Direct Entry',
     orgName: orgName || 'your organization',
     transferredBy: transferredBy || 'Admin',
-    reason: reason || ''
+    reason: reason || '',
+    leadUrl,
+    loginUrl: `${frontendBase}/login`
   };
 
   const subject = customTemplate?.subject
     ? replaceTemplateVariables(customTemplate.subject, dataMap)
     : `Lead Transferred to You: ${customerName || 'Unnamed Lead'}`;
-
-  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
   const defaultHtml = `
     <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
       <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
@@ -359,6 +366,9 @@ async function sendThirdPartyLeadEmail({ toEmail, agentName, customerName, conta
   const { templates } = await getTransporterForOrganization(orgId);
   const customTemplate = templates?.find(t => t.triggerKey === 'webhook_ingested' && t.isEnabled !== false);
 
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const leadUrl = leadId ? `${frontendBase}/leads/contacts/${leadId}` : `${frontendBase}/leads/contacts`;
+
   const dataMap = {
     customerName: customerName || 'Unnamed Lead',
     agentName: agentName || 'Team',
@@ -367,14 +377,14 @@ async function sendThirdPartyLeadEmail({ toEmail, agentName, customerName, conta
     source: source || '3rd-Party Integration',
     orgName: orgName || 'your organization',
     campaign: campaign || '',
-    adset: adset || ''
+    adset: adset || '',
+    leadUrl,
+    loginUrl: `${frontendBase}/login`
   };
 
   const subject = customTemplate?.subject
     ? replaceTemplateVariables(customTemplate.subject, dataMap)
     : `[${source || '3rd Party'}] New Lead: ${customerName || 'Unnamed'}`;
-
-  const leadUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/leads`;
   const defaultHtml = `
     <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1f2937; background-color: #f9fafb;">
       <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb;">
@@ -422,7 +432,8 @@ async function sendThirdPartyLeadEmail({ toEmail, agentName, customerName, conta
  * @param {string} params.organizationId
  */
 async function sendBulkLeadTransferredEmail({ toEmail, agentName, leads = [], orgName, transferredBy, reason, organizationId }) {
-  const loginUrl = process.env.FRONTEND_URL || 'http://localhost:3000/login';
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const crmUrl = `${frontendBase}/leads/contacts`;
   const leadCount = leads.length;
   const leadRowsHtml = leads.map((lead, idx) => `
     <tr style="border-bottom: 1px solid #e5e7eb;">
@@ -469,7 +480,7 @@ async function sendBulkLeadTransferredEmail({ toEmail, agentName, leads = [], or
         </div>
 
         <div style="text-align: center; margin-bottom: 24px;">
-          <a href="${loginUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 6px;">
+          <a href="${crmUrl}" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; background-color: #272944; text-decoration: none; border-radius: 6px;">
             Open CRM Pipeline
           </a>
         </div>

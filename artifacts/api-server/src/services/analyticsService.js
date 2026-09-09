@@ -15,15 +15,28 @@ function getDateRangeFilter(fieldName, startDate, endDate) {
   return { [fieldName]: filter };
 }
 
-// Maps contact status/stage to visual cards/buckets
+// Detects if a task represents a physical/clinical visit, site visit, or consultation
+function isVisitOrConsultationTask(taskType) {
+  if (!taskType) return false;
+  const t = String(taskType).toUpperCase().trim();
+  return (
+    t.includes('VISIT') ||
+    t.includes('CONSULT') ||
+    t.includes('APPOINTMENT') ||
+    t.includes('OPD') ||
+    t.includes('CHECKUP')
+  );
+}
+
+// Maps contact status/stage to visual cards/buckets across industries
 function getStatusCategory(status) {
   if (!status) return 'fresh';
   const s = String(status).toUpperCase().trim();
-  if (s.includes('LOST') || s.includes('REFUSED') || s.includes('INACTIVE')) return 'closedLost';
+  if (s.includes('LOST') || s.includes('REFUSED') || s.includes('INACTIVE') || s.includes('DROPPED') || s.includes('DECLINED')) return 'closedLost';
   if (s.includes('NOT INTEREST') || s.includes('NOT_INTEREST') || s.includes('NOT-INTEREST')) return 'notInterested';
-  if (s.includes('WON') || s.includes('DEAL') || s.includes('BOOKED') || s.includes('CONVERT')) return 'closedWon';
-  if (s.includes('INTEREST') || s.includes('QUALIF') || s.includes('VISIT')) return 'interested';
-  if (s.includes('CALLBACK') || s.includes('CALL BACK') || s.includes('RESCHEDULE')) return 'callBack';
+  if (s.includes('WON') || s.includes('DEAL') || s.includes('BOOKED') || s.includes('CONVERT') || s.includes('APPROVED')) return 'closedWon';
+  if (s.includes('INTEREST') || s.includes('QUALIF') || s.includes('VISIT') || s.includes('CONSULT') || s.includes('TREATMENT') || s.includes('ADMISSION')) return 'interested';
+  if (s.includes('CALLBACK') || s.includes('CALL BACK') || s.includes('RESCHEDULE') || s.includes('FOLLOWUP') || s.includes('FOLLOW UP') || s.includes('FOLLOW-UP')) return 'callBack';
   return 'fresh';
 }
 
@@ -358,7 +371,8 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
   });
 
   tasks.forEach(t => {
-    if (t.type === 'Site Visit' || t.taskType === 'Site Visit') {
+    const rawType = t.type || t.taskType;
+    if (isVisitOrConsultationTask(rawType)) {
       if (t.status === 'Completed' || t.status === 'COMPLETED') {
         cards.completedVisits += 1;
       } else {
@@ -417,7 +431,8 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
 
   // Merge visits from tasks into the contact groups
   tasks.forEach(t => {
-    if (t.type === 'Site Visit' || t.taskType === 'Site Visit') {
+    const rawType = t.type || t.taskType;
+    if (isVisitOrConsultationTask(rawType)) {
       let key = 'Unknown';
       if (groupBy === 'source') {
         key = t.source || 'Unknown';
@@ -500,10 +515,10 @@ async function getAnalyticsDashboardData({ authedUser, industryIdQuery, organiza
     const row = targetMap.get(key);
     row.total += 1;
 
-    if (type === 'Meeting') {
+    if (type === 'Meeting' || type === 'Clinical Meeting') {
       row.meeting += 1;
       chartCounter.Meeting += 1;
-    } else if (type === 'Site Visit') {
+    } else if (isVisitOrConsultationTask(type)) {
       row.siteVisit += 1;
       chartCounter['Site Visit'] += 1;
     } else {
@@ -663,13 +678,18 @@ async function getDashboardConfig({ authedUser, industryIdQuery, organizationIdQ
     }
   }
 
-  // 1. Try to find organization-specific config
+  // 1. Try to find organization-specific config (strictly isolated to this organization)
   if (orgId) {
-    const orgConfig = await AnalyticsConfig.findOne({ organization_id: orgId }).lean().exec();
+    const orgConfig = await AnalyticsConfig.findOne({
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId }
+      ]
+    }).lean().exec();
     if (orgConfig) return orgConfig;
   }
 
-  // 2. Try to find industry-specific config
+  // 2. Try to find global industry-specific template config (must NOT belong to another tenant organization)
   let industryDoc = await Industry.findOne({
     $or: [
       { code: industryCode },
@@ -685,11 +705,22 @@ async function getDashboardConfig({ authedUser, industryIdQuery, organizationIdQ
     if (industryDoc.id) indIds.push(industryDoc.id);
   }
 
-  const indConfig = await AnalyticsConfig.findOne({ industry_id: { $in: indIds } }).lean().exec();
+  const indConfig = await AnalyticsConfig.findOne({
+    industry_id: { $in: indIds },
+    $and: [
+      { $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }] },
+      { $or: [{ organizationId: null }, { organizationId: { $exists: false } }, { organizationId: '' }] }
+    ]
+  }).lean().exec();
   if (indConfig) return indConfig;
 
-  // 3. Fallback to default Real Estate config
-  const fallback = await AnalyticsConfig.findOne({ organization_id: null }).lean().exec();
+  // 3. Fallback to global default Real Estate config template (must also be a global template)
+  const fallback = await AnalyticsConfig.findOne({
+    $and: [
+      { $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }] },
+      { $or: [{ organizationId: null }, { organizationId: { $exists: false } }, { organizationId: '' }] }
+    ]
+  }).lean().exec();
   return fallback;
 }
 

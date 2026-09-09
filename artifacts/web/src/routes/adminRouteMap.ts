@@ -74,12 +74,14 @@ import ReassignLogicPage from '@/features/admin/leaddistribution/pages/ReassignL
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
+  "/dashboard": AnalyticsPage,
   "/users": UserListPage,
   "/users/new": UserFormPage,
   "/users/:id/edit": UserFormPage,
   "/users/roles": RolesAndPermissionsPage,
   "/access-control/roles": RolesAndPermissionsPage,
 
+  "/leads": ContactsListPage,
   "/leads/leads-list": LeadsListPage,
   "/leads/accounts-list": AccountsListPage,
   "/leads/deals": DealsListPage,

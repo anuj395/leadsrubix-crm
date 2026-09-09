@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const rawPort = process.env.PORT || '22333';
+const rawPort = process.env.PORT || '3000';
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
