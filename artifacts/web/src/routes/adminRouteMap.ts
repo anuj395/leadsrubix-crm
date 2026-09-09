@@ -99,7 +99,7 @@ export const routeComponentMap: Record<string, any> = {
   "/leads/tasks-list": TasksListPage,
   "/leads/call-logs": CallLogsListPage,
   "/leads/call-logs-list": CallLogsListPage,
-  // "/leads/bookings": BookingsListPage,
+  "/leads/bookings": BookingsListPage,
 
   "/configuration/projects": ProjectsListPage,
   "/configuration/projects/new": ProjectFormPage,
