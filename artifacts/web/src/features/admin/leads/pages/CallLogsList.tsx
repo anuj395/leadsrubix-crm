@@ -47,7 +47,10 @@ type FilterType = 'ALL' | 'ANSWERED' | 'MISSED' | 'INBOUND' | 'OUTBOUND'
 export default function CallLogsListPage() {
   const { user } = useAppSelector(selectAuth)
   const { screenName } = useTableConfig('calls', user?.industryId)
-  const { can_view, loading: permsLoading } = useActionPermission('callback')
+  const { can_view: canViewCallback, loading: permsLoading1 } = useActionPermission('callback')
+  const { can_view: canViewCalls, loading: permsLoading2 } = useActionPermission('calls')
+  const can_view = canViewCallback || canViewCalls || user?.role === 'admin' || user?.role === 'superAdmin'
+  const permsLoading = permsLoading1 && permsLoading2
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL')
   const [statusFilter, setStatusFilter] = useState('All')
   const [logs, setLogs] = useState<CallLog[]>([])

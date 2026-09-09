@@ -471,15 +471,53 @@ async function seedLifecycleSidebarMenus() {
     );
   }
 
+  // Standardize Lead and Deals menu names across ALL organizations and templates
   await SidebarMenu.updateMany(
-    { key: 'leads.contact', organization_id: null, industry_id: null },
+    { key: 'leads', name: 'Lead' },
+    { $set: { name: 'Leads' } }
+  );
+
+  await SidebarMenu.updateMany(
+    { key: 'leads.inquiries' },
+    { $set: { name: 'Inbound Inquiries', route: '/leads/inquiries', is_active: true } }
+  );
+
+  await SidebarMenu.updateMany(
+    { 
+      key: 'leads.contact', 
+      name: { $in: ['Qualified Leads & Contacts', 'Qualified Leads and Contacts', 'Lead & Contact', 'Lead', 'Leads'] } 
+    },
     { $set: { name: 'Leads & Contacts', order: 4.1 } }
   );
 
   await SidebarMenu.updateMany(
-    { key: 'deals', organization_id: null, industry_id: null },
+    { key: 'leads.tasks', name: { $in: ['Tasks List', 'Task List', 'Tasks'] } },
+    { $set: { name: 'Tasks & Follow-ups', order: 4.2 } }
+  );
+
+  await SidebarMenu.updateMany(
+    { key: 'leads.call', name: { $in: ['Call Logs List', 'Call Log List', 'Calls'] } },
+    { $set: { name: 'Call Logs', order: 4.3 } }
+  );
+
+  await SidebarMenu.updateMany(
+    { 
+      key: 'deals', 
+      name: { $in: ['Deals', 'Deal', 'Deals (Tier 1)', 'Deals (Tier 2)', 'Deals (Tier 3)'] } 
+    },
     { $set: { name: 'Deals & Pipeline', order: 5 } }
   );
+
+  // Strip any lingering (Tier 1/2/3) from any menu name
+  const tierMenus = await SidebarMenu.find({
+    name: { $regex: /Tier\s*[123]/i }
+  }).exec();
+  for (const tm of tierMenus) {
+    const cleanName = tm.name.replace(/\s*\(?Tier\s*[123]\)?/gi, '').trim();
+    if (cleanName && cleanName !== tm.name) {
+      await SidebarMenu.updateOne({ _id: tm._id }, { $set: { name: cleanName } });
+    }
+  }
 
   // Soft-deactivate obsolete standalone menus across all orgs
   await SidebarMenu.updateMany(
