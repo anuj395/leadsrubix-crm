@@ -85,15 +85,32 @@ export const LaymanFilterDrawer: React.FC<LaymanFilterDrawerProps> = ({
     return columns.filter((col) => {
       const f = String(col.field).toLowerCase()
       const h = String(col.headerName || '').toLowerCase()
+      // Disqualify user / agent creator columns
+      if (
+        f.endsWith('by') ||
+        f.includes('user') ||
+        f.includes('agent') ||
+        h.includes('by') ||
+        h.includes('agent') ||
+        h.includes('doctor') ||
+        h.includes('counselor') ||
+        h.includes('advisor') ||
+        h.includes('owner')
+      ) {
+        return false
+      }
       return (
         f.includes('date') ||
-        f.includes('created') ||
-        f.includes('updated') ||
+        f.includes('created_at') ||
+        f.includes('createdat') ||
+        f.includes('updated_at') ||
+        f.includes('updatedat') ||
         f.includes('follow') ||
         f.includes('time') ||
+        f.includes('timestamp') ||
         h.includes('date') ||
-        h.includes('created') ||
-        h.includes('time')
+        h.includes('time') ||
+        h.includes('follow')
       )
     })
   }, [columns])
@@ -103,7 +120,14 @@ export const LaymanFilterDrawer: React.FC<LaymanFilterDrawerProps> = ({
     if (!selectedDateField && dateColumns.length > 0) {
       const preferred = dateColumns.find((c) => {
         const f = String(c.field).toLowerCase()
-        return f.includes('created') || f.includes('date')
+        const h = String(c.headerName || '').toLowerCase()
+        return (
+          f.includes('created_at') ||
+          f.includes('createdat') ||
+          f.includes('date') ||
+          h.includes('date') ||
+          h.includes('punch')
+        )
       })
       setSelectedDateField(preferred ? String(preferred.field) : String(dateColumns[0].field))
     }
@@ -430,7 +454,10 @@ export const LaymanFilterDrawer: React.FC<LaymanFilterDrawerProps> = ({
                     onChange={(e) => handleCategoricalChange(col.field, e.target.value)}
                   >
                     <MenuItem value="ALL">
-                      <em>All {col.headerName}s</em>
+                      <em>
+                        All {col.headerName}
+                        {String(col.headerName || '').toLowerCase().endsWith('s') ? 'es' : 's'}
+                      </em>
                     </MenuItem>
                     {col.options.map((opt) => (
                       <MenuItem key={opt} value={opt}>
