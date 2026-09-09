@@ -5,7 +5,7 @@ import UserListPage from '@/features/superAdmin/users/pages/UserList'
 import UserFormPage from '@/features/superAdmin/users/pages/UserForm'
 import RolesAndPermissionsPage from '@/features/superAdmin/users/pages/RolesAndPermissions'
 
-import ContactsListPage from '@/features/superAdmin/leads/pages/ContactsList'
+import ContactsListPage from '@/features/admin/leads/pages/ContactsList'
 import TasksListPage from '@/features/superAdmin/leads/pages/TasksList'
 import CallLogsListPage from '@/features/superAdmin/leads/pages/CallLogsList'
 import BookingsListPage from '@/features/superAdmin/leads/pages/BookingsList'
