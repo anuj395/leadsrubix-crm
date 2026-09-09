@@ -55,6 +55,11 @@ export interface UpdateOrgInput {
   fields?: Record<string, unknown>
 }
 
+export async function getOrganization(id: string): Promise<Organization> {
+  const res = await api.get(`organizations/${id}`)
+  return res.data as Organization
+}
+
 export async function createOrganization(data: CreateOrgInput): Promise<Organization> {
   const res = await api.post('organizations', data)
   return res.data as Organization

@@ -8,6 +8,10 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
   const ScreenField = mongoose.model('ScreenField');
   const ScreenPermission = mongoose.model('ScreenPermission');
   const Industry = mongoose.model('Industry');
+  const RoleActionPermission = mongoose.model('RoleActionPermission');
+  const Team = mongoose.model('Team');
+  const Branch = mongoose.model('Branch');
+  const Designation = mongoose.model('Designation');
 
   // 1. Resolve Industry ID (it could be a code string or ObjectId)
   let industryDoc = null;
@@ -202,4 +206,118 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
       });
     }
   }
+
+  // 8. Clone Role Action Permissions (can_view, can_add, can_edit, can_delete)
+  const templateActionPerms = await RoleActionPermission.find({
+    industry_id: industryDbId,
+    organization_id: null
+  }).lean();
+
+  for (const ap of templateActionPerms) {
+    const newRoleId = roleIdMap[String(ap.role_id)];
+    const newScreenId = screenIdMap[String(ap.screen_id)];
+    if (newRoleId && newScreenId) {
+      await RoleActionPermission.create({
+        role_id: new mongoose.Types.ObjectId(newRoleId),
+        industry_id: industryDbId,
+        screen_id: new mongoose.Types.ObjectId(newScreenId),
+        organization_id: organizationId,
+        workspace_id: workspaceId,
+        can_view: ap.can_view ?? false,
+        can_add: ap.can_add ?? false,
+        can_edit: ap.can_edit ?? false,
+        can_delete: ap.can_delete ?? false,
+      });
+    }
+  }
+
+  // 9. Auto-provision Baseline Team, Branch, and Designations
+  const existingTeam = await Team.findOne({
+    $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
+  });
+  if (!existingTeam) {
+    await Team.create({
+      organization_id: organizationId,
+      industry_id: String(industryDbId),
+      teams: [
+        { name: 'General Sales Team', code: 'GST', is_active: true }
+      ]
+    });
+  }
+
+  const existingBranch = await Branch.findOne({
+    $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
+  });
+  if (!existingBranch) {
+    await Branch.create({
+      organization_id: organizationId,
+      industry_id: String(industryDbId),
+      branches: [
+        { name: 'Head Office', code: 'HQ', is_active: true }
+      ]
+    });
+  }
+
+  const existingDesignation = await Designation.findOne({
+    $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
+  });
+  if (!existingDesignation) {
+    const designationsList = getIndustryDesignations(industryDoc.code || industryId);
+    await Designation.create({
+      organization_id: organizationId,
+      industry_id: String(industryDbId),
+      designations: designationsList
+    });
+  }
 };
+
+function getIndustryDesignations(industryCode) {
+  const code = (industryCode || '').toLowerCase();
+  if (code.includes('temp0003') || code.includes('health')) {
+    return [
+      { name: 'Patient Coordinator', value: 'patient_coordinator', label: 'Patient Coordinator' },
+      { name: 'Medical Consultant', value: 'medical_consultant', label: 'Medical Consultant' },
+      { name: 'Clinical Lead', value: 'clinical_lead', label: 'Clinical Lead' },
+      { name: 'Clinic Administrator', value: 'clinic_administrator', label: 'Clinic Administrator' }
+    ];
+  }
+  if (code.includes('temp0004') || code.includes('edu')) {
+    return [
+      { name: 'Admissions Counselor', value: 'admissions_counselor', label: 'Admissions Counselor' },
+      { name: 'Academic Advisor', value: 'academic_advisor', label: 'Academic Advisor' },
+      { name: 'Admissions Lead', value: 'admissions_lead', label: 'Admissions Lead' },
+      { name: 'Center Head', value: 'center_head', label: 'Center Head' }
+    ];
+  }
+  if (code.includes('temp0005') || code.includes('finan')) {
+    return [
+      { name: 'Loan Executive', value: 'loan_executive', label: 'Loan Executive' },
+      { name: 'Portfolio Consultant', value: 'portfolio_consultant', label: 'Portfolio Consultant' },
+      { name: 'Branch Head', value: 'branch_head', label: 'Branch Head' },
+      { name: 'Credit Analyst', value: 'credit_analyst', label: 'Credit Analyst' }
+    ];
+  }
+  if (code.includes('temp0006') || code.includes('it') || code.includes('tech')) {
+    return [
+      { name: 'Account Executive', value: 'account_executive', label: 'Account Executive' },
+      { name: 'Pre-Sales Consultant', value: 'pre_sales_consultant', label: 'Pre-Sales Consultant' },
+      { name: 'BD Lead', value: 'bd_lead', label: 'Business Development Lead' },
+      { name: 'Solutions Director', value: 'solutions_director', label: 'Solutions Director' }
+    ];
+  }
+  if (code.includes('temp0007') || code.includes('manuf')) {
+    return [
+      { name: 'Sales Representative', value: 'sales_rep', label: 'Sales Representative' },
+      { name: 'Channel Partner Lead', value: 'channel_lead', label: 'Channel Partner Lead' },
+      { name: 'Area Sales Manager', value: 'area_sales_manager', label: 'Area Sales Manager' },
+      { name: 'Territory Head', value: 'territory_head', label: 'Territory Head' }
+    ];
+  }
+  // Default: Real Estate (temp0001) / E-Commerce (temp0002) / General
+  return [
+    { name: 'Sales Executive', value: 'sales_executive', label: 'Sales Executive' },
+    { name: 'Relationship Manager', value: 'relationship_manager', label: 'Relationship Manager' },
+    { name: 'Team Lead', value: 'team_lead', label: 'Team Lead' },
+    { name: 'Sales Manager', value: 'sales_manager', label: 'Sales Manager' }
+  ];
+}

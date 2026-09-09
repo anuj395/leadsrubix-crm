@@ -9,6 +9,7 @@ import TextField from '@mui/material/TextField'
 import Switch from '@mui/material/Switch'
 import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
+import Chip from '@mui/material/Chip'
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -53,6 +54,7 @@ import {
   getMyActionPerms,
   type MyActionPerms,
 } from '@/services/roleActionPermissionsService'
+import { api } from '@/services/api'
 
 // Core columns we always want visible regardless of dynamic field config.
 const CORE_COLUMNS: ResolvedTableHeader[] = [
@@ -75,6 +77,7 @@ export default function UserListPage() {
   const [loading, setLoading] = useState(false)
   const [rowCount, setRowCount] = useState(0)
   const [userMap, setUserMap] = useState<Map<string, string>>(new Map())
+  const [seatInfo, setSeatInfo] = useState<{ activeUsers: number; totalSeats: number } | null>(null)
 
   // Shared Super Admin Scope Context
   const {
@@ -172,6 +175,20 @@ export default function UserListPage() {
 
       setItems(paged.items)
       setRowCount(paged.total)
+
+      // 5. Fetch subscription seat capacity for Org Admin
+      if (!isSuperAdmin) {
+        try {
+          const subRes = await api.get('organizations/my-subscription')
+          if (subRes.data) {
+            const activeUsers = subRes.data.activeUsers ?? 0
+            const totalSeats = subRes.data.numEmployees ?? subRes.data.currentPlan?.numEmployees ?? 10
+            setSeatInfo({ activeUsers, totalSeats })
+          }
+        } catch {
+          // ignore
+        }
+      }
     } catch (e) {
       showToast('Failed to load users list', 'error')
     } finally {
@@ -360,15 +377,26 @@ export default function UserListPage() {
         title="Users"
         subtitle="Add, edit, and manage users. Per-role custom fields are configured in Users → Roles & Permissions."
         action={
-          perms.can_add && !isSuperAdmin ? (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => navigate('/users/new')}
-            >
-              Add User
-            </Button>
-          ) : null
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            {!isSuperAdmin && seatInfo && (
+              <Chip
+                label={`Active Seats: ${seatInfo.activeUsers} / ${seatInfo.totalSeats}`}
+                color={seatInfo.activeUsers >= seatInfo.totalSeats ? 'error' : 'primary'}
+                variant="outlined"
+                size="small"
+                sx={{ fontWeight: 600 }}
+              />
+            )}
+            {perms.can_add && !isSuperAdmin ? (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/users/new')}
+              >
+                Add User
+              </Button>
+            ) : null}
+          </Stack>
         }
         fullHeight
       >

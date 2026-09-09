@@ -14,7 +14,7 @@ import { AppCard } from '@/components/ui/AppCard'
 import { DynamicForm } from '@/components/DynamicForm/DynamicForm'
 import { getIndustries, type Industry } from '@/services/sidebarAdminService'
 import {
-  listOrganizationsPaged,
+  getOrganization,
   createOrganization,
   updateOrganization,
   type Organization,
@@ -66,11 +66,10 @@ export default function OrganizationFormPage() {
 
         if (id) {
           // Fetch organization to edit
-          const res = await listOrganizationsPaged({ page: 0, pageSize: 1000 })
-          const match = res.items.find((item) => item._id === id)
+          const match = await getOrganization(id)
           if (match) {
             setEditingItem(match)
-            const indCode = match.industryId || match.industryId || ''
+            const indCode = match.industryId || ''
             setSelectedIndustry(String(indCode))
           } else {
             setToast({ open: true, msg: 'Organization not found', sev: 'error' })
