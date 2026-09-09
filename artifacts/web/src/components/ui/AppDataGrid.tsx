@@ -32,6 +32,9 @@ import Avatar from '@mui/material/Avatar'
 import Paper from '@mui/material/Paper'
 import TablePagination from '@mui/material/TablePagination'
 import Chip from '@mui/material/Chip'
+import TextField from '@mui/material/TextField'
+import InputAdornment from '@mui/material/InputAdornment'
+import SearchIcon from '@mui/icons-material/Search'
 import { LaymanFilterDrawer, type FilterState } from './LaymanFilterDrawer'
 import { ActiveFilterChips, type ActiveFilterItem } from './ActiveFilterChips'
 
@@ -60,7 +63,12 @@ export function AppDataGrid({
 }: AppDataGridProps) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>(defaultViewMode)
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>(() => {
+    if (defaultViewMode !== 'table') return defaultViewMode
+    if (typeof window !== 'undefined' && window.innerWidth < 600) return 'grid'
+    return 'table'
+  })
+  const [quickSearchText, setQuickSearchText] = useState('')
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [filterState, setFilterState] = useState<FilterState>({ datePreset: 'all' })
 
@@ -383,6 +391,148 @@ export function AppDataGrid({
         }
       }
 
+      if (isMobile) {
+        return (
+          <GridToolbarContainer
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+              p: 1,
+              width: '100%',
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 22, 43, 0.4)' : 'rgba(245, 246, 250, 0.5)',
+            }}
+          >
+            {/* Row 1: Search + Reload */}
+            <Box sx={{ display: 'flex', width: '100%', gap: 1, alignItems: 'center' }}>
+              <Box sx={{ flex: 1, minWidth: 0, '& .MuiTextField-root': { width: '100%' } }}>
+                <GridToolbarQuickFilter
+                  sx={{
+                    width: '100%',
+                    '& .MuiInputBase-root': {
+                      width: '100%',
+                      fontSize: '0.85rem',
+                      height: 36,
+                      borderRadius: '8px',
+                    },
+                  }}
+                />
+              </Box>
+              <Tooltip title="Reload Data">
+                <IconButton onClick={handleReload} size="small" color="primary" sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '8px', height: 36, width: 36, flexShrink: 0 }}>
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            {/* Row 2: Action Controls & View Switcher */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                gap: 0.5,
+                overflowX: 'auto',
+                pb: 0.5,
+                scrollbarWidth: 'none',
+                '&::-webkit-scrollbar': { display: 'none' },
+              }}
+            >
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                <GridToolbarColumnsButton
+                  slotProps={{
+                    button: {
+                      size: 'small',
+                      sx: { minWidth: 0, px: 0.75, py: 0.4, fontSize: '0.72rem', textTransform: 'none' }
+                    }
+                  }}
+                />
+                <Button
+                  size="small"
+                  variant={activeFilterCount > 0 ? 'contained' : 'outlined'}
+                  color={activeFilterCount > 0 ? 'primary' : 'inherit'}
+                  startIcon={<TuneIcon sx={{ fontSize: '1rem !important' }} />}
+                  onClick={() => setFilterDrawerOpen(true)}
+                  sx={{
+                    fontSize: '0.72rem',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    minWidth: 0,
+                    px: 0.75,
+                    py: 0.4,
+                    borderRadius: '6px',
+                  }}
+                >
+                  Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                </Button>
+                <GridToolbarExport
+                  slotProps={{
+                    button: {
+                      size: 'small',
+                      sx: { minWidth: 0, px: 0.75, py: 0.4, fontSize: '0.72rem', textTransform: 'none' }
+                    }
+                  }}
+                />
+                {onImport && (
+                  <Button
+                    size="small"
+                    startIcon={<FileUploadIcon sx={{ fontSize: '1rem !important' }} />}
+                    onClick={onImport}
+                    sx={{ fontSize: '0.72rem', textTransform: 'none', fontWeight: 500, minWidth: 0, px: 0.75, py: 0.4 }}
+                  >
+                    Import
+                  </Button>
+                )}
+              </Box>
+
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                size="small"
+                onChange={(_, nextMode) => {
+                  if (nextMode) setViewMode(nextMode)
+                }}
+                sx={{
+                  height: 28,
+                  flexShrink: 0,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                  '& .MuiToggleButton-root': {
+                    px: 0.75,
+                    py: 0.2,
+                    border: 'none',
+                    '&.Mui-selected': {
+                      bgcolor: theme.palette.primary.main,
+                      color: '#fff',
+                      '&:hover': {
+                        bgcolor: theme.palette.primary.dark,
+                      },
+                    },
+                  },
+                }}
+              >
+                <Tooltip title="Table View">
+                  <ToggleButton value="table" aria-label="table view">
+                    <TableChartIcon fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip title="Cards View">
+                  <ToggleButton value="grid" aria-label="grid view">
+                    <GridViewIcon fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip title="List View">
+                  <ToggleButton value="list" aria-label="list view">
+                    <ViewListIcon fontSize="small" />
+                  </ToggleButton>
+                </Tooltip>
+              </ToggleButtonGroup>
+            </Box>
+          </GridToolbarContainer>
+        )
+      }
+
       return (
         <GridToolbarContainer sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -486,9 +636,18 @@ export function AppDataGrid({
         </GridToolbarContainer>
       )
     }
-  }, [onReload, onImport, viewMode, theme, activeFilterCount])
+  }, [onReload, onImport, viewMode, theme, activeFilterCount, isMobile])
 
-  const rowsList = filteredRows
+  const rowsList = useMemo(() => {
+    if (!quickSearchText.trim()) return filteredRows
+    const q = quickSearchText.toLowerCase()
+    return filteredRows.filter((row: any) => {
+      return Object.values(row).some((val) => {
+        if (val == null) return false
+        return String(val).toLowerCase().includes(q)
+      })
+    })
+  }, [filteredRows, quickSearchText])
   const dataColumns = (columns || []).filter((c) => c.field !== 'sNo')
   const actionColumn = dataColumns.find((c) => c.field === '__actions' || c.field === 'actions')
   const contentColumns = dataColumns.filter((c) => c.field !== '__actions' && c.field !== 'actions')
@@ -645,41 +804,13 @@ export function AppDataGrid({
             },
             ...(isMobile
               ? {
-                  '& .MuiDataGrid-toolbarContainer': {
-                    flexWrap: 'nowrap !important',
-                    overflowX: 'auto !important',
-                    gap: '8px !important',
-                    padding: '6px 8px !important',
-                    '::-webkit-scrollbar': {
-                      display: 'none !important',
-                    },
-                    msOverflowStyle: 'none !important',
-                    scrollbarWidth: 'none !important',
-                    '& button': {
-                      fontSize: '0 !important',
-                      minWidth: '0 !important',
-                      padding: '4px 8px !important',
-                      '& .MuiButton-startIcon': {
-                        margin: '0 !important',
-                        fontSize: '1.25rem !important',
-                      },
-                    },
-                  },
-                  '& .MuiDataGrid-toolbarContainer .MuiTextField-root': {
-                    minWidth: '100px !important',
-                    flexShrink: 1,
-                    margin: '0 !important',
-                    '& .MuiInputBase-input': {
-                      padding: '4px 6px !important',
-                      fontSize: '0.8rem !important',
-                    },
-                  },
                   '& .MuiDataGrid-columnHeaderTitle': {
-                    fontSize: '0.8rem !important',
+                    fontSize: '0.75rem !important',
+                    fontWeight: 700,
                   },
                   '& .MuiDataGrid-cell': {
                     fontSize: '0.8rem !important',
-                    padding: '0 10px !important',
+                    padding: '0 8px !important',
                   },
                 }
               : {}),
@@ -691,14 +822,69 @@ export function AppDataGrid({
         />
       ) : (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-          {/* View Mode Header Bar */}
-          <Box sx={{ p: 1.5, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 22, 43, 0.5)' : 'rgba(245, 246, 250, 0.7)' }}>
-            <Stack direction="row" spacing={1} alignItems="center">
+          {/* View Mode Header Bar with Quick Search */}
+          <Box
+            sx={{
+              p: 1.25,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 1,
+              justifyContent: 'space-between',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 22, 43, 0.5)' : 'rgba(245, 246, 250, 0.7)',
+            }}
+          >
+            {/* Search + Mobile Reload */}
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flex: { sm: 1 }, maxWidth: { sm: 340 } }}>
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="Search records..."
+                value={quickSearchText}
+                onChange={(e) => setQuickSearchText(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 32,
+                    fontSize: '0.8125rem',
+                    borderRadius: '8px',
+                  },
+                }}
+              />
+              {isMobile && onReload && (
+                <Tooltip title="Reload Data">
+                  <IconButton
+                    onClick={onReload}
+                    size="small"
+                    color="primary"
+                    sx={{
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: '8px',
+                      height: 32,
+                      width: 32,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+
+            {/* Actions: Filters + View Toggle + Desktop Reload */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
               <Button
                 size="small"
                 variant={activeFilterCount > 0 ? 'contained' : 'outlined'}
                 color={activeFilterCount > 0 ? 'primary' : 'inherit'}
-                startIcon={<TuneIcon />}
+                startIcon={<TuneIcon sx={{ fontSize: '1.1rem' }} />}
                 onClick={() => setFilterDrawerOpen(true)}
                 sx={{
                   fontSize: '0.75rem',
@@ -706,10 +892,12 @@ export function AppDataGrid({
                   fontWeight: 600,
                   height: 32,
                   borderRadius: '8px',
+                  px: 1.25,
                 }}
               >
                 Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
               </Button>
+
               <ToggleButtonGroup
                 value={viewMode}
                 exclusive
@@ -717,19 +905,52 @@ export function AppDataGrid({
                 onChange={(_, nextMode) => {
                   if (nextMode) setViewMode(nextMode)
                 }}
-                sx={{ height: 32 }}
+                sx={{
+                  height: 32,
+                  '& .MuiToggleButton-root': {
+                    px: { xs: 1, sm: 1.5 },
+                    py: 0.2,
+                    textTransform: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    '&.Mui-selected': {
+                      bgcolor: theme.palette.primary.main,
+                      color: '#fff',
+                      '&:hover': {
+                        bgcolor: theme.palette.primary.dark,
+                      },
+                    },
+                  },
+                }}
               >
-                <ToggleButton value="table"><TableChartIcon fontSize="small" sx={{ mr: 0.5 }} /> Table</ToggleButton>
-                <ToggleButton value="grid"><GridViewIcon fontSize="small" sx={{ mr: 0.5 }} /> Cards</ToggleButton>
-                <ToggleButton value="list"><ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> List</ToggleButton>
+                <Tooltip title="Table View">
+                  <ToggleButton value="table" aria-label="table view">
+                    <TableChartIcon fontSize="small" sx={{ mr: { xs: 0, sm: 0.5 } }} />
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Table</Box>
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip title="Card / Grid View">
+                  <ToggleButton value="grid" aria-label="grid view">
+                    <GridViewIcon fontSize="small" sx={{ mr: { xs: 0, sm: 0.5 } }} />
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Cards</Box>
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip title="Compact List View">
+                  <ToggleButton value="list" aria-label="list view">
+                    <ViewListIcon fontSize="small" sx={{ mr: { xs: 0, sm: 0.5 } }} />
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>List</Box>
+                  </ToggleButton>
+                </Tooltip>
               </ToggleButtonGroup>
-            </Stack>
 
-            {onReload && (
-              <IconButton onClick={onReload} size="small" color="primary">
-                <RefreshIcon />
-              </IconButton>
-            )}
+              {!isMobile && onReload && (
+                <Tooltip title="Reload Data">
+                  <IconButton onClick={onReload} size="small" color="primary">
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
           </Box>
 
           {/* Body Content: Grid or List */}

@@ -324,50 +324,50 @@ export default function InquiriesListPage() {
       </Box>
 
       {/* KPI Metric Summary Cards */}
-      <Grid container spacing={2} sx={{ mb: 2, flexShrink: 0 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <TrendingUpIcon color="primary" sx={{ fontSize: 32 }} />
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>TOTAL INCOMING</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1 }}>{metrics.total}</Typography>
+      <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 1.5, sm: 2 }, flexShrink: 0 }}>
+        <Grid item xs={6} sm={6} md={3}>
+          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <TrendingUpIcon color="primary" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>TOTAL INCOMING</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.total}</Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <PersonOffIcon color="warning" sx={{ fontSize: 32 }} />
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>UNASSIGNED POOL</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'warning.main' }}>{metrics.unassigned}</Typography>
+        <Grid item xs={6} sm={6} md={3}>
+          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <PersonOffIcon color="warning" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>UNASSIGNED POOL</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'warning.main', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.unassigned}</Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <PhoneCallbackIcon color="info" sx={{ fontSize: 32 }} />
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>CONTACTED TODAY</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'info.main' }}>{metrics.contactedToday}</Typography>
+        <Grid item xs={6} sm={6} md={3}>
+          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <PhoneCallbackIcon color="info" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>CONTACTED TODAY</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'info.main', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.contactedToday}</Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <CheckCircleIcon color="success" sx={{ fontSize: 32 }} />
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>QUALIFIED TODAY</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'success.main' }}>{metrics.qualifiedToday}</Typography>
+        <Grid item xs={6} sm={6} md={3}>
+          <Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.75 }, borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            <CheckCircleIcon color="success" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: { xs: '0.65rem', sm: '0.75rem' }, display: 'block' }}>QUALIFIED TODAY</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'success.main', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>{metrics.qualifiedToday}</Typography>
             </Box>
           </Paper>
         </Grid>
       </Grid>
 
       <AppCard fullHeight title="Inquiries Triage" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2 }}>
           <TextField
             size="small"
             placeholder="Search by customer name, phone, email, project..."
@@ -380,10 +380,10 @@ export default function InquiriesListPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ width: 340 }}
+            sx={{ width: { xs: '100%', sm: 340 } }}
           />
 
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5, overflowX: 'auto', pb: 0.5 }}>
             <Chip
               label="All Inquiries"
               clickable

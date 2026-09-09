@@ -653,10 +653,10 @@ export default function DealsListPage() {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
           {/* Pipeline Selector */}
           {pipelines.length > 1 && (
-            <FormControl size="small" sx={{ minWidth: 180 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 180 } }}>
               <InputLabel>Pipeline</InputLabel>
               <Select
                 value={selectedPipelineId}
@@ -689,7 +689,7 @@ export default function DealsListPage() {
                 </InputAdornment>
               )
             }}
-            sx={{ width: { xs: 140, sm: 200 } }}
+            sx={{ width: { xs: '100%', sm: 200 }, flex: { xs: '1 1 100%', sm: 'none' }, order: { xs: 3, sm: 2 } }}
           />
 
           {/* View Switcher */}
@@ -698,6 +698,7 @@ export default function DealsListPage() {
             value={viewMode}
             exclusive
             onChange={(_, val) => val && setViewMode(val)}
+            sx={{ order: { xs: 2, sm: 3 } }}
           >
             <ToggleButton value="kanban">
               <Tooltip title="Kanban Board View">
@@ -714,37 +715,37 @@ export default function DealsListPage() {
         </Stack>
       </Box>
 
-      {/* KPI Metric Summary Bar (Flexbox layout) */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2.5, flexShrink: 0 }}>
-        <Paper elevation={0} sx={{ flex: '1 1 180px', p: 1.75, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      {/* KPI Metric Summary Bar (2x2 on mobile, 4-col on desktop) */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: { xs: 1, sm: 2 }, mb: 2.5, flexShrink: 0 }}>
+        <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
             Total Deals
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 700, mt: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {metrics.totalCount}
           </Typography>
         </Paper>
-        <Paper elevation={0} sx={{ flex: '1 1 180px', p: 1.75, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
             Total Pipeline Value
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', mt: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {formatCurrency(metrics.totalVal)}
           </Typography>
         </Paper>
-        <Paper elevation={0} sx={{ flex: '1 1 180px', p: 1.75, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
             Weighted Forecast
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#8b5cf6', mt: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#8b5cf6', mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {formatCurrency(metrics.weightedVal)}
           </Typography>
         </Paper>
-        <Paper elevation={0} sx={{ flex: '1 1 180px', p: 1.75, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
             Won Value (Win Rate)
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#10b981', mt: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#10b981', mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {formatCurrency(metrics.wonVal)} ({metrics.winRate}%)
           </Typography>
         </Paper>
@@ -760,7 +761,17 @@ export default function DealsListPage() {
             gap: 2,
             overflowX: 'auto',
             pb: 1.5,
-            pt: 0.5
+            pt: 0.5,
+            WebkitOverflowScrolling: 'touch',
+            scrollSnapType: { xs: 'x proximity', sm: 'none' },
+            scrollbarWidth: 'thin',
+            '&::-webkit-scrollbar': {
+              height: '6px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'rgba(0,0,0,0.2)',
+              borderRadius: '3px',
+            },
           }}
         >
           {stages.map((stage) => {
@@ -782,8 +793,9 @@ export default function DealsListPage() {
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, stage)}
                 sx={{
-                  minWidth: 320,
-                  width: 320,
+                  minWidth: { xs: 285, sm: 320 },
+                  width: { xs: 285, sm: 320 },
+                  scrollSnapAlign: 'start',
                   flexShrink: 0,
                   display: 'flex',
                   flexDirection: 'column',

@@ -645,7 +645,7 @@ export default function ContactsListPage() {
         title={screenName || labels.contacts}
         subtitle="Manage verified customers, track multiple inquiries over time, and drive pipeline conversions."
         action={
-          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+          <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }} alignItems="center" flexWrap="wrap" sx={{ gap: { xs: 0.75, sm: 1 } }}>
             {selectedIds.length > 0 && (
               <>
                 <Tooltip title={`Copy details of ${selectedIds.length} selected ${labels.leads}`}>
@@ -654,6 +654,7 @@ export default function ContactsListPage() {
                     size="small"
                     startIcon={<ContentCopyIcon />}
                     onClick={() => handleCopyLeads()}
+                    sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
                   >
                     Copy ({selectedIds.length})
                   </Button>
@@ -665,6 +666,7 @@ export default function ContactsListPage() {
                       size="small"
                       startIcon={<SwapHorizIcon />}
                       onClick={() => setOpenOwnerModal(true)}
+                      sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
                     >
                       Reassign ({selectedIds.length})
                     </Button>
@@ -678,6 +680,7 @@ export default function ContactsListPage() {
                       size="small"
                       startIcon={<DeleteIcon />}
                       onClick={handleBulkDelete}
+                      sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
                     >
                       Delete ({selectedIds.length})
                     </Button>
@@ -693,8 +696,9 @@ export default function ContactsListPage() {
               size="small"
               startIcon={<FilterListIcon />}
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
             >
-              Filters {activeAdvancedFilterCount > 0 ? `(${activeAdvancedFilterCount})` : ''}
+              Filters{activeAdvancedFilterCount > 0 ? ` (${activeAdvancedFilterCount})` : ''}
             </Button>
 
             {/* Export Center Button */}
@@ -703,13 +707,20 @@ export default function ContactsListPage() {
               size="small"
               startIcon={<FileDownloadIcon />}
               onClick={() => setExportModalOpen(true)}
+              sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
             >
-              Export Center
+              Export<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>&nbsp;Center</Box>
             </Button>
 
             {can_add && (
               <Tooltip title={`Add a new ${labels.lead} to the database`}>
-                <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => navigate('/leads/contacts/new')}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => navigate('/leads/contacts/new')}
+                  sx={{ textTransform: 'none', fontWeight: 700, px: { xs: 1.25, sm: 1.75 }, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}
+                >
                   Add {labels.contact}
                 </Button>
               </Tooltip>
@@ -862,7 +873,21 @@ export default function ContactsListPage() {
             onChange={(_, val) => setActiveFilter(val)}
             variant="scrollable"
             scrollButtons="auto"
-            sx={{ minHeight: 40, '& .MuiTab-root': { minHeight: 40, py: 0.5, textTransform: 'none', fontWeight: 600 } }}
+            allowScrollButtonsMobile
+            sx={{
+              minHeight: 40,
+              '& .MuiTab-root': {
+                minHeight: 40,
+                py: 0.5,
+                px: { xs: 1.25, sm: 2 },
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: { xs: '0.78rem', sm: '0.85rem' },
+              },
+              '& .MuiTabs-scrollButtons': {
+                '&.Mui-disabled': { opacity: 0.3 },
+              },
+            }}
           >
             <Tab value="all" label={`All (${filterCounts.all})`} />
             <Tab value="fresh" label={`Fresh Inbound (${filterCounts.fresh})`} />

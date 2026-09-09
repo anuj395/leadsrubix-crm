@@ -29,15 +29,29 @@ export const SuperAdminScopeSelector: React.FC<SuperAdminScopeSelectorProps> = (
   if (!isSuperAdmin) return null
 
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, pt: 1.5 }}>
+    <Stack
+      direction="row"
+      spacing={{ xs: 1, sm: 2 }}
+      sx={{
+        mb: { xs: 1.5, sm: 2 },
+        pt: { xs: 0.5, sm: 1.5 },
+        width: '100%',
+      }}
+    >
       {industries.length > 0 && (
         <TextField
           select
           size="small"
-          label="Select Industry"
+          label="Industry"
           value={selectedIndustry}
           onChange={(e) => setSelectedIndustry(e.target.value)}
-          sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          sx={{
+            flex: { xs: '1 1 45%', sm: '0 0 200px' },
+            minWidth: 0,
+            '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.875rem' } },
+            '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.875rem' }, py: { xs: '7px', sm: '8.5px' } },
+          }}
         >
           {industries.map((ind) => (
             <MenuItem key={ind._id} value={ind.code}>
@@ -51,15 +65,21 @@ export const SuperAdminScopeSelector: React.FC<SuperAdminScopeSelectorProps> = (
         <TextField
           select
           size="small"
-          label="Select Organization Scope"
+          label="Organization Scope"
           value={selectedOrg}
           onChange={(e) => setSelectedOrg(e.target.value)}
-          sx={{ minWidth: 280, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          sx={{
+            flex: { xs: '1 1 55%', sm: '0 0 280px' },
+            minWidth: 0,
+            '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.875rem' } },
+            '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.875rem' }, py: { xs: '7px', sm: '8.5px' } },
+          }}
         >
           {allowGlobal && (
             <MenuItem value="">
               <em style={{ fontStyle: 'normal', fontWeight: 600, color: '#6366F1' }}>
-                🌐 Global Industry Baseline (All Organizations)
+                🌐 Global Baseline
               </em>
             </MenuItem>
           )}
