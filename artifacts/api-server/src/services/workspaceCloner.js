@@ -21,12 +21,18 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     industryDoc = await Industry.findOne({ code: industryId });
   }
   if (!industryDoc) {
+    industryDoc = await Industry.findOne({ code: 'temp0001' }) || await Industry.findOne({});
+  }
+  if (!industryDoc) {
     throw new Error(`Industry template not found for: ${industryId}`);
   }
   const industryDbId = industryDoc._id;
 
   // 2. Clone Roles
-  const templateRoles = await Role.find({ industry_id: industryDbId, organization_id: null }).lean();
+  let templateRoles = await Role.find({ industry_id: industryDbId, organization_id: null }).lean();
+  if (templateRoles.length === 0) {
+    templateRoles = await Role.find({ organization_id: null }).lean();
+  }
   const roleIdMap = {};
   for (const tRole of templateRoles) {
     const created = await Role.create({
@@ -208,10 +214,15 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
   }
 
   // 8. Clone Role Action Permissions (can_view, can_add, can_edit, can_delete)
-  const templateActionPerms = await RoleActionPermission.find({
+  let templateActionPerms = await RoleActionPermission.find({
     industry_id: industryDbId,
     organization_id: null
   }).lean();
+  if (templateActionPerms.length === 0) {
+    templateActionPerms = await RoleActionPermission.find({
+      organization_id: null
+    }).lean();
+  }
 
   for (const ap of templateActionPerms) {
     const newRoleId = roleIdMap[String(ap.role_id)];
