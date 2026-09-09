@@ -18,7 +18,9 @@ export function AppRoutes() {
   const menuConfig = (role === 'superAdmin'
     ? superAdminMenuConfig
     : getMenuConfigForRole(role as UserRole)) as SuperAdminMenuItem[]
-  const routeComponentMap = role === 'superAdmin' ? superAdminRouteMap : adminRouteMap
+  const routeComponentMap = role === 'superAdmin'
+    ? { ...adminRouteMap, ...superAdminRouteMap }
+    : adminRouteMap
 
   return (
     <Routes>
