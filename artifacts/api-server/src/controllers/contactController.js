@@ -26,9 +26,9 @@ exports.list = async (req, res, next) => {
       authedUser: req.user,
       industryIdQuery: req.query.industryId,
       organizationIdQuery: req.query.organizationId,
-      limit: Number(req.query.limit) || 200,
+      limit: req.query.limit ? Number(req.query.limit) : 5000,
     });
-    res.json({ items: mapWithDualCase(items) });
+    res.json({ items: mapWithDualCase(items), totalCount: items.length });
   } catch (err) {
     next(err);
   }

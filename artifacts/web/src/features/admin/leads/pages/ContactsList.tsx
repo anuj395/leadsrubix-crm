@@ -15,11 +15,6 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
-import Select from '@mui/material/Select'
-import MenuItem from '@mui/material/MenuItem'
-import Collapse from '@mui/material/Collapse'
 import Paper from '@mui/material/Paper'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
@@ -30,8 +25,6 @@ import {
   Delete as DeleteIcon,
   ContentCopy as ContentCopyIcon,
   FileDownload as FileDownloadIcon,
-  FilterList as FilterListIcon,
-  FilterListOff as FilterListOffIcon,
   CalendarMonth as CalendarMonthIcon,
   Repeat as RepeatIcon,
   Star as StarIcon,
@@ -44,6 +37,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { normalizeStage } from '@/utils/stageUtils'
 import { listContacts, deleteContact, type Contact } from '@/services/contactsService'
 import { useTableConfig } from '@/hooks/useTableConfig'
 import { useAppSelector } from '@/store/hooks'
@@ -90,14 +84,6 @@ export default function ContactsListPage() {
   // Status Tabs Filter & Preset Filter Pills
   const [activeFilter, setActiveFilter] = useState<'all' | 'fresh' | 'callback' | 'interested' | 'deals' | 'lost'>('all')
   const [presetFilter, setPresetFilter] = useState<'all' | 'my_leads' | 'due_today' | 'callbacks' | 'unassigned'>('all')
-
-  // Multi-faceted Collapsible Filter Bar
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
-  const [filterSource, setFilterSource] = useState('ALL')
-  const [filterProject, setFilterProject] = useState('ALL')
-  const [filterOwner, setFilterOwner] = useState('ALL')
-  const [filterStartDate, setFilterStartDate] = useState('')
-  const [filterEndDate, setFilterEndDate] = useState('')
 
   // Date-Range Export Center Modal (Absorbs SortedList)
   const [exportModalOpen, setExportModalOpen] = useState(false)
@@ -237,54 +223,6 @@ export default function ContactsListPage() {
     } finally {
       setExporting(false)
     }
-  }
-
-  // Extract dynamic distinct options for filters
-  const distinctSources = useMemo(() => {
-    const s = new Set<string>()
-    items.forEach((it) => {
-      const src = it.source || (it as any).lead_source
-      if (src && String(src).trim()) s.add(String(src).trim())
-    })
-    return Array.from(s).sort()
-  }, [items])
-
-  const distinctProjects = useMemo(() => {
-    const p = new Set<string>()
-    items.forEach((it) => {
-      const proj = it.projectName || (it as any).project_name || (it as any).propertyType
-      if (proj && String(proj).trim()) p.add(String(proj).trim())
-    })
-    return Array.from(p).sort()
-  }, [items])
-
-  const distinctOwners = useMemo(() => {
-    const o = new Set<string>()
-    items.forEach((it) => {
-      const owner = it.contactOwnerEmail || (it as any).contact_owner_email || (it as any).ownerName
-      if (owner && String(owner).trim()) o.add(String(owner).trim())
-    })
-    return Array.from(o).sort()
-  }, [items])
-
-  const activeAdvancedFilterCount = useMemo(() => {
-    let count = 0
-    if (filterSource !== 'ALL') count++
-    if (filterProject !== 'ALL') count++
-    if (filterOwner !== 'ALL') count++
-    if (filterStartDate) count++
-    if (filterEndDate) count++
-    return count
-  }, [filterSource, filterProject, filterOwner, filterStartDate, filterEndDate])
-
-  const handleClearFilters = () => {
-    setFilterSource('ALL')
-    setFilterProject('ALL')
-    setFilterOwner('ALL')
-    setFilterStartDate('')
-    setFilterEndDate('')
-    setPresetFilter('all')
-    setActiveFilter('all')
   }
 
   const gridColumns = useMemo<GridColDef<Contact>[]>(() => {
@@ -464,15 +402,16 @@ export default function ContactsListPage() {
     let lost = 0
 
     items.forEach((it) => {
-      const st = String(it.stage || (it as any).lead_stage || (it as any).propertyStage || '').toUpperCase().trim()
-      const isDeal = (it as any).converted_to_deal || (it as any).convertedToDeal || st.includes('DEAL') || st.includes('WON') || st.includes('BOOKED')
+      const stage = normalizeStage(it.stage || (it as any).lead_stage || (it as any).propertyStage)
+      const isDeal = (it as any).converted_to_deal || (it as any).convertedToDeal || (it as any).is_converted || stage === 'WON'
+
       if (isDeal) {
         deals++
-      } else if (st.includes('CALLBACK') || st.includes('RESCHEDULE') || st.includes('CALL_BACK')) {
+      } else if (stage === 'CALLBACK') {
         callback++
-      } else if (st.includes('INTEREST') && !st.includes('NOT')) {
+      } else if (stage === 'INTERESTED' || stage === 'QUALIFIED') {
         interested++
-      } else if (st.includes('LOST') || st.includes('NOT_INTEREST') || st.includes('NOT-INTEREST') || st.includes('REFUSED')) {
+      } else if (stage === 'LOST') {
         lost++
       } else {
         fresh++
@@ -494,15 +433,15 @@ export default function ContactsListPage() {
     const todayStr = now.toISOString().split('T')[0]
 
     return items.filter((it) => {
-      const st = String(it.stage || (it as any).lead_stage || (it as any).propertyStage || '').toUpperCase().trim()
-      const isDeal = (it as any).converted_to_deal || (it as any).convertedToDeal || (it as any).is_converted || st.includes('DEAL') || st.includes('WON') || st.includes('BOOKED')
+      const stage = normalizeStage(it.stage || (it as any).lead_stage || (it as any).propertyStage)
+      const isDeal = (it as any).converted_to_deal || (it as any).convertedToDeal || (it as any).is_converted || stage === 'WON'
 
-      // 1. Stage Tab Filter
+      // 1. Stage Tab Filter (100% matched to filterCounts)
       if (activeFilter === 'deals' && !isDeal) return false
-      if (activeFilter === 'callback' && !(st.includes('CALLBACK') || st.includes('RESCHEDULE') || st.includes('CALL_BACK'))) return false
-      if (activeFilter === 'interested' && !(st.includes('INTEREST') && !st.includes('NOT'))) return false
-      if (activeFilter === 'lost' && !(st.includes('LOST') || st.includes('NOT_INTEREST') || st.includes('NOT-INTEREST') || st.includes('REFUSED'))) return false
-      if (activeFilter === 'fresh' && (isDeal || st.includes('CALLBACK') || st.includes('RESCHEDULE') || st.includes('INTEREST') || st.includes('LOST'))) return false
+      if (activeFilter === 'callback' && (isDeal || stage !== 'CALLBACK')) return false
+      if (activeFilter === 'interested' && (isDeal || (stage !== 'INTERESTED' && stage !== 'QUALIFIED'))) return false
+      if (activeFilter === 'lost' && (isDeal || stage !== 'LOST')) return false
+      if (activeFilter === 'fresh' && (isDeal || stage !== 'FRESH')) return false
 
       // 2. 1-Click Preset Filter Pills
       if (presetFilter === 'my_leads') {
@@ -517,7 +456,7 @@ export default function ContactsListPage() {
         if (fDateStr !== todayStr) return false
       }
       if (presetFilter === 'callbacks') {
-        if (!(st.includes('CALLBACK') || st.includes('CALL_BACK'))) return false
+        if (stage !== 'CALLBACK') return false
       }
       if (presetFilter === 'unassigned') {
         const ownerEmail = it.contactOwnerEmail || (it as any).contact_owner_email
@@ -525,31 +464,9 @@ export default function ContactsListPage() {
         if (ownerEmail || ownerId) return false
       }
 
-      // 3. Multi-Faceted Dynamic Filters
-      if (filterSource !== 'ALL') {
-        const src = it.source || (it as any).lead_source
-        if (src !== filterSource) return false
-      }
-      if (filterProject !== 'ALL') {
-        const proj = it.projectName || (it as any).project_name || (it as any).propertyType
-        if (proj !== filterProject) return false
-      }
-      if (filterOwner !== 'ALL') {
-        const owner = it.contactOwnerEmail || (it as any).contact_owner_email || (it as any).ownerName
-        if (owner !== filterOwner) return false
-      }
-      if (filterStartDate) {
-        const cDate = it.createdAt || (it as any).created_at
-        if (cDate && new Date(cDate) < new Date(`${filterStartDate}T00:00:00`)) return false
-      }
-      if (filterEndDate) {
-        const cDate = it.createdAt || (it as any).created_at
-        if (cDate && new Date(cDate) > new Date(`${filterEndDate}T23:59:59`)) return false
-      }
-
       return true
     })
-  }, [items, activeFilter, presetFilter, filterSource, filterProject, filterOwner, filterStartDate, filterEndDate, user])
+  }, [items, activeFilter, presetFilter, user])
 
   const labels = useMemo(() => {
     if (indCode === 'temp0002') {
@@ -689,29 +606,6 @@ export default function ContactsListPage() {
               </>
             )}
 
-            {/* Filter Toggle Button with active count badge */}
-            <Button
-              variant={showAdvancedFilters || activeAdvancedFilterCount > 0 ? "contained" : "outlined"}
-              color={activeAdvancedFilterCount > 0 ? "primary" : "inherit"}
-              size="small"
-              startIcon={<FilterListIcon />}
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
-            >
-              Filters{activeAdvancedFilterCount > 0 ? ` (${activeAdvancedFilterCount})` : ''}
-            </Button>
-
-            {/* Export Center Button */}
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<FileDownloadIcon />}
-              onClick={() => setExportModalOpen(true)}
-              sx={{ textTransform: 'none', px: { xs: 1, sm: 1.5 }, fontSize: '0.8rem' }}
-            >
-              Export<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>&nbsp;Center</Box>
-            </Button>
-
             {can_add && (
               <Tooltip title={`Add a new ${labels.lead} to the database`}>
                 <Button
@@ -729,95 +623,6 @@ export default function ContactsListPage() {
         }
         fullHeight
       >
-        {/* Collapsible Multi-Faceted Dynamic Filter Bar */}
-        <Collapse in={showAdvancedFilters}>
-          <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'action.hover', borderRadius: 1.5 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6} md={2.5}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Source</InputLabel>
-                  <Select
-                    value={filterSource}
-                    label="Source"
-                    onChange={(e) => setFilterSource(e.target.value)}
-                  >
-                    <MenuItem value="ALL">All Sources</MenuItem>
-                    {distinctSources.map((src) => (
-                      <MenuItem key={src} value={src}>{src}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2.5}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Project / Category</InputLabel>
-                  <Select
-                    value={filterProject}
-                    label="Project / Category"
-                    onChange={(e) => setFilterProject(e.target.value)}
-                  >
-                    <MenuItem value="ALL">All Projects</MenuItem>
-                    {distinctProjects.map((proj) => (
-                      <MenuItem key={proj} value={proj}>{proj}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2.5}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Assigned Owner</InputLabel>
-                  <Select
-                    value={filterOwner}
-                    label="Assigned Owner"
-                    onChange={(e) => setFilterOwner(e.target.value)}
-                  >
-                    <MenuItem value="ALL">All Owners</MenuItem>
-                    {distinctOwners.map((owner) => (
-                      <MenuItem key={owner} value={owner}>{owner}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="From Date"
-                  InputLabelProps={{ shrink: true }}
-                  value={filterStartDate}
-                  onChange={(e) => setFilterStartDate(e.target.value)}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={2}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="To Date"
-                  InputLabelProps={{ shrink: true }}
-                  value={filterEndDate}
-                  onChange={(e) => setFilterEndDate(e.target.value)}
-                />
-              </Grid>
-
-              {activeAdvancedFilterCount > 0 && (
-                <Grid item xs={12} md={0.5}>
-                  <Tooltip title="Reset all filters">
-                    <IconButton size="small" onClick={handleClearFilters} color="error">
-                      <FilterListOffIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Grid>
-              )}
-            </Grid>
-          </Paper>
-        </Collapse>
-
         {/* 1-Click Preset Filter Pills */}
         <Stack direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: 'wrap', gap: 0.5 }}>
           <Chip
