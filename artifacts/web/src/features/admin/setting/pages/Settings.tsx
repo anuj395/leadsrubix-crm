@@ -463,7 +463,7 @@ export default function SettingsPage() {
               <CircularProgress size={40} />
             </Box>
           ) : tab === 'push-notifications' ? (
-            <PushNotificationsTab showToast={showToast} notificationPrefs={notificationPrefs} loadNotificationSettings={loadNotificationSettings} />
+            <PushNotificationsTab showToast={showToast} notificationPrefs={notificationPrefs || undefined} loadNotificationSettings={loadNotificationSettings} />
           ) : tab === 'email-settings' ? (
             <EmailSettingsTab showToast={showToast} />
           ) : tab === 'email-templates' ? (

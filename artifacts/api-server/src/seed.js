@@ -1503,10 +1503,28 @@ async function seedAnalyticsConfig() {
   // Real Estate (temp0001) - Preserve completely intact
   const reIndustry = await Industry.findOne({ code: 'temp0001' });
   if (reIndustry) {
-    const existing = await AnalyticsConfig.findOne({ industry_id: String(reIndustry._id) });
-    if (!existing) {
+    const indIdStr = String(reIndustry._id);
+    const existing = await AnalyticsConfig.findOne({
+      $or: [
+        { industry_id: indIdStr },
+        { industryId: indIdStr },
+        { industry_id: 'temp0001' },
+        { industryId: 'temp0001' }
+      ],
+      $and: [
+        { $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }] },
+        { $or: [{ organizationId: null }, { organizationId: { $exists: false } }, { organizationId: '' }] }
+      ]
+    });
+    if (!existing || !existing.tabs || existing.tabs.length < 3) {
+      if (existing) {
+        await AnalyticsConfig.deleteOne({ _id: existing._id });
+      }
       await AnalyticsConfig.create({
-        industry_id: String(reIndustry._id),
+        industry_id: indIdStr,
+        industryId: 'temp0001',
+        organization_id: null,
+        organizationId: null,
         dashboard_key: 'default',
         tabs: [
           {
@@ -2157,6 +2175,25 @@ async function seedAnalyticsConfig() {
         tabs: item.tabs
       });
       console.log(`[seed] Seeded/Updated AnalyticsConfig for ${item.name} (${item.code})`);
+    }
+  }
+
+  // Clean up legacy orphaned baseline configurations that do not match any active industry
+  const activeIndustries = await Industry.find({}).lean();
+  const validIndKeys = new Set(activeIndustries.flatMap(i => [String(i._id), i.code].filter(Boolean)));
+  const allBaselines = await AnalyticsConfig.find({
+    $and: [
+      { $or: [{ organization_id: null }, { organization_id: { $exists: false } }, { organization_id: '' }] },
+      { $or: [{ organizationId: null }, { organizationId: { $exists: false } }, { organizationId: '' }] }
+    ]
+  }).lean();
+
+  for (const b of allBaselines) {
+    const ind1 = b.industry_id;
+    const ind2 = b.industryId;
+    if ((!ind1 || !validIndKeys.has(String(ind1))) && (!ind2 || !validIndKeys.has(String(ind2)))) {
+      await AnalyticsConfig.deleteOne({ _id: b._id });
+      console.log(`[seed] Cleaned up orphaned baseline AnalyticsConfig ${b._id}`);
     }
   }
 
