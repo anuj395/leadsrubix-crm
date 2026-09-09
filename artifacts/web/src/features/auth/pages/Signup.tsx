@@ -99,7 +99,8 @@ export function SignupPage() {
             <TextField
               select
               fullWidth
-              label="Industry *"
+              label="Industry"
+              required
               value={selectedIndustry}
               onChange={(e) => {
                 setSelectedIndustry(e.target.value)

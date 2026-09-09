@@ -31,8 +31,9 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
   const [tasksListsData, setTasksListsData] = useState<any[]>([])
   
   // Local form states
-  const [nextFollowUpType, setNextFollowUpType] = useState('')
+  const [nextFollowUpType, setNextFollowUpType] = useState('Call Back')
   const [nextFollowUpDate, setNextFollowUpDate] = useState('')
+  const [callbackReason, setCallbackReason] = useState('Customer Busy / Call Later')
   const [noteText, setNoteText] = useState('')
   
   // Existing task status
@@ -65,6 +66,7 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
     const localIso = `${defaultDate.getFullYear()}-${pad(defaultDate.getMonth() + 1)}-${pad(defaultDate.getDate())}T${pad(defaultDate.getHours())}:${pad(defaultDate.getMinutes())}`
 
     setNextFollowUpType('Call Back')
+    setCallbackReason('Customer Busy / Call Later')
     setNextFollowUpDate(localIso)
     setNoteText('')
     setExistingTaskSelected('')
@@ -194,6 +196,8 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
         task_type: nextFollowUpType,
         dueDate: new Date(nextFollowUpDate),
         status: 'PENDING',
+        priority: 'Medium',
+        callbackReason: nextFollowUpType === 'Call Back' ? callbackReason : undefined,
         customerName: contact.customerName || (contact as any).customer_name || 'Contact',
         contactNumber: contact.contactNumber || (contact as any).contact_number || '',
         contact_number: contact.contactNumber || (contact as any).contact_number || '',
@@ -249,14 +253,14 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
                 <TextField
                   select
                   size="small"
-                  label="Existing Task Status *"
+                  label="Existing Task Status"
                   value={existingTaskSelected}
                   onChange={(e) => setExistingTaskSelected(e.target.value)}
                   fullWidth
                   required
                   InputLabelProps={{ shrink: true }}
                 >
-                  <MenuItem value="" disabled>Existing Task Status *</MenuItem>
+                  <MenuItem value="" disabled>Existing Task Status</MenuItem>
                   <MenuItem value="Completed">Completed</MenuItem>
                   <MenuItem value="Cancelled">Cancelled</MenuItem>
                 </TextField>
@@ -265,22 +269,44 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
               <TextField
                 select
                 size="small"
-                label="Next Follow Up Type *"
+                label="Next Follow Up Type"
                 value={nextFollowUpType}
                 onChange={(e) => setNextFollowUpType(e.target.value)}
                 fullWidth
                 required
                 InputLabelProps={{ shrink: true }}
               >
-                <MenuItem value="" disabled>Next Follow Up Type</MenuItem>
                 <MenuItem value="Call Back">Call Back</MenuItem>
-                <MenuItem value="Meeting">Meeting</MenuItem>
                 <MenuItem value="Site Visit">Site Visit</MenuItem>
+                <MenuItem value="Meeting">Meeting</MenuItem>
+                <MenuItem value="Online Demo">Online Demo</MenuItem>
+                <MenuItem value="Follow-up">Follow-up</MenuItem>
+                <MenuItem value="Document Collection / KYC">Document Collection / KYC</MenuItem>
               </TextField>
+
+              {nextFollowUpType === 'Call Back' && (
+                <TextField
+                  select
+                  size="small"
+                  label="Callback Reason"
+                  value={callbackReason}
+                  onChange={(e) => setCallbackReason(e.target.value)}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                >
+                  <MenuItem value="Customer Busy / Call Later">Customer Busy / Call Later</MenuItem>
+                  <MenuItem value="Price / Budget Discussion">Price / Budget Discussion</MenuItem>
+                  <MenuItem value="Location / Layout Clarification">Location / Layout Clarification</MenuItem>
+                  <MenuItem value="Site Visit Booking">Site Visit Booking</MenuItem>
+                  <MenuItem value="Decision Maker Unavailable">Decision Maker Unavailable</MenuItem>
+                  <MenuItem value="Ringing / Not Picked">Ringing / Not Picked</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </TextField>
+              )}
 
               <TextField
                 size="small"
-                label="Next Follow Up Date & Time *"
+                label="Next Follow Up Date & Time"
                 type="datetime-local"
                 value={nextFollowUpDate}
                 onChange={(e) => setNextFollowUpDate(e.target.value)}

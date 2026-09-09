@@ -235,8 +235,8 @@ export default function ReassignLogicPage() {
       return
     }
 
-    if (!rotationTime || Number(rotationTime) <= 0) {
-      setToast({ open: true, msg: 'Please enter a valid Rotation Time (in minutes)', sev: 'error' })
+    if (!rotationTime || Number(rotationTime) < 1) {
+      setToast({ open: true, msg: 'Rotation Time must be at least 1 minute', sev: 'error' })
       return
     }
 
@@ -406,7 +406,7 @@ export default function ReassignLogicPage() {
                   fullWidth
                   size="small"
                   type="number"
-                  label="Rotation Time (mins) *"
+                  label="Rotation Time (mins)"
                   required
                   value={rotationTime}
                   onChange={(e) => setRotationTime(e.target.value)}
@@ -552,7 +552,7 @@ export default function ReassignLogicPage() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Assigned Users (Rotation Queue) *"
+                      label="Assigned Users (Rotation Queue)"
                       placeholder={assignedUsers.length === 0 ? 'Select Users' : ''}
                       required={assignedUsers.length === 0}
                       sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}

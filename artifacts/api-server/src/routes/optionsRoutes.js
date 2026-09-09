@@ -292,6 +292,16 @@ router.get('/:key', (req, res, next) => {
     });
   }
 
+  if (key === 'bookingStatuses' || key === 'booking_statuses') {
+    return res.json({
+      items: [
+        { value: 'BOOKED', label: 'Booked / Token Paid' },
+        { value: 'CONFIRMED', label: 'Confirmed / Agreement Executed' },
+        { value: 'CANCELLED', label: 'Cancelled / Refunded' },
+      ]
+    });
+  }
+
   const keyMap = {
     specialties: 'resourcePropertyTypes',
     departments: 'resourcePropertyTypes',
@@ -367,12 +377,20 @@ router.get('/:key', (req, res, next) => {
         ? (req.query.workspaceId || null)
         : (req.user.workspaceId || req.user.workspace_id || null);
 
-      const list = await resourceItemModel.list({
+      let list = await resourceItemModel.list({
         organizationId: orgId,
         industryId: resolvedIndustryId || targetInd,
         workspaceId,
         resource_key: targetKey,
       });
+
+      if ((targetKey === 'resourcePropertySubTypes' || targetKey === 'resource_property_sub_types' || key === 'propertySubType') && req.query.propertyType) {
+        const pType = String(req.query.propertyType).toLowerCase().trim();
+        list = list.filter(item => {
+          const itemPType = String(item.propertyType || item.property_type || '').toLowerCase().trim();
+          return !itemPType || itemPType === pType;
+        });
+      }
 
       let displayField = req.query.display;
       if (!displayField) {

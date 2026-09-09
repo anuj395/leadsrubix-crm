@@ -416,7 +416,7 @@ export default function LeadDistributionLogicPage() {
                   select
                   fullWidth
                   size="small"
-                  label="Lead Source *"
+                  label="Lead Source"
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
@@ -699,7 +699,7 @@ export default function LeadDistributionLogicPage() {
                     select
                     fullWidth
                     size="small"
-                    label="Assigned Users *"
+                    label="Assigned Users"
                     value={(() => {
                       if (!assignedUserNormal) return ''
                       const cleanTarget = String(assignedUserNormal).toLowerCase().trim()
@@ -800,7 +800,7 @@ export default function LeadDistributionLogicPage() {
                       renderInput={(params) => (
                         <TextField
                           {...params}
-                          label="Assigned Users *"
+                          label="Assigned Users"
                           placeholder={
                             assignedUsersRoundrobin.length === 0 
                               ? (selectedManagers.length > 0 ? `Select from Manager's Team (${candidateReportees.length})...` : 'Select Sales Agents...')

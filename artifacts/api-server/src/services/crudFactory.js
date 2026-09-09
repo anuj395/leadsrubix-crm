@@ -468,6 +468,87 @@ function buildController({
         if (!payload.priority) payload.priority = 'Medium';
       }
 
+      if (resourceName === 'Booking') {
+        const cId = payload.contact_id || payload.contactId;
+        if (cId) {
+          const mongoose = require('mongoose');
+          let ContactModel = null;
+          try {
+            ContactModel = mongoose.model('Contact');
+          } catch {
+            ContactModel = require('../models/contactModel').Contact;
+          }
+          if (ContactModel) {
+            const contact = await ContactModel.findById(cId).lean().exec();
+            if (contact) {
+              if (!payload.organization_id) {
+                payload.organization_id = contact.organization_id || contact.organizationId || '';
+              }
+              if (!payload.industry_id) {
+                payload.industry_id = contact.industry_id || contact.industryId || '';
+              }
+              if (!payload.customer_name) payload.customer_name = contact.customer_name || contact.customerName || '';
+              if (!payload.contact_number) payload.contact_number = contact.contact_number || contact.contactNumber || '';
+              if (!payload.project && !payload.project_name) {
+                payload.project = contact.project_name || contact.projectName || '';
+              }
+              if (!payload.location) payload.location = contact.location || '';
+            }
+          }
+        }
+        if (payload.booking_amount !== undefined && payload.booking_amount !== null && payload.booking_amount !== '') {
+          const bAmt = Number(payload.booking_amount);
+          if (isNaN(bAmt) || bAmt <= 0) {
+            return res.status(400).json({ message: 'Booking amount must be greater than 0' });
+          }
+        }
+      }
+
+      if (resourceName === 'Deal') {
+        const cId = payload.contact_id || payload.contactId;
+        if (cId) {
+          const mongoose = require('mongoose');
+          let ContactModel = null;
+          try {
+            ContactModel = mongoose.model('Contact');
+          } catch {
+            ContactModel = require('../models/contactModel').Contact;
+          }
+          if (ContactModel) {
+            const contact = await ContactModel.findById(cId).lean().exec();
+            if (contact) {
+              if (!payload.organization_id) {
+                payload.organization_id = contact.organization_id || contact.organizationId || '';
+              }
+              if (!payload.industry_id) {
+                payload.industry_id = contact.industry_id || contact.industryId || '';
+              }
+              if (!payload.contact_name) payload.contact_name = contact.customer_name || contact.customerName || '';
+              if (!payload.contact_phone) payload.contact_phone = contact.contact_number || contact.contactNumber || '';
+              if (!payload.contact_email) payload.contact_email = contact.email_id || contact.emailId || contact.email || '';
+            }
+          }
+        }
+        if (payload.amount !== undefined && payload.amount !== null && payload.amount !== '') {
+          const amt = Number(payload.amount);
+          if (isNaN(amt) || amt <= 0) {
+            return res.status(400).json({ message: 'Deal value must be greater than 0' });
+          }
+        }
+        if (payload.probability !== undefined && payload.probability !== null && payload.probability !== '') {
+          const prob = Number(payload.probability);
+          if (isNaN(prob) || prob < 0 || prob > 100) {
+            return res.status(400).json({ message: 'Probability must be between 0% and 100%' });
+          }
+        }
+        if (payload.expected_close_date) {
+          const closeTime = new Date(payload.expected_close_date).getTime();
+          if (!isNaN(closeTime) && closeTime < Date.now() - 24 * 60 * 60 * 1000) {
+            return res.status(400).json({ message: 'Expected close date cannot be in the past' });
+          }
+        }
+      }
+
       const doc = await Model.create(payload);
       const docObj = doc.toObject();
 

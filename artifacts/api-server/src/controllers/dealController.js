@@ -168,6 +168,25 @@ exports.create = async (req, res, next) => {
       }
     }
 
+    if (payload.amount !== undefined && payload.amount !== null && payload.amount !== '') {
+      const amt = Number(payload.amount);
+      if (isNaN(amt) || amt <= 0) {
+        return res.status(400).json({ message: 'Deal value must be greater than 0' });
+      }
+    }
+    if (payload.probability !== undefined && payload.probability !== null && payload.probability !== '') {
+      const prob = Number(payload.probability);
+      if (isNaN(prob) || prob < 0 || prob > 100) {
+        return res.status(400).json({ message: 'Probability must be between 0% and 100%' });
+      }
+    }
+    if (payload.expected_close_date || payload.expectedCloseDate) {
+      const closeTime = new Date(payload.expected_close_date || payload.expectedCloseDate).getTime();
+      if (!isNaN(closeTime) && closeTime < Date.now() - 24 * 60 * 60 * 1000) {
+        return res.status(400).json({ message: 'Expected close date cannot be in the past' });
+      }
+    }
+
     const item = await dealModel.create(payload);
     res.status(201).json(item);
   } catch (err) {
