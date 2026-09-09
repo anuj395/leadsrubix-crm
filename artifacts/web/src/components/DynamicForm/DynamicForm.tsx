@@ -603,10 +603,39 @@ export function DynamicForm({
         if ((f.key === 'organizationId' || f.key === 'organization_id') && !isSuperAdmin) {
           continue
         }
+        if ((f as any).is_form_visible === false || (f as any).isFormVisible === false) {
+          continue
+        }
+        if (f.key === 'otherNotIntReason' && values.notIntReason !== 'Other') {
+          continue
+        }
+        if (f.key === 'otherLostReason' && values.lostReason !== 'Other') {
+          continue
+        }
+        if ((f.key === 'lostReason' || f.key === 'lost_reason') && (activeScreenKey === 'deals' || screen === 'deals') && !String(values.stage || '').toLowerCase().includes('lost')) {
+          continue
+        }
+        if ((f.key === 'callbackReason' || f.key === 'callback_reason') && (activeScreenKey === 'tasks' || screen === 'tasks') && values.taskType !== 'Call Back' && values.type !== 'Call Back') {
+          continue
+        }
+        if ((f.key === 'meetingLocation' || (f.key === 'location' && (activeScreenKey === 'tasks' || screen === 'tasks'))) && values.taskType !== 'Site Visit' && values.taskType !== 'Meeting' && values.type !== 'Site Visit' && values.type !== 'Meeting') {
+          continue
+        }
+
         const camel = f.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
         const snake = f.key.replace(/([A-Z])/g, '_$1').toLowerCase()
         const v = values[f.key] ?? values[camel] ?? values[snake]
         const cleanLabel = (f.label || '').replace(/\s*\*+\s*$/, '').trim()
+
+        if (f.key === 'otherLostReason' && values.lostReason === 'Other' && (!v || !String(v).trim())) {
+          next[f.key] = `Please enter the specific reason for Other`
+        }
+        if (f.key === 'otherNotIntReason' && values.notIntReason === 'Other' && (!v || !String(v).trim())) {
+          next[f.key] = `Please enter the specific reason for Other`
+        }
+        if ((f.key === 'lostReason' || f.key === 'lost_reason') && (activeScreenKey === 'deals' || screen === 'deals') && String(values.stage || '').toLowerCase().includes('lost') && (!v || !String(v).trim())) {
+          next[f.key] = `Lost Reason is required when deal is lost`
+        }
 
         if (f.required) {
           if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) {
@@ -810,7 +839,13 @@ export function DynamicForm({
           if (f.key === 'otherLostReason' && values.lostReason !== 'Other') {
             return null
           }
-          if ((f.key === 'callbackReason' || f.key === 'callback_reason') && values.taskType !== 'Call Back' && values.type !== 'Call Back') {
+          if ((f.key === 'lostReason' || f.key === 'lost_reason') && (activeScreenKey === 'deals' || screen === 'deals') && !String(values.stage || '').toLowerCase().includes('lost')) {
+            return null
+          }
+          if ((f.key === 'callbackReason' || f.key === 'callback_reason') && (activeScreenKey === 'tasks' || screen === 'tasks') && values.taskType !== 'Call Back' && values.type !== 'Call Back') {
+            return null
+          }
+          if ((f.key === 'meetingLocation' || (f.key === 'location' && (activeScreenKey === 'tasks' || screen === 'tasks'))) && values.taskType !== 'Site Visit' && values.taskType !== 'Meeting' && values.type !== 'Site Visit' && values.type !== 'Meeting') {
             return null
           }
           if (f.key === 'distributionType') {

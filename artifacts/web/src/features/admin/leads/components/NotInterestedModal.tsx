@@ -67,6 +67,11 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
       return
     }
 
+    if (values.notIntReason === 'Other' && !values.otherNotIntReason?.trim()) {
+      setToast({ open: true, msg: 'Please enter the specific reason for Other', sev: 'error' })
+      return
+    }
+
     setSaving(true)
 
     const contactFields: Record<string, any> = {}

@@ -612,6 +612,41 @@ function buildController({
       const updated = await Model.findByIdAndUpdate(req.params.id, { $set: patch }, { new: true })
         .lean()
         .exec();
+
+      if (resourceName === 'Deal' && updated && (updated.contact_id || updated.contactId)) {
+        const cStage = patch.stage || patch.stage_id || patch.stageId;
+        if (cStage) {
+          const stLower = String(cStage).toLowerCase();
+          const cId = updated.contact_id || updated.contactId;
+          try {
+            const Contact = mongoose.model('Contact');
+            if (stLower.includes('won')) {
+              await Contact.findByIdAndUpdate(cId, {
+                $set: {
+                  stage: 'WON',
+                  status: 'WON',
+                  modifiedAt: new Date(),
+                  stageChangeAt: new Date()
+                }
+              });
+            } else if (stLower.includes('lost')) {
+              await Contact.findByIdAndUpdate(cId, {
+                $set: {
+                  stage: 'LOST',
+                  status: 'LOST',
+                  lostReason: patch.lostReason || patch.lost_reason || 'Closed Lost',
+                  lost_reason: patch.lostReason || patch.lost_reason || 'Closed Lost',
+                  modifiedAt: new Date(),
+                  stageChangeAt: new Date()
+                }
+              });
+            }
+          } catch (cErr) {
+            console.warn('[crudFactory] Contact stage sync warning:', cErr);
+          }
+        }
+      }
+
       await enrichTasks(Model, [updated]);
       res.json(withDualCase(updated));
     } catch (err) { next(err); }

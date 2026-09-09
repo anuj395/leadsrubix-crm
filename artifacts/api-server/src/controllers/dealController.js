@@ -198,6 +198,39 @@ exports.update = async (req, res, next) => {
   try {
     const id = req.params.id;
     const updated = await dealModel.findByIdAndUpdate(id, { $set: req.body }, { new: true });
+    
+    // Cross-Entity State Synchronization: Propagate Won / Lost to linked Contact
+    if (updated && (updated.contact_id || updated.contactId) && req.body.stage) {
+      const cId = updated.contact_id || updated.contactId;
+      try {
+        const Contact = mongoose.model('Contact');
+        const stLower = String(req.body.stage).toLowerCase();
+        if (stLower.includes('won')) {
+          await Contact.findByIdAndUpdate(cId, {
+            $set: {
+              stage: 'WON',
+              status: 'WON',
+              modifiedAt: new Date(),
+              stageChangeAt: new Date()
+            }
+          });
+        } else if (stLower.includes('lost')) {
+          await Contact.findByIdAndUpdate(cId, {
+            $set: {
+              stage: 'LOST',
+              status: 'LOST',
+              lostReason: req.body.lostReason || req.body.lost_reason || 'Closed Lost',
+              lost_reason: req.body.lostReason || req.body.lost_reason || 'Closed Lost',
+              modifiedAt: new Date(),
+              stageChangeAt: new Date()
+            }
+          });
+        }
+      } catch (cErr) {
+        console.warn('[dealController] Contact stage sync warning:', cErr);
+      }
+    }
+
     res.json(updated);
   } catch (err) {
     next(err);
@@ -224,6 +257,39 @@ exports.updateStage = async (req, res, next) => {
     }
 
     const updated = await dealModel.findByIdAndUpdate(id, { $set: updateObj }, { new: true });
+
+    // Cross-Entity State Synchronization: Propagate Won / Lost to linked Contact
+    if (updated && (updated.contact_id || updated.contactId)) {
+      const cId = updated.contact_id || updated.contactId;
+      try {
+        const Contact = mongoose.model('Contact');
+        const stLower = String(finalStage).toLowerCase();
+        if (stLower.includes('won')) {
+          await Contact.findByIdAndUpdate(cId, {
+            $set: {
+              stage: 'WON',
+              status: 'WON',
+              modifiedAt: new Date(),
+              stageChangeAt: new Date()
+            }
+          });
+        } else if (stLower.includes('lost')) {
+          await Contact.findByIdAndUpdate(cId, {
+            $set: {
+              stage: 'LOST',
+              status: 'LOST',
+              lostReason: lostReason || updateObj.lostReason || 'Closed Lost',
+              lost_reason: lostReason || updateObj.lostReason || 'Closed Lost',
+              modifiedAt: new Date(),
+              stageChangeAt: new Date()
+            }
+          });
+        }
+      } catch (cErr) {
+        console.warn('[dealController] Contact stage sync warning:', cErr);
+      }
+    }
+
     res.json(updated);
   } catch (err) {
     next(err);

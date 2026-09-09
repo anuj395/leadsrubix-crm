@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,14 @@ export const ConvertLeadModal: React.FC<Props> = ({
   const [dealAmount, setDealAmount] = useState('5000000');
   const [dealPipeline, setDealPipeline] = useState('Primary Sales Pipeline');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (visible && lead) {
+      setDealTitle(`${lead.name || 'Client'} - Deal`);
+      const parsedBudget = (lead as any).budget ? String((lead as any).budget).replace(/[^0-9]/g, '') : '';
+      if (parsedBudget) setDealAmount(parsedBudget);
+    }
+  }, [visible, lead]);
 
   const handleSubmit = async () => {
     const leadId = lead.id || lead._id;

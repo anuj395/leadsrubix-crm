@@ -76,10 +76,34 @@ function formatFollowUpDateDisplay(dateStr?: string): string {
   return dateStr || 'Select Call-Back Date & Time';
 }
 
+function getSmartMobileFollowUp(): string {
+  const d = new Date();
+  const currentHour = d.getHours();
+  if (currentHour >= 9 && currentHour < 17) {
+    d.setHours(d.getHours() + 2);
+    d.setMinutes(0);
+  } else if (currentHour >= 17) {
+    d.setDate(d.getDate() + 1);
+    d.setHours(11, 0, 0, 0);
+  } else {
+    d.setHours(11, 0, 0, 0);
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = String(hours).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}, ${strHours}:${minutes} ${ampm}`;
+}
+
 export const PostCallDispositionModal: React.FC<PostCallDispositionModalProps> = ({
   visible,
-  onClose,
   caller,
+  onClose,
   onSuccess,
 }) => {
   const { user } = useAuth();
@@ -112,15 +136,41 @@ export const PostCallDispositionModal: React.FC<PostCallDispositionModalProps> =
     } else if (durationSeconds === 0) {
       setDurationSeconds(60);
     }
+
+    const needsFollowUp =
+      !lbl.includes('wrong') && (
+        lbl.includes('callback') ||
+        lbl.includes('call back') ||
+        lbl.includes('follow') ||
+        lbl.includes('reschedule') ||
+        lbl.includes('busy') ||
+        lbl.includes('no answer') ||
+        lbl.includes('missed')
+      );
+    if (needsFollowUp && !followUpDate) {
+      setFollowUpDate(getSmartMobileFollowUp());
+    }
   };
 
   if (!caller) return null;
 
+  const isWrongNumber = selectedOutcome?.label.toLowerCase().includes('wrong');
+  const isUnconnected =
+    selectedOutcome?.label.toLowerCase().includes('busy') ||
+    selectedOutcome?.label.toLowerCase().includes('missed') ||
+    selectedOutcome?.label.toLowerCase().includes('no answer') ||
+    isWrongNumber;
+
   const isFollowUpRequired =
-    selectedOutcome?.label.toLowerCase().includes('callback') ||
-    selectedOutcome?.label.toLowerCase().includes('call back') ||
-    selectedOutcome?.label.toLowerCase().includes('follow') ||
-    selectedOutcome?.label.toLowerCase().includes('reschedule');
+    !isWrongNumber && (
+      selectedOutcome?.label.toLowerCase().includes('callback') ||
+      selectedOutcome?.label.toLowerCase().includes('call back') ||
+      selectedOutcome?.label.toLowerCase().includes('follow') ||
+      selectedOutcome?.label.toLowerCase().includes('reschedule') ||
+      selectedOutcome?.label.toLowerCase().includes('busy') ||
+      selectedOutcome?.label.toLowerCase().includes('no answer') ||
+      selectedOutcome?.label.toLowerCase().includes('missed')
+    );
 
   const handleSubmit = async () => {
     if (!selectedOutcome) {
@@ -261,30 +311,43 @@ export const PostCallDispositionModal: React.FC<PostCallDispositionModalProps> =
               })}
             </View>
 
-            {/* Call Duration Chips */}
-            <Text style={styles.sectionLabel}>CALL DURATION</Text>
-            <View style={styles.durationRow}>
-              {DURATION_PRESETS.map((dur, idx) => {
-                const isSelected = durationSeconds === dur.value;
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.durationChip, isSelected && styles.durationChipActive]}
-                    onPress={() => setDurationSeconds(dur.value)}
-                    activeOpacity={0.75}
-                  >
-                    <Text
-                      style={[
-                        styles.durationChipText,
-                        isSelected && styles.durationChipTextActive,
-                      ]}
-                    >
-                      {dur.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {/* Call Duration Chips (Connected/Answered Calls Only) */}
+            {!isUnconnected && (
+              <>
+                <Text style={styles.sectionLabel}>CALL DURATION</Text>
+                <View style={styles.durationRow}>
+                  {DURATION_PRESETS.map((dur, idx) => {
+                    const isSelected = durationSeconds === dur.value;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.durationChip, isSelected && styles.durationChipActive]}
+                        onPress={() => setDurationSeconds(dur.value)}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.durationChipText,
+                            isSelected && styles.durationChipTextActive,
+                          ]}
+                        >
+                          {dur.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {/* Wrong Number Warning Banner */}
+            {isWrongNumber && (
+              <View style={[styles.followUpContainer, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', borderWidth: 1, padding: 12, borderRadius: 8, marginTop: 12 }]}>
+                <Text style={{ fontSize: 13, color: '#DC2626', fontWeight: '600', lineHeight: 18 }}>
+                  ⚠️ Contact number will be marked as invalid / wrong number. Follow-up is disabled.
+                </Text>
+              </View>
+            )}
 
             {/* Follow Up Scheduler (if Call-Back / Reschedule) */}
             {isFollowUpRequired && (

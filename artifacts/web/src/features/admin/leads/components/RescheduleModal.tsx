@@ -13,6 +13,7 @@ import { listContacts, updateContact, type Contact } from '@/services/contactsSe
 import { useAppSelector } from '@/store/hooks'
 import { selectAuth } from '@/features/auth'
 import { api } from '@/services/api'
+import { getSmartFollowUpDateTime } from '@/utils/formatDate'
 
 interface RescheduleModalProps {
   open: boolean;
@@ -44,7 +45,7 @@ export default function RescheduleModal({ open, onClose, contactId, onSuccess }:
           setContact(match)
           
           const initVals: Record<string, any> = {}
-          initVals.nextFollowUp = ''
+          initVals.nextFollowUp = getSmartFollowUpDateTime()
           initVals.notes = ''
           
           setInitialValues(initVals)
