@@ -394,8 +394,22 @@ export function DynamicForm({
             if (next[f.key] === undefined || next[f.key] === '') {
               if (f.key === 'industryId' || f.key === 'industry_id') {
                 next[f.key] = finalIndustryCode || ''
+              } else if (f.defaultValue || f.default_value) {
+                next[f.key] = f.defaultValue || f.default_value
+              } else if ((f.key === 'status' || f.key === 'stage') && (f.options?.length || 0) > 0) {
+                next[f.key] = f.options![0].value
+              } else if (f.type === 'checkbox') {
+                next[f.key] = false
+              } else if ((f.type === 'datetime' || f.type === 'date') && f.required) {
+                const now = new Date()
+                const yyyy = now.getFullYear()
+                const mm = String(now.getMonth() + 1).padStart(2, '0')
+                const dd = String(now.getDate()).padStart(2, '0')
+                const hh = String(now.getHours()).padStart(2, '0')
+                const min = String(now.getMinutes()).padStart(2, '0')
+                next[f.key] = `${yyyy}-${mm}-${dd}T${hh}:${min}`
               } else if (next[f.key] === undefined) {
-                next[f.key] = f.type === 'checkbox' ? false : ''
+                next[f.key] = ''
               }
             }
           }
@@ -1234,7 +1248,7 @@ export function DynamicForm({
           const inputType =
             f.type === 'email' ? 'email' :
             f.type === 'number' ? 'number' :
-            f.type === 'date' ? 'datetime-local' :
+            (f.type === 'date' || f.type === 'datetime' || f.type === 'datetime-local') ? 'datetime-local' :
             'text'
 
           let displayVal = value
