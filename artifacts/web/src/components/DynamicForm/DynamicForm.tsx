@@ -610,8 +610,20 @@ export function DynamicForm({
 
         if (f.required) {
           if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) {
-            next[f.key] = `${cleanLabel} is required`
-            continue
+            let fallbackVal: any = f.default_value ?? f.defaultValue
+            if (!fallbackVal && (f.key === 'status' || f.key === 'stage')) {
+              if (f.key === 'status' && (activeScreenKey === 'bookings' || screen === 'bookings')) {
+                fallbackVal = 'BOOKED'
+              } else if (f.key === 'status') {
+                fallbackVal = 'ACTIVE'
+              }
+            }
+            if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal !== '') {
+              values[f.key] = fallbackVal
+            } else {
+              next[f.key] = `${cleanLabel} is required`
+              continue
+            }
           }
         }
 
@@ -725,13 +737,34 @@ export function DynamicForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setSubmitError(null)
+
+    const submissionValues = { ...values }
+    for (const f of fields) {
+      const camel = f.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+      const snake = f.key.replace(/([A-Z])/g, '_$1').toLowerCase()
+      const current = submissionValues[f.key] ?? submissionValues[camel] ?? submissionValues[snake]
+      if (f.required && (current === undefined || current === null || current === '')) {
+        let fallbackVal: any = f.default_value ?? f.defaultValue
+        if (!fallbackVal && (f.key === 'status' || f.key === 'stage')) {
+          if (f.key === 'status' && (activeScreenKey === 'bookings' || screen === 'bookings')) {
+            fallbackVal = 'BOOKED'
+          } else if (f.key === 'status') {
+            fallbackVal = 'ACTIVE'
+          }
+        }
+        if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal !== '') {
+          submissionValues[f.key] = fallbackVal
+        }
+      }
+    }
+
     const v = validate()
     setErrors(v)
     if (Object.keys(v).length > 0) return
 
     setSubmitting(true)
     try {
-      await onSubmit(values)
+      await onSubmit(submissionValues)
     } catch (err: unknown) {
       const e2 = err as { response?: { data?: { message?: string } }; message?: string }
       setSubmitError(e2?.response?.data?.message ?? e2?.message ?? 'Submit failed')
@@ -949,6 +982,9 @@ export function DynamicForm({
               }
             } else if (!currentValue && opts.length > 0 && f.required && (f.key === 'stage' || f.key === 'status')) {
               currentValue = opts[0].value
+              if (values[f.key] !== currentValue) {
+                setTimeout(() => setValue(f.key, currentValue), 0)
+              }
             }
 
             return (
