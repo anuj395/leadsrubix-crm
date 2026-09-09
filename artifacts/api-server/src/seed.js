@@ -1089,12 +1089,35 @@ async function seedScreens() {
           }
         }
       } else {
-        // Sync the correct order to ensure layout changes are fully propagated
+        // Sync the correct order, visibility, dropdown options, and types to ensure changes are fully propagated
         await ScreenField.updateOne(
           { screen_id: orgScreen._id, field_key: bf.field_key },
-          { $set: { order: bf.order } }
+          {
+            $set: {
+              order: bf.order,
+              label: bf.label,
+              type: bf.type,
+              options: bf.options,
+              dropdown_source: bf.dropdown_source,
+              dropdown_api: bf.dropdown_api,
+              is_table_visible: bf.is_table_visible,
+              is_form_visible: bf.is_form_visible,
+              is_required: bf.is_required,
+              default_value: bf.default_value,
+            }
+          }
         );
       }
+    }
+
+    // For system-governed workflow screens (like tasks, bookings, deals, notInterested, lost, reschedule, notes)
+    // Clean up deprecated fields that are no longer in baseFields
+    if (['tasks', 'bookings', 'deals', 'notInterested', 'lost', 'reschedule', 'notes'].includes(orgScreen.key)) {
+      const baseFieldKeys = new Set(baseFields.map(f => f.field_key));
+      await ScreenField.deleteMany({
+        screen_id: orgScreen._id,
+        field_key: { $nin: Array.from(baseFieldKeys) }
+      });
     }
   }
 

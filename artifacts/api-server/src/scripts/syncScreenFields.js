@@ -87,11 +87,20 @@ async function run() {
     const Screen = mongoose.model('Screen');
     const ScreenField = mongoose.model('ScreenField');
 
-    const tasksScreen = await Screen.findOne({ key: 'tasks' }).lean().exec();
-    if (tasksScreen) {
-      const taskFields = await ScreenField.find({ screen_id: tasksScreen._id }).sort({ order: 1 }).lean().exec();
-      console.log(`\n--- Tasks Screen Fields (${taskFields.length} total) ---`);
-      taskFields.forEach((f) => {
+    const baseTasksScreen = await Screen.findOne({ key: 'tasks', organization_id: null }).lean().exec();
+    if (baseTasksScreen) {
+      const baseFields = await ScreenField.find({ screen_id: baseTasksScreen._id }).sort({ order: 1 }).lean().exec();
+      console.log(`\n--- Base Tasks Screen Fields (${baseFields.length} total) ---`);
+      baseFields.forEach((f) => {
+        console.log(`  • ${f.field_key.padEnd(20)} | FormVis: ${String(f.is_form_visible).padEnd(5)} | TableVis: ${String(f.is_table_visible).padEnd(5)} | Type: ${f.type.padEnd(8)} | Req: ${f.is_required}`);
+      });
+    }
+
+    const orgTasksScreens = await Screen.find({ key: 'tasks', organization_id: { $ne: null } }).lean().exec();
+    for (const orgScreen of orgTasksScreens) {
+      const orgFields = await ScreenField.find({ screen_id: orgScreen._id }).sort({ order: 1 }).lean().exec();
+      console.log(`\n--- Org (${orgScreen.organization_id}) Tasks Screen Fields (${orgFields.length} total) ---`);
+      orgFields.forEach((f) => {
         console.log(`  • ${f.field_key.padEnd(20)} | FormVis: ${String(f.is_form_visible).padEnd(5)} | TableVis: ${String(f.is_table_visible).padEnd(5)} | Type: ${f.type.padEnd(8)} | Req: ${f.is_required}`);
       });
     }
