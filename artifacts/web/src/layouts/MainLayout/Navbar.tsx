@@ -44,8 +44,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { paths } from '@/routes/paths'
 
 const breadcrumbMap: Record<string, string[]> = {
-    '/': ['Home', 'Analytics', 'Overview'],
-    '/analytics': ['Home', 'Analytics'],
+    '/': ['Home', 'Dashboard', 'Overview'],
+    '/analytics': ['Home', 'Dashboard'],
+    '/dashboard': ['Home', 'Dashboard'],
     '/organization/list': ['Home', 'Organizations'],
     '/organization/new': ['Home', 'Organizations', 'Add Organization'],
     '/users': ['Home', 'Users'],
@@ -71,11 +72,11 @@ const breadcrumbMap: Record<string, string[]> = {
     '/configuration/holiday-config/new': ['Home', 'Configuration', 'Holiday Config', 'Create Holiday'],
     '/configuration/days-config': ['Home', 'Configuration', 'Days Config'],
     '/configuration/domain-settings': ['Home', 'Configuration', 'Domain Setting'],
-    '/configuration/analytics-config': ['Home', 'UI & Navigation', 'Analytics Layout Builder'],
+    '/configuration/analytics-config': ['Home', 'UI & Navigation', 'Dashboard Layout Builder'],
     '/configuration/menus': ['Home', 'UI & Navigation', 'Sidebar Menus'],
     '/configuration/screens': ['Home', 'UI & Navigation', 'Screens'],
     '/configuration/screen-fields': ['Home', 'UI & Navigation', 'Screen Fields'],
-    '/ui-navigation/analytics-config': ['Home', 'UI & Navigation', 'Analytics Layout Builder'],
+    '/ui-navigation/analytics-config': ['Home', 'UI & Navigation', 'Dashboard Layout Builder'],
     '/ui-navigation/menus': ['Home', 'UI & Navigation', 'Sidebar Menus'],
     '/ui-navigation/screens': ['Home', 'UI & Navigation', 'Screens'],
     '/ui-navigation/screen-fields': ['Home', 'UI & Navigation', 'Screen Fields'],
@@ -113,7 +114,7 @@ const breadcrumbMap: Record<string, string[]> = {
 function getBreadcrumbPath(crumb: string): string | null {
     const c = crumb.toLowerCase().trim()
     if (c === 'home') return '/'
-    if (c === 'analytics' || c === 'overview') return '/analytics'
+    if (c === 'analytics' || c === 'overview' || c === 'dashboard') return '/analytics'
     if (c === 'leads') return '/leads/contacts'
     if (c === 'inquiries & leads' || c === 'inquiries') return '/leads/contacts'
     if (c === 'deals & pipeline' || c === 'deals') return '/leads/deals-list'
@@ -131,7 +132,7 @@ function getBreadcrumbPath(crumb: string): string | null {
     if (c === 'screens') return '/ui-navigation/screens'
     if (c === 'screen fields') return '/ui-navigation/screen-fields'
     if (c === 'sidebar menus') return '/ui-navigation/menus'
-    if (c === 'analytics layout builder') return '/ui-navigation/analytics-config'
+    if (c === 'analytics layout builder' || c === 'dashboard layout builder') return '/ui-navigation/analytics-config'
     if (c === 'access control' || c === 'roles & permissions') return '/users/roles'
     if (c === 'support') return '/support/news'
     if (c === 'news') return '/support/news'

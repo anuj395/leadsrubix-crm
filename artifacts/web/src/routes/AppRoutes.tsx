@@ -42,6 +42,7 @@ export function AppRoutes() {
 
         <Route element={<MainLayout />}>
           <Route index element={<Navigate to="/analytics" replace />} />
+          <Route path="/leads" element={<Navigate to="/leads/contacts" replace />} />
 
           {menuConfig.map((item) => {
             if (!item.route) return null

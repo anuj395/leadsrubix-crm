@@ -130,7 +130,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   // Auto-expand parents that contain the active route
   useEffect(() => {
     menu.forEach((item) => {
-      if (item.children?.some((c) => c.route === location.pathname)) {
+      if (item.children?.some((c) => 
+        c.route === location.pathname ||
+        (c.route === '/ui-navigation/analytics-config' && location.pathname === '/configuration/analytics-config') ||
+        (c.route === '/configuration/analytics-config' && location.pathname === '/ui-navigation/analytics-config')
+      )) {
         setExpandedItems((prev) => ({ ...prev, [item.id]: true }))
       }
     })
@@ -438,6 +442,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     )
 
     if (item.route) {
+      const isItemActive = location.pathname === item.route ||
+        (item.route === '/analytics' && (location.pathname === '/dashboard' || location.pathname === '/')) ||
+        (item.route === '/dashboard' && (location.pathname === '/analytics' || location.pathname === '/'))
+
       return (
         <Tooltip
           title={
@@ -463,6 +471,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
               ...navItemBase,
               justifyContent: collapsed ? 'center' : 'flex-start',
               '&.active': { color: activeColor, backgroundColor: activeBg, fontWeight: 700, borderLeft: `3px solid ${activeColor}` },
+              ...(isItemActive ? { color: activeColor, backgroundColor: activeBg, fontWeight: 700, borderLeft: `3px solid ${activeColor}` } : {}),
             }}
           >
             {content}
@@ -481,7 +490,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   function renderParent(item: SidebarNavItem) {
     const Icon = getIcon(item.icon)
     const isExpanded    = expandedItems[item.id] ?? false
-    const isChildActive = item.children?.some((c) => c.route === location.pathname) ?? false
+    const isChildActive = item.children?.some((c) => 
+      c.route === location.pathname ||
+      (c.route === '/ui-navigation/analytics-config' && location.pathname === '/configuration/analytics-config') ||
+      (c.route === '/configuration/analytics-config' && location.pathname === '/ui-navigation/analytics-config')
+    ) ?? false
     const description = menuDescriptions[item.id] || menuDescriptions[item.module || ''] || ''
 
     return (
@@ -560,8 +573,24 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
           >
             {item.children?.map((child) => {
               const childDesc = menuDescriptions[child.id] || ''
+              const isChildItemActive = location.pathname === child.route ||
+                (child.route === '/ui-navigation/analytics-config' && location.pathname === '/configuration/analytics-config') ||
+                (child.route === '/configuration/analytics-config' && location.pathname === '/ui-navigation/analytics-config')
+
               return (
-                <Box key={child.id} component={NavLink} to={child.route} end sx={{ ...childItemSx, justifyContent: 'space-between', width: '100%' }}>
+                <Box 
+                  key={child.id} 
+                  component={NavLink} 
+                  to={child.route} 
+                  end 
+                  sx={{ 
+                    ...childItemSx, 
+                    justifyContent: 'space-between', 
+                    width: '100%',
+                    '&.active': { color: activeColor, fontWeight: 700 },
+                    ...(isChildItemActive ? { color: activeColor, fontWeight: 700 } : {})
+                  }}
+                >
                   <Typography variant="body2" sx={{ color: 'inherit', fontSize: '0.8125rem', flexGrow: 1 }}>
                     {child.name}
                   </Typography>

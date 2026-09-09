@@ -4,6 +4,8 @@ import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
+import Menu from '@mui/material/Menu'
+import ListItemIcon from '@mui/material/ListItemIcon'
 import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
 import Snackbar from '@mui/material/Snackbar'
@@ -25,6 +27,7 @@ import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Paper from '@mui/material/Paper'
 import Tooltip from '@mui/material/Tooltip'
+import Chip from '@mui/material/Chip'
 import { useTheme, alpha, darken } from '@mui/material/styles'
 import {
   Edit as EditIcon,
@@ -40,13 +43,18 @@ import {
   VisibilityOff as InactiveIcon,
   InsertChartOutlined as ChartIcon,
   TableChartOutlined as TableIcon,
-  FeaturedPlayListOutlined as KpiIcon
+  FeaturedPlayListOutlined as KpiIcon,
+  RestartAlt as ResetIcon,
+  AutoFixHigh as AutoFixHighIcon,
+  ContentCopy as CopyAllIcon,
+  CleaningServices as CleaningServicesIcon
 } from '@mui/icons-material'
 
 import axiosInstance from '@/services/axiosInstance'
 import { useAuth } from '@/hooks/useAuth'
 import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
 import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
+import { DEFAULT_BASELINE_TABS, getIndustryBaselineTabs } from '@/features/common/analyticsDefaultBaseline'
 
 interface ColumnConfig {
   key: string
@@ -110,17 +118,34 @@ export default function AnalyticsConfigPage() {
     filteredOrgs,
     selectedOrg: selectedOrgId,
     setSelectedOrg: setSelectedOrgId
-  } = useSuperAdminScope(isSuperAdmin)
+  } = useSuperAdminScope(isSuperAdmin, { allowGlobal: true })
 
   const [config, setConfig] = useState<AnalyticsConfig | null>(null)
   
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [presetMenuAnchor, setPresetMenuAnchor] = useState<null | HTMLElement>(null)
+  const [loadBaselineDialogOpen, setLoadBaselineDialogOpen] = useState(false)
+  const [startFreshDialogOpen, setStartFreshDialogOpen] = useState(false)
+  const [loadingBaseline, setLoadingBaseline] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
     sev: 'success',
   })
+
+  // Determine whether the currently loaded config is an active custom organization override
+  const isOrgOverride = Boolean(
+    selectedOrgId &&
+    config?._id &&
+    ((config.organization_id && config.organization_id === selectedOrgId) ||
+     (config.organizationId && config.organizationId === selectedOrgId))
+  )
+
+  const selectedOrgDoc = filteredOrgs.find(o => o.code === selectedOrgId)
+  const selectedIndustryDoc = industries.find(i => i.code === selectedIndustryId || i._id === selectedIndustryId)
 
   // Dialog states for Tab CRUD
   const [tabDialogOpen, setTabDialogOpen] = useState(false)
@@ -155,60 +180,65 @@ export default function AnalyticsConfigPage() {
     columnsText: ''
   })
 
-  // Load configuration when selected industry or organization changes
-  useEffect(() => {
+  // Fetch configuration helper
+  const fetchConfig = async () => {
     if (!selectedIndustryId) {
       setConfig(null)
       return
     }
-    ;(async () => {
-      setLoading(true)
-      try {
-        let url = `/analytics/configs?industryId=${selectedIndustryId}`
-        if (selectedOrgId) {
-          url += `&organizationId=${selectedOrgId}`
-        } else {
-          url += `&organizationId=null`
-        }
-        const res = await axiosInstance.get(url)
-        if (res.data?.items?.length > 0) {
-          const fetched = res.data.items[0] as AnalyticsConfig
-          const normalizedTabs = fetched.tabs.map(t => {
-            if (!t.sections) {
-              return {
-                ...t,
-                sections: [
-                  {
-                    id: 'default_section',
-                    title: 'General Section',
-                    order: 0,
-                    is_active: true,
-                    widgets: t.widgets || []
-                  }
-                ],
-                widgets: []
-              }
-            }
-            return t
-          })
-          setConfig({ ...fetched, tabs: normalizedTabs })
-        } else {
-          setConfig({
-            industry_id: selectedIndustryId,
-            organization_id: selectedOrgId || undefined,
-            organizationId: selectedOrgId || undefined,
-            workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
-            workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
-            dashboard_key: 'default',
-            tabs: []
-          })
-        }
-      } catch (err: any) {
-        setToast({ open: true, msg: 'Failed to load configuration', sev: 'error' })
-      } finally {
-        setLoading(false)
+    setLoading(true)
+    try {
+      let url = `/analytics/configs?industryId=${selectedIndustryId}`
+      if (selectedOrgId) {
+        url += `&organizationId=${selectedOrgId}`
+      } else {
+        url += `&organizationId=null`
       }
-    })()
+      const res = await axiosInstance.get(url)
+      if (res.data?.items?.length > 0 && res.data.items[0].tabs?.length > 0) {
+        const fetched = res.data.items[0] as AnalyticsConfig
+        const normalizedTabs = fetched.tabs.map(t => {
+          if (!t.sections) {
+            return {
+              ...t,
+              sections: [
+                {
+                  id: 'default_section',
+                  title: 'General Section',
+                  order: 0,
+                  is_active: true,
+                  widgets: t.widgets || []
+                }
+              ],
+              widgets: []
+            }
+          }
+          return t
+        })
+        setConfig({ ...fetched, tabs: normalizedTabs })
+      } else {
+        // Automatically inherit/fallback to master baseline schema
+        setConfig({
+          industry_id: selectedIndustryId,
+          industryId: selectedIndustryId,
+          organization_id: selectedOrgId || undefined,
+          organizationId: selectedOrgId || undefined,
+          workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+          workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+          dashboard_key: 'default',
+          tabs: getIndustryBaselineTabs(selectedIndustryId)
+        })
+      }
+    } catch (err: any) {
+      setToast({ open: true, msg: 'Failed to load configuration', sev: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load configuration when selected industry or organization changes
+  useEffect(() => {
+    void fetchConfig()
   }, [selectedIndustryId, selectedOrgId])
 
   const saveConfig = async () => {
@@ -218,26 +248,151 @@ export default function AnalyticsConfigPage() {
       const payload: any = {
         ...config,
         industry_id: selectedIndustryId,
+        industryId: selectedIndustryId,
         organization_id: selectedOrgId || undefined,
         organizationId: selectedOrgId || undefined,
         workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
         workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
       }
 
-      const isSavingNewOverride = selectedOrgId && (!config.organization_id || config.organization_id !== selectedOrgId)
-
-      if (config._id && !isSavingNewOverride) {
-        await axiosInstance.put(`/analytics/configs/${config._id}`, payload)
+      if (selectedOrgId) {
+        // If an isolated custom override already exists in the database, update it; otherwise create a new override
+        if (isOrgOverride && config._id) {
+          await axiosInstance.put(`/analytics/configs/${config._id}`, payload)
+        } else {
+          delete payload._id
+          const res = await axiosInstance.post('/analytics/configs', payload)
+          setConfig(res.data)
+        }
       } else {
-        delete payload._id
-        const res = await axiosInstance.post('/analytics/configs', payload)
-        setConfig(res.data)
+        // Global Baseline Template Mode
+        if (config._id) {
+          await axiosInstance.put(`/analytics/configs/${config._id}`, payload)
+        } else {
+          delete payload._id
+          const res = await axiosInstance.post('/analytics/configs', payload)
+          setConfig(res.data)
+        }
       }
-      setToast({ open: true, msg: 'Layout config saved successfully', sev: 'success' })
+      setToast({ open: true, msg: 'Layout configuration deployed successfully', sev: 'success' })
     } catch (err: any) {
       setToast({ open: true, msg: 'Failed to save configuration', sev: 'error' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleResetToBaseline = async () => {
+    if (!config?._id) return
+    setResetting(true)
+    try {
+      await axiosInstance.delete(`/analytics/configs/${config._id}`)
+      setToast({ open: true, msg: 'Custom override removed. Restored to industry baseline template.', sev: 'success' })
+      setResetDialogOpen(false)
+      await fetchConfig()
+    } catch (err: any) {
+      setToast({ open: true, msg: err?.response?.data?.message || 'Failed to reset configuration', sev: 'error' })
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const handleStartFresh = () => {
+    setConfig(prev => ({
+      ...(prev || {
+        industry_id: selectedIndustryId,
+        industryId: selectedIndustryId,
+        organization_id: selectedOrgId || undefined,
+        organizationId: selectedOrgId || undefined,
+        workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+        workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+        dashboard_key: 'default',
+        tabs: []
+      }),
+      tabs: [
+        {
+          id: 0,
+          label: 'Overview',
+          sections: [
+            {
+              id: 'sec_1',
+              title: 'Main Section',
+              order: 0,
+              is_active: true,
+              widgets: []
+            }
+          ]
+        }
+      ]
+    }))
+    setStartFreshDialogOpen(false)
+    setPresetMenuAnchor(null)
+    setToast({ open: true, msg: 'Canvas cleared. You can now build fresh from scratch.', sev: 'success' })
+  }
+
+  const handleLoadBaselineDraft = async () => {
+    if (!selectedIndustryId) return
+    setLoadingBaseline(true)
+    try {
+      const res = await axiosInstance.get(`/analytics/configs?industryId=${selectedIndustryId}&organizationId=null`)
+      const canonicalTabs = getIndustryBaselineTabs(selectedIndustryId)
+      let normalizedTabs: TabConfig[] = []
+      if (res.data?.items?.length > 0 && res.data.items[0].tabs?.length >= canonicalTabs.length) {
+        const fetched = res.data.items[0] as AnalyticsConfig
+        normalizedTabs = (fetched.tabs || []).map(t => {
+          if (!t.sections) {
+            return {
+              ...t,
+              sections: [
+                {
+                  id: 'default_section',
+                  title: 'General Section',
+                  order: 0,
+                  is_active: true,
+                  widgets: t.widgets || []
+                }
+              ],
+              widgets: []
+            }
+          }
+          return t
+        })
+      } else {
+        normalizedTabs = canonicalTabs
+      }
+      setConfig(prev => ({
+        ...(prev || {
+          industry_id: selectedIndustryId,
+          industryId: selectedIndustryId,
+          organization_id: selectedOrgId || undefined,
+          organizationId: selectedOrgId || undefined,
+          workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+          workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+          dashboard_key: 'default',
+          tabs: []
+        }),
+        tabs: normalizedTabs
+      }))
+      setToast({ open: true, msg: 'Loaded industry baseline widgets into draft. Click "Deploy Configuration" to save.', sev: 'success' })
+    } catch (err: any) {
+      setConfig(prev => ({
+        ...(prev || {
+          industry_id: selectedIndustryId,
+          industryId: selectedIndustryId,
+          organization_id: selectedOrgId || undefined,
+          organizationId: selectedOrgId || undefined,
+          workspace_id: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+          workspaceId: selectedOrgId ? 'ws_' + selectedOrgId : undefined,
+          dashboard_key: 'default',
+          tabs: []
+        }),
+        tabs: getIndustryBaselineTabs(selectedIndustryId)
+      }))
+      setToast({ open: true, msg: 'Loaded industry baseline template into draft.', sev: 'success' })
+    } finally {
+      setLoadingBaseline(false)
+      setLoadBaselineDialogOpen(false)
+      setPresetMenuAnchor(null)
     }
   }
 
@@ -432,7 +587,7 @@ export default function AnalyticsConfigPage() {
       if (tab.id !== activeTabIdForWidget) return tab
       const updatedSections = (tab.sections || []).map(sec => {
         if (sec.id !== activeSectionIdForWidget) return sec
-        let updatedWidgets = [...sec.widgets]
+        let updatedWidgets = [...(sec.widgets || [])]
         if (editingWidget !== null) {
           updatedWidgets = updatedWidgets.map(w => w.id === editingWidget.id ? widgetPayload : w)
         } else {
@@ -455,7 +610,7 @@ export default function AnalyticsConfigPage() {
         if (sec.id !== secId) return sec
         return {
           ...sec,
-          widgets: sec.widgets.filter(w => w.id !== widgetId)
+          widgets: (sec.widgets || []).filter(w => w.id !== widgetId)
         }
       })
       return { ...tab, sections: updatedSections }
@@ -469,7 +624,7 @@ export default function AnalyticsConfigPage() {
       if (tab.id !== tabId) return tab
       const updatedSections = (tab.sections || []).map(sec => {
         if (sec.id !== secId) return sec
-        const newWidgets = [...sec.widgets]
+        const newWidgets = [...(sec.widgets || [])]
         const targetIdx = direction === 'up' ? index - 1 : index + 1
         if (targetIdx < 0 || targetIdx >= newWidgets.length) return sec
         const temp = newWidgets[index]
@@ -507,22 +662,37 @@ export default function AnalyticsConfigPage() {
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={3} sx={{ mb: 4 }}>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Analytics Dashboard Architect
+              Dashboard Layout Builder
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
-              Independently structure and configure analytics tabs, dynamic sections, charts, KPI widgets, and custom grid views.
+              Structure custom tabs, sections, KPI metrics, 3D visualizations, and table summaries across organizations.
             </Typography>
           </Box>
           
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<SaveIcon />}
-            onClick={saveConfig}
-            disabled={!selectedIndustryId || saving}
-          >
-            {saving ? <CircularProgress size={20} color="inherit" /> : 'Deploy Configuration'}
-          </Button>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {isOrgOverride && (
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<ResetIcon />}
+                onClick={() => setResetDialogOpen(true)}
+                disabled={saving || resetting}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
+              >
+                {resetting ? 'Resetting...' : 'Reset to Baseline'}
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<SaveIcon />}
+              onClick={saveConfig}
+              disabled={!selectedIndustryId || saving || resetting}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
+            >
+              {saving ? <CircularProgress size={20} color="inherit" /> : 'Deploy Configuration'}
+            </Button>
+          </Stack>
         </Stack>
 
         {/* Scope Context Selection */}
@@ -534,7 +704,89 @@ export default function AnalyticsConfigPage() {
           filteredOrgs={filteredOrgs}
           selectedOrg={selectedOrgId}
           setSelectedOrg={setSelectedOrgId}
+          allowGlobal={true}
         />
+
+        {/* Managed Service & Multi-Tenant Isolation Status Banner */}
+        {selectedIndustryId && (
+          <Box sx={{ mt: 1, mb: 2 }}>
+            {selectedOrgId ? (
+              isOrgOverride ? (
+                <Alert
+                  severity="info"
+                  variant="outlined"
+                  sx={{
+                    borderRadius: '12px',
+                    borderWidth: '1.5px',
+                    borderColor: theme.palette.primary.main,
+                    backgroundColor: isDark ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.primary.main, 0.04),
+                    '& .MuiAlert-icon': { color: theme.palette.primary.main }
+                  }}
+                >
+                  <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={1}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        🟣 Tenant Managed Service Override: {selectedOrgDoc?.name || selectedOrgId}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                        Active custom override (Workspace: <code>ws_{selectedOrgId}</code>). Changes deployed here strictly apply to this client's workspace without altering any other tenant or the master template.
+                      </Typography>
+                    </Box>
+                    <Chip size="small" label="Custom Override Active" color="primary" sx={{ fontWeight: 700, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+                  </Stack>
+                </Alert>
+              ) : (
+                <Alert
+                  severity="warning"
+                  variant="outlined"
+                  sx={{
+                    borderRadius: '12px',
+                    borderWidth: '1.5px',
+                    borderColor: '#F59E0B',
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.04)',
+                    '& .MuiAlert-icon': { color: '#F59E0B' }
+                  }}
+                >
+                  <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={1}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        ⚡ Inheriting Industry Baseline: {selectedOrgDoc?.name || selectedOrgId}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                        This client currently inherits the standard industry baseline template. Saving changes will automatically fork and create an isolated workspace layout strictly for this organization.
+                      </Typography>
+                    </Box>
+                    <Chip size="small" label="Inheriting Baseline" color="warning" sx={{ fontWeight: 700, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+                  </Stack>
+                </Alert>
+              )
+            ) : (
+              <Alert
+                severity="success"
+                variant="outlined"
+                sx={{
+                  borderRadius: '12px',
+                  borderWidth: '1.5px',
+                  borderColor: '#10B981',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.04)',
+                  '& .MuiAlert-icon': { color: '#10B981' }
+                }}
+              >
+                <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={1}>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      🌐 Global Industry Baseline Template Mode: {selectedIndustryDoc?.name || selectedIndustryId}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                      You are configuring the master industry default template. All organizations in this industry without custom overrides will use this layout.
+                    </Typography>
+                  </Box>
+                  <Chip size="small" label="Global Baseline Master" color="success" sx={{ fontWeight: 700, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+                </Stack>
+              </Alert>
+            )}
+          </Box>
+        )}
 
         <Divider sx={{ my: 4 }} />
 
@@ -555,20 +807,92 @@ export default function AnalyticsConfigPage() {
               <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
                 Layout Tabs
               </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={() => handleOpenTabDialog()}
-              >
-                Add Tab
-              </Button>
+              <Stack direction="row" spacing={1.5}>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<AutoFixHighIcon />}
+                  onClick={(e) => setPresetMenuAnchor(e.currentTarget)}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
+                >
+                  Draft Presets
+                </Button>
+                <Menu
+                  anchorEl={presetMenuAnchor}
+                  open={Boolean(presetMenuAnchor)}
+                  onClose={() => setPresetMenuAnchor(null)}
+                  PaperProps={{ sx: { borderRadius: '14px', minWidth: 240, boxShadow: '0 8px 30px rgba(0,0,0,0.12)' } }}
+                >
+                  <MenuItem onClick={() => { setPresetMenuAnchor(null); setLoadBaselineDialogOpen(true); }}>
+                    <ListItemIcon>
+                      <CopyAllIcon fontSize="small" color="primary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Build on Baseline Default"
+                      secondary="Load standard KPI & chart widgets"
+                      primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }}
+                      secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                    />
+                  </MenuItem>
+                  <MenuItem onClick={() => { setPresetMenuAnchor(null); setStartFreshDialogOpen(true); }}>
+                    <ListItemIcon>
+                      <CleaningServicesIcon fontSize="small" color="warning" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Start Fresh (Blank Canvas)"
+                      secondary="Clear all widgets for a bespoke layout"
+                      primaryTypographyProps={{ fontWeight: 600, fontSize: '0.875rem' }}
+                      secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                    />
+                  </MenuItem>
+                </Menu>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleOpenTabDialog()}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
+                >
+                  Add Tab
+                </Button>
+              </Stack>
             </Stack>
 
             {config?.tabs.length === 0 ? (
-              <Box sx={{ py: 6, textAlign: 'center', border: '2px dashed', borderColor: 'divider', borderRadius: '16px' }}>
-                <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
-                  No dashboard tabs added. Add a tab to host sections.
+              <Box sx={{ py: 6, px: 3, textAlign: 'center', border: '2px dashed', borderColor: 'divider', borderRadius: '16px', backgroundColor: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                  No dashboard tabs added yet
                 </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
+                  Choose how you'd like to start building this dashboard layout:
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" alignItems="center">
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<CopyAllIcon />}
+                    onClick={() => setLoadBaselineDialogOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', px: 3 }}
+                  >
+                    Build on Baseline Default
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<CleaningServicesIcon />}
+                    onClick={() => setStartFreshDialogOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px', px: 3 }}
+                  >
+                    Start Fresh (Blank Canvas)
+                  </Button>
+                  <Button
+                    variant="text"
+                    startIcon={<AddIcon />}
+                    onClick={() => handleOpenTabDialog()}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Add Blank Tab
+                  </Button>
+                </Stack>
               </Box>
             ) : (
               config?.tabs.map((tab, tIdx) => (
@@ -707,7 +1031,7 @@ export default function AnalyticsConfigPage() {
                             </Button>
                           </Stack>
 
-                          {sec.widgets.length === 0 ? (
+                          {(sec.widgets || []).length === 0 ? (
                             <Box sx={{ py: 3, textAlign: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.01)', border: '1px dashed', borderColor: 'divider', borderRadius: '10px' }}>
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                                 Empty Section. Click 'Add Widget' to place components inside.
@@ -715,7 +1039,7 @@ export default function AnalyticsConfigPage() {
                             </Box>
                           ) : (
                             <Grid container spacing={2}>
-                              {sec.widgets.map((widget, wIdx) => {
+                              {(sec.widgets || []).map((widget, wIdx) => {
                                 const isKpi = widget.type === 'KPI'
                                 const isChart = widget.type === 'CHART'
                                 
@@ -755,7 +1079,7 @@ export default function AnalyticsConfigPage() {
                                           <IconButton size="small" disabled={wIdx === 0} onClick={() => moveWidget(tab.id, sec.id, wIdx, 'up')}>
                                             <UpIcon sx={{ fontSize: '0.85rem' }} />
                                           </IconButton>
-                                          <IconButton size="small" disabled={wIdx === sec.widgets.length - 1} onClick={() => moveWidget(tab.id, sec.id, wIdx, 'down')}>
+                                          <IconButton size="small" disabled={wIdx === (sec.widgets || []).length - 1} onClick={() => moveWidget(tab.id, sec.id, wIdx, 'down')}>
                                             <DownIcon sx={{ fontSize: '0.85rem' }} />
                                           </IconButton>
                                           <IconButton size="small" onClick={() => handleOpenWidgetDialog(tab.id, sec.id, widget)} color="primary">
@@ -1042,6 +1366,113 @@ export default function AnalyticsConfigPage() {
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={() => setWidgetDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
           <Button onClick={handleSaveWidget} variant="contained" sx={{ textTransform: 'none', borderRadius: '10px', fontWeight: 700 }}>Save Widget</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset to Baseline Confirmation Dialog */}
+      <Dialog
+        open={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '20px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'warning.main', pb: 1 }}>
+          Reset to Industry Baseline?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will permanently remove the custom dashboard layout for <strong>{selectedOrgDoc?.name || selectedOrgId}</strong>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, fontWeight: 500 }}>
+            This organization will immediately revert to inheriting the standard industry default template. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setResetDialogOpen(false)} disabled={resetting} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleResetToBaseline}
+            variant="contained"
+            color="warning"
+            disabled={resetting}
+            startIcon={resetting ? <CircularProgress size={16} color="inherit" /> : <ResetIcon />}
+            sx={{ textTransform: 'none', borderRadius: '10px', fontWeight: 700 }}
+          >
+            {resetting ? 'Resetting...' : 'Confirm Reset to Baseline'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Load Industry Baseline Confirmation Dialog */}
+      <Dialog
+        open={loadBaselineDialogOpen}
+        onClose={() => !loadingBaseline && setLoadBaselineDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '20px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'primary.main', pb: 1 }}>
+          Build on Baseline Default?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will pre-populate your current draft with the standard industry baseline widgets (KPI metric cards, charts, and summary tables).
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, fontWeight: 500 }}>
+            Any unsaved layout modifications currently on the canvas will be overwritten with the baseline layout. You can tweak and customize before clicking <strong>Deploy Configuration</strong>.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setLoadBaselineDialogOpen(false)} disabled={loadingBaseline} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleLoadBaselineDraft}
+            variant="contained"
+            color="primary"
+            disabled={loadingBaseline}
+            startIcon={loadingBaseline ? <CircularProgress size={16} color="inherit" /> : <CopyAllIcon />}
+            sx={{ textTransform: 'none', borderRadius: '10px', fontWeight: 700 }}
+          >
+            {loadingBaseline ? 'Loading...' : 'Load Baseline Layout'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Start Fresh / Blank Canvas Confirmation Dialog */}
+      <Dialog
+        open={startFreshDialogOpen}
+        onClose={() => setStartFreshDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '20px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'warning.main', pb: 1 }}>
+          Start Fresh with Blank Canvas?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will clear all tabs, sections, and widgets from your draft, giving you a clean slate to build a bespoke dashboard layout from scratch.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, fontWeight: 500 }}>
+            This only affects your current editing draft. Changes will not go live until you click <strong>Deploy Configuration</strong>.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setStartFreshDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleStartFresh}
+            variant="contained"
+            color="warning"
+            startIcon={<CleaningServicesIcon />}
+            sx={{ textTransform: 'none', borderRadius: '10px', fontWeight: 700 }}
+          >
+            Confirm Start Fresh
+          </Button>
         </DialogActions>
       </Dialog>
 

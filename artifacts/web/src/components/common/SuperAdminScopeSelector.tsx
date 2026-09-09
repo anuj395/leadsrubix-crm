@@ -13,6 +13,7 @@ interface SuperAdminScopeSelectorProps {
   filteredOrgs: ScopeOrg[]
   selectedOrg: string
   setSelectedOrg: (val: string) => void
+  allowGlobal?: boolean
 }
 
 export const SuperAdminScopeSelector: React.FC<SuperAdminScopeSelectorProps> = ({
@@ -22,7 +23,8 @@ export const SuperAdminScopeSelector: React.FC<SuperAdminScopeSelectorProps> = (
   setSelectedIndustry,
   filteredOrgs,
   selectedOrg,
-  setSelectedOrg
+  setSelectedOrg,
+  allowGlobal = false
 }) => {
   if (!isSuperAdmin) return null
 
@@ -45,15 +47,22 @@ export const SuperAdminScopeSelector: React.FC<SuperAdminScopeSelectorProps> = (
         </TextField>
       )}
 
-      {filteredOrgs.length > 0 && (
+      {(filteredOrgs.length > 0 || allowGlobal) && (
         <TextField
           select
           size="small"
-          label="Select Organization"
+          label="Select Organization Scope"
           value={selectedOrg}
           onChange={(e) => setSelectedOrg(e.target.value)}
-          sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          sx={{ minWidth: 280, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
         >
+          {allowGlobal && (
+            <MenuItem value="">
+              <em style={{ fontStyle: 'normal', fontWeight: 600, color: '#6366F1' }}>
+                🌐 Global Industry Baseline (All Organizations)
+              </em>
+            </MenuItem>
+          )}
           {filteredOrgs.map((org) => (
             <MenuItem key={org.code} value={org.code}>
               {org.name}

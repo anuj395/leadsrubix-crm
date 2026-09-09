@@ -68,6 +68,7 @@ import DealsListPage from '@/features/admin/leads/pages/DealsList'
 
 export const routeComponentMap: Record<string, any> = {
   "/analytics": AnalyticsPage,
+  "/dashboard": AnalyticsPage,
   "/organization/list": OrganizationsListPage,
   "/organization/new": OrganizationFormPage,
   "/organization/:id/edit": OrganizationFormPage,
@@ -77,6 +78,7 @@ export const routeComponentMap: Record<string, any> = {
   "/users/roles": RolesAndPermissionsPage,
   "/access-control/roles": RolesAndPermissionsPage,
 
+  "/leads": ContactsListPage,
   "/leads/deals": DealsListPage,
   "/leads/deals-list": DealsListPage,
   "/leads/contacts": ContactsListPage,

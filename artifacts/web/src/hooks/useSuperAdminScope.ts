@@ -9,13 +9,27 @@ export interface ScopeOrg {
   industryId: string
 }
 
-export function useSuperAdminScope(isSuperAdmin: boolean) {
+interface ScopeOptions {
+  allowGlobal?: boolean
+}
+
+export function useSuperAdminScope(isSuperAdmin: boolean, options?: ScopeOptions) {
   const { user } = useAuth()
   const [industries, setIndustries] = useState<Industry[]>([])
   const [selectedIndustry, setSelectedIndustry] = useState('')
   const [organizations, setOrganizations] = useState<ScopeOrg[]>([])
   const [selectedOrg, setSelectedOrg] = useState('')
   const [loadingScope, setLoadingScope] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Helper to read initial industryId and organizationId from URL query string
+  const getUrlScope = () => {
+    if (typeof window === 'undefined') return { ind: '', org: '' }
+    const params = new URLSearchParams(window.location.search)
+    const ind = params.get('industryId') || params.get('industry_id') || ''
+    const org = params.get('organizationId') || params.get('organization_id') || ''
+    return { ind, org }
+  }
 
   // 1. Fetch industries for all users (both superAdmin and admin)
   useEffect(() => {
@@ -25,6 +39,8 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
         if (cancelled) return
         setIndustries(list)
 
+        const urlScope = getUrlScope()
+
         if (!isSuperAdmin) {
           const userInd =
             (user as any)?.industryId ||
@@ -32,6 +48,9 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
             (user as any)?.industryCode ||
             (list[0]?.code ?? 'temp0001')
           setSelectedIndustry(userInd)
+        } else if (urlScope.ind) {
+          const matched = list.find(i => i.code === urlScope.ind || i._id === urlScope.ind)
+          setSelectedIndustry(matched ? matched.code : urlScope.ind)
         } else if (list.length > 0 && !selectedIndustry) {
           setSelectedIndustry(list[0].code || '')
         }
@@ -40,7 +59,7 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
     return () => {
       cancelled = true
     }
-  }, [isSuperAdmin, user, selectedIndustry])
+  }, [isSuperAdmin, user])
 
   // 2. Resolve selectedOrg
   useEffect(() => {
@@ -74,8 +93,19 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
           name: org.organization_name || org.organizationName || org.name || 'Organization',
           industryId: org.industry_id || org.industryId || org.industryCode || org.industry_code || '',
         }))
+
+        const urlScope = getUrlScope()
         if (list.length > 0) {
           setOrganizations(list)
+          if (urlScope.org) {
+            const matchedOrg = list.find(o => o.code === urlScope.org)
+            if (matchedOrg) {
+              setSelectedOrg(matchedOrg.code)
+              if (matchedOrg.industryId && !urlScope.ind) {
+                setSelectedIndustry(matchedOrg.industryId)
+              }
+            }
+          }
         } else {
           // Fallback to analytics if items empty
           axiosInstance
@@ -84,9 +114,13 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
               if (cancelled) return
               const fallbackList = dashRes.data?.organizationsList || []
               setOrganizations(fallbackList)
+              if (urlScope.org && fallbackList.some((o: any) => o.code === urlScope.org)) {
+                setSelectedOrg(urlScope.org)
+              }
             })
             .catch(() => {})
         }
+        setIsInitialized(true)
       })
       .catch((err) => {
         console.error('Failed to fetch organizations list', err)
@@ -96,8 +130,11 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
             if (cancelled) return
             const fallbackList = dashRes.data?.organizationsList || []
             setOrganizations(fallbackList)
+            setIsInitialized(true)
           })
-          .catch(() => {})
+          .catch(() => {
+            setIsInitialized(true)
+          })
       })
       .finally(() => {
         if (!cancelled) setLoadingScope(false)
@@ -131,16 +168,48 @@ export function useSuperAdminScope(isSuperAdmin: boolean) {
   }, [isSuperAdmin, organizations, selectedIndustry, selectedOrg, user, industries])
 
   useEffect(() => {
-    if (!isSuperAdmin) return
+    if (!isSuperAdmin || !isInitialized) return
+    if (options?.allowGlobal && selectedOrg === '') {
+      // Intentionally selecting Global Baseline Template
+      return
+    }
     if (filteredOrgs.length > 0) {
       const isValid = filteredOrgs.some((org) => org.code === selectedOrg)
-      if (!isValid || !selectedOrg) {
-        setSelectedOrg(filteredOrgs[0].code)
+      if (!isValid) {
+        const urlScope = getUrlScope()
+        if (urlScope.org && filteredOrgs.some(o => o.code === urlScope.org)) {
+          setSelectedOrg(urlScope.org)
+        } else if (!options?.allowGlobal) {
+          setSelectedOrg(filteredOrgs[0].code)
+        }
       }
-    } else {
+    } else if (!options?.allowGlobal) {
       setSelectedOrg('')
     }
-  }, [isSuperAdmin, filteredOrgs, selectedOrg])
+  }, [isSuperAdmin, isInitialized, filteredOrgs, selectedOrg, options?.allowGlobal])
+
+  // Synchronize state with URL search params for instant shareability and bookmarking
+  useEffect(() => {
+    if (!isSuperAdmin || typeof window === 'undefined' || !isInitialized) return
+    const url = new URL(window.location.href)
+    let changed = false
+
+    if (selectedIndustry && url.searchParams.get('industryId') !== selectedIndustry) {
+      url.searchParams.set('industryId', selectedIndustry)
+      changed = true
+    }
+    if (selectedOrg && url.searchParams.get('organizationId') !== selectedOrg) {
+      url.searchParams.set('organizationId', selectedOrg)
+      changed = true
+    } else if (!selectedOrg && url.searchParams.has('organizationId')) {
+      url.searchParams.delete('organizationId')
+      changed = true
+    }
+
+    if (changed) {
+      window.history.replaceState(null, '', url.pathname + url.search)
+    }
+  }, [isSuperAdmin, isInitialized, selectedIndustry, selectedOrg])
 
   return {
     industries,

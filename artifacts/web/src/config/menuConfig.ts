@@ -83,7 +83,7 @@ export interface SuperAdminMenuItem {
 }
 
 export const superAdminMenuConfig: SuperAdminMenuItem[] = [
-  { key: "analytics", name: "Analytics", route: "/analytics", icon: "analytics", module: "analytics" },
+  { key: "analytics", name: "Dashboard", route: "/analytics", icon: "dashboard", module: "analytics" },
   { key: "organization", name: "Organization", route: "/organization/list", icon: "organization", module: "organization" },
   { key: "users", name: "Users", route: "/users", icon: "users", module: "users" },
   { key: "deals", name: "Deals & Pipeline", route: "/leads/deals-list", icon: "deals", module: "deals" },
@@ -92,7 +92,7 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "leads.contacts", name: "Qualified Leads & Contacts", route: "/leads/contacts", icon: "contact", module: "leads" },
   { key: "leads.tasks", name: "Tasks List", route: "/leads/tasks", icon: "tasks", module: "leads" },
   { key: "leads.callLogs", name: "Call Logs List", route: "/leads/call-logs", icon: "call", module: "leads" },
-  { key: "leads.sorted", name: "Sorted List", route: "/leads/sorted", icon: "sort", module: "leads" },
+  { key: "leads.sorted", name: "Sorted List", route: "/leads/sort", icon: "sort", module: "leads" },
 
   { key: "configuration.industries", name: "Industry", route: "/configuration/industries", icon: "organization", module: "configuration" },
   { key: "configuration.projects", name: "Project", route: "/configuration/projects", icon: "projects", module: "configuration" },
@@ -101,7 +101,7 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
   { key: "integrations.whatsapp", name: "WhatsApp API", route: "/integrations/whatsapp", icon: "whatsapp", module: "integrations" },
 
-  { key: "uiNavigation.analyticsConfig", name: "Analytics Layout Builder", route: "/ui-navigation/analytics-config", icon: "settings", module: "uiNavigation" },
+  { key: "uiNavigation.analyticsConfig", name: "Dashboard Layout Builder", route: "/ui-navigation/analytics-config", icon: "settings", module: "uiNavigation" },
   { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/ui-navigation/menus", icon: "sidebar", module: "uiNavigation" },
   { key: "uiNavigation.screens", name: "Screens", route: "/ui-navigation/screens", icon: "headers", module: "uiNavigation" },
   { key: "uiNavigation.screenFields", name: "Screen Fields", route: "/ui-navigation/screen-fields", icon: "headers", module: "uiNavigation" },
@@ -124,9 +124,9 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
 export const adminMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "analytics",
-    name: "Analytics",
+    name: "Dashboard",
     route: "/analytics",
-    icon: "analytics",
+    icon: "dashboard",
     module: "Analytics"
   },
   {
@@ -239,7 +239,7 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
   },
   {
     key: "configuration.analyticsConfig",
-    name: "Analytics Layout Builder",
+    name: "Dashboard Layout Builder",
     route: "/configuration/analytics-config",
     icon: "settings",
     module: "Configuration"
@@ -326,9 +326,9 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
 export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "analytics",
-    name: "Analytics",
+    name: "Dashboard",
     route: "/analytics",
-    icon: "analytics",
+    icon: "dashboard",
     module: "Analytics"
   },
   {
@@ -406,9 +406,9 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
 export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "analytics",
-    name: "Analytics",
+    name: "Dashboard",
     route: "/analytics",
-    icon: "analytics",
+    icon: "dashboard",
     module: "Analytics"
   },
   {
@@ -486,9 +486,9 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
 export const salesMenuConfig: SuperAdminMenuItem[] = [
   {
     key: "analytics",
-    name: "Analytics",
+    name: "Dashboard",
     route: "/analytics",
-    icon: "analytics",
+    icon: "dashboard",
     module: "Analytics"
   },
   {

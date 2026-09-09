@@ -12,9 +12,9 @@ function normalizeBaseUrl(url: string) {
 // Default to same-origin (empty string) so requests go to /api on the same host —
 // the dev server proxies /api → backend, and in production the proxy routes /api
 // to the API service.
-const defaultApi = import.meta.env.VITE_API_BASE_URL
-  ? String(import.meta.env.VITE_API_BASE_URL)
-  : ''
+const defaultApi = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_BASE_URL === 'https://api1.leadsrubix.com' ? '' : String(import.meta.env.VITE_API_BASE_URL || ''))
+  : (import.meta.env.VITE_API_BASE_URL ? String(import.meta.env.VITE_API_BASE_URL) : '')
 
 export const env: EnvironmentConfig = {
   apiBaseUrl: normalizeBaseUrl(defaultApi),

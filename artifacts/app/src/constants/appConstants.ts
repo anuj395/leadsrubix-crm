@@ -32,7 +32,7 @@ export const APP_CONFIG = {
   isDevelopment: __DEV__,
   // Auto-switches: Localhost during local development, Live Cloud API on production build
   apiBaseUrl: IS_PRODUCTION ? LIVE_API_URL : getDevApiUrl(),
-  webBaseUrl: IS_PRODUCTION ? LIVE_WEB_URL : 'http://localhost:22333',
+  webBaseUrl: IS_PRODUCTION ? LIVE_WEB_URL : 'http://localhost:3000',
   liveApiUrl: LIVE_API_URL,
   liveWebUrl: LIVE_WEB_URL,
 };
