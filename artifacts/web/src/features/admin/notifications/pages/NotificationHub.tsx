@@ -868,9 +868,15 @@ export default function NotificationHubPage() {
                     label="CRM Event"
                     onChange={(e) => setSelectedEventKey(e.target.value)}
                   >
-                    {eventsList.map((ev) => (
-                      <MenuItem key={ev.key} value={ev.key}>{ev.name} ({ev.key})</MenuItem>
-                    ))}
+                    {eventsList.map((ev) => {
+                      const k = ev.key || (ev as any).event_key;
+                      const label = ev.name || (ev as any).event_label || k;
+                      return (
+                        <MenuItem key={k} value={k}>
+                          {label} ({k})
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                 </FormControl>
               </Box>
@@ -1564,9 +1570,13 @@ export default function NotificationHubPage() {
                   label="Event Key"
                   onChange={(e) => setTestEventKey(e.target.value)}
                 >
-                  {eventsList.map((ev) => (
-                    <MenuItem key={ev.key} value={ev.key}>{ev.key}</MenuItem>
-                  ))}
+                  {eventsList.map((ev) => {
+                    const k = ev.key || (ev as any).event_key;
+                    const label = ev.name || (ev as any).event_label || k;
+                    return (
+                      <MenuItem key={k} value={k}>{label} ({k})</MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Grid>
