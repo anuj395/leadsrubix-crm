@@ -915,7 +915,9 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
           customer_name: leadCustomerName,
           customerName: leadCustomerName,
           contact_no: leadContactNo,
-          contactNumber: leadContactNo
+          contactNumber: leadContactNo,
+          previous_owner: oldOwner || 'Previous Representative',
+          previousOwner: oldOwner || 'Previous Representative'
         },
         eventType: 'transfer'
       }).catch(err => console.error('[WhatsApp] Transfer notification dispatch error:', err));
@@ -1083,7 +1085,9 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
           customer_name: leadCustomerName,
           customerName: leadCustomerName,
           contact_no: leadContactNo,
-          contactNumber: leadContactNo
+          contactNumber: leadContactNo,
+          previous_owner: oldOwner || 'Previous Representative',
+          previousOwner: oldOwner || 'Previous Representative'
         },
         eventType: 'transfer'
       }).catch(err => console.error('[WhatsApp] Bulk transfer notification dispatch error:', err));

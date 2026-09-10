@@ -370,7 +370,9 @@ async function processUnattendedLeadsRotation(organizationId = null) {
               assignedTo: nextCandidate,
               uid: candidateUid,
               contact_owner_id: candidateUid,
-              contactOwnerId: candidateUid
+              contactOwnerId: candidateUid,
+              previous_owner: lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || 'Previous Representative',
+              previousOwner: lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || 'Previous Representative'
             },
             eventType: 'transfer'
           }).catch(wErr => console.error('[LeadRotation] WhatsApp rotation notification error:', wErr.message));

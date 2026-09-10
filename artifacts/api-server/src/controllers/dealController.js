@@ -1,6 +1,7 @@
 const dealModel = require('../models/dealModel');
 const pipelineModel = require('../models/pipelineModel');
 const mongoose = require('mongoose');
+const whatsappService = require('../services/whatsappService');
 
 exports.listPipelines = async (req, res, next) => {
   try {
@@ -249,6 +250,30 @@ exports.update = async (req, res, next) => {
       }
     }
 
+    if (req.body.stage && String(req.body.stage).toLowerCase().includes('won') && updated) {
+      try {
+        const orgId = updated.organization_id || updated.organizationId;
+        whatsappService.sendNotification({
+          organizationId: orgId,
+          eventType: 'deal_won',
+          deal: {
+            id: updated._id || updated.id,
+            title: updated.title || updated.name,
+            amount: updated.amount,
+            owner_name: updated.owner_name || updated.ownerName,
+            owner_email: updated.owner_email || updated.ownerEmail,
+            contact_name: updated.contact_name || updated.contactName,
+            contact_phone: updated.contact_phone || updated.contactPhone,
+            contact_email: updated.contact_email || updated.contactEmail
+          },
+          ownerEmail: updated.owner_email || updated.ownerEmail,
+          ownerName: updated.owner_name || updated.ownerName
+        }).catch(wErr => console.warn('[dealController] WhatsApp deal_won notification error:', wErr));
+      } catch (wErr) {
+        console.warn('[dealController] WhatsApp deal_won error:', wErr);
+      }
+    }
+
     res.json(updated);
   } catch (err) {
     next(err);
@@ -305,6 +330,30 @@ exports.updateStage = async (req, res, next) => {
         }
       } catch (cErr) {
         console.warn('[dealController] Contact stage sync warning:', cErr);
+      }
+    }
+
+    if (finalStage && String(finalStage).toLowerCase().includes('won') && updated) {
+      try {
+        const orgId = updated.organization_id || updated.organizationId;
+        whatsappService.sendNotification({
+          organizationId: orgId,
+          eventType: 'deal_won',
+          deal: {
+            id: updated._id || updated.id,
+            title: updated.title || updated.name,
+            amount: updated.amount,
+            owner_name: updated.owner_name || updated.ownerName,
+            owner_email: updated.owner_email || updated.ownerEmail,
+            contact_name: updated.contact_name || updated.contactName,
+            contact_phone: updated.contact_phone || updated.contactPhone,
+            contact_email: updated.contact_email || updated.contactEmail
+          },
+          ownerEmail: updated.owner_email || updated.ownerEmail,
+          ownerName: updated.owner_name || updated.ownerName
+        }).catch(wErr => console.warn('[dealController] WhatsApp deal_won notification error:', wErr));
+      } catch (wErr) {
+        console.warn('[dealController] WhatsApp deal_won error:', wErr);
       }
     }
 
