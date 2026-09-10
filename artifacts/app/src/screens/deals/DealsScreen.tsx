@@ -188,7 +188,7 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
     const dealId = (selectedDealForStage._id || selectedDealForStage.id) as string;
     const stId = stage.stageId || stage.stage_id || stage.name;
     try {
-      await dealsService.updateDealStage(dealId, stId);
+      await dealsService.updateDealStage(dealId, stId, undefined, stage.name, stage.probability);
       setDeals((prev) =>
         prev.map((d) =>
           (d._id || d.id) === dealId
@@ -212,12 +212,13 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
     const dealId = (selectedDealForStage._id || selectedDealForStage.id) as string;
     const stId = pendingLostStage.stageId || pendingLostStage.stage_id || pendingLostStage.name;
     const reason = lostReasonText.trim() || 'Closed Lost';
+    const lostName = pendingLostStage.name || 'Closed Lost';
     try {
-      await dealsService.updateDealStage(dealId, stId, reason);
+      await dealsService.updateDealStage(dealId, stId, reason, lostName, 0);
       setDeals((prev) =>
         prev.map((d) =>
           (d._id || d.id) === dealId
-            ? { ...d, stageId: stId, stage: pendingLostStage.name, probability: 0, lostReason: reason }
+            ? { ...d, stageId: stId, stage: lostName, probability: 0, lostReason: reason }
             : d
         )
       );
@@ -225,7 +226,7 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
       setPendingLostStage(null);
       setSelectedDealForStage(null);
       setLostReasonText('');
-      Alert.alert('Success', 'Deal marked as Closed Lost.');
+      Alert.alert('Success', `Deal marked as ${lostName}.`);
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to update deal stage.');
     } finally {
