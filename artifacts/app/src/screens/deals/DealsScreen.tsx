@@ -31,11 +31,13 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
   // Create Deal Modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [customerType, setCustomerType] = useState<'B2C' | 'B2B'>('B2C');
   const [form, setForm] = useState({
     title: '',
     amount: '',
     currency: 'INR',
     contactName: '',
+    accountName: '',
     expectedCloseDate: '',
     stageId: '',
     notes: '',
@@ -127,12 +129,18 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
       Alert.alert('Validation Error', 'Please enter a deal title.');
       return;
     }
+    if (customerType === 'B2B' && !form.accountName.trim()) {
+      Alert.alert('Validation Error', 'Please enter the Company / Corporate Name for B2B deals.');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: Partial<Deal> = {
         title: form.title.trim(),
         amount: Number(form.amount) || 0,
         currency: form.currency,
+        accountName: customerType === 'B2B' ? form.accountName.trim() : undefined,
+        account_name: customerType === 'B2B' ? form.accountName.trim() : undefined,
         contactName: form.contactName.trim(),
         expectedCloseDate: form.expectedCloseDate.trim(),
         pipelineId: selectedPipeline?._id || selectedPipeline?.id,
@@ -142,7 +150,7 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
       await dealsService.createDeal(payload);
       Alert.alert('Success', 'Deal created successfully!');
       setCreateModalOpen(false);
-      setForm({ title: '', amount: '', currency: 'INR', contactName: '', expectedCloseDate: '', stageId: '', notes: '' });
+      setForm({ title: '', amount: '', currency: 'INR', contactName: '', accountName: '', expectedCloseDate: '', stageId: '', notes: '' });
       fetchData();
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to create deal.');
@@ -155,6 +163,8 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
     const stageObj = stages.find((s) => (s.stageId || s.stage_id) === (item.stageId || item.stage_id || item.stage));
     const stageColor = stageObj?.color || '#3B82F6';
     const stageName = stageObj?.name || item.stage || 'Pipeline';
+    const company = item.accountName || item.account_name;
+    const contact = item.contactName || item.contact_name;
 
     return (
       <View style={styles.dealCard}>
@@ -163,14 +173,22 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
             <Text style={styles.dealTitle} numberOfLines={1}>
               {item.title || item.name || 'Untitled Deal'}
             </Text>
-            {item.contactName ? (
-              <View style={styles.contactRow}>
-                <Ionicons name="person-outline" size={13} color="#64748B" />
-                <Text style={styles.contactText} numberOfLines={1}>
-                  {item.contactName}
+            {Boolean(company) && (
+              <View style={[styles.contactRow, { marginTop: 3 }]}>
+                <Ionicons name="business" size={13} color="#475569" />
+                <Text style={[styles.contactText, { fontWeight: '600', color: '#1E293B' }]} numberOfLines={1}>
+                  {company}
                 </Text>
               </View>
-            ) : null}
+            )}
+            {Boolean(contact) && (
+              <View style={[styles.contactRow, { marginTop: Boolean(company) ? 2 : 3 }]}>
+                <Ionicons name="person-outline" size={13} color="#2563EB" />
+                <Text style={[styles.contactText, { color: '#2563EB' }]} numberOfLines={1}>
+                  {contact}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={[styles.stageBadge, { backgroundColor: `${stageColor}1A`, borderColor: stageColor }]}>
             <Text style={[styles.stageBadgeText, { color: stageColor }]}>{stageName.toUpperCase()}</Text>
@@ -320,6 +338,47 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
 
             <ScrollView style={{ maxHeight: 420 }}>
+              {/* Customer Type Selector */}
+              <Text style={styles.fieldLabel}>CUSTOMER TYPE</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.stageTab,
+                    customerType === 'B2C' && styles.stageTabActive,
+                    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }
+                  ]}
+                  onPress={() => setCustomerType('B2C')}
+                >
+                  <Text style={[styles.stageTabText, customerType === 'B2C' && styles.stageTabTextActive]}>
+                    👤 Direct (B2C)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.stageTab,
+                    customerType === 'B2B' && styles.stageTabActive,
+                    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }
+                  ]}
+                  onPress={() => setCustomerType('B2B')}
+                >
+                  <Text style={[styles.stageTabText, customerType === 'B2B' && styles.stageTabTextActive]}>
+                    🏢 Corporate (B2B)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {customerType === 'B2B' && (
+                <>
+                  <Text style={styles.fieldLabel}>COMPANY / CORPORATE NAME *</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="e.g. Reliance Retail Ventures Ltd"
+                    value={form.accountName}
+                    onChangeText={(t) => setForm((p) => ({ ...p, accountName: t }))}
+                  />
+                </>
+              )}
+
               <Text style={styles.fieldLabel}>DEAL TITLE *</Text>
               <TextInput
                 style={styles.fieldInput}
