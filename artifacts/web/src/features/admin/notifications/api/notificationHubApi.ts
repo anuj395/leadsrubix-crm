@@ -157,5 +157,21 @@ export const notificationHubApi = {
   }) => {
     const res = await api.post('/notifications/test-dispatch', payload);
     return res.data;
+  },
+
+  // Personal user channel preferences (Agent / Telecaller / Lead Manager)
+  getMyPreferences: async () => {
+    const res = await api.get('/notifications/my-preferences');
+    return res.data;
+  },
+
+  saveMyPreferences: async (preferences: any) => {
+    const res = await api.post('/notifications/my-preferences', { preferences });
+    return res.data;
+  },
+
+  sendMyTestAlert: async (channel: 'whatsapp' | 'email' | 'push' | 'in_app') => {
+    const res = await api.post('/notifications/my-test-alert', { channel });
+    return res.data;
   }
 };

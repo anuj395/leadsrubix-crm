@@ -671,6 +671,45 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                 ))
                             )}
                         </Box>
+                        {/* Popover Footer: Link to Omnichannel Notification Hub / Preferences */}
+                        <Box
+                            sx={{
+                                p: 1.25,
+                                px: 2,
+                                borderTop: `1px solid ${theme.palette.divider}`,
+                                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                            }}
+                        >
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                Omnichannel Alerts
+                            </Typography>
+                            <ButtonBase
+                                onClick={() => {
+                                    handleCloseNotifications()
+                                    navigate('/configuration/notifications')
+                                }}
+                                sx={{
+                                    color: theme.palette.secondary.main,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    borderRadius: '4px',
+                                    px: 1,
+                                    py: 0.25,
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+                                        textDecoration: 'none'
+                                    }
+                                }}
+                            >
+                                Preferences & Center →
+                            </ButtonBase>
+                        </Box>
                     </Popover>
 
                     {/* Profile button */}

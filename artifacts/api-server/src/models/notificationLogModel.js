@@ -18,6 +18,7 @@ const notificationLogSchema = new mongoose.Schema(
       index: true
     },
     recipient_name: { type: String, default: '' },
+    recipient_id: { type: String, default: null, index: true },
     recipient_target: { type: String, required: true }, // Phone number, email address, device token, or user ID
     provider: { type: String, default: 'system' }, // 'whapi', 'simply', 'chatsimplified', 'smtp', 'aws_ses', 'aws_sns', 'in_app'
     is_universal: { type: Boolean, default: false },
@@ -55,6 +56,10 @@ notificationLogSchema.virtual('recipientRole')
 notificationLogSchema.virtual('recipientName')
   .get(function () { return this.recipient_name; })
   .set(function (v) { this.recipient_name = v; });
+
+notificationLogSchema.virtual('recipientId')
+  .get(function () { return this.recipient_id; })
+  .set(function (v) { this.recipient_id = v; });
 
 notificationLogSchema.virtual('recipientTarget')
   .get(function () { return this.recipient_target; })

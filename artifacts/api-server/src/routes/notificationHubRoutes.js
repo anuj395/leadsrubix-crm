@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middlewares/auth');
+const { permitAtLeast, permit } = require('../middlewares/rbac');
+const { getVisibleUserIds } = require('../services/userHierarchyService');
 const {
   STANDARD_EVENTS,
   DEFAULT_MATRIX_RULES,
@@ -13,6 +15,10 @@ const {
 } = require('../services/notificationDispatcherService');
 
 const router = express.Router();
+
+function escapeRegex(str) {
+  return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 /**
  * Helper to resolve effective organizationId from user context or SuperAdmin query
@@ -54,7 +60,7 @@ router.get('/matrix', authenticate, async (req, res) => {
  * POST /api/notifications/matrix
  * Saves or updates matrix rules for an organization
  */
-router.post('/matrix', authenticate, async (req, res) => {
+router.post('/matrix', authenticate, permitAtLeast('admin'), async (req, res) => {
   try {
     const NotificationMatrixRule = mongoose.model('NotificationMatrixRule');
     const orgId = resolveOrgId(req);
@@ -176,7 +182,7 @@ router.get('/templates', authenticate, async (req, res) => {
  * POST /api/notifications/templates
  * Saves or updates a customized template for the organization
  */
-router.post('/templates', authenticate, async (req, res) => {
+router.post('/templates', authenticate, permitAtLeast('admin'), async (req, res) => {
   try {
     const NotificationTemplate = mongoose.model('NotificationTemplate');
     const orgId = resolveOrgId(req);
@@ -232,7 +238,7 @@ router.post('/templates', authenticate, async (req, res) => {
  * POST /api/notifications/templates/reset
  * Resets an event template to the industry vertical default standard
  */
-router.post('/templates/reset', authenticate, async (req, res) => {
+router.post('/templates/reset', authenticate, permitAtLeast('admin'), async (req, res) => {
   try {
     const NotificationTemplate = mongoose.model('NotificationTemplate');
     const Organization = mongoose.model('Organization');
@@ -271,21 +277,88 @@ router.post('/templates/reset', authenticate, async (req, res) => {
 });
 
 /**
+/**
  * GET /api/notifications/logs
- * Unified paginated cross-channel delivery audit logs
+ * Unified paginated cross-channel delivery audit logs with role-based scoping:
+ * - superAdmin: Global visibility across all workspaces
+ * - admin: Workspace-wide visibility
+ * - teamLead / leadManager: Supervisory visibility for self + team members
+ * - sales: Frontline visibility for personal alerts only
  */
 router.get('/logs', authenticate, async (req, res) => {
   try {
     const NotificationLog = mongoose.model('NotificationLog');
     const orgId = resolveOrgId(req);
+    const userRole = req.user?.role;
+    const userId = req.user?.id ? String(req.user.id) : null;
+    const userEmail = req.user?.email ? req.user.email.toLowerCase().trim() : null;
+    const userPhone = req.user?.contactNumber || req.user?.contact_number || req.user?.phone || null;
+
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
     const skip = (page - 1) * limit;
 
     const query = {};
-    if (orgId) {
-      query.organization_id = orgId;
+
+    // 1. Role-based scoping
+    if (userRole === 'superAdmin') {
+      if (orgId) {
+        query.organization_id = orgId;
+      }
+    } else if (userRole === 'admin') {
+      if (orgId) {
+        query.organization_id = orgId;
+      }
+    } else if (userRole === 'teamLead' || userRole === 'leadManager') {
+      if (orgId) {
+        query.organization_id = orgId;
+      }
+      try {
+        const visibleIds = await getVisibleUserIds(req.user);
+        const User = mongoose.model('User');
+        const teamUsers = await User.find({ _id: { $in: visibleIds } }).select('_id email contactNumber contact_number phone').lean().exec();
+
+        const allowedTargets = [];
+        const allowedIds = (visibleIds || []).map(String);
+        teamUsers.forEach(u => {
+          if (u.email) allowedTargets.push(u.email.toLowerCase().trim());
+          const ph = u.contactNumber || u.contact_number || u.phone;
+          if (ph) allowedTargets.push(ph);
+        });
+        if (userEmail) allowedTargets.push(userEmail);
+        if (userPhone) allowedTargets.push(userPhone);
+
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { recipient_id: { $in: allowedIds } },
+            { recipient_target: { $in: allowedTargets } },
+            { recipient_role: { $in: ['team_lead', 'agent'] } }
+          ]
+        });
+      } catch (hierErr) {
+        console.warn('[NotificationHubRoutes] Failed to resolve team hierarchy in logs:', hierErr.message);
+      }
+    } else {
+      // Sales Agent: strictly own alerts
+      if (orgId) {
+        query.organization_id = orgId;
+      }
+      const selfTargets = [];
+      if (userEmail) selfTargets.push(userEmail);
+      if (userPhone) selfTargets.push(userPhone);
+
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          ...(userId ? [{ recipient_id: userId }] : []),
+          ...(selfTargets.length > 0 ? [{ recipient_target: { $in: selfTargets } }] : []),
+          { recipient_target: new RegExp(escapeRegex(userEmail || userId || '___none___'), 'i') }
+        ]
+      });
     }
+
+    // 2. Query filters
     if (req.query.channel && req.query.channel !== 'all') {
       query.channel = req.query.channel;
     }
@@ -300,12 +373,16 @@ router.get('/logs', authenticate, async (req, res) => {
     }
     if (req.query.search && String(req.query.search).trim().length > 0) {
       const searchRegex = new RegExp(String(req.query.search).trim(), 'i');
-      query.$or = [
-        { recipient_name: searchRegex },
-        { recipient_target: searchRegex },
-        { message_body: searchRegex },
-        { title: searchRegex }
-      ];
+      const searchCond = {
+        $or: [
+          { recipient_name: searchRegex },
+          { recipient_target: searchRegex },
+          { message_body: searchRegex },
+          { title: searchRegex }
+        ]
+      };
+      query.$and = query.$and || [];
+      query.$and.push(searchCond);
     }
 
     const [logs, total] = await Promise.all([
@@ -331,6 +408,7 @@ router.get('/logs', authenticate, async (req, res) => {
         channel: l.channel,
         recipientRole: l.recipient_role,
         recipientName: l.recipient_name,
+        recipientId: l.recipient_id,
         recipientTarget: l.recipient_target,
         provider: l.provider,
         isUniversal: l.is_universal,
@@ -349,16 +427,269 @@ router.get('/logs', authenticate, async (req, res) => {
 });
 
 /**
+ * GET /api/notifications/my-preferences
+ * Returns personal channel preferences for the current logged-in user
+ */
+router.get('/my-preferences', authenticate, async (req, res) => {
+  try {
+    const NotificationSetting = mongoose.model('NotificationSetting');
+    const orgId = resolveOrgId(req);
+    const userId = String(req.user.id || req.user._id);
+
+    const settings = await NotificationSetting.find({
+      organization_id: orgId,
+      user_id: userId
+    }).lean().exec();
+
+    // Default personal preferences
+    const defaultPrefs = {
+      lead_assigned: {
+        whatsapp: true,
+        push: true,
+        email: true,
+        in_app: true,
+        label: 'New Lead Assigned to You',
+        description: 'Instant notification when an inbound lead or inquiry is assigned to your queue'
+      },
+      task_due: {
+        whatsapp: true,
+        push: true,
+        email: true,
+        in_app: true,
+        label: 'Follow-up & Callback Reminders',
+        description: 'Timely reminders for scheduled follow-ups, pending tasks, and scheduled callbacks'
+      },
+      deal_update: {
+        whatsapp: false,
+        push: true,
+        email: true,
+        in_app: true,
+        label: 'Deal Pipeline Updates',
+        description: 'Updates when a deal assigned to you changes stage, is won, or requires review'
+      },
+      customer_message: {
+        whatsapp: true,
+        push: true,
+        email: false,
+        in_app: true,
+        label: 'Inbound Customer Responses',
+        description: 'Alerts when a prospect replies to your WhatsApp messages or inbound inquiries'
+      }
+    };
+
+    // Merge saved user overrides
+    settings.forEach(s => {
+      const parts = (s.notification_type || '').split('_');
+      if (parts[0] === 'personal' && parts.length >= 3) {
+        const ch = parts[parts.length - 1];
+        const category = parts.slice(1, -1).join('_');
+        if (defaultPrefs[category] && defaultPrefs[category][ch] !== undefined) {
+          defaultPrefs[category][ch] = Boolean(s.is_enabled);
+        }
+      }
+    });
+
+    return res.json({
+      success: true,
+      user: {
+        id: userId,
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.contactNumber || req.user.phone || '',
+        role: req.user.role
+      },
+      preferences: defaultPrefs
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in GET /my-preferences:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/notifications/my-preferences
+ * Updates personal channel preferences for the current logged-in user
+ */
+router.post('/my-preferences', authenticate, async (req, res) => {
+  try {
+    const NotificationSetting = mongoose.model('NotificationSetting');
+    const orgId = resolveOrgId(req);
+    const userId = String(req.user.id || req.user._id);
+    const { preferences } = req.body;
+
+    if (!preferences || typeof preferences !== 'object') {
+      return res.status(400).json({ success: false, message: 'Invalid preferences object.' });
+    }
+
+    const updates = [];
+    for (const [category, channels] of Object.entries(preferences)) {
+      if (typeof channels !== 'object' || !channels) continue;
+      for (const [ch, isEnabled] of Object.entries(channels)) {
+        if (['whatsapp', 'push', 'email', 'in_app'].includes(ch)) {
+          const notificationType = `personal_${category}_${ch}`;
+          updates.push(
+            NotificationSetting.findOneAndUpdate(
+              {
+                organization_id: orgId,
+                user_id: userId,
+                notification_type: notificationType
+              },
+              { $set: { is_enabled: Boolean(isEnabled) } },
+              { upsert: true, new: true }
+            )
+          );
+        }
+      }
+    }
+
+    await Promise.all(updates);
+
+    return res.json({
+      success: true,
+      message: 'Personal alert preferences saved successfully.'
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in POST /my-preferences:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/notifications/my-test-alert
+ * Dispatches a quick test notification to the logged-in agent's own phone / email / bell
+ */
+router.post('/my-test-alert', authenticate, async (req, res) => {
+  try {
+    const orgId = resolveOrgId(req);
+    const channel = req.body.channel || 'whatsapp';
+    const userId = String(req.user.id || req.user._id);
+    const userRole = req.user.role || 'sales';
+    const userName = req.user.name || 'Sales Representative';
+    const userEmail = req.user.email;
+    const rawPhone = req.user.contactNumber || req.user.contact_number || req.user.phone || '';
+
+    const whatsappService = require('../services/whatsappService');
+    const mailer = require('../utils/mailer');
+    const NotificationLog = mongoose.model('NotificationLog');
+    const Notification = mongoose.model('Notification');
+
+    const testMessage = `🎯 Leads Rubix Personal Alert Test: Omnichannel alert channel (${channel.toUpperCase()}) is fully active for ${userName}!`;
+    let target = '';
+    let status = 'SUCCESS';
+    let errorMessage = '';
+
+    if (channel === 'whatsapp') {
+      target = whatsappService.normalizePhoneNumber(rawPhone);
+      if (!target) {
+        return res.status(400).json({
+          success: false,
+          message: 'No valid phone number found on your user profile. Please update your profile contact number first.'
+        });
+      }
+      const waRes = await whatsappService.sendDirectWhatsAppMessage({
+        organizationId: orgId,
+        phone: target,
+        name: userName,
+        role: userRole,
+        eventType: 'lead.assigned',
+        messageBody: testMessage
+      });
+      if (!waRes || waRes.success === false) {
+        status = 'FAILED';
+        errorMessage = waRes?.message || waRes?.error || 'WhatsApp message dispatch failed';
+      }
+    } else if (channel === 'email') {
+      target = userEmail;
+      if (!target || !target.includes('@')) {
+        return res.status(400).json({
+          success: false,
+          message: 'No valid email address found on your profile.'
+        });
+      }
+      const emailRes = await mailer.sendDynamicEmail({
+        toEmail: target,
+        subject: '🎯 Leads Rubix Personal Alert Test',
+        htmlContent: `<div style="font-family: Arial, sans-serif; padding: 16px;"><p>${testMessage}</p></div>`,
+        organizationId: orgId
+      });
+      if (!emailRes || emailRes.success === false) {
+        status = 'FAILED';
+        errorMessage = emailRes?.error || 'Email dispatch failed';
+      }
+    } else if (channel === 'in_app') {
+      target = userId;
+      await Notification.create({
+        user_id: userId,
+        organization_id: String(orgId),
+        title: '🎯 Personal Test Alert',
+        message: testMessage,
+        type: 'test.personal',
+        is_read: false
+      });
+    }
+
+    await NotificationLog.create({
+      organization_id: String(orgId || 'default'),
+      event_key: 'test.personal',
+      channel,
+      recipient_role: userRole,
+      recipient_name: userName,
+      recipient_id: userId,
+      recipient_target: target || userId,
+      provider: channel === 'whatsapp' ? 'whatsapp_gateway' : (channel === 'email' ? 'smtp' : 'in_app'),
+      is_universal: true,
+      status,
+      title: 'Personal Test Alert',
+      message_body: testMessage,
+      error_message: errorMessage,
+      latency_ms: 45
+    }).catch(() => {});
+
+    if (status === 'FAILED') {
+      return res.status(500).json({ success: false, message: errorMessage });
+    }
+
+    return res.json({
+      success: true,
+      message: `Test alert dispatched successfully via ${channel.toUpperCase()} to ${target || userName}!`,
+      channel,
+      target
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in POST /my-test-alert:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * POST /api/notifications/test-dispatch
- * Dispatches a diagnostic test message across a selected channel
+ * Dispatches a diagnostic test message across a selected channel (Guarded for Admins/SuperAdmins)
  */
 router.post('/test-dispatch', authenticate, async (req, res) => {
   try {
     const orgId = resolveOrgId(req);
     const { channel, recipientTarget, recipientName, messageContent, eventKey } = req.body;
+    const userRole = req.user?.role;
+    const userEmail = req.user?.email;
+    const userPhone = req.user?.contactNumber || req.user?.contact_number || req.user?.phone;
 
     if (!channel || !recipientTarget) {
       return res.status(400).json({ success: false, message: 'channel and recipientTarget are required.' });
+    }
+
+    // Role-based security check for test dispatch
+    if (userRole !== 'admin' && userRole !== 'superAdmin') {
+      const isTargetingSelf =
+        recipientTarget === userEmail ||
+        recipientTarget === userPhone ||
+        recipientTarget === String(req.user?.id);
+
+      if (!isTargetingSelf) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non-admin users may only dispatch test notifications to their own verified email or phone number.'
+        });
+      }
     }
 
     const whatsappService = require('../services/whatsappService');
@@ -401,6 +732,7 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       channel,
       recipient_role: 'custom',
       recipient_name: recipientName || 'Diagnostic Tester',
+      recipient_id: req.user?.id ? String(req.user.id) : null,
       recipient_target: recipientTarget,
       provider: channel === 'whatsapp' ? 'whatsapp_gateway' : 'smtp',
       is_universal: true,
