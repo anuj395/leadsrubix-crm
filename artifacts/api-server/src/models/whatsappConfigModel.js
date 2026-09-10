@@ -9,23 +9,23 @@ const whatsappConfigSchema = new mongoose.Schema(
       url: { type: String, default: 'https://app.simplywhatsapp.com/api/send' },
       instance_id: { type: String, default: '', alias: 'instanceId' },
       access_token: { type: String, default: '', alias: 'accessToken' },
-      incoming_json: { type: String, default: '' },
-      transfer_json: { type: String, default: '' }
+      incoming_json: { type: String, default: '', alias: 'incomingJson' },
+      transfer_json: { type: String, default: '', alias: 'transferJson' }
     },
     wapi: {
       active: { type: Boolean, default: false },
-      wapi_url: { type: String, default: 'https://gate.whapi.cloud' },
-      wapi_token: { type: String, default: '' },
-      incoming_json: { type: String, default: '' },
-      transfer_json: { type: String, default: '' }
+      wapi_url: { type: String, default: 'https://gate.whapi.cloud', alias: 'wapiUrl' },
+      wapi_token: { type: String, default: '', alias: 'wapiToken' },
+      incoming_json: { type: String, default: '', alias: 'incomingJson' },
+      transfer_json: { type: String, default: '', alias: 'transferJson' }
     },
     chat_simplified: {
       type: new mongoose.Schema({
         active: { type: Boolean, default: false },
         url: { type: String, default: 'https://www.chatsimplified.co/api/v1/' },
-        api_key: { type: String, default: '' },
-        incoming_json: { type: String, default: '' },
-        transfer_json: { type: String, default: '' }
+        api_key: { type: String, default: '', alias: 'apiKey' },
+        incoming_json: { type: String, default: '', alias: 'incomingJson' },
+        transfer_json: { type: String, default: '', alias: 'transferJson' }
       }),
       default: () => ({}),
       alias: 'chatSimplified'

@@ -7,8 +7,16 @@ import Alert from '@mui/material/Alert'
 import Chip from '@mui/material/Chip'
 import Typography from '@mui/material/Typography'
 import Switch from '@mui/material/Switch'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Tooltip from '@mui/material/Tooltip'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import CircularProgress from '@mui/material/CircularProgress'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import SendIcon from '@mui/icons-material/Send'
 import type { GridColDef } from '@mui/x-data-grid'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
@@ -118,11 +126,30 @@ const JSON_PAYLOADS = {
 }
 
 export default function WhatsappApiPage() {
+  const PLACEHOLDER_TAGS = [
+    'customer_name',
+    'contact_no',
+    'alternate_no',
+    'country_code',
+    'lead_type',
+    'email',
+    'lead_source',
+    'project',
+    'assigned_agent',
+    'organizationName'
+  ]
+
   const [configs, setConfigs] = useState<Record<string, WhatsAppConfig>>(DEFAULT_CONFIGS)
   const [activeView, setActiveView] = useState<'list' | 'simply_whatsapp' | 'wapi' | 'chatsimplified'>('list')
+  const [isFormActive, setIsFormActive] = useState(false)
   const [editFields, setEditFields] = useState<Record<string, string>>({})
   const [incomingMessage, setIncomingMessage] = useState("")
   const [transferMessage, setTransferMessage] = useState("")
+  const [testDialogOpen, setTestDialogOpen] = useState(false)
+  const [testPhone, setTestPhone] = useState('')
+  const [testMsg, setTestMsg] = useState('Hello from Leads Rubix CRM! Your WhatsApp integration is working. 🚀')
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -143,47 +170,51 @@ export default function WhatsappApiPage() {
     return null
   }, [configs])
 
+  const mapResponseData = (data: any) => {
+    if (!data) return
+    setConfigs({
+      simply_whatsapp: {
+        type: 'Simply WhatsApp',
+        url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
+        isActive: Boolean(data.simply?.active),
+        incomingJson: data.simply?.incoming_json || data.simply?.incomingJson,
+        transferJson: data.simply?.transfer_json || data.simply?.transferJson,
+        fields: {
+          instanceId: data.simply?.instanceId || data.simply?.instance_id || '',
+          accessToken: data.simply?.accessToken || data.simply?.access_token || '',
+          url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
+        }
+      },
+      wapi: {
+        type: 'WHAPI',
+        url: data.wapi?.wapiUrl || data.wapi?.wapi_url || 'https://gate.whapi.cloud',
+        isActive: Boolean(data.wapi?.active),
+        incomingJson: data.wapi?.incoming_json || data.wapi?.incomingJson,
+        transferJson: data.wapi?.transfer_json || data.wapi?.transferJson,
+        fields: {
+          wapiUrl: data.wapi?.wapiUrl || data.wapi?.wapi_url || 'https://gate.whapi.cloud',
+          wapiToken: data.wapi?.wapiToken || data.wapi?.wapi_token || '',
+        }
+      },
+      chatsimplified: {
+        type: 'ChatSimplified',
+        url: data.chatSimplified?.url || data.chat_simplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
+        isActive: Boolean(data.chatSimplified?.active || data.chat_simplified?.active),
+        incomingJson: data.chatSimplified?.incoming_json || data.chat_simplified?.incoming_json || data.chatSimplified?.incomingJson,
+        transferJson: data.chatSimplified?.transfer_json || data.chat_simplified?.transfer_json || data.chatSimplified?.transferJson,
+        fields: {
+          apiKey: data.chatSimplified?.apiKey || data.chatSimplified?.api_key || data.chat_simplified?.api_key || '',
+          baseUrl: data.chatSimplified?.url || data.chat_simplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
+        }
+      }
+    })
+  }
+
   const loadConfig = async () => {
     try {
       const response = await api.get('/whatsapp-config')
-      const data = response.data
-      if (data) {
-        setConfigs({
-          simply_whatsapp: {
-            type: 'Simply WhatsApp',
-            url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
-            isActive: data.simply?.active || false,
-            incomingJson: data.simply?.incoming_json,
-            transferJson: data.simply?.transfer_json,
-            fields: {
-              instanceId: data.simply?.instanceId || '',
-              accessToken: data.simply?.accessToken || '',
-              url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
-            }
-          },
-          wapi: {
-            type: 'WHAPI',
-            url: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
-            isActive: data.wapi?.active || false,
-            incomingJson: data.wapi?.incoming_json,
-            transferJson: data.wapi?.transfer_json,
-            fields: {
-              wapiUrl: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
-              wapiToken: data.wapi?.wapi_token || '',
-            }
-          },
-          chatsimplified: {
-            type: 'ChatSimplified',
-            url: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
-            isActive: data.chatSimplified?.active || false,
-            incomingJson: data.chatSimplified?.incoming_json,
-            transferJson: data.chatSimplified?.transfer_json,
-            fields: {
-              apiKey: data.chatSimplified?.api_key || '',
-              baseUrl: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
-            }
-          }
-        })
+      if (response.data) {
+        mapResponseData(response.data)
       }
     } catch (e) {
       console.error('Error loading WhatsApp configs from server', e)
@@ -195,57 +226,36 @@ export default function WhatsappApiPage() {
     loadConfig()
   }, [])
 
-  const mapResponseData = (data: any) => {
-    setConfigs({
-      simply_whatsapp: {
-        type: 'Simply WhatsApp',
-        url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
-        isActive: data.simply?.active || false,
-        incomingJson: data.simply?.incoming_json,
-        transferJson: data.simply?.transfer_json,
-        fields: {
-          instanceId: data.simply?.instanceId || '',
-          accessToken: data.simply?.accessToken || '',
-          url: data.simply?.url || 'https://app.simplywhatsapp.com/api/send',
-        }
-      },
-      wapi: {
-        type: 'WHAPI',
-        url: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
-        isActive: data.wapi?.active || false,
-        incomingJson: data.wapi?.incoming_json,
-        transferJson: data.wapi?.transfer_json,
-        fields: {
-          wapiUrl: data.wapi?.wapi_url || 'https://gate.whapi.cloud',
-          wapiToken: data.wapi?.wapi_token || '',
-        }
-      },
-      chatsimplified: {
-        type: 'ChatSimplified',
-        url: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
-        isActive: data.chatSimplified?.active || false,
-        incomingJson: data.chatSimplified?.incoming_json,
-        transferJson: data.chatSimplified?.transfer_json,
-        fields: {
-          apiKey: data.chatSimplified?.api_key || '',
-          baseUrl: data.chatSimplified?.url || 'https://www.chatsimplified.co/api/v1/abcd',
-        }
-      }
-    })
-  }
-
   const handleToggle = async (key: string) => {
     const nextActive = !configs[key].isActive
 
-    // Build payload so only ONE is active
+    // Build payload preserving all current credentials and activating only the toggled provider
     const payload = {
       simply: {
+        url: configs.simply_whatsapp.fields.url,
+        instance_id: configs.simply_whatsapp.fields.instanceId,
+        access_token: configs.simply_whatsapp.fields.accessToken,
+        instanceId: configs.simply_whatsapp.fields.instanceId,
+        accessToken: configs.simply_whatsapp.fields.accessToken,
+        incoming_json: configs.simply_whatsapp.incomingJson,
+        transfer_json: configs.simply_whatsapp.transferJson,
         active: key === 'simply_whatsapp' ? nextActive : false,
       },
       wapi: {
+        wapi_url: configs.wapi.fields.wapiUrl,
+        wapi_token: configs.wapi.fields.wapiToken,
+        wapiUrl: configs.wapi.fields.wapiUrl,
+        wapiToken: configs.wapi.fields.wapiToken,
+        incoming_json: configs.wapi.incomingJson,
+        transfer_json: configs.wapi.transferJson,
         active: key === 'wapi' ? nextActive : false,
       },
       chatSimplified: {
+        url: configs.chatsimplified.fields.baseUrl,
+        api_key: configs.chatsimplified.fields.apiKey,
+        apiKey: configs.chatsimplified.fields.apiKey,
+        incoming_json: configs.chatsimplified.incomingJson,
+        transfer_json: configs.chatsimplified.transferJson,
         active: key === 'chatsimplified' ? nextActive : false,
       }
     }
@@ -255,14 +265,14 @@ export default function WhatsappApiPage() {
       mapResponseData(response.data)
       setToast({
         open: true,
-        msg: 'Status updated!',
+        msg: `WhatsApp integration status updated!`,
         sev: 'success',
       })
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
       setToast({
         open: true,
-        msg: 'Error updating status',
+        msg: err.response?.data?.message || 'Error updating status',
         sev: 'error',
       })
     }
@@ -270,8 +280,10 @@ export default function WhatsappApiPage() {
 
   const handleConfigureClick = (key: 'simply_whatsapp' | 'wapi' | 'chatsimplified') => {
     setEditFields(configs[key].fields)
+    setIsFormActive(Boolean(configs[key].isActive))
     setIncomingMessage(configs[key].incomingJson || JSON.stringify(JSON_PAYLOADS[key].incoming, null, 2))
     setTransferMessage(configs[key].transferJson || JSON.stringify(JSON_PAYLOADS[key].transfer, null, 2))
+    setTestResult(null)
     setActiveView(key)
   }
 
@@ -285,41 +297,74 @@ export default function WhatsappApiPage() {
   const handleSaveConfig = async () => {
     if (activeView === 'list') return
     const key = activeView
-    
+
     // Validate required fields
     for (const [fKey, fVal] of Object.entries(editFields)) {
-      if (!fVal.trim()) {
+      if (!fVal || !fVal.trim()) {
         setToast({
           open: true,
-          msg: 'Please fill all fields',
+          msg: 'Please fill all required configuration fields',
           sev: 'error',
         })
         return
       }
     }
 
+    // Defensive JSON validation
+    try {
+      if (incomingMessage.trim().startsWith('{')) JSON.parse(incomingMessage.trim())
+      if (transferMessage.trim().startsWith('{')) JSON.parse(transferMessage.trim())
+    } catch (jsonErr: any) {
+      setToast({
+        open: true,
+        msg: 'Invalid JSON payload in templates: ' + jsonErr.message,
+        sev: 'error',
+      })
+      return
+    }
+
     let payload: any = {}
     if (key === 'simply_whatsapp') {
       payload.simply = {
-        url: editFields.url,
-        instanceId: editFields.instanceId,
-        accessToken: editFields.accessToken,
+        url: editFields.url.trim(),
+        instance_id: editFields.instanceId.trim(),
+        access_token: editFields.accessToken.trim(),
+        instanceId: editFields.instanceId.trim(),
+        accessToken: editFields.accessToken.trim(),
         incoming_json: incomingMessage,
         transfer_json: transferMessage,
+        active: isFormActive,
+      }
+      if (isFormActive) {
+        payload.wapi = { active: false }
+        payload.chatSimplified = { active: false }
       }
     } else if (key === 'wapi') {
       payload.wapi = {
-        wapi_url: editFields.wapiUrl,
-        wapi_token: editFields.wapiToken,
+        wapi_url: editFields.wapiUrl.trim().replace(/\/+$/, ''),
+        wapi_token: editFields.wapiToken.trim(),
+        wapiUrl: editFields.wapiUrl.trim().replace(/\/+$/, ''),
+        wapiToken: editFields.wapiToken.trim(),
         incoming_json: incomingMessage,
         transfer_json: transferMessage,
+        active: isFormActive,
+      }
+      if (isFormActive) {
+        payload.simply = { active: false }
+        payload.chatSimplified = { active: false }
       }
     } else if (key === 'chatsimplified') {
       payload.chatSimplified = {
-        url: editFields.baseUrl,
-        api_key: editFields.apiKey,
+        url: editFields.baseUrl.trim(),
+        api_key: editFields.apiKey.trim(),
+        apiKey: editFields.apiKey.trim(),
         incoming_json: incomingMessage,
         transfer_json: transferMessage,
+        active: isFormActive,
+      }
+      if (isFormActive) {
+        payload.simply = { active: false }
+        payload.wapi = { active: false }
       }
     }
 
@@ -328,17 +373,69 @@ export default function WhatsappApiPage() {
       mapResponseData(response.data)
       setToast({
         open: true,
-        msg: 'Updated successfully!',
+        msg: 'WhatsApp configuration saved successfully!',
         sev: 'success',
       })
       setActiveView('list')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
       setToast({
         open: true,
-        msg: 'Error updating config',
+        msg: err.response?.data?.message || 'Error updating config',
         sev: 'error',
       })
+    }
+  }
+
+  const handleSendTestMessage = async () => {
+    if (!testPhone.trim()) {
+      setTestResult({ success: false, msg: 'Please enter a recipient mobile number (e.g. 919876543210).' })
+      return
+    }
+
+    setTesting(true)
+    setTestResult(null)
+
+    try {
+      const key = activeView
+      let testCredentials: any = null
+      if (key === 'wapi') {
+        testCredentials = {
+          wapi_url: (editFields.wapiUrl || '').trim().replace(/\/+$/, ''),
+          wapi_token: (editFields.wapiToken || '').trim(),
+        }
+      } else if (key === 'simply_whatsapp') {
+        testCredentials = {
+          url: (editFields.url || '').trim(),
+          instance_id: (editFields.instanceId || '').trim(),
+          access_token: (editFields.accessToken || '').trim(),
+        }
+      } else if (key === 'chatsimplified') {
+        testCredentials = {
+          url: (editFields.baseUrl || '').trim(),
+          api_key: (editFields.apiKey || '').trim(),
+        }
+      }
+
+      const response = await api.post('/whatsapp-config/test', {
+        recipientPhone: testPhone.trim(),
+        message: testMsg.trim(),
+        provider: key === 'simply_whatsapp' ? 'simply' : key,
+        testCredentials
+      })
+
+      setTestResult({
+        success: true,
+        msg: response.data?.message || 'Test WhatsApp message sent successfully! 🚀'
+      })
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to dispatch test WhatsApp message'
+      setTestResult({
+        success: false,
+        msg: errorMsg
+      })
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -461,6 +558,38 @@ export default function WhatsappApiPage() {
           <Typography variant="h5" sx={{ fontWeight: 600, color: '#181620' }}>
             {configs[key].type} Configuration
           </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isFormActive}
+                onChange={(e) => setIsFormActive(e.target.checked)}
+                sx={{
+                  '& .MuiSwitch-switchBase': {
+                    color: '#fff',
+                    '&.Mui-checked': {
+                      color: '#fff',
+                      '& + .MuiSwitch-track': {
+                        backgroundColor: '#22c55e',
+                        opacity: 1,
+                      },
+                    },
+                  },
+                  '& .MuiSwitch-track': {
+                    backgroundColor: '#e0e0e0',
+                    opacity: 1,
+                  },
+                }}
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                  {isFormActive ? 'Active Provider' : 'Inactive'}
+                </Typography>
+              </Box>
+            }
+            sx={{ ml: 'auto' }}
+          />
         </Box>
 
         <AppCard title={`${configs[key].type} API Details`} subtitle={`Configure your ${configs[key].type} credentials and access settings.`}>
@@ -511,6 +640,7 @@ export default function WhatsappApiPage() {
                   value={editFields.wapiToken || ''}
                   onChange={(e) => handleFieldChange('wapiToken', e.target.value)}
                   InputLabelProps={{ shrink: true }}
+                  placeholder="Paste your WHAPI Channel Token here"
                 />
               </Box>
             )}
@@ -535,6 +665,23 @@ export default function WhatsappApiPage() {
                 />
               </Box>
             )}
+
+            {/* Template Variables Helper Chips */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mr: 1 }}>
+                Available Placeholders (Click to copy):
+              </Typography>
+              {PLACEHOLDER_TAGS.map((tag) => (
+                <Tooltip key={tag} title={`Click to copy {{${tag}}}`}>
+                  <Chip
+                    label={`{{${tag}}}`}
+                    size="small"
+                    onClick={() => copyToClipboard(`{{${tag}}}`)}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.75rem', '&:hover': { bgcolor: '#e2e8f0' } }}
+                  />
+                </Tooltip>
+              ))}
+            </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
               {/* Lead (Incoming) Payload */}
@@ -694,7 +841,29 @@ export default function WhatsappApiPage() {
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={<SendIcon />}
+                onClick={() => {
+                  setTestResult(null)
+                  setTestDialogOpen(true)
+                }}
+                sx={{
+                  borderColor: '#181620',
+                  color: '#181620',
+                  px: 3,
+                  py: 1,
+                  fontSize: '0.95rem',
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: '#2b2938',
+                    backgroundColor: 'rgba(24, 22, 32, 0.04)',
+                  },
+                }}
+              >
+                Test Connection
+              </Button>
               <Button
                 variant="contained"
                 onClick={handleSaveConfig}
@@ -703,18 +872,71 @@ export default function WhatsappApiPage() {
                   color: 'white',
                   px: 5,
                   py: 1,
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   textTransform: 'none',
                   '&:hover': {
                     backgroundColor: '#2b2938',
                   },
                 }}
               >
-                Submit
+                Save Configuration
               </Button>
             </Box>
           </Box>
         </AppCard>
+
+        {/* Send Test WhatsApp Message Dialog */}
+        <Dialog open={testDialogOpen} onClose={() => !testing && setTestDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 600 }}>Send Test WhatsApp Message</DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+              Test your <strong>{configs[activeView as keyof typeof configs]?.type}</strong> configuration by sending a real-time message to your mobile number.
+            </Typography>
+
+            {testResult && (
+              <Alert severity={testResult.success ? 'success' : 'error'} sx={{ mb: 2 }}>
+                {testResult.msg}
+              </Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label="Recipient Mobile Number (with country code)"
+              placeholder="e.g. 919876543210"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              helperText="Enter 10-12 digits without '+' (e.g. 919876543210 for India)"
+              sx={{ mb: 2.5, mt: 0.5 }}
+            />
+
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Test Message Content"
+              value={testMsg}
+              onChange={(e) => setTestMsg(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setTestDialogOpen(false)} disabled={testing} sx={{ color: 'text.secondary' }}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSendTestMessage}
+              disabled={testing || !testPhone.trim()}
+              startIcon={testing ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
+              sx={{
+                backgroundColor: '#181620',
+                color: 'white',
+                '&:hover': { backgroundColor: '#2b2938' }
+              }}
+            >
+              {testing ? 'Sending...' : 'Send Test Message'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Snackbar
           open={toast.open}
