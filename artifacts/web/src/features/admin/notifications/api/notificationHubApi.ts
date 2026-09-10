@@ -1,26 +1,36 @@
 import { api } from '@/services/api';
 
-export interface RecipientChannelConfig {
+export interface ChannelToggles {
   whatsapp: boolean;
   email: boolean;
   push: boolean;
   in_app: boolean;
 }
 
+export interface RecipientRouting {
+  enabled: boolean;
+  channels: ChannelToggles;
+  override_phone?: string;
+  override_email?: string;
+}
+
 export interface MatrixRule {
   _id?: string;
   id?: string;
-  event_key: string;
-  eventKey?: string;
-  event_name?: string;
-  eventName?: string;
+  eventKey: string;
+  event_key?: string;
+  eventLabel?: string;
+  event_label?: string;
   category?: string;
-  is_active: boolean;
-  isActive?: boolean;
-  assigned_agent: RecipientChannelConfig;
-  team_lead: RecipientChannelConfig;
-  org_admin: RecipientChannelConfig;
-  customer: RecipientChannelConfig;
+  description?: string;
+  isEnabled?: boolean;
+  is_enabled?: boolean;
+  routing: {
+    assigned_agent: RecipientRouting;
+    team_lead: RecipientRouting;
+    org_admin: RecipientRouting;
+    customer: RecipientRouting;
+  };
 }
 
 export interface NotificationTemplate {

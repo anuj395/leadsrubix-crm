@@ -168,7 +168,7 @@ export default function NotificationHubPage() {
     try {
       const data = await notificationHubApi.getMatrix();
       if (data.success) {
-        setMatrixRules(data.rules || []);
+        setMatrixRules(data.matrix || data.rules || []);
         setEventsList(data.events || []);
         setMergeTagsList(data.mergeTags || []);
       }
@@ -243,6 +243,21 @@ export default function NotificationHubPage() {
     }
   }, [selectedEventKey, selectedChannel, templates]);
 
+  const getChannelActive = (
+    rule: MatrixRule,
+    recipient: 'assigned_agent' | 'team_lead' | 'org_admin' | 'customer',
+    channel: 'whatsapp' | 'email' | 'push' | 'in_app'
+  ): boolean => {
+    if (rule.routing && rule.routing[recipient]?.channels) {
+      return Boolean(rule.routing[recipient].channels[channel]);
+    }
+    const directRec = (rule as any)[recipient];
+    if (directRec && directRec[channel] !== undefined) {
+      return Boolean(directRec[channel]);
+    }
+    return false;
+  };
+
   // Matrix Rule Toggle Handler
   const handleMatrixToggle = (
     eventKey: string,
@@ -251,13 +266,30 @@ export default function NotificationHubPage() {
   ) => {
     setMatrixRules((prev) =>
       prev.map((r) => {
-        if (r.event_key === eventKey) {
-          const currentRec = r[recipient] || { whatsapp: false, email: false, push: false, in_app: false };
+        const key = r.eventKey || r.event_key;
+        if (key === eventKey) {
+          const currentActive = getChannelActive(r, recipient, channel);
+          const currentRouting = r.routing || {
+            assigned_agent: { enabled: true, channels: { whatsapp: true, email: true, push: true, in_app: true } },
+            team_lead: { enabled: true, channels: { whatsapp: false, email: true, push: true, in_app: true } },
+            org_admin: { enabled: true, channels: { whatsapp: true, email: true, push: false, in_app: true } },
+            customer: { enabled: true, channels: { whatsapp: true, email: false, push: false, in_app: false } }
+          };
+          const currentRec = currentRouting[recipient] || {
+            enabled: true,
+            channels: { whatsapp: false, email: false, push: false, in_app: false }
+          };
           return {
             ...r,
-            [recipient]: {
-              ...currentRec,
-              [channel]: !currentRec[channel]
+            routing: {
+              ...currentRouting,
+              [recipient]: {
+                ...currentRec,
+                channels: {
+                  ...currentRec.channels,
+                  [channel]: !currentActive
+                }
+              }
             }
           };
         }
@@ -570,18 +602,19 @@ export default function NotificationHubPage() {
                 </TableHead>
                 <TableBody>
                   {matrixRules.map((rule) => {
-                    const eventDef = eventsList.find((e) => e.key === rule.event_key);
+                    const ruleKey = rule.eventKey || rule.event_key;
+                    const eventDef = eventsList.find((e) => (e.key === ruleKey || (e as any).event_key === ruleKey));
                     return (
-                      <TableRow key={rule.event_key} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableRow key={ruleKey} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                         {/* Event Name & Category */}
                         <TableCell>
                           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {eventDef?.name || rule.event_name || rule.event_key}
+                            {rule.eventLabel || eventDef?.name || (eventDef as any)?.event_label || rule.event_label || ruleKey}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                            {eventDef?.description || `Trigger: ${rule.event_key}`}
+                            {rule.description || eventDef?.description || `Trigger: ${ruleKey}`}
                           </Typography>
-                          <Chip label={rule.event_key} size="small" variant="outlined" sx={{ fontSize: '0.72rem', height: 20 }} />
+                          <Chip label={ruleKey} size="small" variant="outlined" sx={{ fontSize: '0.72rem', height: 20 }} />
                         </TableCell>
 
                         {/* Recipient 1: Assigned Agent */}
@@ -590,9 +623,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="WhatsApp to Assigned Agent">
                               <IconButton
                                 size="small"
-                                color={rule.assigned_agent?.whatsapp ? 'success' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'assigned_agent', 'whatsapp')}
-                                sx={{ border: '1px solid', borderColor: rule.assigned_agent?.whatsapp ? 'success.main' : 'divider' }}
+                                color={getChannelActive(rule, 'assigned_agent', 'whatsapp') ? 'success' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'assigned_agent', 'whatsapp')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'assigned_agent', 'whatsapp') ? 'success.main' : 'divider' }}
                               >
                                 <WhatsAppIcon fontSize="small" />
                               </IconButton>
@@ -600,9 +633,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Email to Assigned Agent">
                               <IconButton
                                 size="small"
-                                color={rule.assigned_agent?.email ? 'primary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'assigned_agent', 'email')}
-                                sx={{ border: '1px solid', borderColor: rule.assigned_agent?.email ? 'primary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'assigned_agent', 'email') ? 'primary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'assigned_agent', 'email')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'assigned_agent', 'email') ? 'primary.main' : 'divider' }}
                               >
                                 <EmailIcon fontSize="small" />
                               </IconButton>
@@ -610,9 +643,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Push Notification to Assigned Agent">
                               <IconButton
                                 size="small"
-                                color={rule.assigned_agent?.push ? 'secondary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'assigned_agent', 'push')}
-                                sx={{ border: '1px solid', borderColor: rule.assigned_agent?.push ? 'secondary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'assigned_agent', 'push') ? 'secondary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'assigned_agent', 'push')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'assigned_agent', 'push') ? 'secondary.main' : 'divider' }}
                               >
                                 <PhoneIphoneIcon fontSize="small" />
                               </IconButton>
@@ -620,9 +653,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="In-App Bell to Assigned Agent">
                               <IconButton
                                 size="small"
-                                color={rule.assigned_agent?.in_app ? 'warning' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'assigned_agent', 'in_app')}
-                                sx={{ border: '1px solid', borderColor: rule.assigned_agent?.in_app ? 'warning.main' : 'divider' }}
+                                color={getChannelActive(rule, 'assigned_agent', 'in_app') ? 'warning' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'assigned_agent', 'in_app')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'assigned_agent', 'in_app') ? 'warning.main' : 'divider' }}
                               >
                                 <NotificationsIcon fontSize="small" />
                               </IconButton>
@@ -636,9 +669,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="WhatsApp to Team Lead">
                               <IconButton
                                 size="small"
-                                color={rule.team_lead?.whatsapp ? 'success' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'team_lead', 'whatsapp')}
-                                sx={{ border: '1px solid', borderColor: rule.team_lead?.whatsapp ? 'success.main' : 'divider' }}
+                                color={getChannelActive(rule, 'team_lead', 'whatsapp') ? 'success' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'team_lead', 'whatsapp')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'team_lead', 'whatsapp') ? 'success.main' : 'divider' }}
                               >
                                 <WhatsAppIcon fontSize="small" />
                               </IconButton>
@@ -646,9 +679,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Email to Team Lead">
                               <IconButton
                                 size="small"
-                                color={rule.team_lead?.email ? 'primary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'team_lead', 'email')}
-                                sx={{ border: '1px solid', borderColor: rule.team_lead?.email ? 'primary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'team_lead', 'email') ? 'primary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'team_lead', 'email')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'team_lead', 'email') ? 'primary.main' : 'divider' }}
                               >
                                 <EmailIcon fontSize="small" />
                               </IconButton>
@@ -656,9 +689,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Push Notification to Team Lead">
                               <IconButton
                                 size="small"
-                                color={rule.team_lead?.push ? 'secondary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'team_lead', 'push')}
-                                sx={{ border: '1px solid', borderColor: rule.team_lead?.push ? 'secondary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'team_lead', 'push') ? 'secondary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'team_lead', 'push')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'team_lead', 'push') ? 'secondary.main' : 'divider' }}
                               >
                                 <PhoneIphoneIcon fontSize="small" />
                               </IconButton>
@@ -666,9 +699,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="In-App Bell to Team Lead">
                               <IconButton
                                 size="small"
-                                color={rule.team_lead?.in_app ? 'warning' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'team_lead', 'in_app')}
-                                sx={{ border: '1px solid', borderColor: rule.team_lead?.in_app ? 'warning.main' : 'divider' }}
+                                color={getChannelActive(rule, 'team_lead', 'in_app') ? 'warning' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'team_lead', 'in_app')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'team_lead', 'in_app') ? 'warning.main' : 'divider' }}
                               >
                                 <NotificationsIcon fontSize="small" />
                               </IconButton>
@@ -682,9 +715,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="WhatsApp to Admin">
                               <IconButton
                                 size="small"
-                                color={rule.org_admin?.whatsapp ? 'success' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'org_admin', 'whatsapp')}
-                                sx={{ border: '1px solid', borderColor: rule.org_admin?.whatsapp ? 'success.main' : 'divider' }}
+                                color={getChannelActive(rule, 'org_admin', 'whatsapp') ? 'success' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'org_admin', 'whatsapp')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'org_admin', 'whatsapp') ? 'success.main' : 'divider' }}
                               >
                                 <WhatsAppIcon fontSize="small" />
                               </IconButton>
@@ -692,9 +725,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Email to Admin">
                               <IconButton
                                 size="small"
-                                color={rule.org_admin?.email ? 'primary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'org_admin', 'email')}
-                                sx={{ border: '1px solid', borderColor: rule.org_admin?.email ? 'primary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'org_admin', 'email') ? 'primary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'org_admin', 'email')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'org_admin', 'email') ? 'primary.main' : 'divider' }}
                               >
                                 <EmailIcon fontSize="small" />
                               </IconButton>
@@ -702,9 +735,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Push Notification to Admin">
                               <IconButton
                                 size="small"
-                                color={rule.org_admin?.push ? 'secondary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'org_admin', 'push')}
-                                sx={{ border: '1px solid', borderColor: rule.org_admin?.push ? 'secondary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'org_admin', 'push') ? 'secondary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'org_admin', 'push')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'org_admin', 'push') ? 'secondary.main' : 'divider' }}
                               >
                                 <PhoneIphoneIcon fontSize="small" />
                               </IconButton>
@@ -712,9 +745,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="In-App Bell to Admin">
                               <IconButton
                                 size="small"
-                                color={rule.org_admin?.in_app ? 'warning' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'org_admin', 'in_app')}
-                                sx={{ border: '1px solid', borderColor: rule.org_admin?.in_app ? 'warning.main' : 'divider' }}
+                                color={getChannelActive(rule, 'org_admin', 'in_app') ? 'warning' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'org_admin', 'in_app')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'org_admin', 'in_app') ? 'warning.main' : 'divider' }}
                               >
                                 <NotificationsIcon fontSize="small" />
                               </IconButton>
@@ -728,9 +761,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="WhatsApp to Customer">
                               <IconButton
                                 size="small"
-                                color={rule.customer?.whatsapp ? 'success' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'customer', 'whatsapp')}
-                                sx={{ border: '1px solid', borderColor: rule.customer?.whatsapp ? 'success.main' : 'divider' }}
+                                color={getChannelActive(rule, 'customer', 'whatsapp') ? 'success' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'customer', 'whatsapp')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'customer', 'whatsapp') ? 'success.main' : 'divider' }}
                               >
                                 <WhatsAppIcon fontSize="small" />
                               </IconButton>
@@ -738,9 +771,9 @@ export default function NotificationHubPage() {
                             <Tooltip title="Email to Customer">
                               <IconButton
                                 size="small"
-                                color={rule.customer?.email ? 'primary' : 'default'}
-                                onClick={() => handleMatrixToggle(rule.event_key, 'customer', 'email')}
-                                sx={{ border: '1px solid', borderColor: rule.customer?.email ? 'primary.main' : 'divider' }}
+                                color={getChannelActive(rule, 'customer', 'email') ? 'primary' : 'default'}
+                                onClick={() => handleMatrixToggle(ruleKey, 'customer', 'email')}
+                                sx={{ border: '1px solid', borderColor: getChannelActive(rule, 'customer', 'email') ? 'primary.main' : 'divider' }}
                               >
                                 <EmailIcon fontSize="small" />
                               </IconButton>
