@@ -719,6 +719,8 @@ export default function ContactDetailsPage() {
                 tasks={tasks}
                 notes={notes}
                 deals={deals}
+                inquiries={inquiriesList}
+                stageHistory={(contact as any)?.stageHistory || (contact as any)?.stage_history || []}
                 onOpenCallModal={() => setLogCallOpen(true)}
                 onOpenTaskModal={() => setTaskOpen(true)}
                 onOpenNoteModal={() => setNoteOpen(true)}

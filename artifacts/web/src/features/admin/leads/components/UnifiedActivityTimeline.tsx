@@ -15,6 +15,7 @@ import {
   Timeline as TimelineIcon,
   SwapHoriz as StageIcon,
   MonetizationOn as DealIcon,
+  Inbox as InquiryIcon,
   CheckCircle as DoneIcon,
   Schedule as PendingIcon,
   Add as AddIcon
@@ -25,7 +26,7 @@ import { selectAuth } from '@/features/auth'
 
 export interface TimelineItem {
   id: string
-  type: 'call' | 'task' | 'note' | 'stage' | 'deal'
+  type: 'call' | 'task' | 'note' | 'stage' | 'deal' | 'inquiry'
   title: string
   subtitle?: string
   description?: string
@@ -40,6 +41,7 @@ interface UnifiedActivityTimelineProps {
   tasks?: any[]
   notes?: any[]
   deals?: any[]
+  inquiries?: any[]
   stageHistory?: any[]
   onOpenCallModal?: () => void
   onOpenTaskModal?: () => void
@@ -53,6 +55,7 @@ export default function UnifiedActivityTimeline({
   tasks = [],
   notes = [],
   deals = [],
+  inquiries = [],
   stageHistory = [],
   onOpenCallModal,
   onOpenTaskModal,
@@ -61,7 +64,7 @@ export default function UnifiedActivityTimeline({
   canAdd = true
 }: UnifiedActivityTimelineProps) {
   const { user } = useAppSelector(selectAuth)
-  const [filterType, setFilterType] = useState<'all' | 'call' | 'task' | 'note' | 'stage' | 'deal'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'call' | 'task' | 'note' | 'stage' | 'deal' | 'inquiry'>('all')
 
   // Combine and normalize all activities into a single timeline stream
   const timelineItems: TimelineItem[] = useMemo(() => {
@@ -159,7 +162,28 @@ export default function UnifiedActivityTimeline({
       })
     })
 
-    // 5. Stage Transitions
+    // 5. Inquiries (Inbound marketing/web requirements)
+    inquiries.forEach((inq, idx) => {
+      const proj = inq.project_name || inq.projectName || inq.subject || inq.property_type || inq.propertyType
+      const src = inq.source || 'Inbound'
+      const camp = inq.campaign
+      const bud = inq.budget
+      const notesTxt = inq.notes || inq.description || ''
+
+      list.push({
+        id: inq._id || inq.inquiry_id || `inquiry-${idx}`,
+        type: 'inquiry',
+        title: proj ? `Inbound Inquiry: ${proj}` : `Inbound Lead (${src})`,
+        subtitle: camp ? `Campaign: ${camp} • Source: ${src}` : `Source: ${src}`,
+        description: notesTxt ? (bud ? `Budget: ${bud}\nNotes: ${notesTxt}` : notesTxt) : (bud ? `Budget: ${bud}` : undefined),
+        timestamp: inq.created_at || inq.createdAt || inq.date || new Date(),
+        author: src ? `Inbound (${src})` : 'Marketing System',
+        status: inq.status || 'NEW',
+        meta: inq
+      })
+    })
+
+    // 6. Stage Transitions
     stageHistory.forEach((s, idx) => {
       list.push({
         id: s._id || `stage-${idx}`,
@@ -174,7 +198,7 @@ export default function UnifiedActivityTimeline({
 
     // Sort descending by timestamp (newest first)
     return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  }, [calls, tasks, notes, deals, stageHistory, user])
+  }, [calls, tasks, notes, deals, inquiries, stageHistory, user])
 
   const filteredItems = useMemo(() => {
     if (filterType === 'all') return timelineItems
@@ -184,15 +208,18 @@ export default function UnifiedActivityTimeline({
   // Counts for filter chips
   const counts = useMemo(() => ({
     all: timelineItems.length,
+    inquiry: timelineItems.filter(i => i.type === 'inquiry').length,
     call: timelineItems.filter(i => i.type === 'call').length,
     task: timelineItems.filter(i => i.type === 'task').length,
-    note: timelineItems.filter(i => i.type === 'note').length,
     deal: timelineItems.filter(i => i.type === 'deal').length,
+    note: timelineItems.filter(i => i.type === 'note').length,
     stage: timelineItems.filter(i => i.type === 'stage').length
   }), [timelineItems])
 
   const getIcon = (type: TimelineItem['type']) => {
     switch (type) {
+      case 'inquiry':
+        return <InquiryIcon sx={{ fontSize: 16, color: '#6366f1' }} />
       case 'call':
         return <CallIcon sx={{ fontSize: 16, color: '#0284c7' }} />
       case 'task':
@@ -208,6 +235,7 @@ export default function UnifiedActivityTimeline({
 
   const getBgColor = (type: TimelineItem['type']) => {
     switch (type) {
+      case 'inquiry': return '#e0e7ff'
       case 'call': return '#e0f2fe'
       case 'task': return '#fef3c7'
       case 'note': return '#ede9fe'
@@ -234,6 +262,9 @@ export default function UnifiedActivityTimeline({
     } else if (st === 'CONNECTED') {
       color = 'info'
       label = 'Connected'
+    } else if (st === 'NEW' || st === 'QUALIFIED') {
+      color = 'primary'
+      label = st === 'NEW' ? 'New Inquiry' : 'Qualified'
     }
 
     return (
@@ -265,6 +296,16 @@ export default function UnifiedActivityTimeline({
             color={filterType === 'all' ? 'primary' : 'default'}
             variant={filterType === 'all' ? 'filled' : 'outlined'}
           />
+          {counts.inquiry > 0 && (
+            <Chip
+              size="small"
+              icon={<InquiryIcon fontSize="small" />}
+              label={`Inquiries (${counts.inquiry})`}
+              onClick={() => setFilterType('inquiry')}
+              color={filterType === 'inquiry' ? 'primary' : 'default'}
+              variant={filterType === 'inquiry' ? 'filled' : 'outlined'}
+            />
+          )}
           <Chip
             size="small"
             icon={<CallIcon fontSize="small" />}
@@ -281,14 +322,36 @@ export default function UnifiedActivityTimeline({
             color={filterType === 'task' ? 'primary' : 'default'}
             variant={filterType === 'task' ? 'filled' : 'outlined'}
           />
-          <Chip
-            size="small"
-            icon={<StageIcon fontSize="small" />}
-            label={`Stage History (${counts.stage})`}
-            onClick={() => setFilterType('stage')}
-            color={filterType === 'stage' ? 'primary' : 'default'}
-            variant={filterType === 'stage' ? 'filled' : 'outlined'}
-          />
+          {counts.deal > 0 && (
+            <Chip
+              size="small"
+              icon={<DealIcon fontSize="small" />}
+              label={`Deals (${counts.deal})`}
+              onClick={() => setFilterType('deal')}
+              color={filterType === 'deal' ? 'primary' : 'default'}
+              variant={filterType === 'deal' ? 'filled' : 'outlined'}
+            />
+          )}
+          {counts.note > 0 && (
+            <Chip
+              size="small"
+              icon={<NoteIcon fontSize="small" />}
+              label={`Notes (${counts.note})`}
+              onClick={() => setFilterType('note')}
+              color={filterType === 'note' ? 'primary' : 'default'}
+              variant={filterType === 'note' ? 'filled' : 'outlined'}
+            />
+          )}
+          {counts.stage > 0 && (
+            <Chip
+              size="small"
+              icon={<StageIcon fontSize="small" />}
+              label={`Stage History (${counts.stage})`}
+              onClick={() => setFilterType('stage')}
+              color={filterType === 'stage' ? 'primary' : 'default'}
+              variant={filterType === 'stage' ? 'filled' : 'outlined'}
+            />
+          )}
         </Stack>
       </Box>
 

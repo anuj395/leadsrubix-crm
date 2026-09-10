@@ -67,29 +67,53 @@ exports.create = async (req, res, next) => {
       ownerId = String(userId || '');
     }
 
-    // 1. Create in Contact collection (Single source of truth for Web CRM)
-    const contactDoc = await contactModel.create({
-      customer_name: fullName,
-      contact_number: phone,
-      alternate_no: alternateNo,
-      email_id: email,
-      stage: stage,
-      lead_type: leadType,
-      location: location,
-      project_name: project,
-      budget: budget,
-      property_type: propertyType,
-      source: source,
-      notes: notes,
-      organization_id: orgId,
-      created_by: userId,
-      contact_owner_email: ownerEmail,
-      contact_owner_id: ownerId,
-      assigned_to: ownerEmail,
-    }).catch(err => {
-      console.error('[leadController] Error saving to Contact model:', err);
-      return null;
-    });
+    // 1. Enterprise Deduplication: Check if Contact already exists in organization
+    let contactDoc = null;
+    if (phone) {
+      contactDoc = await contactModel.Contact.findOne({
+        organization_id: orgId,
+        $or: [
+          { contact_number: phone },
+          { contactNumber: phone }
+        ]
+      }).exec();
+    }
+
+    if (contactDoc) {
+      // Existing contact identified: Append inquiry
+      await contactService.appendInquiry(contactDoc._id, {
+        source,
+        campaign: payload.campaign || '',
+        projectName: project,
+        propertyType,
+        budget,
+        notes
+      }, req.user);
+      contactDoc = await contactModel.Contact.findById(contactDoc._id).exec();
+    } else {
+      contactDoc = await contactModel.create({
+        customer_name: fullName,
+        contact_number: phone,
+        alternate_no: alternateNo,
+        email_id: email,
+        stage: stage,
+        lead_type: leadType,
+        location: location,
+        project_name: project,
+        budget: budget,
+        property_type: propertyType,
+        source: source,
+        notes: notes,
+        organization_id: orgId,
+        created_by: userId,
+        contact_owner_email: ownerEmail,
+        contact_owner_id: ownerId,
+        assigned_to: ownerEmail,
+      }).catch(err => {
+        console.error('[leadController] Error saving to Contact model:', err);
+        return null;
+      });
+    }
 
     // 2. Dual-write to Lead collection
     const leadDoc = await leadModel.create({

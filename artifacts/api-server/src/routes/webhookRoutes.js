@@ -434,7 +434,46 @@ router.post('/createContacts', async (req, res, next) => {
 
     const normalizedPayload = fillExtraFields(contactPayload, ownerUser);
 
-    const doc = await Contact.create(normalizedPayload);
+    // Enterprise Deduplication: Check if contact already exists in this organization
+    const rawContactNum = phoneResult.contactNumber;
+    let existingContact = null;
+    if (rawContactNum) {
+      existingContact = await Contact.findOne({
+        organization_id: orgId,
+        $or: [
+          { contact_number: rawContactNum },
+          { contactNumber: rawContactNum }
+        ]
+      }).exec();
+    }
+
+    let doc;
+    if (existingContact) {
+      // Existing customer identified: Append new inquiry instead of creating duplicate
+      const contactService = require('../services/contactService');
+      await contactService.appendInquiry(existingContact._id, {
+        source: sourceVal,
+        campaign: campaignVal,
+        projectName: projectVal,
+        propertyType: propertyTypeVal,
+        budget: budgetVal,
+        notes: reqData.notes || reqData.message || reqData.subject || ''
+      }, ownerUser || { email: 'webhook' });
+
+      const updateData = {
+        modified_at: new Date(),
+        modifiedAt: new Date()
+      };
+      if (!existingContact.project_name && projectVal) {
+        updateData.project_name = projectVal;
+        updateData.projectName = projectVal;
+      }
+      if (!existingContact.budget && budgetVal) updateData.budget = budgetVal;
+
+      doc = await Contact.findByIdAndUpdate(existingContact._id, { $set: updateData }, { new: true });
+    } else {
+      doc = await Contact.create(normalizedPayload);
+    }
 
     try {
       const { sendNotification } = require('../services/whatsappService');
