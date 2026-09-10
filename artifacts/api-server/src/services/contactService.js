@@ -1584,12 +1584,24 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
   let createdDeal = null;
   if (payload.createDeal !== false) {
     const dealTitle = payload.dealTitle || `${contact.customer_name || contact.customerName || 'Customer'} - Opportunity`;
+    let resolvedPipelineId = payload.pipelineId;
+    if (orgId && (!resolvedPipelineId || resolvedPipelineId === 'default')) {
+      const pipelineModel = require('../models/pipelineModel');
+      const orgPipe = await pipelineModel.Pipeline.findOne({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }],
+        is_default: true
+      }).lean().exec() || await pipelineModel.Pipeline.findOne({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      }).lean().exec();
+      if (orgPipe) resolvedPipelineId = String(orgPipe._id || orgPipe.id);
+    }
+
     createdDeal = await Deal.create({
       title: dealTitle,
       name: dealTitle,
       amount: Number(payload.dealAmount || 0),
       currency: payload.currency || 'INR',
-      pipeline_id: payload.pipelineId || undefined,
+      pipeline_id: resolvedPipelineId || undefined,
       stage_id: payload.stageId || 'QUALIFICATION',
       stage: payload.stageName || payload.stageId || 'Qualification',
       probability: Number(payload.probability || 10),

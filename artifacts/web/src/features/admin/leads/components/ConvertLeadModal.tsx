@@ -95,7 +95,7 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
 
     void (async () => {
       try {
-        const pipes = await listPipelines()
+        const pipes = await listPipelines({ organizationId: orgId, industryId: indId })
         setPipelines(pipes)
         if (pipes.length > 0) {
           const defaultPipe = pipes.find(p => p.isDefault || p.is_default) || pipes[0]

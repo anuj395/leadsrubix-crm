@@ -219,7 +219,7 @@ export default function ContactDetailsPage() {
           api.get('tasks', { params: { contactId: id, contact_id: id, pageSize: 200 } }).catch(() => ({ data: { items: [] } })),
           api.get('resources/notes', { params: { contactId: id } }).catch(() => ({ data: { items: [] } })),
           listDeals({ contactId: id }).catch(() => [] as Deal[]),
-          listPipelines().catch(() => [] as Pipeline[]),
+          listPipelines({ organizationId: match.organizationId || match.organization_id, industryId: match.industryId || match.industry_id }).catch(() => [] as Pipeline[]),
           api.get('call-logs', { params: { contactId: id } }).catch(() => ({ data: { items: [] } }))
         ])
 
