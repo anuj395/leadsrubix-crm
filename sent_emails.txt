@@ -1607,3 +1607,21 @@ Details: {
   "agentName": "Anuj Chauhan"
 }
 ========================================
+
+========================================
+Timestamp: 2026-09-10T05:28:17.855Z
+To: rraina@digitalrubix.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Test Real State
+Username / Email: rraina@digitalrubix.com
+Temp Password: rF8jRXSH
+========================================
+
+========================================
+Timestamp: 2026-09-10T05:35:09.577Z
+To: salesthere@gmail.com
+Subject: Welcome to Leads Rubix - Your Account Credentials
+Organization: Test Real State
+Username / Email: salesthere@gmail.com
+Temp Password: HnFQ7Q33
+========================================
