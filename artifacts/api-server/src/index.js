@@ -44,6 +44,7 @@ require('./models/organizationModel');
 require('./models/accountModel');
 require('./models/bookingModel');
 require('./models/dealModel');
+require('./models/pipelineModel');
 require('./models/quoteModel');
 require('./models/pricingPlanModel');
 require('./models/couponModel');

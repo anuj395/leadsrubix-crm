@@ -70,26 +70,38 @@ exports.list = async (req, res, next) => {
       filter.organization_id = 'non_existent_scope';
     }
 
-    if (req.query.pipelineId) {
-      filter.pipeline_id = req.query.pipelineId;
+    if (req.query.pipelineId || req.query.pipeline_id) {
+      const pId = String(req.query.pipelineId || req.query.pipeline_id);
+      filter.$or = filter.$or || [];
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [{ pipeline_id: pId }, { pipelineId: pId }]
+      });
     }
     if (req.query.contactId || req.query.contact_id) {
       const cId = String(req.query.contactId || req.query.contact_id);
-      filter.contact_id = cId;
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [{ contact_id: cId }, { contactId: cId }]
+      });
     }
     if (req.query.accountId || req.query.account_id) {
       const aId = String(req.query.accountId || req.query.account_id);
-      filter.account_id = aId;
-    }
-    const andClauses = [];
-
-    if (req.query.stage) {
-      andClauses.push({
-        $or: [{ stage: req.query.stage }, { stage_id: req.query.stage }]
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [{ account_id: aId }, { accountId: aId }]
       });
     }
-    if (req.query.industryId) {
-      filter.industry_id = req.query.industryId;
+    const andClauses = filter.$and || [];
+
+    const stParam = req.query.stage || req.query.stageId || req.query.stage_id;
+    if (stParam && stParam !== 'ALL') {
+      andClauses.push({
+        $or: [{ stage: stParam }, { stage_id: stParam }, { stageId: stParam }]
+      });
+    }
+    if (req.query.industryId || req.query.industry_id) {
+      filter.industry_id = req.query.industryId || req.query.industry_id;
     }
 
     // Role-based visibility: if sales, filter to deals assigned to user unless view all allowed

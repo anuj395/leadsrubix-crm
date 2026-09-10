@@ -107,8 +107,13 @@ export const dealsService = {
     return res.data;
   },
 
-  async updateDealStage(id: string, stageId: string, lostReason?: string): Promise<Deal> {
-    const res = await apiClient.patch(`/deals/${id}/stage`, { stageId, lostReason });
+  async updateDealStage(id: string, stageId: string, lostReason?: string, stageName?: string, probability?: number): Promise<Deal> {
+    const res = await apiClient.patch(`/deals/${id}/stage`, {
+      stageId,
+      stage: stageName || stageId,
+      probability,
+      lostReason,
+    });
     return res.data;
   },
 

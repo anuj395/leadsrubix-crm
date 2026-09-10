@@ -126,7 +126,7 @@ export default function DealsListPage() {
 
   // Lost Reason Modal State
   const [lostModalOpen, setLostModalOpen] = useState(false)
-  const [pendingLostDeal, setPendingLostDeal] = useState<{ dealId: string; stageId: string } | null>(null)
+  const [pendingLostDeal, setPendingLostDeal] = useState<{ dealId: string; stageId: string; stageName?: string } | null>(null)
   const [selectedLostReason, setSelectedLostReason] = useState(LOST_REASONS[0])
   const [lostRemarks, setLostRemarks] = useState('')
 
@@ -324,7 +324,7 @@ export default function DealsListPage() {
 
     // If target stage is Lost, prompt for reason
     if (targetStage.isLost || targetStage.is_lost || targetStage.name.toUpperCase().includes('LOST')) {
-      setPendingLostDeal({ dealId, stageId: targetStageId })
+      setPendingLostDeal({ dealId, stageId: targetStageId, stageName: targetStage.name })
       setLostModalOpen(true)
       return
     }
@@ -360,7 +360,8 @@ export default function DealsListPage() {
 
   const handleConfirmLost = async () => {
     if (!pendingLostDeal) return
-    const { dealId, stageId } = pendingLostDeal
+    const { dealId, stageId, stageName } = pendingLostDeal
+    const finalStageName = stageName || 'Closed Lost'
     const reasonText = selectedLostReason === 'Other' && lostRemarks ? lostRemarks : selectedLostReason
 
     // Optimistic update
@@ -368,7 +369,7 @@ export default function DealsListPage() {
       if ((d._id || d.id) === dealId) {
         return {
           ...d,
-          stage: 'Closed Lost',
+          stage: finalStageName,
           stageId,
           stage_id: stageId,
           probability: 0,
@@ -380,12 +381,12 @@ export default function DealsListPage() {
 
     try {
       await updateDealStage(dealId, {
-        stage: 'Closed Lost',
+        stage: finalStageName,
         stageId,
         probability: 0,
         lostReason: reasonText
       })
-      setToast({ open: true, msg: 'Deal marked as Closed Lost', sev: 'success' })
+      setToast({ open: true, msg: `Deal marked as ${finalStageName}`, sev: 'success' })
     } catch (err) {
       console.error(err)
       setToast({ open: true, msg: 'Failed to update deal', sev: 'error' })
@@ -543,7 +544,7 @@ export default function DealsListPage() {
       const stageVal = dealForm.stageId || dealForm.stage
       const selectedStageObj = stages.find(s => (s.stageId || s.stage_id || s.name) === stageVal) || stages[0]
 
-      const activeOrg = isSuperAdmin ? selectedOrg || undefined : undefined
+      const activeOrg = isSuperAdmin ? selectedOrg || undefined : (user?.organizationId || (user as any)?.organization_id || undefined)
       const activeInd = isSuperAdmin ? selectedIndustry || undefined : (user?.industryId || undefined)
 
       const payload: Partial<Deal> = {
