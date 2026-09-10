@@ -41,7 +41,6 @@ jobs:
             git fetch origin prod
             git checkout prod
             git reset --hard origin/prod
-            rm -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/*
             cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
             pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
             pm2 save
@@ -67,5 +66,7 @@ jobs:
           script: |
             if [ -d "/home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public" ]; then
               cp -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public/* /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/
+              rm -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public
             fi
+            sudo chown -R ubuntu:ubuntu /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
             sudo systemctl reload nginx 2>/dev/null || true
