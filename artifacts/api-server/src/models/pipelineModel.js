@@ -74,7 +74,23 @@ const DEFAULT_INDUSTRY_STAGES = {
     { stage_id: 'WON', name: 'Disbursed / Policy Issued', probability: 100, color: '#10b981', order: 5, is_won: true },
     { stage_id: 'LOST', name: 'Rejected / Cancelled', probability: 0, color: '#ef4444', order: 6, is_lost: true }
   ],
-  temp0006: [ // Travel, Tourism & Hospitality
+  temp0006: [ // IT & Tech Services
+    { stage_id: 'SCOPE_DISCOVERY', name: 'Discovery & Scope', probability: 10, color: '#3b82f6', order: 1 },
+    { stage_id: 'TECH_EVALUATION', name: 'Architecture & Estimation', probability: 30, color: '#8b5cf6', order: 2 },
+    { stage_id: 'PROPOSAL_SOW', name: 'SOW & Proposal Submitted', probability: 50, color: '#f59e0b', order: 3 },
+    { stage_id: 'NEGOTIATION', name: 'Contract Negotiation', probability: 75, color: '#ec4899', order: 4 },
+    { stage_id: 'WON', name: 'Contract Signed & Won', probability: 100, color: '#10b981', order: 5, is_won: true },
+    { stage_id: 'LOST', name: 'Closed Lost', probability: 0, color: '#ef4444', order: 6, is_lost: true }
+  ],
+  temp0007: [ // Manufacturing & Industrial
+    { stage_id: 'RFQ_INQUIRY', name: 'RFQ & Specifications', probability: 10, color: '#3b82f6', order: 1 },
+    { stage_id: 'SAMPLE_EVALUATION', name: 'Sample & Prototype Evaluation', probability: 30, color: '#8b5cf6', order: 2 },
+    { stage_id: 'COMMERCIAL_QUOTE', name: 'Quotation & Costing', probability: 50, color: '#06b6d4', order: 3 },
+    { stage_id: 'PO_NEGOTIATION', name: 'PO Negotiation & Terms', probability: 75, color: '#f59e0b', order: 4 },
+    { stage_id: 'WON', name: 'PO Issued & Production', probability: 100, color: '#10b981', order: 5, is_won: true },
+    { stage_id: 'LOST', name: 'Order Cancelled', probability: 0, color: '#ef4444', order: 6, is_lost: true }
+  ],
+  travel: [ // Travel, Tourism & Hospitality
     { stage_id: 'INQUIRY', name: 'Trip Inquiry', probability: 10, color: '#3b82f6', order: 1 },
     { stage_id: 'ITINERARY_SHARED', name: 'Itinerary Shared', probability: 35, color: '#8b5cf6', order: 2 },
     { stage_id: 'CUSTOMIZATION', name: 'Customizing Package', probability: 60, color: '#06b6d4', order: 3 },
@@ -113,8 +129,14 @@ exports.getDefaultStagesForIndustry = (industryCode) => {
   if (code.includes('fin') || code.includes('bank') || code.includes('loan') || code.includes('insur') || code === 'temp0005') {
     return DEFAULT_INDUSTRY_STAGES.temp0005;
   }
-  if (code.includes('travel') || code.includes('tour') || code.includes('hotel') || code.includes('hospitality') || code === 'temp0006') {
+  if (code.includes('tech') || code.includes('software') || code.includes('it') || code === 'temp0006') {
     return DEFAULT_INDUSTRY_STAGES.temp0006;
+  }
+  if (code.includes('manuf') || code.includes('factory') || code.includes('product') || code === 'temp0007') {
+    return DEFAULT_INDUSTRY_STAGES.temp0007;
+  }
+  if (code.includes('travel') || code.includes('tour') || code.includes('hotel') || code.includes('hospitality')) {
+    return DEFAULT_INDUSTRY_STAGES.travel;
   }
   
   return DEFAULT_INDUSTRY_STAGES.default;

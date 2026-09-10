@@ -618,7 +618,16 @@ export default function DealsListPage() {
       minWidth: 180,
       renderCell: (params) => (
         <Box sx={{ py: 0.5 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              color: 'text.primary',
+              cursor: can_edit ? 'pointer' : 'default',
+              '&:hover': { color: can_edit ? 'primary.main' : 'text.primary', textDecoration: can_edit ? 'underline' : 'none' }
+            }}
+            onClick={() => can_edit && handleOpenEdit(params.row)}
+          >
             {params.row.title || params.row.name || 'Untitled Deal'}
           </Typography>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.25 }}>
@@ -1054,6 +1063,7 @@ export default function DealsListPage() {
                         key={dealId}
                         draggable={can_edit}
                         onDragStart={(e) => handleDragStart(e, dealId)}
+                        onClick={() => can_edit && handleOpenEdit(deal)}
                         elevation={0}
                         sx={{
                           flexShrink: 0,
@@ -1061,7 +1071,7 @@ export default function DealsListPage() {
                           borderColor: 'divider',
                           borderRadius: 2,
                           bgcolor: 'background.paper',
-                          cursor: can_edit ? 'grab' : 'default',
+                          cursor: can_edit ? 'pointer' : 'default',
                           transition: 'all 0.15s ease-in-out',
                           '&:hover': {
                             borderColor: 'primary.main',
