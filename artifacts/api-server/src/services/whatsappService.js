@@ -7,11 +7,14 @@ const axios = require('axios');
 function normalizePhoneNumber(phone, defaultCountry = '91') {
   if (!phone) return '';
   let clean = String(phone).replace(/\D/g, '');
-  if (clean.startsWith('0')) {
+  if (clean.startsWith('00')) {
+    clean = clean.slice(2);
+  } else if (clean.startsWith('0')) {
     clean = clean.slice(1);
   }
+  const cleanCountry = String(defaultCountry || '91').replace(/\D/g, '') || '91';
   if (clean.length === 10) {
-    clean = defaultCountry + clean;
+    clean = cleanCountry + clean;
   }
   return clean;
 }
@@ -19,12 +22,13 @@ function normalizePhoneNumber(phone, defaultCountry = '91') {
 /**
  * Resolves all CRM placeholder mappings for WhatsApp message templates
  */
-function resolveTemplate(templateStr, contact, orgName, assignedUserName = '') {
+function resolveTemplate(templateStr, contact = {}, orgName = '', assignedUserName = '') {
   if (!templateStr) return null;
 
   const getValue = (placeholder) => {
     if (!placeholder) return '';
-    const key = String(placeholder).toLowerCase().trim();
+    const rawKey = String(placeholder).trim();
+    const key = rawKey.toLowerCase();
     switch (key) {
       case 'customer_name':
       case 'customername':
@@ -82,6 +86,13 @@ function resolveTemplate(templateStr, contact, orgName, assignedUserName = '') {
       case 'time':
         return new Date().toLocaleTimeString('en-IN');
       default:
+        // Dynamic CRM & custom industry field fallback
+        if (contact[rawKey] !== undefined && contact[rawKey] !== null) return String(contact[rawKey]);
+        if (contact[key] !== undefined && contact[key] !== null) return String(contact[key]);
+        if (contact.custom_fields && contact.custom_fields[rawKey] !== undefined) return String(contact.custom_fields[rawKey]);
+        if (contact.custom_fields && contact.custom_fields[key] !== undefined) return String(contact.custom_fields[key]);
+        if (contact.customFields && contact.customFields[rawKey] !== undefined) return String(contact.customFields[rawKey]);
+        if (contact.customFields && contact.customFields[key] !== undefined) return String(contact.customFields[key]);
         return placeholder;
     }
   };
@@ -102,8 +113,8 @@ function resolveTemplate(templateStr, contact, orgName, assignedUserName = '') {
     if (typeof templateStr === 'string') {
       let str = templateStr;
       const placeholders = [
-        'customer_name', 'contact_no', 'alternate_no', 'country_code',
-        'lead_type', 'email', 'lead_source', 'project', 'location',
+        'customer_name', 'customerName', 'contact_no', 'contactNumber', 'alternate_no', 'country_code',
+        'lead_type', 'leadType', 'email', 'emailId', 'lead_source', 'leadSource', 'project', 'location',
         'budget', 'property_type', 'assigned_agent', 'organizationName', 'organization_name'
       ];
       placeholders.forEach(p => {
@@ -165,25 +176,35 @@ function formatMessage(resolvedObj, eventType = 'incoming') {
  * Sends a WhatsApp notification for incoming leads or lead transfers
  * @param {Object} params
  * @param {String} params.organizationId
- * @param {Object} params.contact
+ * @param {Object} [params.contact]
  * @param {String} params.eventType 'incoming' | 'transfer'
  * @param {String} [params.customRecipient] Optional custom mobile number
  * @param {String} [params.customMessage] Optional custom message text
+ * @param {String} [params.testProvider] Optional provider override for test mode ('wapi' | 'simply' | 'chatsimplified')
+ * @param {Object} [params.testCredentials] Optional credentials override for test mode
  */
-async function sendNotification({ organizationId, contact, eventType, customRecipient = null, customMessage = null }) {
+async function sendNotification({
+  organizationId,
+  contact,
+  eventType = 'incoming',
+  customRecipient = null,
+  customMessage = null,
+  testProvider = null,
+  testCredentials = null
+}) {
   try {
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
     const Organization = mongoose.model('Organization');
     const User = mongoose.model('User');
 
     // 1. Fetch organization details (matching string organization_id, organizationId, or ObjectId)
-    const org = await Organization.findOne({
+    const org = organizationId ? await Organization.findOne({
       $or: [
         { organization_id: organizationId },
         { organizationId: organizationId },
         ...(mongoose.Types.ObjectId.isValid(organizationId) ? [{ _id: organizationId }] : [])
       ]
-    }).lean().exec();
+    }).lean().exec() : null;
 
     const orgName = org ? (org.organization_name || org.name || 'CRM Lead Notification') : 'CRM Lead Notification';
 
@@ -212,24 +233,23 @@ async function sendNotification({ organizationId, contact, eventType, customReci
       }).exec();
     }
 
-    if (!config) {
-      console.warn('[WhatsAppService] No WhatsApp configuration found.');
-      return { success: false, message: 'No WhatsApp configuration found' };
-    }
+    // 3. Resolve active channel & settings
+    let activeChannel = testProvider || '';
+    let channelSettings = testCredentials || null;
 
-    // 3. Resolve active channel
-    let activeChannel = '';
-    let channelSettings = null;
-
-    if (config.simply?.active) {
-      activeChannel = 'simply';
-      channelSettings = config.simply;
-    } else if (config.wapi?.active) {
-      activeChannel = 'wapi';
-      channelSettings = config.wapi;
-    } else if (config.chat_simplified?.active || config.chatSimplified?.active) {
-      activeChannel = 'chatsimplified';
-      channelSettings = config.chat_simplified || config.chatSimplified;
+    if (!activeChannel || !channelSettings) {
+      if (config) {
+        if (config.wapi?.active) {
+          activeChannel = 'wapi';
+          channelSettings = config.wapi;
+        } else if (config.simply?.active) {
+          activeChannel = 'simply';
+          channelSettings = config.simply;
+        } else if (config.chat_simplified?.active || config.chatSimplified?.active) {
+          activeChannel = 'chatsimplified';
+          channelSettings = config.chat_simplified || config.chatSimplified;
+        }
+      }
     }
 
     if (!activeChannel || !channelSettings) {
@@ -268,8 +288,10 @@ async function sendNotification({ organizationId, contact, eventType, customReci
     const leadProject = contact?.projectName || contact?.project_name || contact?.project || 'General';
 
     if (!messageText) {
-      const templateStr = eventType === 'incoming' ? channelSettings.incoming_json : channelSettings.transfer_json;
-      
+      const templateStr = eventType === 'transfer'
+        ? (channelSettings.transfer_json || channelSettings.transferJson)
+        : (channelSettings.incoming_json || channelSettings.incomingJson);
+
       if (templateStr && String(templateStr).trim().length > 0) {
         const resolvedPayload = resolveTemplate(templateStr, contact || {}, orgName, assignedUserName);
         if (resolvedPayload) {
@@ -299,7 +321,7 @@ async function sendNotification({ organizationId, contact, eventType, customReci
       }
     }
 
-    // 5. Determine recipient phone number with fallbacks
+    // 5. Determine recipient phone number with multiple fallbacks
     let recipientPhone = customRecipient;
     if (!recipientPhone && recipientUser) {
       recipientPhone = recipientUser.contactNumber || recipientUser.contact_number || recipientUser.contact_no || recipientUser.phone || recipientUser.mobile || recipientUser.admin_contact_number || '';
@@ -308,21 +330,56 @@ async function sendNotification({ organizationId, contact, eventType, customReci
     if (!recipientPhone && org) {
       recipientPhone = org.admin_contact_number || org.contact_number || org.contactNumber || org.phone || org.mobile || '';
     }
+    // Fallback to any active Tenant Admin user if org has no direct phone number
+    if (!recipientPhone && targetOrgIds.length > 0) {
+      const adminUser = await User.findOne({
+        $or: [
+          { organization_id: { $in: targetOrgIds }, role: 'admin' },
+          { organizationId: { $in: targetOrgIds }, role: 'admin' }
+        ]
+      }).lean().exec();
+      if (adminUser) {
+        recipientPhone = adminUser.contactNumber || adminUser.contact_number || adminUser.contact_no || adminUser.phone || adminUser.mobile || '';
+      }
+    }
 
     const orgCountryCode = String(org?.country_code || org?.countryCode || '91').replace(/\D/g, '') || '91';
     const cleanRecipient = normalizePhoneNumber(recipientPhone, orgCountryCode);
     if (!cleanRecipient) {
       console.warn('[WhatsAppService] No valid recipient phone number found for notification.');
-      return { success: false, message: 'No valid recipient phone number' };
+      return { success: false, message: 'No valid recipient phone number found for this lead or organization.' };
     }
 
     console.log(`[WhatsAppService] Dispatching ${eventType || 'custom'} notification to ${cleanRecipient} via ${activeChannel}`);
 
-    // 6. Send payload to respective provider API with credential checks
-    if (activeChannel === 'simply') {
-      const url = channelSettings.url || 'https://app.simplywhatsapp.com/api/send';
-      const instanceId = channelSettings.instance_id || channelSettings.instanceId;
-      const accessToken = channelSettings.access_token || channelSettings.accessToken;
+    // 6. Send payload to respective provider API with credential checks & sanitization
+    if (activeChannel === 'wapi') {
+      const baseUrl = (channelSettings.wapi_url || channelSettings.wapiUrl || 'https://gate.whapi.cloud').trim().replace(/\/+$/, '');
+      const token = (channelSettings.wapi_token || channelSettings.wapiToken || channelSettings.token || '').trim();
+
+      if (!token) {
+        console.warn('[WhatsAppService] WHAPI integration is active but missing WHAPI Token.');
+        return { success: false, message: 'WHAPI integration is missing WHAPI Token' };
+      }
+
+      const recipientId = cleanRecipient.includes('@') ? cleanRecipient : `${cleanRecipient}@s.whatsapp.net`;
+      const url = `${baseUrl}/messages/text?token=${encodeURIComponent(token)}`;
+
+      await axios.post(url, {
+        to: recipientId,
+        body: messageText
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 12000
+      });
+    } else if (activeChannel === 'simply') {
+      const url = (channelSettings.url || 'https://app.simplywhatsapp.com/api/send').trim();
+      const instanceId = (channelSettings.instance_id || channelSettings.instanceId || '').trim();
+      const accessToken = (channelSettings.access_token || channelSettings.accessToken || '').trim();
 
       if (!instanceId || !accessToken) {
         console.warn('[WhatsAppService] Simply WhatsApp is active but missing Instance ID or Access Token.');
@@ -335,26 +392,10 @@ async function sendNotification({ organizationId, contact, eventType, customReci
         msg: messageText,
         instance_id: instanceId,
         access_token: accessToken,
-      }, { timeout: 10000 });
-    } else if (activeChannel === 'wapi') {
-      const baseUrl = channelSettings.wapi_url || 'https://gate.whapi.cloud';
-      const token = channelSettings.wapi_token;
-
-      if (!token) {
-        console.warn('[WhatsAppService] WHAPI integration is active but missing WHAPI Token.');
-        return { success: false, message: 'WHAPI integration is missing WHAPI Token' };
-      }
-
-      await axios.post(`${baseUrl}/messages/text`, {
-        to: `${cleanRecipient}@s.whatsapp.net`,
-        body: messageText
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000
-      });
+      }, { timeout: 12000 });
     } else if (activeChannel === 'chatsimplified') {
-      const url = channelSettings.url || 'https://www.chatsimplified.co/api/v1/';
-      const apiKey = channelSettings.api_key;
+      const url = (channelSettings.url || 'https://www.chatsimplified.co/api/v1/').trim();
+      const apiKey = (channelSettings.api_key || channelSettings.apiKey || '').trim();
 
       if (!apiKey) {
         console.warn('[WhatsAppService] ChatSimplified integration is active but missing API Key.');
@@ -366,14 +407,21 @@ async function sendNotification({ organizationId, contact, eventType, customReci
         message: messageText
       }, {
         headers: { Authorization: `Bearer ${apiKey}` },
-        timeout: 10000
+        timeout: 12000
       });
     }
 
     console.log('[WhatsAppService] WhatsApp notification sent successfully.');
-    return { success: true, message: 'WhatsApp notification sent successfully', recipient: cleanRecipient, channel: activeChannel };
+    return {
+      success: true,
+      message: 'WhatsApp notification sent successfully',
+      recipient: cleanRecipient,
+      channel: activeChannel
+    };
   } catch (err) {
-    const errorDetails = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+    const errorDetails = err.response?.data
+      ? (typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data))
+      : err.message;
     console.error('[WhatsAppService] Failed to send WhatsApp notification:', errorDetails);
     return { success: false, message: errorDetails };
   }
