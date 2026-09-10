@@ -72,10 +72,16 @@ exports.list = async (req, res, next) => {
 
     if (req.query.pipelineId || req.query.pipeline_id) {
       const pId = String(req.query.pipelineId || req.query.pipeline_id);
-      filter.$or = filter.$or || [];
       filter.$and = filter.$and || [];
       filter.$and.push({
-        $or: [{ pipeline_id: pId }, { pipelineId: pId }]
+        $or: [
+          { pipeline_id: pId },
+          { pipelineId: pId },
+          { pipeline_id: null },
+          { pipeline_id: '' },
+          { pipeline_id: 'default' },
+          { pipeline_id: '6a881b120000c0a404ed5fb1' }
+        ]
       });
     }
     if (req.query.contactId || req.query.contact_id) {
