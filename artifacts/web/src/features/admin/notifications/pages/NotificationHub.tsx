@@ -322,9 +322,10 @@ export default function NotificationHubPage() {
   };
 
   // Insert Merge Tag into template body
-  const handleInsertMergeTag = (tag: string) => {
-    const tagString = `{{${tag}}}`;
-    setActiveTemplateBody((prev) => prev + (prev.endsWith(' ') || prev.length === 0 ? '' : ' ') + tagString + ' ');
+  const handleInsertMergeTag = (rawTag: string) => {
+    const clean = rawTag.replace(/[\{\}]/g, '');
+    const tagString = `{{${clean}}}`;
+    setActiveTemplateBody((prev) => (prev ? prev + (prev.endsWith(' ') ? '' : ' ') : '') + tagString + ' ');
   };
 
   const handleSaveTemplate = async () => {
@@ -457,22 +458,39 @@ export default function NotificationHubPage() {
   // Preview content with sample tags replaced
   const previewContent = useMemo(() => {
     let text = activeTemplateBody || '';
-    text = text.replace(/\{\{customer_name\}\}/g, 'Sarah Jenkins');
-    text = text.replace(/\{\{customer_phone\}\}/g, '+91 98765 43210');
-    text = text.replace(/\{\{customer_email\}\}/g, 'sarah.jenkins@example.com');
-    text = text.replace(/\{\{assigned_agent_name\}\}/g, 'Alex Rivera');
-    text = text.replace(/\{\{assigned_agent_phone\}\}/g, '+91 91234 56789');
-    text = text.replace(/\{\{assigned_agent_email\}\}/g, 'alex.rivera@leadsrubix.com');
-    text = text.replace(/\{\{budget\}\}/g, '$12,500');
-    text = text.replace(/\{\{project_name\}\}/g, 'Horizon Heights Phase 2');
-    text = text.replace(/\{\{lead_source\}\}/g, 'Website Direct');
-    text = text.replace(/\{\{crm_lead_url\}\}/g, 'https://crm.leadsrubix.com/leads/LD-8942');
-    text = text.replace(/\{\{deal_title\}\}/g, 'Enterprise 50-Seat Cloud License');
-    text = text.replace(/\{\{deal_value\}\}/g, '$48,000');
-    text = text.replace(/\{\{task_type\}\}/g, 'Product Demo Call');
-    text = text.replace(/\{\{due_date\}\}/g, 'Today at 3:30 PM');
-    text = text.replace(/\{\{notes\}\}/g, 'Client interested in multi-tenant API integration.');
-    text = text.replace(/\{\{company_name\}\}/g, 'Acme Global Corp');
+    const replacements: Record<string, string> = {
+      customer_name: 'Sarah Jenkins',
+      customer_phone: '+91 98765 43210',
+      customer_email: 'sarah.jenkins@example.com',
+      assigned_agent_name: 'Alex Rivera',
+      assigned_agent_phone: '+91 91234 56789',
+      assigned_agent_email: 'alex.rivera@leadsrubix.com',
+      previous_agent_name: 'David Vance',
+      team_lead_name: 'Marcus Sterling',
+      organization_name: 'Acme Global Corp',
+      company_name: 'Acme Global Corp',
+      budget: '$12,500',
+      project_name: 'Horizon Heights Phase 2',
+      lead_source: 'Website Direct',
+      lead_type: 'Inbound Lead',
+      crm_lead_url: 'https://crm.leadsrubix.com/leads/LD-8942',
+      deal_title: 'Enterprise 50-Seat Cloud License',
+      deal_amount: '$48,000',
+      deal_value: '$48,000',
+      deal_stage: 'Negotiation',
+      task_title: 'Product Demo Call',
+      task_type: 'Product Demo Call',
+      due_date: 'Today at 3:30 PM',
+      task_due: 'Today at 3:30 PM',
+      notes: 'Client interested in multi-tenant API integration.',
+      location: 'Bangalore, India',
+      property_type: 'Commercial Office Space'
+    };
+
+    for (const [k, v] of Object.entries(replacements)) {
+      const regex = new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'gi');
+      text = text.replace(regex, v);
+    }
     return text;
   }, [activeTemplateBody]);
 
@@ -876,22 +894,25 @@ export default function NotificationHubPage() {
                 Click to Insert Standard Merge Tags:
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {mergeTagsList.map((tag) => (
-                  <Chip
-                    key={tag.tag}
-                    label={`{{${tag.tag}}}`}
-                    size="small"
-                    onClick={() => handleInsertMergeTag(tag.tag)}
-                    clickable
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      fontFamily: 'monospace',
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
-                    }}
-                  />
-                ))}
+                {mergeTagsList.map((tag) => {
+                  const cleanTag = tag.tag.replace(/[\{\}]/g, '');
+                  return (
+                    <Chip
+                      key={cleanTag}
+                      label={`{{${cleanTag}}}`}
+                      size="small"
+                      onClick={() => handleInsertMergeTag(cleanTag)}
+                      clickable
+                      sx={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        fontFamily: 'monospace',
+                        bgcolor: 'action.hover',
+                        '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
+                      }}
+                    />
+                  );
+                })}
               </Stack>
             </Box>
           </Paper>
