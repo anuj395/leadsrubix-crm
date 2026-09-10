@@ -491,9 +491,9 @@ export default function ContactDetailsPage() {
 
   const isFresh = ['FRESH', 'NEW', 'CONNECTED'].includes(normalizedStage)
   const isCallback = ['CALLBACK', 'CALL BACK', 'RE-CALL BACK'].includes(normalizedStage)
-  const isInterested = ['INTERESTED', 'MEETING', 'SITE VISIT', 'FOLLOW UP'].includes(normalizedStage)
+  const isInterested = ['INTERESTED', 'QUALIFIED', 'MEETING', 'SITE VISIT', 'FOLLOW UP'].includes(normalizedStage)
   const isClosedLost = ['NOT INTERESTED', 'NOTINTERESTED', 'LOST', 'DROP', 'CLOSED LOST', 'JUNK'].includes(normalizedStage)
-  const isConverted = Boolean(contact.is_converted || contact.isConverted)
+  const isConverted = Boolean(contact.is_converted || contact.isConverted || normalizedStage === 'CONVERTED')
 
   const detailsFields = dbColumns.filter(
     (col) => !['customerName', 'contactNumber', 'emailId'].includes(col.key)
