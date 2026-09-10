@@ -487,26 +487,16 @@ router.post('/createContacts', async (req, res, next) => {
         contact_owner_id: uid || (ownerUser ? String(ownerUser._id || ownerUser.uid) : (doc?.contact_owner_id || doc?.contactOwnerId || '')),
         contactOwnerId: uid || (ownerUser ? String(ownerUser._id || ownerUser.uid) : (doc?.contactOwnerId || doc?.contact_owner_id || ''))
       };
-      sendNotification({
-        organizationId: tokenData.organizationId,
-        contact: contactForWhatsapp,
-        eventType: 'incoming'
-      }).catch(err => console.error('[WhatsApp] Incoming API lead notification dispatch error:', err));
-    } catch (e) {
-      console.error('[WhatsApp] Failed to initiate incoming API lead notification:', e);
-    }
 
-    try {
-      const { notifyLeadAssignmentOrCreation } = require('../services/notificationService');
-      notifyLeadAssignmentOrCreation({
-        contact: doc,
+      const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+      dispatchCrmEvent({
+        eventKey: 'lead.created',
         organizationId: tokenData.organizationId,
-        title: 'New Lead Assigned (Webhook)',
-        message: `A new lead "${doc.customerName || doc.name || 'Unnamed'}" has been assigned to you via API webhook.`,
-        type: 'LEAD_ASSIGNED'
-      }).catch(err => console.error('[Notification] Webhook notification dispatch error:', err));
-    } catch (err) {
-      console.error('[Notification] Failed to trigger webhook in-app assignment notification:', err);
+        entityType: 'contact',
+        entityData: contactForWhatsapp
+      }).catch(err => console.error('[NotificationDispatcher] Incoming API lead dispatch error:', err));
+    } catch (e) {
+      console.error('[NotificationDispatcher] Failed to initiate incoming API lead notification:', e);
     }
 
     await logApiTransaction(reqData, tokenData, "SUCCESS", "", String(doc._id));
@@ -762,26 +752,16 @@ router.post('/facebook', async (req, res, next) => {
             contact_owner_id: ownerUser ? String(ownerUser._id || ownerUser.uid) : (createdContact?.contact_owner_id || ''),
             contactOwnerId: ownerUser ? String(ownerUser._id || ownerUser.uid) : (createdContact?.contactOwnerId || '')
           };
-          sendNotification({
-            organizationId: orgId,
-            contact: contactForWhatsapp,
-            eventType: 'incoming'
-          }).catch(err => console.error('[WhatsApp] Incoming Facebook lead notification dispatch error:', err));
-        } catch (e) {
-          console.error('[WhatsApp] Failed to initiate incoming Facebook lead notification:', e);
-        }
 
-        try {
-          const { notifyLeadAssignmentOrCreation } = require('../services/notificationService');
-          await notifyLeadAssignmentOrCreation({
-            contact: createdContact,
+          const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+          dispatchCrmEvent({
+            eventKey: 'lead.created',
             organizationId: orgId,
-            title: 'New Facebook Lead Assigned',
-            message: `A new Facebook lead "${createdContact.customerName || createdContact.name || 'Unnamed'}" has been assigned to you.`,
-            type: 'LEAD_ASSIGNED'
-          });
-        } catch (err) {
-          console.error('[Notification] Failed to dispatch Facebook webhook in-app assignment notification:', err);
+            entityType: 'contact',
+            entityData: contactForWhatsapp
+          }).catch(err => console.error('[NotificationDispatcher] Facebook lead dispatch error:', err));
+        } catch (e) {
+          console.error('[NotificationDispatcher] Failed to initiate incoming Facebook lead notification:', e);
         }
 
         // Log transaction success

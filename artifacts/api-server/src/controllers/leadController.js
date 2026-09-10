@@ -139,29 +139,39 @@ exports.create = async (req, res, next) => {
 
     if (contactDoc || leadDoc) {
       try {
-        const { sendNotification } = require('../services/whatsappService');
-        sendNotification({
+        const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        const contactPayload = contactDoc || {
+          _id: leadDoc?._id || null,
+          id: leadDoc?._id || null,
+          customer_name: fullName,
+          customerName: fullName,
+          contact_number: phone,
+          contactNumber: phone,
+          email: email,
+          source: source,
+          project_name: project,
+          projectName: project,
+          budget: budget,
+          property_type: propertyType,
+          propertyType: propertyType,
+          location: location,
+          contact_owner_email: ownerEmail,
+          contactOwnerEmail: ownerEmail,
+          assigned_to: ownerEmail,
+          assignedTo: ownerEmail,
+          uid: ownerId,
+          contact_owner_id: ownerId,
+          contactOwnerId: ownerId
+        };
+
+        dispatchCrmEvent({
+          eventKey: 'lead.created',
           organizationId: orgId,
-          contact: contactDoc || {
-            customer_name: fullName,
-            contact_number: phone,
-            source: source,
-            project_name: project,
-            budget: budget,
-            property_type: propertyType,
-            location: location,
-            contact_owner_email: ownerEmail,
-            contactOwnerEmail: ownerEmail,
-            assigned_to: ownerEmail,
-            assignedTo: ownerEmail,
-            uid: ownerId,
-            contact_owner_id: ownerId,
-            contactOwnerId: ownerId
-          },
-          eventType: 'incoming'
-        }).catch(err => console.error('[WhatsApp] Incoming leadController notification dispatch error:', err));
+          entityType: 'contact',
+          entityData: contactPayload
+        }).catch(err => console.error('[NotificationDispatcher] lead.created error in leadController:', err));
       } catch (e) {
-        console.error('[WhatsApp] Failed to initiate leadController notification:', e);
+        console.error('[NotificationDispatcher] Failed to initiate dispatch in leadController:', e);
       }
     }
 
@@ -213,10 +223,23 @@ exports.transition = async (req, res, next) => {
       leadModel.findByIdAndUpdate(id, { $set: { lead_status: targetStage, stage: targetStage } }, { new: true }).catch(() => null)
     ]);
 
+    const activeRecord = updatedContact || updatedLead;
+    if (activeRecord) {
+      try {
+        const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'lead.stage_changed',
+          organizationId: activeRecord.organization_id || activeRecord.organizationId,
+          entityType: 'contact',
+          entityData: activeRecord
+        }).catch(err => console.error('[NotificationDispatcher] lead.stage_changed error:', err));
+      } catch (e) {}
+    }
+
     res.json({
       message: 'Stage transitioned successfully',
       stage: targetStage,
-      record: updatedContact || updatedLead
+      record: activeRecord
     });
   } catch (err) {
     next(err);

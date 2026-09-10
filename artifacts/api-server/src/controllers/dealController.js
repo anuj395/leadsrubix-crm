@@ -253,24 +253,53 @@ exports.update = async (req, res, next) => {
     if (req.body.stage && String(req.body.stage).toLowerCase().includes('won') && updated) {
       try {
         const orgId = updated.organization_id || updated.organizationId;
-        whatsappService.sendNotification({
+        const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'deal.won',
           organizationId: orgId,
-          eventType: 'deal_won',
-          deal: {
+          entityType: 'deal',
+          entityData: {
+            _id: updated._id || updated.id,
             id: updated._id || updated.id,
-            title: updated.title || updated.name,
+            dealTitle: updated.title || updated.name,
+            dealValue: updated.amount,
             amount: updated.amount,
-            owner_name: updated.owner_name || updated.ownerName,
-            owner_email: updated.owner_email || updated.ownerEmail,
-            contact_name: updated.contact_name || updated.contactName,
-            contact_phone: updated.contact_phone || updated.contactPhone,
-            contact_email: updated.contact_email || updated.contactEmail
-          },
-          ownerEmail: updated.owner_email || updated.ownerEmail,
-          ownerName: updated.owner_name || updated.ownerName
-        }).catch(wErr => console.warn('[dealController] WhatsApp deal_won notification error:', wErr));
+            customerName: updated.contact_name || updated.contactName,
+            contactNumber: updated.contact_phone || updated.contactPhone,
+            email: updated.contact_email || updated.contactEmail,
+            contactOwnerEmail: updated.owner_email || updated.ownerEmail,
+            assignedTo: updated.owner_email || updated.ownerEmail,
+            stage: updated.stage || 'Won'
+          }
+        }).catch(err => console.warn('[dealController] deal.won dispatch error:', err));
       } catch (wErr) {
-        console.warn('[dealController] WhatsApp deal_won error:', wErr);
+        console.warn('[dealController] deal.won notification error:', wErr);
+      }
+    } else if (req.body.stage && String(req.body.stage).toLowerCase().includes('lost') && updated) {
+      try {
+        const orgId = updated.organization_id || updated.organizationId;
+        const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'deal.lost',
+          organizationId: orgId,
+          entityType: 'deal',
+          entityData: {
+            _id: updated._id || updated.id,
+            id: updated._id || updated.id,
+            dealTitle: updated.title || updated.name,
+            dealValue: updated.amount,
+            amount: updated.amount,
+            customerName: updated.contact_name || updated.contactName,
+            contactNumber: updated.contact_phone || updated.contactPhone,
+            email: updated.contact_email || updated.contactEmail,
+            contactOwnerEmail: updated.owner_email || updated.ownerEmail,
+            assignedTo: updated.owner_email || updated.ownerEmail,
+            stage: updated.stage || 'Lost',
+            lostReason: req.body.lostReason || req.body.lost_reason || updated.lost_reason || updated.lostReason
+          }
+        }).catch(err => console.warn('[dealController] deal.lost dispatch error:', err));
+      } catch (wErr) {
+        console.warn('[dealController] deal.lost notification error:', wErr);
       }
     }
 
@@ -336,6 +365,26 @@ exports.updateStage = async (req, res, next) => {
     if (finalStage && String(finalStage).toLowerCase().includes('won') && updated) {
       try {
         const orgId = updated.organization_id || updated.organizationId;
+        const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'deal.won',
+          organizationId: orgId,
+          entityType: 'deal',
+          entityData: {
+            _id: updated._id || updated.id,
+            id: updated._id || updated.id,
+            dealTitle: updated.title || updated.name,
+            dealValue: updated.amount,
+            amount: updated.amount,
+            customerName: updated.contact_name || updated.contactName,
+            contactNumber: updated.contact_phone || updated.contactPhone,
+            email: updated.contact_email || updated.contactEmail,
+            contactOwnerEmail: updated.owner_email || updated.ownerEmail,
+            assignedTo: updated.owner_email || updated.ownerEmail,
+            stage: updated.stage || 'Won'
+          }
+        }).catch(err => console.warn('[dealController] deal.won dispatch error:', err));
+        
         whatsappService.sendNotification({
           organizationId: orgId,
           eventType: 'deal_won',
@@ -354,6 +403,32 @@ exports.updateStage = async (req, res, next) => {
         }).catch(wErr => console.warn('[dealController] WhatsApp deal_won notification error:', wErr));
       } catch (wErr) {
         console.warn('[dealController] WhatsApp deal_won error:', wErr);
+      }
+    } else if (finalStage && String(finalStage).toLowerCase().includes('lost') && updated) {
+      try {
+        const orgId = updated.organization_id || updated.organizationId;
+        const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'deal.lost',
+          organizationId: orgId,
+          entityType: 'deal',
+          entityData: {
+            _id: updated._id || updated.id,
+            id: updated._id || updated.id,
+            dealTitle: updated.title || updated.name,
+            dealValue: updated.amount,
+            amount: updated.amount,
+            customerName: updated.contact_name || updated.contactName,
+            contactNumber: updated.contact_phone || updated.contactPhone,
+            email: updated.contact_email || updated.contactEmail,
+            contactOwnerEmail: updated.owner_email || updated.ownerEmail,
+            assignedTo: updated.owner_email || updated.ownerEmail,
+            stage: updated.stage || 'Lost',
+            lostReason: lostReason || updated.lost_reason || updated.lostReason
+          }
+        }).catch(err => console.warn('[dealController] deal.lost dispatch error:', err));
+      } catch (wErr) {
+        console.warn('[dealController] deal.lost notification error:', wErr);
       }
     }
 

@@ -46,6 +46,7 @@ const webhookRoutes = require('./webhookRoutes');
 const workingDayRoutes = require('./workingDayRoutes');
 const drilldownRoutes = require('./drilldownRoutes');
 const notificationRoutes = require('./notificationRoutes');
+const notificationHubRoutes = require('./notificationHubRoutes');
 const invoiceRoutes = require('./invoiceRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const screenController = require('../controllers/screenController');
@@ -58,6 +59,8 @@ const workspaceController = require('../controllers/workspaceController');
 router.get('/workspace/resolve-domain', workspaceController.resolveDomain);
 
 router.use('/auth', authRoutes);
+router.use('/notification-hub', notificationHubRoutes);
+router.use('/notifications', notificationHubRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/push-notifications', pushNotificationRoutes);
 router.use('/users', userRoutes);

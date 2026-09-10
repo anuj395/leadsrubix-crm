@@ -679,10 +679,33 @@ async function sendNotification({
   }
 }
 
+/**
+ * Direct WhatsApp message dispatcher resolving custom vs universal gateway.
+ */
+async function sendDirectWhatsAppMessage({ organizationId, phone, name = '', role = 'agent', eventType = 'general', messageBody = '' }) {
+  const normPhone = normalizePhoneNumber(phone);
+  if (!normPhone) return { success: false, error: 'Valid recipient phone number required' };
+
+  return sendNotification({
+    action: eventType,
+    organizationId,
+    contact: { customerName: name, phone: normPhone },
+    customRecipients: [
+      {
+        name: name || 'User',
+        phone: normPhone,
+        type: role,
+        message: messageBody
+      }
+    ]
+  });
+}
+
 module.exports = {
   normalizePhoneNumber,
   resolveTemplate,
   formatMessage,
   resolveUserAndPhone,
-  sendNotification
+  sendNotification,
+  sendDirectWhatsAppMessage
 };

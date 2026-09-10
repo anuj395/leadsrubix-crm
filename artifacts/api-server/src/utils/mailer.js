@@ -625,6 +625,26 @@ async function testSmtpConnection(smtpConfig, recipientEmail) {
   return { success: true, message: `SMTP connection to ${host}:${port} verified successfully.` };
 }
 
+/**
+ * Sends a dynamic HTML email resolving custom or system SMTP transporter.
+ */
+async function sendDynamicEmail({ toEmail, subject, htmlContent, organizationId }) {
+  if (!toEmail) return { success: false, error: 'Recipient email required' };
+  try {
+    const { transporter: activeTransporter, fromAddress } = await getTransporterForOrganization(organizationId);
+    const info = await activeTransporter.sendMail({
+      from: fromAddress,
+      to: toEmail,
+      subject: subject || 'Leads Rubix CRM Notification',
+      html: htmlContent
+    });
+    return { success: true, messageId: info?.messageId || '' };
+  } catch (err) {
+    console.error(`[mailer] Failed to send dynamic email to ${toEmail}:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   transporter,
   sendCredentialsEmail,
@@ -636,5 +656,6 @@ module.exports = {
   replaceTemplateVariables,
   getTransporterForOrganization,
   testSmtpConnection,
+  sendDynamicEmail,
 };
 
