@@ -1,18 +1,25 @@
-const {
-  SNSClient,
-  CreatePlatformEndpointCommand,
-  PublishCommand,
-  SetEndpointAttributesCommand
-} = require('@aws-sdk/client-sns');
+let SNSClient, CreatePlatformEndpointCommand, PublishCommand, SetEndpointAttributesCommand;
+let snsClient = null;
 
-const region = process.env.AWS_REGION || 'ap-south-1';
-const snsClient = new SNSClient({
-  region,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'MOCK_KEY',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'MOCK_SECRET'
-  }
-});
+try {
+  const snsSdk = require('@aws-sdk/client-sns');
+  SNSClient = snsSdk.SNSClient;
+  CreatePlatformEndpointCommand = snsSdk.CreatePlatformEndpointCommand;
+  PublishCommand = snsSdk.PublishCommand;
+  SetEndpointAttributesCommand = snsSdk.SetEndpointAttributesCommand;
+
+  const region = process.env.AWS_REGION || 'ap-south-1';
+  snsClient = new SNSClient({
+    region,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'MOCK_KEY',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'MOCK_SECRET'
+    }
+  });
+} catch (e) {
+  // Graceful fallback if @aws-sdk/client-sns is not installed
+  snsClient = null;
+}
 
 const PLATFORM_APPLICATION_ARN_ANDROID = process.env.AWS_SNS_ARN_ANDROID || '';
 const PLATFORM_APPLICATION_ARN_IOS = process.env.AWS_SNS_ARN_IOS || '';

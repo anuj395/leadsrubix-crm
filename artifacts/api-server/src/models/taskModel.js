@@ -35,6 +35,7 @@ const taskSchema = new mongoose.Schema(
     task_type:           { type: String, default: '', alias: 'taskType' },
     next_follow_up:       { type: Date, default: null, alias: 'nextFollowUp' },
     assigned_to:         { type: String, default: '', alias: 'assignedTo' },
+    reminder_sent:       { type: Boolean, default: false, alias: 'reminderSent' },
   },
   { 
     timestamps: true,

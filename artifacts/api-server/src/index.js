@@ -75,6 +75,9 @@ require('./models/pushLogModel');
 require('./models/pushQuotaModel');
 require('./models/emailLogModel');
 require('./models/emailSuppressionModel');
+require('./models/notificationMatrixModel');
+require('./models/notificationTemplateModel');
+require('./models/notificationLogModel');
 
 const {
   seedUsers,
@@ -687,5 +690,12 @@ const PORT = (process.env.PORT && process.env.PORT !== '5000') ? process.env.POR
     startLeadRotationCron();
   } catch (err) {
     console.error('[cron] failed to start lead rotation cron:', err.message || err);
+  }
+
+  try {
+    const { startTaskReminderCron } = require('./cron/taskReminderCron');
+    startTaskReminderCron();
+  } catch (err) {
+    console.error('[cron] failed to start task reminder cron:', err.message || err);
   }
 })();

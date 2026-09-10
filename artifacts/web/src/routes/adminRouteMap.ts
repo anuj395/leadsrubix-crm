@@ -25,6 +25,7 @@ import ApiFormPage from '@/features/admin/config/pages/ApiForm'
 import BookingFormPage from '@/features/admin/config/pages/BookingForm'
 import ResourcesPage from '@/features/admin/config/pages/Resources'
 import WhatsappApiPage from '@/features/admin/config/pages/WhatsappApi'
+import NotificationHubPage from '@/features/admin/notifications/pages/NotificationHub'
 import HolidayConfigPage from '@/features/admin/config/pages/HolidayConfig'
 import HolidayConfigFormPage from '@/features/admin/config/pages/HolidayConfigForm'
 import DaysConfigPage from '@/features/admin/config/pages/DaysConfig'
@@ -109,8 +110,10 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/api/:id/edit": ApiFormPage,
   // "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
-  "/configuration/whatsapp": WhatsappApiPage,
-  "/integrations/whatsapp": WhatsappApiPage,
+  "/configuration/notifications": NotificationHubPage,
+  "/integrations/notifications": NotificationHubPage,
+  "/configuration/whatsapp": NotificationHubPage,
+  "/integrations/whatsapp": NotificationHubPage,
   "/configuration/holiday-config": HolidayConfigPage,
   "/configuration/holiday-config/new": HolidayConfigFormPage,
   "/configuration/holiday-config/:id/edit": HolidayConfigFormPage,

@@ -14,6 +14,7 @@ import WebIcon from '@mui/icons-material/Web'
 import ContactPageIcon from '@mui/icons-material/ContactPage'
 import BusinessIcon from '@mui/icons-material/Business'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
+import HubIcon from '@mui/icons-material/Hub'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
 
@@ -73,6 +74,12 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
     name: 'WhatsApp',
     description: 'Send automated lead alerts and sync customer communications via your WhatsApp API account.',
     icon: <WhatsAppIcon sx={{ fontSize: 32, color: '#25D366' }} />,
+  },
+  {
+    key: 'notifications',
+    name: 'Omnichannel Notifications',
+    description: 'Configure event matrix rules, email SMTP, mobile push, and multi-recipient alerts for agents & admins.',
+    icon: <HubIcon sx={{ fontSize: 32, color: '#2563EB' }} />,
   },
 ]
 
@@ -174,6 +181,8 @@ export default function IntegrationsPage() {
   const handleConfigure = (key: string) => {
     if (key === 'whatsapp') {
       navigate('/configuration/whatsapp')
+    } else if (key === 'notifications') {
+      navigate('/configuration/notifications')
     } else if (key === 'facebook') {
       navigate('/integrations/facebook')
     } else if (key === '99acres') {

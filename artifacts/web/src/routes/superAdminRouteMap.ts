@@ -21,6 +21,7 @@ import ApiFormPage from '@/features/superAdmin/config/pages/ApiForm'
 import BookingFormPage from '@/features/superAdmin/config/pages/BookingForm'
 import ResourcesPage from '@/features/superAdmin/config/pages/Resources'
 import WhatsappApiPage from '@/features/superAdmin/config/pages/WhatsappApi'
+import NotificationHubPage from '@/features/admin/notifications/pages/NotificationHub'
 import IndustriesPage from '@/features/superAdmin/config/pages/Industries'
 import MenusPage from '@/features/superAdmin/config/pages/Menus'
 import PermissionsMatrixPage from '@/features/superAdmin/config/pages/PermissionsMatrix'
@@ -116,8 +117,10 @@ export const routeComponentMap: Record<string, any> = {
   "/configuration/api/:id/edit": ApiFormPage,
   // "/configuration/booking-form": BookingFormPage,
   "/configuration/resources": ResourcesPage,
-  "/configuration/whatsapp": WhatsappApiPage,
-  "/integrations/whatsapp": WhatsappApiPage,
+  "/configuration/notifications": NotificationHubPage,
+  "/integrations/notifications": NotificationHubPage,
+  "/configuration/whatsapp": NotificationHubPage,
+  "/integrations/whatsapp": NotificationHubPage,
   "/configuration/industries": IndustriesPage,
   "/configuration/menus": MenusPage,
   "/configuration/permissions": PermissionsMatrixPage,

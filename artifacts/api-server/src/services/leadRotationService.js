@@ -353,12 +353,14 @@ async function processUnattendedLeadsRotation(organizationId = null) {
           console.error('[LeadRotation] Error writing reassignment history:', hErr);
         }
 
-        // Dispatch WhatsApp Notification for Lead Rotation Transfer to New Owner
+        // Omnichannel Notification for Lead Rotation Transfer to New Owner & Stakeholders
         try {
-          const { sendNotification } = require('./whatsappService');
-          sendNotification({
+          const { dispatchCrmEvent } = require('./notificationDispatcherService');
+          dispatchCrmEvent({
+            eventKey: 'lead.assigned',
             organizationId: orgId,
-            contact: {
+            entityType: 'contact',
+            entityData: {
               ...lead,
               customer_name: leadCustomerName,
               customerName: leadCustomerName,
@@ -374,8 +376,10 @@ async function processUnattendedLeadsRotation(organizationId = null) {
               previous_owner: lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || 'Previous Representative',
               previousOwner: lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || 'Previous Representative'
             },
-            eventType: 'transfer'
-          }).catch(wErr => console.error('[LeadRotation] WhatsApp rotation notification error:', wErr.message));
+            metadata: {
+              previousAgentName: lead.contact_owner_email || lead.contactOwnerEmail || lead.assigned_to || 'Previous Representative'
+            }
+          }).catch(wErr => console.error('[LeadRotation] Rotation dispatch error:', wErr.message));
         } catch (wErr2) {
           // ignore
         }

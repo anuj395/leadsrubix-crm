@@ -579,27 +579,15 @@ exports.createForUser = async ({ payload, authedUser }) => {
   await enrichOrganizationNames([created]);
 
   try {
-    const { sendNotification } = require('./whatsappService');
-    sendNotification({
+    const { dispatchCrmEvent } = require('./notificationDispatcherService');
+    dispatchCrmEvent({
+      eventKey: 'lead.created',
       organizationId: targetOrgId,
-      contact: created,
-      eventType: 'incoming'
-    }).catch(err => console.error('[WhatsApp] Incoming notification dispatch error:', err));
+      entityType: 'contact',
+      entityData: created
+    }).catch(err => console.error('[NotificationDispatcher] lead.created error in contactService:', err));
   } catch (e) {
-    console.error('[WhatsApp] Failed to initiate incoming notification:', e);
-  }
-
-  try {
-    const { notifyLeadAssignmentOrCreation } = require('./notificationService');
-    await notifyLeadAssignmentOrCreation({
-      contact: created,
-      organizationId: targetOrgId,
-      title: 'New Lead Assigned',
-      message: `A new lead "${created.customerName || created.name || 'Unnamed'}" has been assigned to you.`,
-      type: 'LEAD_ASSIGNED'
-    });
-  } catch (err) {
-    console.error('[Notification] Failed to dispatch in-app assignment notification:', err);
+    console.error('[NotificationDispatcher] Failed to initiate lead.created in contactService:', e);
   }
 
   return created;
@@ -904,12 +892,14 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
       console.error('[ContactService] Error writing manual transfer history:', hErr.message);
     }
 
-    // WhatsApp Transfer Notification to New Owner
+    // Omnichannel Transfer Notification to New Owner & Stakeholders
     try {
-      const { sendNotification } = require('./whatsappService');
-      sendNotification({
+      const { dispatchCrmEvent } = require('./notificationDispatcherService');
+      dispatchCrmEvent({
+        eventKey: 'lead.transferred',
         organizationId: orgId,
-        contact: {
+        entityType: 'contact',
+        entityData: {
           ...lead.toObject(),
           ...updatePayload,
           customer_name: leadCustomerName,
@@ -919,10 +909,12 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
           previous_owner: oldOwner || 'Previous Representative',
           previousOwner: oldOwner || 'Previous Representative'
         },
-        eventType: 'transfer'
-      }).catch(err => console.error('[WhatsApp] Transfer notification dispatch error:', err));
+        metadata: {
+          previousAgentName: oldOwner || 'Previous Representative'
+        }
+      }).catch(err => console.error('[NotificationDispatcher] Transfer dispatch error:', err));
     } catch (e) {
-      console.error('[WhatsApp] Failed to initiate transfer notification:', e);
+      console.error('[NotificationDispatcher] Failed to initiate transfer notification:', e);
     }
 
     // In-App Notification for Previous Owner (Old Agent)
@@ -1070,12 +1062,14 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
       console.error('[ContactService] Error writing bulk reassign history:', hErr.message);
     }
 
-    // WhatsApp Transfer Notification
+    // Omnichannel Transfer Notification
     try {
-      const { sendNotification } = require('./whatsappService');
-      sendNotification({
+      const { dispatchCrmEvent } = require('./notificationDispatcherService');
+      dispatchCrmEvent({
+        eventKey: 'lead.transferred',
         organizationId: orgId,
-        contact: {
+        entityType: 'contact',
+        entityData: {
           ...lead.toObject(),
           contactOwnerEmail,
           contact_owner_email: contactOwnerEmail,
@@ -1089,10 +1083,12 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
           previous_owner: oldOwner || 'Previous Representative',
           previousOwner: oldOwner || 'Previous Representative'
         },
-        eventType: 'transfer'
-      }).catch(err => console.error('[WhatsApp] Bulk transfer notification dispatch error:', err));
+        metadata: {
+          previousAgentName: oldOwner || 'Previous Representative'
+        }
+      }).catch(err => console.error('[NotificationDispatcher] Bulk transfer dispatch error:', err));
     } catch (e) {
-      console.error('[WhatsApp] Failed to initiate bulk transfer notifications:', e);
+      console.error('[NotificationDispatcher] Failed to initiate bulk transfer notifications:', e);
     }
   }
 
@@ -1929,6 +1925,32 @@ exports.scheduleCallbackAtomic = async ({
       latitude,
       longitude
     });
+
+    if (createdTask) {
+      try {
+        const { dispatchCrmEvent } = require('./notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'task.reminder',
+          organizationId: createdTask.organization_id || contact.organization_id || authedUser?.organizationId,
+          entityType: 'task',
+          entityData: {
+            id: createdTask._id || createdTask.id,
+            _id: createdTask._id || createdTask.id,
+            taskType: createdTask.type || createdTask.task_type || 'Call Back',
+            taskDueDate: createdTask.due_date || createdTask.dueDate || followUpDate,
+            dueDate: createdTask.due_date || createdTask.dueDate || followUpDate,
+            assignedTo: createdTask.assigned_to || contact.contact_owner_email || authedUser?.email,
+            contactOwnerEmail: createdTask.assigned_to || contact.contact_owner_email || authedUser?.email,
+            customerName: contact.customer_name || contact.customerName || createdTask.customer_name,
+            contactNumber: contact.contact_number || contact.contactNumber || createdTask.contact_number,
+            notes: notes || callBackReason || '',
+            crmLeadUrl: `https://crm.leadsrubix.com/leads/${contactId}`
+          }
+        }).catch(tErr => console.warn('[contactService] Task notification dispatch error:', tErr));
+      } catch (tErr) {
+        console.warn('[contactService] Task dispatch warning:', tErr);
+      }
+    }
   } catch (createErr) {
     console.error('Failed to create atomic Task', createErr);
   }
