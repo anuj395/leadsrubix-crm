@@ -477,9 +477,19 @@ router.post('/createContacts', async (req, res, next) => {
 
     try {
       const { sendNotification } = require('../services/whatsappService');
+      const contactForWhatsapp = {
+        ...(doc ? (doc.toObject ? doc.toObject() : doc) : {}),
+        contact_owner_email: reqData.ownerEmail || (ownerUser ? ownerUser.email : (doc?.contact_owner_email || doc?.contactOwnerEmail || '')),
+        contactOwnerEmail: reqData.ownerEmail || (ownerUser ? ownerUser.email : (doc?.contactOwnerEmail || doc?.contact_owner_email || '')),
+        assigned_to: reqData.ownerEmail || (ownerUser ? ownerUser.email : (doc?.assigned_to || doc?.assignedTo || '')),
+        assignedTo: reqData.ownerEmail || (ownerUser ? ownerUser.email : (doc?.assignedTo || doc?.assigned_to || '')),
+        uid: uid || (ownerUser ? String(ownerUser._id || ownerUser.uid) : (doc?.uid || '')),
+        contact_owner_id: uid || (ownerUser ? String(ownerUser._id || ownerUser.uid) : (doc?.contact_owner_id || doc?.contactOwnerId || '')),
+        contactOwnerId: uid || (ownerUser ? String(ownerUser._id || ownerUser.uid) : (doc?.contactOwnerId || doc?.contact_owner_id || ''))
+      };
       sendNotification({
         organizationId: tokenData.organizationId,
-        contact: doc,
+        contact: contactForWhatsapp,
         eventType: 'incoming'
       }).catch(err => console.error('[WhatsApp] Incoming API lead notification dispatch error:', err));
     } catch (e) {
@@ -742,9 +752,19 @@ router.post('/facebook', async (req, res, next) => {
 
         try {
           const { sendNotification } = require('../services/whatsappService');
+          const contactForWhatsapp = {
+            ...(createdContact ? (createdContact.toObject ? createdContact.toObject() : createdContact) : {}),
+            contact_owner_email: ownerUser ? ownerUser.email : (createdContact?.contact_owner_email || ''),
+            contactOwnerEmail: ownerUser ? ownerUser.email : (createdContact?.contactOwnerEmail || ''),
+            assigned_to: ownerUser ? ownerUser.email : (createdContact?.assigned_to || ''),
+            assignedTo: ownerUser ? ownerUser.email : (createdContact?.assignedTo || ''),
+            uid: ownerUser ? String(ownerUser._id || ownerUser.uid) : (createdContact?.uid || ''),
+            contact_owner_id: ownerUser ? String(ownerUser._id || ownerUser.uid) : (createdContact?.contact_owner_id || ''),
+            contactOwnerId: ownerUser ? String(ownerUser._id || ownerUser.uid) : (createdContact?.contactOwnerId || '')
+          };
           sendNotification({
             organizationId: orgId,
-            contact: createdContact,
+            contact: contactForWhatsapp,
             eventType: 'incoming'
           }).catch(err => console.error('[WhatsApp] Incoming Facebook lead notification dispatch error:', err));
         } catch (e) {

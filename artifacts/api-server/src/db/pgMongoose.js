@@ -759,6 +759,7 @@ const modelToTableMap = {
   ScreenField: 'screen_fields',
   ScreenPermission: 'screen_permissions',
   WhatsAppConfig: 'whatsapp_configs',
+  WhatsAppLog: 'whatsapp_logs',
   Booking: 'bookings',
   Faq: 'faqs',
   Designation: 'designations',

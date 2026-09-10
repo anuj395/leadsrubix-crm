@@ -147,7 +147,16 @@ exports.create = async (req, res, next) => {
             contact_number: phone,
             source: source,
             project_name: project,
-            contact_owner_email: req.user.email || ''
+            budget: budget,
+            property_type: propertyType,
+            location: location,
+            contact_owner_email: ownerEmail,
+            contactOwnerEmail: ownerEmail,
+            assigned_to: ownerEmail,
+            assignedTo: ownerEmail,
+            uid: ownerId,
+            contact_owner_id: ownerId,
+            contactOwnerId: ownerId
           },
           eventType: 'incoming'
         }).catch(err => console.error('[WhatsApp] Incoming leadController notification dispatch error:', err));

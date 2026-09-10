@@ -7,8 +7,9 @@ const router = express.Router();
 
 /**
  * Normalizes a WhatsAppConfig document into a dual-cased, frontend-friendly payload
+ * with full 2-tier gateway resolution ('universal' vs 'custom')
  */
-function normalizeConfigPayload(config, targetOrgId = null) {
+function normalizeConfigPayload(config, targetOrgId = null, universalConfig = null) {
   const plain = config ? (config.toObject ? config.toObject({ virtuals: true, getters: true }) : config) : {};
   const simply = plain.simply || {};
   const wapi = plain.wapi || {};
@@ -17,12 +18,82 @@ function normalizeConfigPayload(config, targetOrgId = null) {
   const orgId = plain.organization_id || plain.organizationId || targetOrgId || null;
   const indId = plain.industry_id || plain.industryId || null;
 
+  const isUniversalMaster = !orgId;
+  const hasCustomActiveProvider = Boolean(wapi.active || simply.active || cs.active);
+
+  // If useCustomApi is explicitly stored, respect it; otherwise auto-infer from active providers
+  let useCustomApi = false;
+  if (isUniversalMaster) {
+    useCustomApi = false;
+  } else if (plain.use_custom_api !== undefined) {
+    useCustomApi = Boolean(plain.use_custom_api);
+  } else if (plain.useCustomApi !== undefined) {
+    useCustomApi = Boolean(plain.useCustomApi);
+  } else {
+    useCustomApi = hasCustomActiveProvider;
+  }
+
+  // Determine active API source
+  let apiSource = 'universal';
+  if (isUniversalMaster) {
+    apiSource = 'universal_master';
+  } else if (useCustomApi && hasCustomActiveProvider) {
+    apiSource = 'custom';
+  } else {
+    apiSource = 'universal';
+  }
+
+  // Active provider name
+  let activeProvider = null;
+  if (wapi.active) activeProvider = 'wapi';
+  else if (simply.active) activeProvider = 'simply';
+  else if (cs.active) activeProvider = 'chatsimplified';
+
+  // Fallback recipient settings and templates
+  const notifyAssignedAgent = plain.notify_assigned_agent !== undefined ? Boolean(plain.notify_assigned_agent) : (plain.notifyAssignedAgent !== undefined ? Boolean(plain.notifyAssignedAgent) : true);
+  const notifyAdmin = plain.notify_admin !== undefined ? Boolean(plain.notify_admin) : (plain.notifyAdmin !== undefined ? Boolean(plain.notifyAdmin) : true);
+  const adminPhoneOverride = plain.admin_phone_override || plain.adminPhoneOverride || '';
+  const notifyCustomerWelcome = plain.notify_customer_welcome !== undefined ? Boolean(plain.notify_customer_welcome) : (plain.notifyCustomerWelcome !== undefined ? Boolean(plain.notifyCustomerWelcome) : false);
+
   return {
     _id: plain._id || null,
     organization_id: orgId,
     organizationId: orgId,
     industry_id: indId,
     industryId: indId,
+
+    // 2-Tier Gateway State
+    is_universal: isUniversalMaster,
+    isUniversal: isUniversalMaster,
+    use_custom_api: useCustomApi,
+    useCustomApi: useCustomApi,
+    apiSource: apiSource,
+    activeProvider: activeProvider,
+    isInherited: !isUniversalMaster && apiSource === 'universal',
+
+    // Recipient Controls
+    notify_assigned_agent: notifyAssignedAgent,
+    notifyAssignedAgent: notifyAssignedAgent,
+    notify_admin: notifyAdmin,
+    notifyAdmin: notifyAdmin,
+    admin_phone_override: adminPhoneOverride,
+    adminPhoneOverride: adminPhoneOverride,
+    notify_customer_welcome: notifyCustomerWelcome,
+    notifyCustomerWelcome: notifyCustomerWelcome,
+
+    // Scenario Templates
+    incoming_template: plain.incoming_template || plain.incomingTemplate || '',
+    incomingTemplate: plain.incoming_template || plain.incomingTemplate || '',
+    transfer_template: plain.transfer_template || plain.transferTemplate || '',
+    transferTemplate: plain.transfer_template || plain.transferTemplate || '',
+    task_reminder_template: plain.task_reminder_template || plain.taskReminderTemplate || '',
+    taskReminderTemplate: plain.task_reminder_template || plain.taskReminderTemplate || '',
+    deal_won_template: plain.deal_won_template || plain.dealWonTemplate || '',
+    dealWonTemplate: plain.deal_won_template || plain.dealWonTemplate || '',
+    customer_welcome_template: plain.customer_welcome_template || plain.customerWelcomeTemplate || '',
+    customerWelcomeTemplate: plain.customer_welcome_template || plain.customerWelcomeTemplate || '',
+
+    // Provider Credentials
     simply: {
       active: Boolean(simply.active),
       url: simply.url || 'https://app.simplywhatsapp.com/api/send',
@@ -69,7 +140,7 @@ function normalizeConfigPayload(config, targetOrgId = null) {
   };
 }
 
-// GET WhatsApp configuration
+// GET WhatsApp configuration with 2-tier gateway hierarchy
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
@@ -105,17 +176,20 @@ router.get('/', authenticate, async (req, res, next) => {
       }).exec();
     }
 
-    // Fallback to global default config if tenant-specific not yet saved
-    if (!config) {
-      config = await WhatsAppConfig.findOne({
-        $or: [
-          { organization_id: null },
-          { organizationId: null }
-        ]
-      }).exec();
+    // Always fetch Universal Global config for hierarchy comparison
+    const universalConfig = await WhatsAppConfig.findOne({
+      $or: [
+        { organization_id: null },
+        { organizationId: null }
+      ]
+    }).exec();
+
+    // If client config doesn't exist yet, return universal default representation for tenant
+    if (!config && orgId) {
+      return res.json(normalizeConfigPayload(universalConfig, orgId, universalConfig));
     }
 
-    res.json(normalizeConfigPayload(config, orgId));
+    res.json(normalizeConfigPayload(config || universalConfig, orgId, universalConfig));
   } catch (err) {
     next(err);
   }
@@ -160,7 +234,7 @@ router.post('/', authenticate, async (req, res, next) => {
         ]
       }).exec();
     } else {
-      // SuperAdmin saving Global default config
+      // SuperAdmin saving Global Universal Master default config
       config = await WhatsAppConfig.findOne({
         $or: [
           { organization_id: null },
@@ -170,7 +244,6 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     if (!config) {
-      // Inherit templates from global config if available
       const globalConfig = await WhatsAppConfig.findOne({
         $or: [
           { organization_id: null },
@@ -183,12 +256,14 @@ router.post('/', authenticate, async (req, res, next) => {
         organizationId: org?.organizationId || orgId || null,
         industry_id: req.body.industryId || org?.industry_id || null,
         industryId: req.body.industryId || org?.industryId || null,
+        is_universal: !orgId,
         simply: globalConfig?.simply || undefined,
         wapi: globalConfig?.wapi || undefined,
         chat_simplified: globalConfig?.chat_simplified || undefined,
       });
     }
 
+    // 1. Update Providers with Deep Merge
     if (req.body.simply) {
       const existingSimply = config.simply ? (config.simply.toObject ? config.simply.toObject() : config.simply) : {};
       const inSimply = req.body.simply;
@@ -230,6 +305,48 @@ router.post('/', authenticate, async (req, res, next) => {
       config.chatSimplified = mergedCS;
     }
 
+    // 2. Gateway Hierarchy Switch ('Vice-Versa' Override Logic)
+    const hasActiveCustomProvider = Boolean(config.wapi?.active || config.simply?.active || config.chat_simplified?.active || config.chatSimplified?.active);
+    if (req.body.useCustomApi !== undefined) {
+      config.use_custom_api = Boolean(req.body.useCustomApi);
+    } else if (req.body.use_custom_api !== undefined) {
+      config.use_custom_api = Boolean(req.body.use_custom_api);
+    } else {
+      // Auto-switch: if client turned on a provider, custom API is enabled; if turned off, reverts to universal
+      config.use_custom_api = hasActiveCustomProvider;
+    }
+
+    // 3. Recipient Controls
+    if (req.body.notifyAssignedAgent !== undefined || req.body.notify_assigned_agent !== undefined) {
+      config.notify_assigned_agent = req.body.notifyAssignedAgent !== undefined ? Boolean(req.body.notifyAssignedAgent) : Boolean(req.body.notify_assigned_agent);
+    }
+    if (req.body.notifyAdmin !== undefined || req.body.notify_admin !== undefined) {
+      config.notify_admin = req.body.notifyAdmin !== undefined ? Boolean(req.body.notifyAdmin) : Boolean(req.body.notify_admin);
+    }
+    if (req.body.adminPhoneOverride !== undefined || req.body.admin_phone_override !== undefined) {
+      config.admin_phone_override = (req.body.adminPhoneOverride !== undefined ? req.body.adminPhoneOverride : req.body.admin_phone_override).trim();
+    }
+    if (req.body.notifyCustomerWelcome !== undefined || req.body.notify_customer_welcome !== undefined) {
+      config.notify_customer_welcome = req.body.notifyCustomerWelcome !== undefined ? Boolean(req.body.notifyCustomerWelcome) : Boolean(req.body.notify_customer_welcome);
+    }
+
+    // 4. Scenario Templates
+    if (req.body.incomingTemplate !== undefined || req.body.incoming_template !== undefined) {
+      config.incoming_template = req.body.incomingTemplate !== undefined ? req.body.incomingTemplate : req.body.incoming_template;
+    }
+    if (req.body.transferTemplate !== undefined || req.body.transfer_template !== undefined) {
+      config.transfer_template = req.body.transferTemplate !== undefined ? req.body.transferTemplate : req.body.transfer_template;
+    }
+    if (req.body.taskReminderTemplate !== undefined || req.body.task_reminder_template !== undefined) {
+      config.task_reminder_template = req.body.taskReminderTemplate !== undefined ? req.body.taskReminderTemplate : req.body.task_reminder_template;
+    }
+    if (req.body.dealWonTemplate !== undefined || req.body.deal_won_template !== undefined) {
+      config.deal_won_template = req.body.dealWonTemplate !== undefined ? req.body.dealWonTemplate : req.body.deal_won_template;
+    }
+    if (req.body.customerWelcomeTemplate !== undefined || req.body.customer_welcome_template !== undefined) {
+      config.customer_welcome_template = req.body.customerWelcomeTemplate !== undefined ? req.body.customerWelcomeTemplate : req.body.customer_welcome_template;
+    }
+
     await config.save();
     res.json(normalizeConfigPayload(config, orgId));
   } catch (err) {
@@ -256,7 +373,7 @@ router.post('/test', authenticate, async (req, res, next) => {
       organizationId: orgId,
       customRecipient: recipientPhone,
       customMessage: message || 'Hello from Leads Rubix CRM! Your WhatsApp notification integration is working perfectly. 🚀',
-      eventType: 'incoming',
+      eventType: 'test',
       testProvider: provider,
       testCredentials: testCredentials
     });
@@ -266,6 +383,35 @@ router.post('/test', authenticate, async (req, res, next) => {
     } else {
       res.status(400).json(result);
     }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET Delivery Audit Logs
+router.get('/logs', authenticate, async (req, res, next) => {
+  try {
+    const WhatsAppLog = mongoose.model('WhatsAppLog');
+    let orgId = null;
+    if (req.user.role === 'superAdmin') {
+      orgId = req.query.organizationId || req.query.organization_id || null;
+    } else {
+      orgId = req.user.organizationId || req.user.organization_id || null;
+    }
+
+    const filter = {};
+    if (orgId && orgId !== 'all') {
+      filter.organization_id = orgId;
+    }
+
+    const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+    const logs = await WhatsAppLog.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+
+    res.json({ logs });
   } catch (err) {
     next(err);
   }
