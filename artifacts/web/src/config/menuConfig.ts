@@ -98,7 +98,7 @@ export const superAdminMenuConfig: SuperAdminMenuItem[] = [
   { key: "configuration.resources", name: "Resources", route: "/configuration/resources", icon: "resources", module: "configuration" },
 
   { key: "integrations.api", name: "API Tokens", route: "/integrations/api", icon: "api", module: "integrations" },
-  { key: "integrations.whatsapp", name: "WhatsApp API", route: "/integrations/whatsapp", icon: "whatsapp", module: "integrations" },
+  { key: "configuration.notifications", name: "Notification Hub", route: "/configuration/notifications", icon: "whatsapp", module: "configuration" },
 
   { key: "uiNavigation.analyticsConfig", name: "Dashboard Layout Builder", route: "/ui-navigation/analytics-config", icon: "settings", module: "uiNavigation" },
   { key: "uiNavigation.menus", name: "Sidebar Menus", route: "/ui-navigation/menus", icon: "sidebar", module: "uiNavigation" },
@@ -193,9 +193,9 @@ export const adminMenuConfig: SuperAdminMenuItem[] = [
     module: "Configuration"
   },
   {
-    key: "configuration.whatsapp",
-    name: "Whatsapp API",
-    route: "/configuration/whatsapp",
+    key: "configuration.notifications",
+    name: "Notification Hub",
+    route: "/configuration/notifications",
     icon: "whatsapp",
     module: "Configuration"
   },
@@ -364,6 +364,13 @@ export const leadManagerMenuConfig: SuperAdminMenuItem[] = [
     module: "Leads"
   },
   {
+    key: "configuration.notifications",
+    name: "Team Notifications",
+    route: "/configuration/notifications",
+    icon: "whatsapp",
+    module: "Leads"
+  },
+  {
     key: "support.news",
     name: "News List",
     route: "/support/news",
@@ -444,6 +451,13 @@ export const teamLeadMenuConfig: SuperAdminMenuItem[] = [
     module: "Leads"
   },
   {
+    key: "configuration.notifications",
+    name: "Team Notifications",
+    route: "/configuration/notifications",
+    icon: "whatsapp",
+    module: "Leads"
+  },
+  {
     key: "support.news",
     name: "News List",
     route: "/support/news",
@@ -521,6 +535,13 @@ export const salesMenuConfig: SuperAdminMenuItem[] = [
     name: "Call Logs",
     route: "/leads/call-logs",
     icon: "call",
+    module: "Leads"
+  },
+  {
+    key: "configuration.notifications",
+    name: "My Alerts & Preferences",
+    route: "/configuration/notifications",
+    icon: "whatsapp",
     module: "Leads"
   },
   {

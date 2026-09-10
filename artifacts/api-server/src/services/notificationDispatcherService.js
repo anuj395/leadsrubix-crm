@@ -423,6 +423,7 @@ async function dispatchCrmEvent({
           channel,
           recipient_role: recipientRole,
           recipient_name: recipientObj.name || recipientRole,
+          recipient_id: recipientObj.id ? String(recipientObj.id) : null,
           recipient_target: target || 'N/A',
           provider,
           is_universal: true,

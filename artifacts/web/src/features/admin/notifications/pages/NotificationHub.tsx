@@ -51,6 +51,14 @@ import HubIcon from '@mui/icons-material/Hub';
 import TuneIcon from '@mui/icons-material/Tune';
 import HistoryIcon from '@mui/icons-material/History';
 import SettingsInputAntennaIcon from '@mui/icons-material/SettingsInputAntenna';
+import PersonIcon from '@mui/icons-material/Person';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ForumIcon from '@mui/icons-material/Forum';
+import SecurityIcon from '@mui/icons-material/Security';
+import LockIcon from '@mui/icons-material/Lock';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import { useAuth } from '@/hooks/useAuth';
 import { AppCard } from '@/components/ui/AppCard';
 import { api } from '@/services/api';
 import {
@@ -73,6 +81,13 @@ const INDUSTRY_VERTICALS = [
 ];
 
 export default function NotificationHubPage() {
+  const { user } = useAuth();
+  const userRole = user?.role || 'sales';
+  const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
+  const isSuperAdmin = userRole === 'superAdmin';
+  const isTeamLead = userRole === 'teamLead' || userRole === 'leadManager';
+  const isSales = userRole === 'sales';
+
   const [activeTab, setActiveTab] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [savingMatrix, setSavingMatrix] = useState<boolean>(false);
@@ -85,6 +100,110 @@ export default function NotificationHubPage() {
     message: '',
     severity: 'info'
   });
+
+  // Personal preferences state
+  const [myPreferences, setMyPreferences] = useState<any>({
+    lead_assigned: {
+      whatsapp: true,
+      push: true,
+      email: true,
+      in_app: true,
+      label: 'New Lead Assigned to You',
+      description: 'Instant notification when an inbound lead or inquiry is assigned to your queue'
+    },
+    task_due: {
+      whatsapp: true,
+      push: true,
+      email: true,
+      in_app: true,
+      label: 'Follow-up & Callback Reminders',
+      description: 'Timely reminders for scheduled follow-ups, pending tasks, and scheduled callbacks'
+    },
+    deal_update: {
+      whatsapp: false,
+      push: true,
+      email: true,
+      in_app: true,
+      label: 'Deal Pipeline Updates',
+      description: 'Updates when a deal assigned to you changes stage, is won, or requires review'
+    },
+    customer_message: {
+      whatsapp: true,
+      push: true,
+      email: false,
+      in_app: true,
+      label: 'Inbound Customer Responses',
+      description: 'Alerts when a prospect replies to your WhatsApp messages or inbound inquiries'
+    }
+  });
+  const [savingMyPrefs, setSavingMyPrefs] = useState<boolean>(false);
+  const [testingMyChannel, setTestingMyChannel] = useState<string | null>(null);
+
+  // Define tabs dynamically by role
+  interface HubTabItem {
+    key: 'my_prefs' | 'matrix' | 'templates' | 'gateways' | 'logs';
+    label: string;
+    icon: React.ReactElement;
+  }
+
+  const roleTabs: HubTabItem[] = useMemo(() => {
+    if (isAdmin) {
+      return [
+        { key: 'matrix', label: 'Automation Matrix', icon: <TuneIcon fontSize="small" /> },
+        { key: 'templates', label: 'Template Studio', icon: <NotificationsActiveIcon fontSize="small" /> },
+        { key: 'gateways', label: 'Gateways & Channels', icon: <SettingsInputAntennaIcon fontSize="small" /> },
+        { key: 'logs', label: 'Delivery Audit Logs', icon: <HistoryIcon fontSize="small" /> }
+      ];
+    }
+    if (isTeamLead) {
+      return [
+        { key: 'my_prefs', label: 'My Alert Preferences', icon: <NotificationsActiveIcon fontSize="small" /> },
+        { key: 'matrix', label: 'Team Routing Matrix', icon: <TuneIcon fontSize="small" /> },
+        { key: 'templates', label: 'Template Previews', icon: <VisibilityIcon fontSize="small" /> },
+        { key: 'logs', label: 'Team Delivery Logs', icon: <HistoryIcon fontSize="small" /> }
+      ];
+    }
+    // Frontline Sales / Telecaller
+    return [
+      { key: 'my_prefs', label: 'My Notification Channels', icon: <NotificationsActiveIcon fontSize="small" /> },
+      { key: 'logs', label: 'My Alert History', icon: <HistoryIcon fontSize="small" /> }
+    ];
+  }, [isAdmin, isTeamLead]);
+
+  const currentTabKey = roleTabs[activeTab]?.key || roleTabs[0]?.key || 'logs';
+
+  const roleBadgeConfig = useMemo(() => {
+    if (isSuperAdmin) {
+      return {
+        label: 'Super Admin Universal Platform Engine',
+        bg: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+        chipBg: '#f3e8ff',
+        chipColor: '#7c3aed'
+      };
+    }
+    if (userRole === 'admin') {
+      return {
+        label: 'Workspace Administrator Control Center',
+        bg: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+        chipBg: '#eff6ff',
+        chipColor: '#1d4ed8'
+      };
+    }
+    if (isTeamLead) {
+      return {
+        label: `${userRole === 'leadManager' ? 'Lead Manager' : 'Team Lead'} Supervisory Hub`,
+        bg: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+        chipBg: '#f0fdfa',
+        chipColor: '#0f766e'
+      };
+    }
+    return {
+      label: 'Sales Agent Personal Alert Center',
+      bg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+      chipBg: '#fffbeb',
+      chipColor: '#b45309'
+    };
+  }, [userRole, isSuperAdmin, isTeamLead]);
 
   // Matrix State
   const [matrixRules, setMatrixRules] = useState<MatrixRule[]>([]);
@@ -152,16 +271,75 @@ export default function NotificationHubPage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      await Promise.allSettled([
-        loadMatrix(),
-        loadTemplates(),
-        loadGateways(),
-        loadLogs()
-      ]);
+      const promises: Promise<any>[] = [loadLogs()];
+      if (isAdmin) {
+        promises.push(loadMatrix(), loadTemplates(), loadGateways(), loadMyPreferences());
+      } else if (isTeamLead) {
+        promises.push(loadMyPreferences(), loadMatrix(), loadTemplates());
+      } else {
+        promises.push(loadMyPreferences());
+      }
+      await Promise.allSettled(promises);
     } catch (err: any) {
       console.error('Error loading notification hub data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMyPreferences = async () => {
+    try {
+      const data = await notificationHubApi.getMyPreferences();
+      if (data.success && data.preferences) {
+        setMyPreferences(data.preferences);
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch personal preferences:', err);
+    }
+  };
+
+  const handleSaveMyPreferences = async () => {
+    setSavingMyPrefs(true);
+    try {
+      const res = await notificationHubApi.saveMyPreferences(myPreferences);
+      if (res.success) {
+        setSnackbar({
+          open: true,
+          message: 'Your personal notification preferences have been saved successfully!',
+          severity: 'success'
+        });
+      }
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Failed to save preferences',
+        severity: 'error'
+      });
+    } finally {
+      setSavingMyPrefs(false);
+    }
+  };
+
+  const handleSendMyTestAlert = async (channel: 'whatsapp' | 'email' | 'push' | 'in_app') => {
+    setTestingMyChannel(channel);
+    try {
+      const res = await notificationHubApi.sendMyTestAlert(channel);
+      if (res.success) {
+        setSnackbar({
+          open: true,
+          message: res.message || `Test alert sent via ${channel.toUpperCase()}!`,
+          severity: 'success'
+        });
+        await loadLogs();
+      }
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || `Failed to dispatch test ${channel} alert`,
+        severity: 'error'
+      });
+    } finally {
+      setTestingMyChannel(null);
     }
   };
 
@@ -511,43 +689,69 @@ export default function NotificationHubPage() {
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <Box
               sx={{
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 borderRadius: 2,
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: roleBadgeConfig.bg,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
               }}
             >
               <HubIcon fontSize="medium" />
             </Box>
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
-                Omnichannel Notification & Automation Hub
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Configure multi-recipient routing (Agents, Team Leads, Admins, Customers), vertical templates, and live delivery logs.
+              <Stack direction="row" spacing={1.2} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
+                  {isAdmin
+                    ? 'Omnichannel Notification & Automation Hub'
+                    : isTeamLead
+                    ? 'Team Notification & Alert Center'
+                    : 'My Alerts & Notification Center'}
+                </Typography>
+                <Chip
+                  label={roleBadgeConfig.label}
+                  size="small"
+                  sx={{
+                    bgcolor: roleBadgeConfig.chipBg,
+                    color: roleBadgeConfig.chipColor,
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                />
+              </Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                {isAdmin
+                  ? 'Configure multi-recipient routing (Agents, Team Leads, Admins, Customers), vertical templates, and live delivery logs.'
+                  : isTeamLead
+                  ? 'Supervise team routing rules, preview customer message templates, and manage your personal alert channels.'
+                  : 'Manage how you receive notifications for assigned leads, task deadlines, and customer responses across your devices.'}
               </Typography>
             </Box>
           </Stack>
         </Box>
 
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Tooltip title="Test live delivery across WhatsApp, Email, or Push directly">
+          <Tooltip title={isAdmin ? 'Test live delivery across WhatsApp, Email, or Push directly' : 'Send a diagnostic test alert to your verified personal device'}>
             <Button
               variant="outlined"
               color="primary"
               startIcon={<SendIcon />}
               onClick={() => {
+                if (!isAdmin) {
+                  setTestRecipient(testChannel === 'email' ? (user?.email || '') : (user?.contactNumber || user?.phone || ''));
+                  setTestName(user?.name || 'Sales Representative');
+                }
                 setTestModalOpen(true);
                 setTestResult(null);
               }}
               sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
             >
-              Test Dispatch
+              {isAdmin ? 'Test Dispatch' : 'Quick Test Alert'}
             </Button>
           </Tooltip>
           <Tooltip title="Refresh all rules and logs">
@@ -576,10 +780,9 @@ export default function NotificationHubPage() {
             }
           }}
         >
-          <Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Automation Matrix" />
-          <Tab icon={<NotificationsActiveIcon fontSize="small" />} iconPosition="start" label="Template Studio" />
-          <Tab icon={<SettingsInputAntennaIcon fontSize="small" />} iconPosition="start" label="Gateways & Channels" />
-          <Tab icon={<HistoryIcon fontSize="small" />} iconPosition="start" label="Delivery Audit Logs" />
+          {roleTabs.map((t) => (
+            <Tab key={t.key} icon={t.icon} iconPosition="start" label={t.label} />
+          ))}
         </Tabs>
       </Paper>
 
@@ -589,12 +792,327 @@ export default function NotificationHubPage() {
         </Box>
       )}
 
-      {/* TAB 0: AUTOMATION ROUTING MATRIX */}
-      {!loading && activeTab === 0 && (
+      {/* TAB: MY PERSONAL ALERT PREFERENCES & CHANNELS */}
+      {!loading && currentTabKey === 'my_prefs' && (
         <Box>
-          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-            <strong>Intelligent Multi-Recipient Broadcasting:</strong> When a CRM event occurs, notifications are delivered simultaneously to the assigned sales agent, their reporting team lead, workspace admin, and the customer based on these active toggles.
-          </Alert>
+          {/* Identity & Verified Endpoints Card */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              mb: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(13,148,136,0.03) 100%)'
+            }}
+          >
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={7}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      bgcolor: roleBadgeConfig.chipBg,
+                      color: roleBadgeConfig.chipColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <PersonIcon fontSize="medium" />
+                  </Box>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        {user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email}
+                      </Typography>
+                      <Chip
+                        label={roleBadgeConfig.label}
+                        size="small"
+                        sx={{
+                          bgcolor: roleBadgeConfig.chipBg,
+                          color: roleBadgeConfig.chipColor,
+                          fontWeight: 700,
+                          fontSize: '0.72rem'
+                        }}
+                      />
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                      Configure your personal alert channels. Automatic CRM notifications will be routed directly to your verified endpoints below.
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={5}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} useFlexGap>
+                  <Chip
+                    icon={<WhatsAppIcon sx={{ fontSize: '15px !important' }} />}
+                    label={`WhatsApp: ${user?.contactNumber || user?.phone || 'Not set'}`}
+                    variant="outlined"
+                    color={user?.contactNumber || user?.phone ? 'success' : 'default'}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                  <Chip
+                    icon={<EmailIcon sx={{ fontSize: '15px !important' }} />}
+                    label={`Email: ${user?.email || 'N/A'}`}
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                  <Chip
+                    icon={<NotificationsIcon sx={{ fontSize: '15px !important' }} />}
+                    label="Bell: Active"
+                    variant="outlined"
+                    color="warning"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Quick Channel Diagnostic Dispatch */}
+          <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Instant Channel Verification
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Send an immediate test alert directly to your verified devices to confirm delivery.
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  startIcon={<WhatsAppIcon />}
+                  onClick={() => handleSendMyTestAlert('whatsapp')}
+                  disabled={testingMyChannel !== null}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                >
+                  {testingMyChannel === 'whatsapp' ? 'Sending...' : 'Test WhatsApp'}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<EmailIcon />}
+                  onClick={() => handleSendMyTestAlert('email')}
+                  disabled={testingMyChannel !== null}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                >
+                  {testingMyChannel === 'email' ? 'Sending...' : 'Test Email'}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<NotificationsIcon />}
+                  onClick={() => handleSendMyTestAlert('in_app')}
+                  disabled={testingMyChannel !== null}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                >
+                  {testingMyChannel === 'in_app' ? 'Sending...' : 'Test In-App Bell'}
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+
+          {/* Preference Toggle Cards */}
+          <Grid container spacing={2.5}>
+            {Object.entries(myPreferences).map(([categoryKey, prefObj]: [string, any]) => {
+              let categoryIcon = <AssignmentIcon />;
+              let iconBg = '#dbeafe';
+              let iconColor = '#2563eb';
+
+              if (categoryKey === 'lead_assigned') {
+                categoryIcon = <PersonIcon />;
+                iconBg = '#dbeafe';
+                iconColor = '#1d4ed8';
+              } else if (categoryKey === 'task_due') {
+                categoryIcon = <AssignmentIcon />;
+                iconBg = '#d1fae5';
+                iconColor = '#047857';
+              } else if (categoryKey === 'deal_update') {
+                categoryIcon = <TrendingUpIcon />;
+                iconBg = '#f3e8ff';
+                iconColor = '#7c3aed';
+              } else if (categoryKey === 'customer_message') {
+                categoryIcon = <ForumIcon />;
+                iconBg = '#fef3c7';
+                iconColor = '#b45309';
+              }
+
+              return (
+                <Grid item xs={12} md={6} key={categoryKey}>
+                  <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%' }}>
+                    <CardContent sx={{ p: 2.5 }}>
+                      <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 2 }}>
+                        <Box
+                          sx={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: 2,
+                            bgcolor: iconBg,
+                            color: iconColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {categoryIcon}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                            {prefObj.label || categoryKey}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.84rem' }}>
+                            {prefObj.description || 'Notification triggers for this event category.'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Divider sx={{ my: 1.5 }} />
+
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Delivery Channels
+                      </Typography>
+
+                      <Stack spacing={1.2}>
+                        {/* WhatsApp */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1, borderRadius: 1.5, bgcolor: prefObj.whatsapp ? 'rgba(34,197,94,0.06)' : 'transparent', border: '1px solid', borderColor: prefObj.whatsapp ? 'rgba(34,197,94,0.2)' : 'divider' }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <WhatsAppIcon sx={{ color: '#25D366', fontSize: 20 }} />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>WhatsApp Message</Typography>
+                              <Typography variant="caption" color="text.secondary">Direct message with CRM quick-action link</Typography>
+                            </Box>
+                          </Stack>
+                          <Switch
+                            checked={Boolean(prefObj.whatsapp)}
+                            onChange={(e) => {
+                              setMyPreferences((prev: any) => ({
+                                ...prev,
+                                [categoryKey]: { ...prev[categoryKey], whatsapp: e.target.checked }
+                              }));
+                            }}
+                            color="success"
+                            size="small"
+                          />
+                        </Box>
+
+                        {/* Push */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1, borderRadius: 1.5, bgcolor: prefObj.push ? 'rgba(147,51,234,0.06)' : 'transparent', border: '1px solid', borderColor: prefObj.push ? 'rgba(147,51,234,0.2)' : 'divider' }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <PhoneIphoneIcon sx={{ color: '#9333ea', fontSize: 20 }} />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>Mobile Push Notification</Typography>
+                              <Typography variant="caption" color="text.secondary">Instant banner alert on mobile app</Typography>
+                            </Box>
+                          </Stack>
+                          <Switch
+                            checked={Boolean(prefObj.push)}
+                            onChange={(e) => {
+                              setMyPreferences((prev: any) => ({
+                                ...prev,
+                                [categoryKey]: { ...prev[categoryKey], push: e.target.checked }
+                              }));
+                            }}
+                            color="secondary"
+                            size="small"
+                          />
+                        </Box>
+
+                        {/* Email */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1, borderRadius: 1.5, bgcolor: prefObj.email ? 'rgba(37,99,235,0.06)' : 'transparent', border: '1px solid', borderColor: prefObj.email ? 'rgba(37,99,235,0.2)' : 'divider' }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <EmailIcon sx={{ color: '#2563eb', fontSize: 20 }} />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>Email Notification</Typography>
+                              <Typography variant="caption" color="text.secondary">Digest email with client summary</Typography>
+                            </Box>
+                          </Stack>
+                          <Switch
+                            checked={Boolean(prefObj.email)}
+                            onChange={(e) => {
+                              setMyPreferences((prev: any) => ({
+                                ...prev,
+                                [categoryKey]: { ...prev[categoryKey], email: e.target.checked }
+                              }));
+                            }}
+                            color="primary"
+                            size="small"
+                          />
+                        </Box>
+
+                        {/* In-App Bell */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1, borderRadius: 1.5, bgcolor: prefObj.in_app ? 'rgba(234,179,8,0.06)' : 'transparent', border: '1px solid', borderColor: prefObj.in_app ? 'rgba(234,179,8,0.2)' : 'divider' }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <NotificationsIcon sx={{ color: '#eab308', fontSize: 20 }} />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>In-App Topbar Bell</Typography>
+                              <Typography variant="caption" color="text.secondary">Real-time desktop popover and sound ping</Typography>
+                            </Box>
+                          </Stack>
+                          <Switch
+                            checked={Boolean(prefObj.in_app)}
+                            onChange={(e) => {
+                              setMyPreferences((prev: any) => ({
+                                ...prev,
+                                [categoryKey]: { ...prev[categoryKey], in_app: e.target.checked }
+                              }));
+                            }}
+                            color="warning"
+                            size="small"
+                          />
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+
+          {/* Bottom Save Preferences Bar */}
+          <Paper elevation={0} sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveMyPreferences}
+              disabled={savingMyPrefs}
+              sx={{ textTransform: 'none', fontWeight: 600, px: 4, borderRadius: 2 }}
+            >
+              {savingMyPrefs ? 'Saving Preferences...' : 'Save Channel Preferences'}
+            </Button>
+          </Paper>
+        </Box>
+      )}
+
+      {/* TAB 0: AUTOMATION ROUTING MATRIX */}
+      {!loading && currentTabKey === 'matrix' && (
+        <Box>
+          {!isAdmin && (
+            <Alert severity="info" icon={<SecurityIcon />} sx={{ mb: 2.5, borderRadius: 2 }}>
+              <strong>Team Supervisory Operational View:</strong> Workspace-wide routing rules are configured by your Workspace Administrator. Displayed below so team leaders have complete operational transparency into which team members and customers receive automatic CRM notifications.
+            </Alert>
+          )}
+          {isAdmin && (
+            <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+              <strong>Intelligent Multi-Recipient Broadcasting:</strong> When a CRM event occurs, notifications are delivered simultaneously to the assigned sales agent, their reporting team lead, workspace admin, and the customer based on these active toggles.
+            </Alert>
+          )}
 
           <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
             <TableContainer>
@@ -826,24 +1344,33 @@ export default function NotificationHubPage() {
                 <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '14px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" />
                 <Chip icon={<NotificationsIcon sx={{ fontSize: '14px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" />
               </Stack>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<SaveIcon />}
-                onClick={handleSaveMatrix}
-                disabled={savingMatrix}
-                sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}
-              >
-                {savingMatrix ? 'Saving Changes...' : 'Save Routing Matrix'}
-              </Button>
+              {isAdmin ? (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveMatrix}
+                  disabled={savingMatrix}
+                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}
+                >
+                  {savingMatrix ? 'Saving Changes...' : 'Save Routing Matrix'}
+                </Button>
+              ) : (
+                <Chip icon={<LockIcon sx={{ fontSize: '15px !important' }} />} label="Supervisory Read-Only Mode" color="default" variant="outlined" sx={{ fontWeight: 600 }} />
+              )}
             </Box>
           </Paper>
         </Box>
       )}
 
       {/* TAB 1: DYNAMIC TEMPLATE STUDIO */}
-      {!loading && activeTab === 1 && (
+      {!loading && currentTabKey === 'templates' && (
         <Box>
+          {!isAdmin && (
+            <Alert severity="info" icon={<VisibilityIcon />} sx={{ mb: 2.5, borderRadius: 2 }}>
+              <strong>Supervisory Template Preview Mode:</strong> Master notification templates and merge tags are configured by your Workspace Administrator. You can select CRM events and channels below to preview message layouts and live device mockups.
+            </Alert>
+          )}
           {/* Top Controls: Industry Vertical & Event Selector */}
           <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between' }}>
@@ -881,64 +1408,78 @@ export default function NotificationHubPage() {
                 </FormControl>
               </Box>
 
-              <Button
-                variant="outlined"
-                color="warning"
-                size="small"
-                startIcon={<RestartAltIcon />}
-                onClick={handleResetToDefault}
-                disabled={resettingTemplates}
-                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 40, whiteSpace: 'nowrap', px: 2 }}
-              >
-                {resettingTemplates ? 'Resetting...' : 'Reset to Industry Standard'}
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  size="small"
+                  startIcon={<RestartAltIcon />}
+                  onClick={handleResetToDefault}
+                  disabled={resettingTemplates}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 40, whiteSpace: 'nowrap', px: 2 }}
+                >
+                  {resettingTemplates ? 'Resetting...' : 'Reset to Industry Standard'}
+                </Button>
+              )}
             </Box>
 
             {/* Click-to-Insert Merge Tag Toolbar */}
-            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1 }}>
-                Click to Insert Standard Merge Tags:
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {mergeTagsList.map((tag) => {
-                  const cleanTag = tag.tag.replace(/[\{\}]/g, '');
-                  return (
-                    <Chip
-                      key={cleanTag}
-                      label={`{{${cleanTag}}}`}
-                      size="small"
-                      onClick={() => handleInsertMergeTag(cleanTag)}
-                      clickable
-                      sx={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        fontFamily: 'monospace',
-                        bgcolor: 'action.hover',
-                        '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
-                      }}
-                    />
-                  );
-                })}
-              </Stack>
-            </Box>
+            {isAdmin && (
+              <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1 }}>
+                  Click to Insert Standard Merge Tags:
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {mergeTagsList.map((tag) => {
+                    const cleanTag = tag.tag.replace(/[\{\}]/g, '');
+                    return (
+                      <Chip
+                        key={cleanTag}
+                        label={`{{${cleanTag}}}`}
+                        size="small"
+                        onClick={() => handleInsertMergeTag(cleanTag)}
+                        clickable
+                        sx={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          fontFamily: 'monospace',
+                          bgcolor: 'action.hover',
+                          '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
+                        }}
+                      />
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
           </Paper>
 
-          {/* Studio Workspace: Left Editor, Right Live Preview */}
+          {/* Main Studio Editor: Channel Selector & Live Mockups */}
           <Grid container spacing={3}>
-            {/* Left Column: Template Editor */}
+            {/* Left Column: Template Editor Form */}
             <Grid item xs={12} md={7}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                {/* Channel Selector */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Tabs
                     value={selectedChannel}
                     onChange={(_, val) => setSelectedChannel(val)}
-                    sx={{ minHeight: 40, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40, py: 0.5 } }}
+                    sx={{
+                      minHeight: 40,
+                      '& .MuiTab-root': {
+                        minHeight: 40,
+                        py: 0.5,
+                        px: 2,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        gap: 0.75
+                      }
+                    }}
                   >
-                    <Tab value="whatsapp" icon={<WhatsAppIcon fontSize="small" />} iconPosition="start" label="WhatsApp" />
-                    <Tab value="email" icon={<EmailIcon fontSize="small" />} iconPosition="start" label="Email" />
-                    <Tab value="push" icon={<PhoneIphoneIcon fontSize="small" />} iconPosition="start" label="Push" />
-                    <Tab value="in_app" icon={<NotificationsIcon fontSize="small" />} iconPosition="start" label="In-App Bell" />
+                    <Tab icon={<WhatsAppIcon sx={{ fontSize: '18px !important' }} />} iconPosition="start" label="WhatsApp" value="whatsapp" />
+                    <Tab icon={<EmailIcon sx={{ fontSize: '18px !important' }} />} iconPosition="start" label="Email" value="email" />
+                    <Tab icon={<PhoneIphoneIcon sx={{ fontSize: '18px !important' }} />} iconPosition="start" label="Push" value="push" />
+                    <Tab icon={<NotificationsIcon sx={{ fontSize: '18px !important' }} />} iconPosition="start" label="In-App Bell" value="in_app" />
                   </Tabs>
 
                   <FormControlLabel
@@ -948,6 +1489,7 @@ export default function NotificationHubPage() {
                         onChange={(e) => setActiveTemplateEnabled(e.target.checked)}
                         size="small"
                         color="success"
+                        disabled={!isAdmin}
                       />
                     }
                     label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Active</Typography>}
@@ -961,6 +1503,7 @@ export default function NotificationHubPage() {
                     value={activeTemplateSubject}
                     onChange={(e) => setActiveTemplateSubject(e.target.value)}
                     size="small"
+                    InputProps={{ readOnly: !isAdmin }}
                     sx={{ mb: 2 }}
                     placeholder="e.g. 🎯 New Lead Alert: {{customer_name}} ({{project_name}})"
                   />
@@ -975,6 +1518,10 @@ export default function NotificationHubPage() {
                   value={activeTemplateBody}
                   onChange={(e) => setActiveTemplateBody(e.target.value)}
                   placeholder="Enter template copy using merge tags like {{customer_name}}..."
+                  InputProps={{
+                    inputRef: templateBodyInputRef,
+                    readOnly: !isAdmin
+                  }}
                   sx={{
                     fontFamily: 'monospace',
                     fontSize: '0.9rem',
@@ -989,16 +1536,20 @@ export default function NotificationHubPage() {
                     Length: {activeTemplateBody.length} characters
                   </Typography>
                   <Stack direction="row" spacing={1.5}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSaveTemplate}
-                      disabled={savingTemplate}
-                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                    >
-                      {savingTemplate ? 'Saving...' : 'Save Template'}
-                    </Button>
+                    {isAdmin ? (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<SaveIcon />}
+                        onClick={handleSaveTemplate}
+                        disabled={savingTemplate}
+                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                      >
+                        {savingTemplate ? 'Saving...' : 'Save Template'}
+                      </Button>
+                    ) : (
+                      <Chip icon={<LockIcon sx={{ fontSize: '15px !important' }} />} label="Supervisory Preview Only" color="default" variant="outlined" size="small" />
+                    )}
                   </Stack>
                 </Box>
               </Paper>
@@ -1175,7 +1726,7 @@ export default function NotificationHubPage() {
       )}
 
       {/* TAB 2: GATEWAYS & CHANNELS */}
-      {!loading && activeTab === 2 && (
+      {!loading && currentTabKey === 'gateways' && isAdmin && (
         <Box>
           <Grid container spacing={3}>
             {/* WhatsApp Gateway Card */}
@@ -1388,8 +1939,23 @@ export default function NotificationHubPage() {
       )}
 
       {/* TAB 3: OMNICHANNEL DELIVERY AUDIT LOGS */}
-      {!loading && activeTab === 3 && (
+      {!loading && currentTabKey === 'logs' && (
         <Box>
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {isSales ? 'My Alert History & Delivery Logs' : isTeamLead ? 'Team & Supervisory Delivery Logs' : 'Cross-Channel Delivery Audit Trail'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {isSales
+                  ? 'Real-time cryptographic log of alerts dispatched to your verified channels'
+                  : isTeamLead
+                  ? 'Supervisory delivery log for you and your reporting team members'
+                  : 'Workspace-wide cryptographic audit log of all automated dispatches'}
+              </Typography>
+            </Box>
+          </Box>
+
           {/* Filters Bar */}
           <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
