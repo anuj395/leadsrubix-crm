@@ -18,11 +18,16 @@ import InputAdornment from '@mui/material/InputAdornment'
 import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import Tooltip from '@mui/material/Tooltip'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import {
   Transform as TransformIcon,
   Business as BusinessIcon,
   MonetizationOn as MonetizationOnIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  InfoOutlined as InfoIcon,
+  HelpOutline as HelpIcon
 } from '@mui/icons-material'
 import { api } from '@/services/api'
 import { listPipelines, type Pipeline, type Stage } from '@/services/dealsService'
@@ -43,6 +48,9 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
   const [error, setError] = useState<string | null>(null)
   const [resolvedScreen, setResolvedScreen] = useState<ResolvedScreen | null>(null)
 
+  // Dual-Engine Customer Type: B2C (Direct Consumer) vs B2B (Corporate Account)
+  const [customerType, setCustomerType] = useState<'B2C' | 'B2B'>('B2C')
+
   // Form State
   const [accountName, setAccountName] = useState('')
   const [createDeal, setCreateDeal] = useState(true)
@@ -56,16 +64,28 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
     if (!open || !contact) return
     setError(null)
     const customerName = contact.customerName || contact.customer_name || 'Qualified Lead'
-    setAccountName(`${customerName} Co.`)
-    const projectName = contact.projectName || (contact as any).project_name || 'Opportunity'
-    setDealTitle(`${customerName} - ${projectName}`)
+    const indId = String(contact.industry_id || contact.industryId || '').toLowerCase()
+    
+    // IT Services (temp0006) and Manufacturing (temp0007) default to B2B Corporate
+    const isB2BVertical = indId === 'temp0006' || indId === 'temp0007'
+    const defaultType = isB2BVertical ? 'B2B' : 'B2C'
+    setCustomerType(defaultType)
+
+    if (isB2BVertical) {
+      setAccountName(`${customerName} Co.`)
+      setDealTitle(`${customerName} Co. - Enterprise Opportunity`)
+    } else {
+      setAccountName('')
+      const projectName = contact.projectName || (contact as any).project_name || 'Opportunity'
+      setDealTitle(`${customerName} - ${projectName}`)
+    }
+
     const parsedBudget = contact.budget ? Number(String(contact.budget).replace(/[^0-9]/g, '')) : 0
     setDealAmount(parsedBudget || 0)
     setExpectedCloseDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
     setDealNotes(contact.notes ? String(contact.notes) : '')
 
     const orgId = (contact.organization_id || contact.organizationId) as string | undefined
-    const indId = (contact.industry_id || contact.industryId) as string | undefined
 
     void resolveScreen({
       screenKey: 'deals',
@@ -90,15 +110,32 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
     })()
   }, [open, contact])
 
+  // Recalculate title on customer type toggle if user hasn't typed custom
+  const handleTypeChange = (newType: 'B2C' | 'B2B') => {
+    setCustomerType(newType)
+    if (!contact) return
+    const customerName = contact.customerName || contact.customer_name || 'Qualified Lead'
+    const projectName = contact.projectName || (contact as any).project_name || 'Opportunity'
+    if (newType === 'B2B') {
+      if (!accountName.trim()) setAccountName(`${customerName} Co.`)
+      setDealTitle(`${accountName || customerName + ' Co.'} - ${projectName}`)
+    } else {
+      setDealTitle(`${customerName} - ${projectName}`)
+    }
+  }
+
   const activePipeline = pipelines.find(p => (p._id || p.id) === selectedPipelineId) || pipelines[0]
   const stages: Stage[] = activePipeline?.stages || []
 
   const handleConvert = async () => {
     if (!contact) return
-    if (!accountName.trim()) {
-      setError('Account name is required')
+    
+    // Only enforce Account Name in B2B mode
+    if (customerType === 'B2B' && !accountName.trim()) {
+      setError('Please enter the Company / Organization Name for B2B Corporate conversion')
       return
     }
+
     if (createDeal) {
       if (!dealTitle.trim()) {
         setError('Deal title is required')
@@ -123,7 +160,8 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
       const selectedStageObj = stages.find(s => (s.stageId || s.stage_id || s.name) === stageId)
 
       const payload = {
-        accountName: accountName.trim(),
+        customerType,
+        accountName: customerType === 'B2B' ? accountName.trim() : undefined,
         createDeal,
         dealTitle: dealTitle.trim(),
         dealAmount: Number(dealAmount || 0),
@@ -156,7 +194,11 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
       </DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Converting this lead will automatically establish an <strong>Account</strong>, link the <strong>Contact</strong>, and optionally generate an active <strong>Sales Deal</strong>.
+          {customerType === 'B2C' ? (
+            <>Promotes this verified contact into an active <strong>Sales Deal</strong>. All historical calls, inquiries, and tasks will remain intact.</>
+          ) : (
+            <>Promotes this lead into an active <strong>Sales Deal</strong> and links it to a <strong>Corporate Account (Company)</strong>.</>
+          )}
         </Typography>
 
         {error && (
@@ -166,40 +208,79 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
         )}
 
         <Stack spacing={2.5}>
-          {/* Section 1: Account */}
-          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-              <BusinessIcon fontSize="small" color="primary" />
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                1. Account (Company / Client Entity)
+          {/* Customer Type Selector (Layman Guide standard) */}
+          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Customer Type
+                </Typography>
+                <Tooltip title="Choose 'Individual / Personal (B2C)' for direct buyers (homebuyers, patients, students). Choose 'Business / Corporate (B2B)' when selling to a registered company or business." arrow>
+                  <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+                </Tooltip>
+              </Stack>
+              <Typography variant="caption" color="primary.main" fontWeight={600}>
+                {customerType === 'B2C' ? 'Direct Consumer (No Company required)' : 'Corporate / B2B Client'}
               </Typography>
-            </Stack>
-            <TextField
-              fullWidth
+            </Box>
+            <ToggleButtonGroup
+              value={customerType}
+              exclusive
+              onChange={(_, val) => { if (val) handleTypeChange(val) }}
               size="small"
-              label="Account Name"
-              required
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-              placeholder="e.g. Acme Corp or Rajesh Sharma Holdings"
-            />
+              fullWidth
+            >
+              <ToggleButton value="B2C" sx={{ textTransform: 'none', fontWeight: 600, gap: 1 }}>
+                <PersonIcon fontSize="small" /> Individual / Personal (B2C)
+              </ToggleButton>
+              <ToggleButton value="B2B" sx={{ textTransform: 'none', fontWeight: 600, gap: 1 }}>
+                <BusinessIcon fontSize="small" /> Business / Corporate (B2B)
+              </ToggleButton>
+            </ToggleButtonGroup>
           </Box>
 
+          {/* Section 1: Account (Mounted ONLY in B2B mode) */}
+          {customerType === 'B2B' && (
+            <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1.5 }}>
+                <BusinessIcon fontSize="small" color="primary" />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Company / Organization Entity
+                </Typography>
+                <Tooltip title="Enter the registered company name for invoicing, corporate contracts, and multi-contact tracking." arrow>
+                  <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+                </Tooltip>
+              </Stack>
+              <TextField
+                fullWidth
+                size="small"
+                label="Company / Organization Name"
+                required
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder="e.g. Acme Corp or Digital Rubix Pvt Ltd"
+              />
+            </Box>
+          )}
+
           {/* Section 2: Contact Person */}
-          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-            <Stack direction="row" spacing={1} alignItems="center">
+          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" spacing={0.75} alignItems="center">
               <PersonIcon fontSize="small" color="primary" />
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                2. Contact: {String(contact.customerName || contact.customer_name || 'Contact')} ({String(contact.contactNumber || contact.contact_number || '')})
+                Contact Person: {String(contact.customerName || contact.customer_name || 'Contact')} ({String(contact.contactNumber || contact.contact_number || '')})
               </Typography>
+              <Tooltip title="This contact will remain the primary person associated with all past and future activities." arrow>
+                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+              </Tooltip>
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-              All historical calls, tasks, and notes will remain intact and linked to this contact.
+              All historical calls, tasks, inquiries, and notes will remain intact and linked to this contact.
             </Typography>
           </Box>
 
           {/* Section 3: Sales Deal */}
-          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
             <FormControlLabel
               control={
                 <Checkbox
@@ -209,9 +290,14 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
                 />
               }
               label={
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  3. Create a New Deal in {resolvedScreen?.name || resolvedScreen?.screen?.name || 'Sales Pipeline'}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Create a New Deal in {resolvedScreen?.name || resolvedScreen?.screen?.name || 'Sales Pipeline'}
+                  </Typography>
+                  <Tooltip title="Generates an active commercial deal card in your sales pipeline with stage tracking and revenue value." arrow>
+                    <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+                  </Tooltip>
+                </Box>
               }
             />
 
@@ -224,6 +310,7 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
                   required
                   value={dealTitle}
                   onChange={(e) => setDealTitle(e.target.value)}
+                  helperText="A clear title identifying this sales opportunity"
                 />
 
                 <Box sx={{ display: 'flex', gap: 2 }}>
@@ -237,6 +324,7 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
                     InputProps={{
                       startAdornment: <InputAdornment position="start">₹</InputAdornment>
                     }}
+                    helperText="Expected commercial / booking value"
                   />
 
                   {pipelines.length > 1 && (
@@ -281,6 +369,7 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
                     InputLabelProps={{ shrink: true }}
                     value={expectedCloseDate}
                     onChange={(e) => setExpectedCloseDate(e.target.value)}
+                    helperText="Target completion or closing date"
                   />
                 </Box>
 
@@ -292,7 +381,7 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
                   label={resolvedScreen?.formFields?.find(f => f.key === 'notes')?.label || 'Deal Strategy Notes'}
                   value={dealNotes}
                   onChange={(e) => setDealNotes(e.target.value)}
-                  placeholder="Key opportunity details, client requirements..."
+                  placeholder="Key opportunity details, client requirements, or negotiation points..."
                 />
               </Box>
             )}
@@ -306,10 +395,12 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
           onClick={handleConvert}
           disabled={loading}
           startIcon={loading ? <CircularProgress size={16} /> : <TransformIcon />}
+          sx={{ fontWeight: 700 }}
         >
-          Convert Lead
+          {customerType === 'B2C' ? 'Convert to Deal' : 'Convert to B2B Deal'}
         </Button>
       </DialogActions>
     </Dialog>
   )
 }
+
