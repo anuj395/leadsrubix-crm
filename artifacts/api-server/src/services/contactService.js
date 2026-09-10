@@ -1561,28 +1561,23 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
   const Account = accountModel.Account || mongoose.model('Account');
   const Deal = dealModel.Deal || mongoose.model('Deal');
 
-  // 1. Resolve or Create Account
-  let accountId = payload.accountId || contact.account_id || contact.accountId;
-  if (!accountId && payload.accountName) {
-    const newAccount = await Account.create({
-      name: payload.accountName,
-      organization_id: orgId,
-      workspace_id: wsId,
-      industry_id: indId,
-      phone: contact.contact_number || contact.contactNumber || '',
-      created_by: authedUser.id
-    });
-    accountId = newAccount._id;
-  } else if (!accountId) {
-    const newAccount = await Account.create({
-      name: contact.customer_name || contact.customerName || 'Account',
-      organization_id: orgId,
-      workspace_id: wsId,
-      industry_id: indId,
-      phone: contact.contact_number || contact.contactNumber || '',
-      created_by: authedUser.id
-    });
-    accountId = newAccount._id;
+  // 1. Dual-Engine Customer Type: B2C (Direct Consumer) vs B2B (Corporate Account)
+  const customerType = payload.customerType || (payload.accountName ? 'B2B' : 'B2C');
+  let accountId = payload.accountId || contact.account_id || contact.accountId || null;
+
+  // Account is ONLY created if explicitly in B2B mode or accountName was passed
+  if (customerType === 'B2B' || payload.accountName) {
+    if (!accountId && payload.accountName) {
+      const newAccount = await Account.create({
+        name: payload.accountName,
+        organization_id: orgId,
+        workspace_id: wsId,
+        industry_id: indId,
+        phone: contact.contact_number || contact.contactNumber || '',
+        created_by: authedUser.id
+      });
+      accountId = newAccount._id;
+    }
   }
 
   // 2. Create Deal if requested
@@ -1599,7 +1594,9 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
       stage: payload.stageName || payload.stageId || 'Qualification',
       probability: Number(payload.probability || 10),
       expected_close_date: payload.expectedCloseDate ? new Date(payload.expectedCloseDate) : undefined,
-      account_id: accountId,
+      customer_type: customerType,
+      account_id: accountId || null,
+      account_name: payload.accountName || '',
       contact_id: contact._id,
       contact_name: contact.customer_name || contact.customerName || '',
       contact_phone: contact.contact_number || contact.contactNumber || '',
@@ -1617,10 +1614,13 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
 
   // 3. Mark contact as converted
   const updateFields = {
-    account_id: accountId,
-    accountId: accountId,
+    account_id: accountId || null,
+    accountId: accountId || null,
+    customer_type: customerType,
+    customerType: customerType,
     is_converted: true,
     isConverted: true,
+    stage: 'CONVERTED',
     converted_at: new Date(),
     convertedAt: new Date()
   };
@@ -1633,6 +1633,7 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
 
   return {
     success: true,
+    customerType,
     accountId,
     dealId: createdDeal ? createdDeal._id : null,
     deal: createdDeal,

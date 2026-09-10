@@ -33,7 +33,9 @@ import {
   ViewKanban as ViewKanbanIcon,
   ViewList as ViewListIcon,
   CalendarToday as CalendarIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Business as BusinessIcon,
+  InfoOutlined as InfoIcon
 } from '@mui/icons-material'
 import { 
   listDeals, 
@@ -487,30 +489,39 @@ export default function DealsListPage() {
       flex: 1.5,
       minWidth: 180,
       renderCell: (params) => (
-        <Box>
+        <Box sx={{ py: 0.5 }}>
           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {params.row.title || params.row.name || 'Untitled Deal'}
           </Typography>
-          {params.row.contactName && (
-            <Typography
-              variant="caption"
-              color="primary"
-              sx={{
-                display: 'block',
-                cursor: params.row.contactId || params.row.contact_id ? 'pointer' : 'default',
-                '&:hover': { textDecoration: params.row.contactId || params.row.contact_id ? 'underline' : 'none' }
-              }}
-              onClick={(e) => {
-                const cId = params.row.contactId || params.row.contact_id
-                if (cId) {
-                  e.stopPropagation()
-                  navigate(`/leads/contacts/${cId}`)
-                }
-              }}
-            >
-              👤 {params.row.contactName}
-            </Typography>
-          )}
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.25 }}>
+            {Boolean(params.row.accountName || params.row.account_name) && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 500 }}>
+                🏢 {params.row.accountName || params.row.account_name}
+              </Typography>
+            )}
+            {Boolean(params.row.contactName || params.row.contact_name) && (
+              <Typography
+                variant="caption"
+                color="primary"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  cursor: params.row.contactId || params.row.contact_id ? 'pointer' : 'default',
+                  '&:hover': { textDecoration: params.row.contactId || params.row.contact_id ? 'underline' : 'none' }
+                }}
+                onClick={(e) => {
+                  const cId = params.row.contactId || params.row.contact_id
+                  if (cId) {
+                    e.stopPropagation()
+                    navigate(`/leads/contacts/${cId}`)
+                  }
+                }}
+              >
+                👤 {params.row.contactName || params.row.contact_name}
+              </Typography>
+            )}
+          </Stack>
         </Box>
       )
     },
@@ -734,33 +745,53 @@ export default function DealsListPage() {
       {/* KPI Metric Summary Bar (2x2 on mobile, 4-col on desktop) */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: { xs: 1, sm: 2 }, mb: 2.5, flexShrink: 0 }}>
         <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-            Total Deals
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+              Total Deals
+            </Typography>
+            <Tooltip title="Total number of active and closed deals in the current view/pipeline." arrow>
+              <InfoIcon sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
+            </Tooltip>
+          </Box>
           <Typography variant="h6" sx={{ fontWeight: 700, mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {metrics.totalCount}
           </Typography>
         </Paper>
         <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-            Total Pipeline Value
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+              Total Pipeline Value
+            </Typography>
+            <Tooltip title="Cumulative face value of all active commercial opportunities in this pipeline." arrow>
+              <InfoIcon sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
+            </Tooltip>
+          </Box>
           <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {formatCurrency(metrics.totalVal)}
           </Typography>
         </Paper>
         <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-            Weighted Forecast
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+              Weighted Forecast
+            </Typography>
+            <Tooltip title="Calculated as: Σ (Deal Amount × Stage Probability %). Represents realistic expected revenue." arrow>
+              <InfoIcon sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
+            </Tooltip>
+          </Box>
           <Typography variant="h6" sx={{ fontWeight: 700, color: '#8b5cf6', mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {formatCurrency(metrics.weightedVal)}
           </Typography>
         </Paper>
         <Paper elevation={0} sx={{ p: { xs: 1.25, sm: 1.75 }, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-            Won Value (Win Rate)
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+              Won Value (Win Rate)
+            </Typography>
+            <Tooltip title="Total closed-won commercial revenue and percentage of won deals vs all closed deals." arrow>
+              <InfoIcon sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
+            </Tooltip>
+          </Box>
           <Typography variant="h6" sx={{ fontWeight: 700, color: '#10b981', mt: 0.5, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             {formatCurrency(metrics.wonVal)} ({metrics.winRate}%)
           </Typography>
@@ -983,45 +1014,77 @@ export default function DealsListPage() {
                           </Box>
 
                           {/* Contact / Company details */}
-                          {(deal.contactName || deal.contact_name) && (
-                            <Box
-                              onClick={(e) => {
-                                const cId = (deal.contactId || deal.contact_id) as string
-                                if (cId) {
-                                  e.stopPropagation()
-                                  navigate(`/leads/contacts/${cId}`)
-                                }
-                              }}
-                              sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 0.75,
-                                px: 1,
-                                py: 0.4,
-                                bgcolor: 'primary.50',
-                                borderRadius: 1.5,
-                                width: 'fit-content',
-                                maxWidth: '100%',
-                                cursor: deal.contactId || deal.contact_id ? 'pointer' : 'default',
-                                '&:hover': { bgcolor: 'primary.100' }
-                              }}
-                            >
-                              <PersonIcon sx={{ fontSize: 13, color: 'primary.main', flexShrink: 0 }} />
-                              <Typography
-                                variant="caption"
+                          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+                            {Boolean(deal.accountName || deal.account_name) && (
+                              <Box
                                 sx={{
-                                  color: 'primary.main',
-                                  fontWeight: 600,
-                                  fontSize: '0.72rem',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  px: 0.75,
+                                  py: 0.3,
+                                  bgcolor: 'action.hover',
+                                  borderRadius: 1,
+                                  maxWidth: '100%'
                                 }}
                               >
-                                {deal.contactName || deal.contact_name}
-                              </Typography>
-                            </Box>
-                          )}
+                                <BusinessIcon sx={{ fontSize: 13, color: 'text.secondary', flexShrink: 0 }} />
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'text.secondary',
+                                    fontWeight: 600,
+                                    fontSize: '0.7rem',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {deal.accountName || deal.account_name}
+                                </Typography>
+                              </Box>
+                            )}
+
+                            {Boolean(deal.contactName || deal.contact_name) && (
+                              <Box
+                                onClick={(e) => {
+                                  const cId = (deal.contactId || deal.contact_id) as string
+                                  if (cId) {
+                                    e.stopPropagation()
+                                    navigate(`/leads/contacts/${cId}`)
+                                  }
+                                }}
+                                sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  px: 0.75,
+                                  py: 0.3,
+                                  bgcolor: 'primary.50',
+                                  borderRadius: 1,
+                                  width: 'fit-content',
+                                  maxWidth: '100%',
+                                  cursor: deal.contactId || deal.contact_id ? 'pointer' : 'default',
+                                  '&:hover': { bgcolor: 'primary.100' }
+                                }}
+                              >
+                                <PersonIcon sx={{ fontSize: 13, color: 'primary.main', flexShrink: 0 }} />
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'primary.main',
+                                    fontWeight: 600,
+                                    fontSize: '0.72rem',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {deal.contactName || deal.contact_name}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Stack>
 
                           {/* Lost Reason Pill if Lost */}
                           {(deal.lostReason || deal.lost_reason) && (
