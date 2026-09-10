@@ -36,7 +36,11 @@ router.get('/matrix', authenticate, async (req, res) => {
     return res.json({
       success: true,
       organizationId: orgId,
-      events: STANDARD_EVENTS,
+      events: STANDARD_EVENTS.map(ev => ({
+        ...ev,
+        key: ev.event_key,
+        name: ev.event_label
+      })),
       mergeTags: MERGE_TAGS,
       matrix
     });
