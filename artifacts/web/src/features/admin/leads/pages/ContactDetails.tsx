@@ -639,10 +639,10 @@ export default function ContactDetailsPage() {
               <Divider orientation="vertical" flexItem sx={{ height: 24, alignSelf: 'center', display: { xs: 'none', sm: 'block' } }} />
             )}
 
-            {/* Primary Action: Convert to Deal (if qualified/interested and not converted) OR + New Deal (if converted) */}
+            {/* Primary Action: Convert to Deal (for any active unconverted lead) OR + New Deal (if converted) */}
             {!isClosedLost && (
               !isConverted ? (
-                isInterested && can_edit && (
+                can_edit && (
                   <Button
                     variant="contained"
                     color="secondary"

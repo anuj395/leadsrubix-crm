@@ -404,3 +404,5 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
   )
 }
 
+export { ConvertLeadModal }
+

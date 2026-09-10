@@ -30,7 +30,8 @@ import {
   Star as StarIcon,
   Alarm as AlarmIcon,
   PhoneCallback as PhoneCallbackIcon,
-  PersonOff as PersonOffIcon
+  PersonOff as PersonOffIcon,
+  Transform as TransformIcon
 } from '@mui/icons-material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -48,6 +49,7 @@ import { useSuperAdminScope } from '@/hooks/useSuperAdminScope'
 import { SuperAdminScopeSelector } from '@/components/common/SuperAdminScopeSelector'
 import { ChangeOwnerModal } from '../components/ChangeOwnerModal'
 import { ImportContactModal } from '../components/ImportContactModal'
+import { ConvertLeadModal } from '../components/ConvertLeadModal'
 import { api } from '@/services/api'
 
 export default function ContactsListPage() {
@@ -77,6 +79,7 @@ export default function ContactsListPage() {
   const [loading, setLoading] = useState(false)
   const [openOwnerModal, setOpenOwnerModal] = useState(false)
   const [openImportModal, setOpenImportModal] = useState(false)
+  const [convertingContact, setConvertingContact] = useState<Contact | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
   })
@@ -362,7 +365,7 @@ export default function ContactsListPage() {
           disableColumnMenu: true,
           align: 'right',
           headerAlign: 'right',
-          width: 140,
+          width: 170,
           renderCell: (p) => (
             <Stack direction="row" spacing={0.5} sx={{ height: '100%', alignItems: 'center' }}>
               <Tooltip title="Copy Lead Details">
@@ -370,6 +373,20 @@ export default function ContactsListPage() {
                   <ContentCopyIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
+              {can_edit && !p.row.is_converted && !p.row.isConverted && (
+                <Tooltip title="Convert to Deal">
+                  <IconButton
+                    size="small"
+                    color="secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConvertingContact(p.row);
+                    }}
+                  >
+                    <TransformIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {can_edit && (
                 <Tooltip title="Edit">
                   <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/leads/contacts/${p.row._id}/edit`); }}>
@@ -792,6 +809,17 @@ export default function ContactsListPage() {
         onClose={() => setOpenImportModal(false)}
         onSuccess={() => {
           setToast({ open: true, msg: `${labels.contacts} imported successfully`, sev: 'success' })
+          void refresh()
+        }}
+      />
+
+      <ConvertLeadModal
+        open={Boolean(convertingContact)}
+        contact={convertingContact}
+        onClose={() => setConvertingContact(null)}
+        onSuccess={() => {
+          setToast({ open: true, msg: 'Lead converted to Deal successfully!', sev: 'success' })
+          setConvertingContact(null)
           void refresh()
         }}
       />
