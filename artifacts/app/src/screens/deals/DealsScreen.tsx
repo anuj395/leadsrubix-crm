@@ -43,6 +43,14 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
     notes: '',
   });
 
+  // Stage Update Modal
+  const [selectedDealForStage, setSelectedDealForStage] = useState<Deal | null>(null);
+  const [stageModalOpen, setStageModalOpen] = useState(false);
+  const [lostReasonModalOpen, setLostReasonModalOpen] = useState(false);
+  const [pendingLostStage, setPendingLostStage] = useState<Stage | null>(null);
+  const [lostReasonText, setLostReasonText] = useState('');
+  const [updatingStage, setUpdatingStage] = useState(false);
+
   const fetchData = async () => {
     try {
       const pipeData = await dealsService.listPipelines();
@@ -113,7 +121,8 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
         const q = searchQuery.toLowerCase();
         const titleMatch = (d.title || d.name || '').toLowerCase().includes(q);
         const contactMatch = (d.contactName || d.contact_name || '').toLowerCase().includes(q);
-        if (!titleMatch && !contactMatch) return false;
+        const accountMatch = (d.accountName || d.account_name || '').toLowerCase().includes(q);
+        if (!titleMatch && !contactMatch && !accountMatch) return false;
       }
 
       return true;
@@ -159,6 +168,71 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
     }
   };
 
+  const handleOpenDealStage = (deal: Deal) => {
+    setSelectedDealForStage(deal);
+    setStageModalOpen(true);
+  };
+
+  const handleSelectStage = async (stage: Stage) => {
+    if (!selectedDealForStage) return;
+    const isLost = stage.isLost || stage.is_lost || stage.name.toUpperCase().includes('LOST');
+    if (isLost) {
+      setPendingLostStage(stage);
+      setStageModalOpen(false);
+      setLostReasonText('');
+      setLostReasonModalOpen(true);
+      return;
+    }
+
+    setUpdatingStage(true);
+    const dealId = (selectedDealForStage._id || selectedDealForStage.id) as string;
+    const stId = stage.stageId || stage.stage_id || stage.name;
+    try {
+      await dealsService.updateDealStage(dealId, stId);
+      setDeals((prev) =>
+        prev.map((d) =>
+          (d._id || d.id) === dealId
+            ? { ...d, stageId: stId, stage: stage.name, probability: stage.probability }
+            : d
+        )
+      );
+      setStageModalOpen(false);
+      setSelectedDealForStage(null);
+      Alert.alert('Success', `Deal moved to ${stage.name}`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to update deal stage.');
+    } finally {
+      setUpdatingStage(false);
+    }
+  };
+
+  const handleConfirmLost = async () => {
+    if (!selectedDealForStage || !pendingLostStage) return;
+    setUpdatingStage(true);
+    const dealId = (selectedDealForStage._id || selectedDealForStage.id) as string;
+    const stId = pendingLostStage.stageId || pendingLostStage.stage_id || pendingLostStage.name;
+    const reason = lostReasonText.trim() || 'Closed Lost';
+    try {
+      await dealsService.updateDealStage(dealId, stId, reason);
+      setDeals((prev) =>
+        prev.map((d) =>
+          (d._id || d.id) === dealId
+            ? { ...d, stageId: stId, stage: pendingLostStage.name, probability: 0, lostReason: reason }
+            : d
+        )
+      );
+      setLostReasonModalOpen(false);
+      setPendingLostStage(null);
+      setSelectedDealForStage(null);
+      setLostReasonText('');
+      Alert.alert('Success', 'Deal marked as Closed Lost.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to update deal stage.');
+    } finally {
+      setUpdatingStage(false);
+    }
+  };
+
   const renderDealCard = ({ item }: { item: Deal }) => {
     const stageObj = stages.find((s) => (s.stageId || s.stage_id) === (item.stageId || item.stage_id || item.stage));
     const stageColor = stageObj?.color || '#3B82F6';
@@ -167,7 +241,11 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
     const contact = item.contactName || item.contact_name;
 
     return (
-      <View style={styles.dealCard}>
+      <TouchableOpacity
+        activeOpacity={0.75}
+        onPress={() => handleOpenDealStage(item)}
+        style={styles.dealCard}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.titleGroup}>
             <Text style={styles.dealTitle} numberOfLines={1}>
@@ -215,7 +293,7 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -439,6 +517,145 @@ export const DealsScreen = ({ navigation }: { navigation?: any }) => {
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <Text style={styles.submitBtnText}>Create Deal</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Update Deal Stage */}
+      <Modal visible={stageModalOpen} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  {selectedDealForStage?.title || selectedDealForStage?.name || 'Update Deal Stage'}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                  {formatAmount(selectedDealForStage?.amount, selectedDealForStage?.currency)}
+                  {Boolean(selectedDealForStage?.accountName || selectedDealForStage?.account_name) && ` • 🏢 ${selectedDealForStage?.accountName || selectedDealForStage?.account_name}`}
+                  {Boolean(selectedDealForStage?.contactName || selectedDealForStage?.contact_name) && ` • 👤 ${selectedDealForStage?.contactName || selectedDealForStage?.contact_name}`}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setStageModalOpen(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginBottom: 10 }]}>MOVE TO PIPELINE STAGE</Text>
+
+            {updatingStage ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#2563EB" />
+                <Text style={{ marginTop: 8, fontSize: 13, color: '#64748B' }}>Updating stage...</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 320 }}>
+                {stages.map((st) => {
+                  const stId = st.stageId || st.stage_id || st.name;
+                  const currentStId = selectedDealForStage?.stageId || selectedDealForStage?.stage_id || selectedDealForStage?.stage;
+                  const isCurrent = currentStId === stId || currentStId === st.name;
+
+                  return (
+                    <TouchableOpacity
+                      key={stId}
+                      style={[
+                        styles.stageSelectItem,
+                        isCurrent && styles.stageSelectItemCurrent
+                      ]}
+                      onPress={() => handleSelectStage(st)}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: st.color || '#3B82F6' }} />
+                        <View>
+                          <Text style={[styles.stageSelectText, isCurrent && { fontWeight: '700', color: '#1E293B' }]}>
+                            {st.name}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#64748B' }}>
+                            Win probability: {st.probability}%
+                          </Text>
+                        </View>
+                      </View>
+                      {isCurrent && (
+                        <Ionicons name="checkmark-circle" size={20} color="#2563EB" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={[styles.cancelBtn, { marginTop: 16 }]}
+              onPress={() => setStageModalOpen(false)}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Capture Lost Reason on Mobile */}
+      <Modal visible={lostReasonModalOpen} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#EF4444' }]}>Mark Deal as Lost</Text>
+              <TouchableOpacity onPress={() => setLostReasonModalOpen(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
+              Select or specify why this opportunity was closed lost:
+            </Text>
+
+            {/* Quick Reason Chips */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {['Price / Budget Constraint', 'Competitor Chosen', 'Client Unresponsive', 'Project Dropped'].map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reasonChip,
+                    lostReasonText === reason && styles.reasonChipActive
+                  ]}
+                  onPress={() => setLostReasonText(reason)}
+                >
+                  <Text style={[styles.reasonChipText, lostReasonText === reason && styles.reasonChipTextActive]}>
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.fieldLabel}>CUSTOM REMARKS (OPTIONAL)</Text>
+            <TextInput
+              style={[styles.fieldInput, { height: 60 }]}
+              placeholder="Additional feedback or notes..."
+              multiline
+              value={lostReasonText}
+              onChangeText={setLostReasonText}
+            />
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setLostReasonModalOpen(false)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: '#EF4444' }]}
+                onPress={handleConfirmLost}
+                disabled={updatingStage}
+              >
+                {updatingStage ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Confirm Closed Lost</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -745,5 +962,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  stageSelectItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    marginBottom: 8,
+  },
+  stageSelectItemCurrent: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  stageSelectText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  reasonChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+  },
+  reasonChipActive: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  reasonChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  reasonChipTextActive: {
+    color: '#DC2626',
+    fontWeight: '600',
   },
 });
