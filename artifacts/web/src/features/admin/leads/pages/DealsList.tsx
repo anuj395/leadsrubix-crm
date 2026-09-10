@@ -21,6 +21,8 @@ import Paper from '@mui/material/Paper'
 import Tooltip from '@mui/material/Tooltip'
 import Avatar from '@mui/material/Avatar'
 import LinearProgress from '@mui/material/LinearProgress'
+import CircularProgress from '@mui/material/CircularProgress'
+import Autocomplete from '@mui/material/Autocomplete'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import ToggleButton from '@mui/material/ToggleButton'
@@ -131,17 +133,42 @@ export default function DealsListPage() {
   // Add / Edit Modal State
   const [dealModalOpen, setDealModalOpen] = useState(false)
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
+  const [customerType, setCustomerType] = useState<'B2C' | 'B2B'>('B2C')
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [dealForm, setDealForm] = useState<Record<string, any>>({
     title: '',
-    amount: 0,
+    amount: '',
     currency: 'INR',
     pipelineId: '',
     stage: '',
     stageId: '',
+    probability: 10,
+    contactId: '',
     contactName: '',
+    contactPhone: '',
+    contactEmail: '',
+    accountName: '',
     ownerName: '',
     expectedCloseDate: '',
-    notes: ''
+    notes: '',
+    lostReason: '',
+    otherLostReason: '',
+    unitNumber: '',
+    towerBlock: '',
+    propertyType: '',
+    vehicleModel: '',
+    variant: '',
+    modelYear: '',
+    clinicalSpecialty: '',
+    treatmentProcedure: '',
+    programName: '',
+    academicIntake: '',
+    portfolioType: '',
+    riskCategory: '',
+    techStack: '',
+    sowTerm: '',
+    productLine: '',
+    batchSize: ''
   })
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -391,9 +418,18 @@ export default function DealsListPage() {
   const handleOpenAdd = () => {
     const firstStage = stages[0]
     const defaultStageVal = firstStage ? (firstStage.stageId || firstStage.stage_id || firstStage.name) : 'New Enquiry'
+    const ind = String(selectedIndustry || user?.industryId || '').toLowerCase()
+    const isB2BVertical = ind === 'temp0006' || ind === 'temp0007'
+    const defCustomerType = isB2BVertical ? 'B2B' : 'B2C'
+    setCustomerType(defCustomerType)
+    setSelectedContact(null)
     setEditingDeal(null)
     setDealForm({
       contactId: '',
+      contactName: '',
+      contactPhone: '',
+      contactEmail: '',
+      accountName: '',
       title: '',
       amount: '',
       currency: 'INR',
@@ -401,67 +437,159 @@ export default function DealsListPage() {
       stage: defaultStageVal,
       stageId: defaultStageVal,
       probability: firstStage?.probability ?? 10,
-      contactName: '',
       ownerName: user?.name || user?.email || '',
       expectedCloseDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      notes: ''
+      notes: '',
+      lostReason: '',
+      otherLostReason: '',
+      unitNumber: '',
+      towerBlock: '',
+      propertyType: '',
+      vehicleModel: '',
+      variant: '',
+      modelYear: '',
+      clinicalSpecialty: '',
+      treatmentProcedure: '',
+      programName: '',
+      academicIntake: '',
+      portfolioType: '',
+      riskCategory: '',
+      techStack: '',
+      sowTerm: '',
+      productLine: '',
+      batchSize: ''
     })
     setDealModalOpen(true)
   }
 
   const handleOpenEdit = (deal: Deal) => {
+    const hasAccount = Boolean(deal.accountName || deal.account_name)
+    setCustomerType(hasAccount ? 'B2B' : 'B2C')
+    const cId = deal.contactId || deal.contact_id
+    const matchedContact = contacts.find(c => String(c._id || c.id) === String(cId)) || (cId ? {
+      _id: String(cId),
+      customerName: deal.contactName || deal.contact_name || '',
+      contactNumber: deal.contactPhone || deal.contact_phone || '',
+      emailId: deal.contactEmail || deal.contact_email || ''
+    } as Contact : null)
+    setSelectedContact(matchedContact)
     setEditingDeal(deal)
     setDealForm({
       contactId: (deal.contactId || deal.contact_id || '') as string,
+      contactName: deal.contactName || deal.contact_name || '',
+      contactPhone: deal.contactPhone || deal.contact_phone || '',
+      contactEmail: deal.contactEmail || deal.contact_email || '',
+      accountName: deal.accountName || deal.account_name || '',
       title: deal.title || deal.name || '',
-      amount: deal.amount || 0,
+      amount: deal.amount || '',
       currency: deal.currency || 'INR',
       pipelineId: deal.pipelineId || deal.pipeline_id || selectedPipelineId,
       stage: deal.stage || deal.stageId || deal.stage_id || '',
       stageId: deal.stageId || deal.stage_id || deal.stage || '',
-      probability: deal.probability || 10,
-      contactName: deal.contactName || deal.contact_name || '',
+      probability: deal.probability ?? 10,
       ownerName: deal.ownerName || deal.owner_name || user?.name || user?.email || '',
       expectedCloseDate: deal.expectedCloseDate ? new Date(deal.expectedCloseDate).toISOString().split('T')[0] : (deal.expected_close_date ? new Date(deal.expected_close_date).toISOString().split('T')[0] : ''),
-      notes: deal.notes || ''
+      notes: deal.notes || '',
+      lostReason: deal.lostReason || deal.lost_reason || '',
+      otherLostReason: '',
+      unitNumber: (deal as any).unitNumber || (deal as any).unit_number || '',
+      towerBlock: (deal as any).towerBlock || (deal as any).tower_block || '',
+      propertyType: (deal as any).propertyType || (deal as any).property_type || '',
+      vehicleModel: (deal as any).vehicleModel || (deal as any).vehicle_model || '',
+      variant: (deal as any).variant || '',
+      modelYear: (deal as any).modelYear || (deal as any).model_year || '',
+      clinicalSpecialty: (deal as any).clinicalSpecialty || (deal as any).clinical_specialty || '',
+      treatmentProcedure: (deal as any).treatmentProcedure || (deal as any).treatment_procedure || '',
+      programName: (deal as any).programName || (deal as any).program_name || '',
+      academicIntake: (deal as any).academicIntake || (deal as any).academic_intake || '',
+      portfolioType: (deal as any).portfolioType || (deal as any).portfolio_type || '',
+      riskCategory: (deal as any).riskCategory || (deal as any).risk_category || '',
+      techStack: (deal as any).techStack || (deal as any).tech_stack || '',
+      sowTerm: (deal as any).sowTerm || (deal as any).sow_term || '',
+      productLine: (deal as any).productLine || (deal as any).product_line || '',
+      batchSize: (deal as any).batchSize || (deal as any).batch_size || ''
     })
     setDealModalOpen(true)
   }
 
-  const handleSaveDeal = async (formValues: Record<string, any>) => {
+  const handleSaveDeal = async () => {
     try {
-      setLoading(true)
-      const titleVal = String(formValues.title || formValues.name || dealForm.title || '').trim()
+      const titleVal = String(dealForm.title || '').trim()
       if (!titleVal) {
         setToast({ open: true, msg: 'Please enter a deal title', sev: 'error' })
         return
       }
 
-      const stageVal = formValues.stage || formValues.stageId || dealForm.stageId
+      if (customerType === 'B2B' && !String(dealForm.accountName || '').trim()) {
+        setToast({ open: true, msg: 'Please enter the Company / Corporate Name for B2B deals', sev: 'error' })
+        return
+      }
+
+      const amtVal = Number(dealForm.amount)
+      if (isNaN(amtVal) || amtVal <= 0) {
+        setToast({ open: true, msg: 'Deal value must be greater than 0', sev: 'error' })
+        return
+      }
+
+      if (dealForm.expectedCloseDate) {
+        const closeTime = new Date(dealForm.expectedCloseDate).getTime()
+        if (!isNaN(closeTime) && closeTime < Date.now() - 24 * 60 * 60 * 1000) {
+          setToast({ open: true, msg: 'Expected close date cannot be in the past', sev: 'error' })
+          return
+        }
+      }
+
+      setLoading(true)
+      const stageVal = dealForm.stageId || dealForm.stage
       const selectedStageObj = stages.find(s => (s.stageId || s.stage_id || s.name) === stageVal) || stages[0]
 
       const activeOrg = isSuperAdmin ? selectedOrg || undefined : undefined
-      const activeInd = isSuperAdmin ? selectedIndustry || undefined : undefined
+      const activeInd = isSuperAdmin ? selectedIndustry || undefined : (user?.industryId || undefined)
 
       const payload: Partial<Deal> = {
-        ...formValues,
-        contactId: formValues.contactId || formValues.contact_id || dealForm.contactId || undefined,
         title: titleVal,
         name: titleVal,
-        amount: Number(formValues.amount || dealForm.amount || 0),
-        currency: formValues.currency || dealForm.currency || 'INR',
+        amount: amtVal,
+        currency: dealForm.currency || 'INR',
         pipelineId: selectedPipelineId || dealForm.pipelineId,
         pipeline_id: selectedPipelineId || dealForm.pipelineId,
         stageId: selectedStageObj ? String(selectedStageObj.stageId || selectedStageObj.stage_id || selectedStageObj.name) : stageVal,
         stage_id: selectedStageObj ? String(selectedStageObj.stageId || selectedStageObj.stage_id || selectedStageObj.name) : stageVal,
         stage: selectedStageObj?.name || stageVal || 'New Enquiry',
-        probability: typeof formValues.probability === 'number' ? formValues.probability : (selectedStageObj?.probability ?? 10),
-        expectedCloseDate: formValues.expectedCloseDate ? String(formValues.expectedCloseDate) : undefined,
-        contactName: formValues.contactName || dealForm.contactName || '',
-        ownerName: formValues.ownerName || dealForm.ownerName || user?.name || user?.email || '',
-        notes: formValues.notes || dealForm.notes || '',
+        probability: typeof dealForm.probability === 'number' ? dealForm.probability : (selectedStageObj?.probability ?? 10),
+        expectedCloseDate: dealForm.expectedCloseDate ? String(dealForm.expectedCloseDate) : undefined,
+        accountName: customerType === 'B2B' ? String(dealForm.accountName).trim() : '',
+        account_name: customerType === 'B2B' ? String(dealForm.accountName).trim() : '',
+        contactId: dealForm.contactId || undefined,
+        contact_id: dealForm.contactId || undefined,
+        contactName: dealForm.contactName || '',
+        contact_name: dealForm.contactName || '',
+        contactPhone: dealForm.contactPhone || '',
+        contact_phone: dealForm.contactPhone || '',
+        contactEmail: dealForm.contactEmail || '',
+        contact_email: dealForm.contactEmail || '',
+        ownerName: dealForm.ownerName || user?.name || user?.email || '',
+        notes: dealForm.notes || '',
+        lostReason: dealForm.lostReason === 'Other' && dealForm.otherLostReason ? dealForm.otherLostReason : (dealForm.lostReason || undefined),
         organizationId: activeOrg,
-        industryId: activeInd
+        industryId: activeInd,
+        // Dynamic industry vertical fields
+        unitNumber: dealForm.unitNumber || undefined,
+        towerBlock: dealForm.towerBlock || undefined,
+        propertyType: dealForm.propertyType || undefined,
+        vehicleModel: dealForm.vehicleModel || undefined,
+        variant: dealForm.variant || undefined,
+        modelYear: dealForm.modelYear || undefined,
+        clinicalSpecialty: dealForm.clinicalSpecialty || undefined,
+        treatmentProcedure: dealForm.treatmentProcedure || undefined,
+        programName: dealForm.programName || undefined,
+        academicIntake: dealForm.academicIntake || undefined,
+        portfolioType: dealForm.portfolioType || undefined,
+        riskCategory: dealForm.riskCategory || undefined,
+        techStack: dealForm.techStack || undefined,
+        sowTerm: dealForm.sowTerm || undefined,
+        productLine: dealForm.productLine || undefined,
+        batchSize: dealForm.batchSize || undefined
       }
 
       if (editingDeal) {
@@ -473,9 +601,9 @@ export default function DealsListPage() {
       }
       setDealModalOpen(false)
       if (selectedPipelineId) await loadDealsForPipeline(selectedPipelineId)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setToast({ open: true, msg: 'Failed to save deal', sev: 'error' })
+      setToast({ open: true, msg: err?.response?.data?.message || 'Failed to save deal', sev: 'error' })
     } finally {
       setLoading(false)
     }
@@ -1171,28 +1299,521 @@ export default function DealsListPage() {
 
       {/* Add / Edit Deal Dialog */}
       <Dialog open={dealModalOpen} onClose={() => setDealModalOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {editingDeal ? 'Edit Deal' : 'Add New Deal'}
+        <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{editingDeal ? 'Edit Opportunity / Deal' : 'Add New Opportunity / Deal'}</span>
+          <Chip
+            size="small"
+            label={customerType === 'B2B' ? '🏢 B2B Corporate' : '👤 B2C Direct'}
+            color={customerType === 'B2B' ? 'secondary' : 'primary'}
+            variant="outlined"
+            sx={{ fontWeight: 600 }}
+          />
         </DialogTitle>
         <DialogContent dividers>
-          <Box sx={{ pt: 1 }}>
-            <DynamicForm
-              screen="deals"
-              industryCode={user?.industryId || 'temp0001'}
-              organizationId={(user as any)?.organizationId || (user as any)?.organization_id}
-              customOptions={{
-                stage: stages.map((s) => ({
-                  value: s.stageId || s.stage_id || s.name,
-                  label: `${s.name} (${s.probability}%)`,
-                })),
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            
+            {/* Customer Type Selector */}
+            <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+                Deal Customer Type
+              </Typography>
+              <ToggleButtonGroup
+                value={customerType}
+                exclusive
+                onChange={(_, val) => {
+                  if (!val) return
+                  setCustomerType(val)
+                  if (val === 'B2B') {
+                    if (!dealForm.accountName && dealForm.contactName) {
+                      const acc = `${dealForm.contactName} Co.`
+                      setDealForm(prev => ({
+                        ...prev,
+                        accountName: acc,
+                        title: !prev.title || prev.title.includes('Opportunity') ? `${acc} - Enterprise Opportunity` : prev.title
+                      }))
+                    }
+                  } else {
+                    if (dealForm.contactName && (!dealForm.title || dealForm.title.includes('Opportunity'))) {
+                      setDealForm(prev => ({
+                        ...prev,
+                        title: `${prev.contactName} - Opportunity`
+                      }))
+                    }
+                  }
+                }}
+                size="small"
+                fullWidth
+              >
+                <ToggleButton value="B2C" sx={{ py: 0.75, fontWeight: 600, display: 'flex', gap: 1 }}>
+                  <PersonIcon fontSize="small" /> Direct Consumer (B2C)
+                </ToggleButton>
+                <ToggleButton value="B2B" sx={{ py: 0.75, fontWeight: 600, display: 'flex', gap: 1 }}>
+                  <BusinessIcon fontSize="small" /> Corporate Account (B2B)
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Corporate Account Name if B2B */}
+            {customerType === 'B2B' && (
+              <TextField
+                fullWidth
+                size="small"
+                required
+                label="Company / Corporate Name"
+                placeholder="e.g. Reliance Retail Ventures Ltd, Acme Tech"
+                value={dealForm.accountName || ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setDealForm(prev => ({
+                    ...prev,
+                    accountName: val,
+                    title: (!prev.title || prev.title.includes('Opportunity')) && val ? `${val} - Enterprise Opportunity` : prev.title
+                  }))
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <BusinessIcon fontSize="small" color="secondary" />
+                    </InputAdornment>
+                  )
+                }}
+                helperText="Business organization or corporate account name"
+              />
+            )}
+
+            {/* Link Existing Contact via Searchable Autocomplete */}
+            <Autocomplete
+              options={contacts}
+              getOptionLabel={(option) => {
+                if (typeof option === 'string') return option
+                const name = option.customerName || option.customer_name || 'Contact'
+                const phone = option.contactNumber || option.contact_phone || ''
+                const proj = option.projectName || (option as any).project_name || ''
+                return `${name}${phone ? ` (${phone})` : ''}${proj ? ` • ${proj}` : ''}`
               }}
-              initialValues={dealForm}
-              onSubmit={handleSaveDeal}
-              onCancel={() => setDealModalOpen(false)}
-              submitLabel={editingDeal ? 'Save Changes' : 'Create Deal'}
+              value={selectedContact}
+              onChange={(_, newContact) => {
+                setSelectedContact(newContact)
+                if (newContact) {
+                  const cName = newContact.customerName || newContact.customer_name || ''
+                  const cPhone = newContact.contactNumber || newContact.contact_phone || ''
+                  const cEmail = newContact.emailId || newContact.email_id || ''
+                  const cId = String(newContact._id || newContact.id || '')
+                  const proj = newContact.projectName || (newContact as any).project_name || 'Opportunity'
+                  const parsedBudget = newContact.budget ? Number(String(newContact.budget).replace(/[^0-9]/g, '')) : 0
+
+                  setDealForm(prev => {
+                    const nextAcc = prev.accountName || (customerType === 'B2B' ? `${cName} Co.` : '')
+                    return {
+                      ...prev,
+                      contactId: cId,
+                      contactName: cName,
+                      contactPhone: cPhone,
+                      contactEmail: cEmail,
+                      accountName: nextAcc,
+                      title: prev.title && !prev.title.includes('Opportunity')
+                        ? prev.title
+                        : (customerType === 'B2B' ? `${nextAcc || cName + ' Co.'} - Enterprise Opportunity` : `${cName} - ${proj}`),
+                      amount: prev.amount || (parsedBudget > 0 ? parsedBudget : prev.amount)
+                    }
+                  })
+                } else {
+                  setDealForm(prev => ({
+                    ...prev,
+                    contactId: '',
+                    contactName: '',
+                    contactPhone: '',
+                    contactEmail: ''
+                  }))
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  size="small"
+                  label="Select Contact / Primary Contact Person"
+                  placeholder="Search contacts by name, phone or project..."
+                  helperText="Search and select existing customer/prospect from your CRM"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <InputAdornment position="start">
+                          <PersonIcon fontSize="small" color="primary" />
+                        </InputAdornment>
+                        {params.InputProps.startAdornment}
+                      </>
+                    )
+                  }}
+                />
+              )}
             />
+
+            {/* Core Deal Information (Title & Amount) */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1.5fr 1fr' }, gap: 2 }}>
+              <TextField
+                size="small"
+                required
+                label="Deal Title"
+                placeholder="e.g. 3BHK Luxury Suite Booking"
+                value={dealForm.title || ''}
+                onChange={(e) => setDealForm({ ...dealForm, title: e.target.value })}
+                helperText="Descriptive name for this opportunity"
+              />
+              <TextField
+                size="small"
+                required
+                label="Deal Value (Amount)"
+                type="number"
+                placeholder="2500000"
+                value={dealForm.amount || ''}
+                onChange={(e) => setDealForm({ ...dealForm, amount: e.target.value })}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">₹</InputAdornment>
+                }}
+                helperText="Total financial pipeline amount"
+              />
+            </Box>
+
+            {/* Pipeline & Stage Selection */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+              {pipelines.length > 1 ? (
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Pipeline</InputLabel>
+                  <Select
+                    value={dealForm.pipelineId || selectedPipelineId}
+                    label="Pipeline"
+                    onChange={(e) => {
+                      const pId = e.target.value
+                      setDealForm(prev => ({ ...prev, pipelineId: pId }))
+                    }}
+                  >
+                    {pipelines.map(p => (
+                      <MenuItem key={p._id || p.id} value={p._id || p.id}>
+                        {p.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <TextField
+                  size="small"
+                  label="Pipeline"
+                  value={activePipeline?.name || 'Standard Pipeline'}
+                  disabled
+                  fullWidth
+                />
+              )}
+
+              <FormControl size="small" fullWidth required>
+                <InputLabel>Pipeline Stage</InputLabel>
+                <Select
+                  value={dealForm.stageId || dealForm.stage || (stages[0]?.stageId || stages[0]?.stage_id || '')}
+                  label="Pipeline Stage *"
+                  onChange={(e) => {
+                    const stVal = e.target.value
+                    const matchedSt = stages.find(s => (s.stageId || s.stage_id || s.name) === stVal)
+                    setDealForm(prev => ({
+                      ...prev,
+                      stageId: stVal,
+                      stage: matchedSt?.name || stVal,
+                      probability: matchedSt?.probability ?? prev.probability
+                    }))
+                  }}
+                >
+                  {stages.map(s => (
+                    <MenuItem key={s.stageId || s.stage_id || s.name} value={s.stageId || s.stage_id || s.name}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: s.color || '#3b82f6' }} />
+                        <span>{s.name} ({s.probability}%)</span>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Probability & Expected Close Date */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+              <TextField
+                size="small"
+                label="Win Probability %"
+                type="number"
+                value={dealForm.probability ?? 10}
+                onChange={(e) => {
+                  const val = Math.min(100, Math.max(0, Number(e.target.value) || 0))
+                  setDealForm({ ...dealForm, probability: val })
+                }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>
+                }}
+                helperText="Confidence level of closing this deal"
+              />
+
+              <TextField
+                size="small"
+                label="Expected Close Date"
+                type="date"
+                value={dealForm.expectedCloseDate || ''}
+                onChange={(e) => setDealForm({ ...dealForm, expectedCloseDate: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                helperText="Estimated closing date"
+              />
+            </Box>
+
+            {/* Deal Owner */}
+            <FormControl size="small" fullWidth>
+              <InputLabel>Deal Owner / Assigned Agent</InputLabel>
+              <Select
+                value={dealForm.ownerName || user?.name || user?.email || ''}
+                label="Deal Owner / Assigned Agent"
+                onChange={(e) => setDealForm({ ...dealForm, ownerName: e.target.value })}
+              >
+                {usersList.length > 0 ? (
+                  usersList.map(u => (
+                    <MenuItem key={u.id || (u as any)._id} value={u.name || u.email}>
+                      {u.name ? `${u.name} (${u.email})` : u.email}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem value={user?.name || user?.email || ''}>
+                    {user?.name || user?.email || 'Self'}
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
+
+            {/* Dynamic Industry Vertical Specific Fields (Gap 4) */}
+            <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                <InfoIcon sx={{ fontSize: 15, color: 'primary.main' }} /> Industry Context Requirements ({selectedIndustry || user?.industryId || 'Real Estate'})
+              </Typography>
+              
+              {/* Real Estate temp0001 */}
+              {(!selectedIndustry || selectedIndustry === 'temp0001' || user?.industryId === 'temp0001') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Unit / Flat Number"
+                    placeholder="e.g. Flat 1402"
+                    value={dealForm.unitNumber || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, unitNumber: e.target.value })}
+                  />
+                  <TextField
+                    size="small"
+                    label="Tower / Wing"
+                    placeholder="e.g. Tower B"
+                    value={dealForm.towerBlock || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, towerBlock: e.target.value })}
+                  />
+                  <FormControl size="small">
+                    <InputLabel>Property Type</InputLabel>
+                    <Select
+                      value={dealForm.propertyType || ''}
+                      label="Property Type"
+                      onChange={(e) => setDealForm({ ...dealForm, propertyType: e.target.value })}
+                    >
+                      <MenuItem value="Apartment">Apartment</MenuItem>
+                      <MenuItem value="Villa">Villa / Bungalow</MenuItem>
+                      <MenuItem value="Plot">Residential Plot</MenuItem>
+                      <MenuItem value="Commercial">Commercial Office</MenuItem>
+                      <MenuItem value="Retail">Retail Shop</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+
+              {/* Automobiles / E-Commerce temp0002 */}
+              {(selectedIndustry === 'temp0002' || user?.industryId === 'temp0002') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Vehicle Model / Product SKU"
+                    placeholder="e.g. SUV Pro / SKU-882"
+                    value={dealForm.vehicleModel || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, vehicleModel: e.target.value })}
+                  />
+                  <TextField
+                    size="small"
+                    label="Trim / Variant"
+                    placeholder="e.g. Top Automatic AWD"
+                    value={dealForm.variant || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, variant: e.target.value })}
+                  />
+                  <TextField
+                    size="small"
+                    label="Model Year"
+                    placeholder="2026"
+                    value={dealForm.modelYear || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, modelYear: e.target.value })}
+                  />
+                </Box>
+              )}
+
+              {/* Healthcare temp0003 */}
+              {(selectedIndustry === 'temp0003' || user?.industryId === 'temp0003') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Clinical Specialty"
+                    placeholder="e.g. Cardiology, Orthopedics"
+                    value={dealForm.clinicalSpecialty || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, clinicalSpecialty: e.target.value })}
+                  />
+                  <TextField
+                    size="small"
+                    label="Treatment / Procedure"
+                    placeholder="e.g. Knee Replacement Surgery"
+                    value={dealForm.treatmentProcedure || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, treatmentProcedure: e.target.value })}
+                  />
+                </Box>
+              )}
+
+              {/* Education temp0004 */}
+              {(selectedIndustry === 'temp0004' || user?.industryId === 'temp0004') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Program / Course"
+                    placeholder="e.g. B.Tech Computer Science"
+                    value={dealForm.programName || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, programName: e.target.value })}
+                  />
+                  <TextField
+                    size="small"
+                    label="Academic Intake / Semester"
+                    placeholder="e.g. Fall 2026 Batch"
+                    value={dealForm.academicIntake || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, academicIntake: e.target.value })}
+                  />
+                </Box>
+              )}
+
+              {/* Finance temp0005 */}
+              {(selectedIndustry === 'temp0005' || user?.industryId === 'temp0005') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Investment Portfolio / Product"
+                    placeholder="e.g. High-Yield Wealth Management"
+                    value={dealForm.portfolioType || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, portfolioType: e.target.value })}
+                  />
+                  <FormControl size="small">
+                    <InputLabel>Risk Category</InputLabel>
+                    <Select
+                      value={dealForm.riskCategory || 'Moderate'}
+                      label="Risk Category"
+                      onChange={(e) => setDealForm({ ...dealForm, riskCategory: e.target.value })}
+                    >
+                      <MenuItem value="Conservative">Conservative</MenuItem>
+                      <MenuItem value="Moderate">Moderate</MenuItem>
+                      <MenuItem value="Aggressive">Aggressive</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+
+              {/* IT Services temp0006 */}
+              {(selectedIndustry === 'temp0006' || user?.industryId === 'temp0006') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Technology Stack / Service Line"
+                    placeholder="e.g. Fullstack React/Node Cloud Modernization"
+                    value={dealForm.techStack || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, techStack: e.target.value })}
+                  />
+                  <FormControl size="small">
+                    <InputLabel>Engagement Model</InputLabel>
+                    <Select
+                      value={dealForm.sowTerm || 'Fixed Price'}
+                      label="Engagement Model"
+                      onChange={(e) => setDealForm({ ...dealForm, sowTerm: e.target.value })}
+                    >
+                      <MenuItem value="Fixed Price">Fixed Price Milestone</MenuItem>
+                      <MenuItem value="Monthly Retainer">Monthly Dedicated Retainer</MenuItem>
+                      <MenuItem value="Time & Material">Time & Material (Hourly)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+
+              {/* Manufacturing temp0007 */}
+              {(selectedIndustry === 'temp0007' || user?.industryId === 'temp0007') && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Product Line"
+                    placeholder="e.g. Industrial Valves & Couplers"
+                    value={dealForm.productLine || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, productLine: e.target.value })}
+                  />
+                  <TextField
+                    size="small"
+                    label="Production Order Batch Size"
+                    placeholder="e.g. 10,000 Units"
+                    value={dealForm.batchSize || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, batchSize: e.target.value })}
+                  />
+                </Box>
+              )}
+            </Box>
+
+            {/* Notes & Details */}
+            <TextField
+              size="small"
+              fullWidth
+              multiline
+              rows={2}
+              label="Deal Notes & Client Requirements"
+              placeholder="Key deliverables, timeline expectations, or negotiation notes..."
+              value={dealForm.notes || ''}
+              onChange={(e) => setDealForm({ ...dealForm, notes: e.target.value })}
+            />
+
+            {/* If Lost Stage Selected in Add/Edit */}
+            {String(dealForm.stage || dealForm.stageId || '').toUpperCase().includes('LOST') && (
+              <Box sx={{ p: 1.5, bgcolor: 'error.50', borderRadius: 1.5, border: '1px solid', borderColor: 'error.200' }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'error.main', display: 'block', mb: 1 }}>
+                  Lost Opportunity Reason
+                </Typography>
+                <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+                  <InputLabel>Reason for Loss</InputLabel>
+                  <Select
+                    value={dealForm.lostReason || LOST_REASONS[0]}
+                    label="Reason for Loss"
+                    onChange={(e) => setDealForm({ ...dealForm, lostReason: e.target.value })}
+                  >
+                    {LOST_REASONS.map(r => (
+                      <MenuItem key={r} value={r}>{r}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {dealForm.lostReason === 'Other' && (
+                  <TextField
+                    size="small"
+                    fullWidth
+                    label="Specify Reason"
+                    placeholder="Details about client decision or competitor..."
+                    value={dealForm.otherLostReason || ''}
+                    onChange={(e) => setDealForm({ ...dealForm, otherLostReason: e.target.value })}
+                  />
+                )}
+              </Box>
+            )}
+
           </Box>
         </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDealModalOpen(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSaveDeal} disabled={loading}>
+            {loading ? <CircularProgress size={18} sx={{ color: 'white' }} /> : (editingDeal ? 'Save Changes' : 'Create Deal')}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Capture Lost Reason Modal */}

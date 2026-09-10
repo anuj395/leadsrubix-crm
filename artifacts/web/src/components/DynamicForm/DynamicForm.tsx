@@ -128,7 +128,8 @@ const getFieldTooltip = (key: string, label: string, indCode?: string) => {
     projectName: 'Project:\nAssociated property\ndevelopment project name.',
     stage: 'Lead Stage:\nCurrent status or progression\nstage of this lead.',
     leadSource: 'Lead Source:\nMarketing or referral channel\nwhere the lead came from.',
-    leadType: 'Lead Type:\nCategorization based on\nlead source type.',
+    leadType: 'Lead Classification Type:\n• Leads: Active inbound inquiries or engaged prospects expecting follow-up.\n• Data: Cold outreach database, scraped contacts, or raw directory lists.',
+    lead_type: 'Lead Classification Type:\n• Leads: Active inbound inquiries or engaged prospects expecting follow-up.\n• Data: Cold outreach database, scraped contacts, or raw directory lists.',
     note: 'Notes:\nInternal notes about customer\ninteractions and status.',
     remarks: 'Remarks:\nAdditional staff remarks or\nstatus updates.',
     priority: 'Priority:\nPriority urgency level\nfor lead follow-ups.',
@@ -1022,6 +1023,10 @@ export function DynamicForm({
               }
             }
 
+            const defaultFieldHelp = (f.key === 'leadType' || f.key === 'lead_type')
+              ? 'Leads = Active inbound prospects | Data = Cold database records'
+              : ''
+
             return (
               <TextField
                 key={f.key}
@@ -1031,7 +1036,7 @@ export function DynamicForm({
                 value={currentValue}
                 onChange={(e) => setValue(f.key, e.target.value)}
                 error={!!err || !!dropdownErr}
-                helperText={err || dropdownErr || (isLoading ? 'Loading options…' : '')}
+                helperText={err || dropdownErr || defaultFieldHelp || (isLoading ? 'Loading options…' : '')}
                 disabled={isLoading || isFieldDisabled(f.key) || f.key === 'industryId' || f.key === 'industry_id'}
                 fullWidth
                 SelectProps={{
@@ -1353,7 +1358,7 @@ export function DynamicForm({
                   : e.target.value,
               )}
               error={!!err}
-              helperText={err}
+              helperText={err || ((f.key === 'leadType' || f.key === 'lead_type') ? 'Leads = Active inbound prospects | Data = Cold database records' : '')}
               fullWidth
               disabled={isFieldDisabled(f.key) || f.key === 'industryId' || f.key === 'industry_id'}
               InputLabelProps={inputType === 'datetime-local' ? { shrink: true } : undefined}

@@ -4,6 +4,7 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
+import Chip from '@mui/material/Chip'
 import Typography from '@mui/material/Typography'
 import Switch from '@mui/material/Switch'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
@@ -127,6 +128,20 @@ export default function WhatsappApiPage() {
     msg: '',
     sev: 'success',
   })
+
+  const isAnyConfigured = useMemo(() => {
+    const simplyValid = configs.simply_whatsapp?.isActive && Boolean(configs.simply_whatsapp?.fields?.accessToken?.trim())
+    const wapiValid = configs.wapi?.isActive && Boolean(configs.wapi?.fields?.wapiToken?.trim())
+    const chatValid = configs.chatsimplified?.isActive && Boolean(configs.chatsimplified?.fields?.apiKey?.trim() || configs.chatsimplified?.fields?.token?.trim())
+    return simplyValid || wapiValid || chatValid
+  }, [configs])
+
+  const activeProviderName = useMemo(() => {
+    if (configs.simply_whatsapp?.isActive && configs.simply_whatsapp?.fields?.accessToken?.trim()) return 'Simply WhatsApp'
+    if (configs.wapi?.isActive && configs.wapi?.fields?.wapiToken?.trim()) return 'WHAPI Cloud'
+    if (configs.chatsimplified?.isActive) return 'ChatSimplified'
+    return null
+  }, [configs])
 
   const loadConfig = async () => {
     try {
@@ -717,6 +732,30 @@ export default function WhatsappApiPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0, height: '100%', overflowY: 'auto' }}>
+      
+      {/* Configuration Status Banner */}
+      {isAnyConfigured ? (
+        <Alert
+          severity="success"
+          sx={{ mb: 2.5, fontWeight: 500 }}
+          action={
+            <Chip size="small" label="Operational" color="success" sx={{ fontWeight: 600 }} />
+          }
+        >
+          WhatsApp API Connected: Automated lead delivery and team alert notifications are active via <strong>{activeProviderName}</strong>.
+        </Alert>
+      ) : (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2.5, fontWeight: 500 }}
+          action={
+            <Chip size="small" label="Configuration Required" color="warning" sx={{ fontWeight: 600 }} />
+          }
+        >
+          WhatsApp API Not Configured: To send automated lead alert notifications to agents and sync incoming WhatsApp chats, click <strong>"Configure"</strong> on your preferred provider below to enter your API Credentials and activate it.
+        </Alert>
+      )}
+
       <AppCard title="WhatsApp API List" subtitle="Enable, deactivate, or configure your integrations.">
         <Box sx={{ height: 350, width: '100%' }}>
           <AppDataGrid onReload={loadConfig}

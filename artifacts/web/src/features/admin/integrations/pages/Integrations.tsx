@@ -71,23 +71,24 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
   {
     key: 'whatsapp',
     name: 'WhatsApp',
-    description: 'Receive new leads from your WhatsApp contact form in your Leads Rubix account.',
+    description: 'Send automated lead alerts and sync customer communications via your WhatsApp API account.',
     icon: <WhatsAppIcon sx={{ fontSize: 32, color: '#25D366' }} />,
-    comingSoon: true,
   },
 ]
 
 export default function IntegrationsPage() {
   const navigate = useNavigate()
   const [fbConnected, setFbConnected] = useState<boolean>(false)
+  const [waConnected, setWaConnected] = useState<boolean>(false)
   const [activeTokens, setActiveTokens] = useState<any[]>([])
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const [resFb, resTokens] = await Promise.allSettled([
+        const [resFb, resTokens, resWa] = await Promise.allSettled([
           api.get('/api-tokens/facebook'),
           api.get('/api-tokens'),
+          api.get('/whatsapp-config'),
         ])
 
         if (resFb.status === 'fulfilled' && resFb.value.data?.accessToken) {
@@ -96,6 +97,14 @@ export default function IntegrationsPage() {
 
         if (resTokens.status === 'fulfilled' && Array.isArray(resTokens.value.data)) {
           setActiveTokens(resTokens.value.data)
+        }
+
+        if (resWa.status === 'fulfilled' && resWa.value.data) {
+          const d = resWa.value.data
+          const isSimply = d.simply?.active && Boolean(d.simply?.accessToken)
+          const isWapi = d.wapi?.active && Boolean(d.wapi?.wapi_token)
+          const isChat = d.chatSimplified?.active
+          setWaConnected(Boolean(isSimply || isWapi || isChat))
         }
       } catch (err) {
         console.warn('Could not fetch integration status:', err)
@@ -107,6 +116,9 @@ export default function IntegrationsPage() {
   const norm = (s: any) => String(s || '').toLowerCase().replace(/[\s\-_.]/g, '')
 
   const isPortalConnected = (key: string) => {
+    if (key === 'whatsapp') {
+      return waConnected
+    }
     if (key === 'facebook') {
       return fbConnected || activeTokens.some((t: any) => 
         norm(t.source).includes('facebook') && 
@@ -160,7 +172,9 @@ export default function IntegrationsPage() {
   }
 
   const handleConfigure = (key: string) => {
-    if (key === 'facebook') {
+    if (key === 'whatsapp') {
+      navigate('/configuration/whatsapp')
+    } else if (key === 'facebook') {
       navigate('/integrations/facebook')
     } else if (key === '99acres') {
       navigate('/integrations/99acres')
@@ -245,6 +259,18 @@ export default function IntegrationsPage() {
                             bgcolor: 'rgba(34, 197, 94, 0.12)',
                             color: '#16A34A',
                             fontWeight: 700,
+                            fontSize: '0.75rem',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      ) : item.key === 'whatsapp' ? (
+                        <Chip
+                          label="Config Required"
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(245, 158, 11, 0.12)',
+                            color: '#D97706',
+                            fontWeight: 600,
                             fontSize: '0.75rem',
                             borderRadius: '8px',
                           }}
