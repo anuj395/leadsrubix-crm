@@ -109,14 +109,15 @@ router.get('/templates', authenticate, async (req, res) => {
     const channelFilter = req.query.channel;
     const eventFilter = req.query.eventKey || req.query.event_key;
 
-    // Resolve workspace industryId
-    let industryId = 'temp0001';
-    if (orgId) {
+    // Resolve workspace industryId (support explicit query override)
+    let industryId = req.query.industryId || req.query.industry_id;
+    if (!industryId && orgId) {
       const org = await Organization.findOne({
         $or: [{ organization_id: orgId }, { organizationId: orgId }]
       }).lean().exec();
       if (org) industryId = org.industry_id || org.industryId || 'temp0001';
     }
+    industryId = industryId || 'temp0001';
 
     const industryDefaults = getIndustryTemplates(industryId);
     const customTemplates = await NotificationTemplate.find({
@@ -134,6 +135,9 @@ router.get('/templates', authenticate, async (req, res) => {
 
       const effective = tenantCustom || platformCustom || def;
 
+      const sub = effective.subject_template || effective.subjectTemplate || def.subject_template || '';
+      const bod = effective.body_template || effective.bodyTemplate || def.body_template || '';
+
       result.push({
         _id: effective._id || null,
         organizationId: tenantCustom ? orgId : null,
@@ -142,8 +146,10 @@ router.get('/templates', authenticate, async (req, res) => {
         eventKey: def.event_key,
         channel: def.channel,
         name: effective.name || def.name,
-        subjectTemplate: effective.subject_template || effective.subjectTemplate || def.subject_template || '',
-        bodyTemplate: effective.body_template || effective.bodyTemplate || def.body_template || '',
+        subjectTemplate: sub,
+        bodyTemplate: bod,
+        subject: sub,
+        body: bod,
         ctaLabel: effective.cta_label || effective.ctaLabel || def.cta_label || '',
         ctaUrlTemplate: effective.cta_url_template || effective.ctaUrlTemplate || def.cta_url_template || '',
         isActive: effective.is_active !== undefined ? effective.is_active : true
@@ -170,16 +176,14 @@ router.post('/templates', authenticate, async (req, res) => {
   try {
     const NotificationTemplate = mongoose.model('NotificationTemplate');
     const orgId = resolveOrgId(req);
-    const {
-      eventKey,
-      channel,
-      name,
-      subjectTemplate,
-      bodyTemplate,
-      ctaLabel,
-      ctaUrlTemplate,
-      isActive
-    } = req.body;
+    const eventKey = req.body.eventKey || req.body.event_key;
+    const channel = req.body.channel;
+    const name = req.body.name || '';
+    const subjectTemplate = req.body.subjectTemplate || req.body.subject || '';
+    const bodyTemplate = req.body.bodyTemplate || req.body.body;
+    const ctaLabel = req.body.ctaLabel || req.body.cta_label || '';
+    const ctaUrlTemplate = req.body.ctaUrlTemplate || req.body.cta_url_template || '';
+    const isActive = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.is_active !== undefined ? Boolean(req.body.is_active) : true);
 
     if (!eventKey || !channel || !bodyTemplate) {
       return res.status(400).json({
@@ -195,12 +199,12 @@ router.post('/templates', authenticate, async (req, res) => {
     };
 
     const update = {
-      name: name || '',
-      subject_template: subjectTemplate || '',
+      name,
+      subject_template: subjectTemplate,
       body_template: bodyTemplate,
-      cta_label: ctaLabel || '',
-      cta_url_template: ctaUrlTemplate || '',
-      is_active: isActive !== undefined ? Boolean(isActive) : true
+      cta_label: ctaLabel,
+      cta_url_template: ctaUrlTemplate,
+      is_active: isActive
     };
 
     const saved = await NotificationTemplate.findOneAndUpdate(
@@ -229,15 +233,17 @@ router.post('/templates/reset', authenticate, async (req, res) => {
     const NotificationTemplate = mongoose.model('NotificationTemplate');
     const Organization = mongoose.model('Organization');
     const orgId = resolveOrgId(req);
-    const { eventKey, channel } = req.body;
+    const eventKey = req.body.eventKey || req.body.event_key;
+    const channel = req.body.channel;
 
-    let industryId = 'temp0001';
-    if (orgId) {
+    let industryId = req.body.industryId || req.body.industry_id;
+    if (!industryId && orgId) {
       const org = await Organization.findOne({
         $or: [{ organization_id: orgId }, { organizationId: orgId }]
       }).lean().exec();
-      if (org) industryId = org.industry_id || org.industryId || 'temp0001';
+      if (org) industryId = org.industry_id || org.industryId;
     }
+    industryId = industryId || 'temp0001';
 
     const deleteFilter = { organization_id: orgId };
     if (eventKey) deleteFilter.event_key = eventKey;

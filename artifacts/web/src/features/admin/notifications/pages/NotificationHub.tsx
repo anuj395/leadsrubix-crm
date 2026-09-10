@@ -178,11 +178,11 @@ export default function NotificationHubPage() {
     }
   };
 
-  const loadTemplates = async () => {
+  const loadTemplates = async (industryIdOverride?: string, eventKeyOverride?: string) => {
     try {
       const data = await notificationHubApi.getTemplates({
-        industryId: selectedIndustry,
-        eventKey: selectedEventKey
+        industryId: industryIdOverride || selectedIndustry,
+        eventKey: eventKeyOverride || selectedEventKey
       });
       if (data.success) {
         setTemplates(data.templates || []);
@@ -191,6 +191,11 @@ export default function NotificationHubPage() {
       console.warn('Failed to fetch templates:', err);
     }
   };
+
+  // Automatically refresh templates when selected industry or event changes
+  useEffect(() => {
+    loadTemplates();
+  }, [selectedIndustry, selectedEventKey]);
 
   const loadGateways = async () => {
     try {
@@ -234,8 +239,10 @@ export default function NotificationHubPage() {
       (t) => (t.event_key === selectedEventKey || t.eventKey === selectedEventKey) && t.channel === selectedChannel
     );
     if (matched) {
-      setActiveTemplateBody(matched.body || '');
-      setActiveTemplateSubject(matched.subject || '');
+      const b = matched.body || matched.bodyTemplate || (matched as any).body_template || '';
+      const s = matched.subject || matched.subjectTemplate || (matched as any).subject_template || '';
+      setActiveTemplateBody(b);
+      setActiveTemplateSubject(s);
       setActiveTemplateEnabled(matched.is_active ?? matched.isActive ?? true);
     } else {
       setActiveTemplateBody('');
@@ -337,7 +344,9 @@ export default function NotificationHubPage() {
         recipientType: 'assigned_agent',
         industryId: selectedIndustry,
         subject: activeTemplateSubject,
+        subjectTemplate: activeTemplateSubject,
         body: activeTemplateBody,
+        bodyTemplate: activeTemplateBody,
         isActive: activeTemplateEnabled
       });
       if (res.success) {
@@ -837,27 +846,22 @@ export default function NotificationHubPage() {
         <Box>
           {/* Top Controls: Industry Vertical & Event Selector */}
           <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={4}>
-                <FormControl fullWidth size="small">
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, flex: 1 }}>
+                <FormControl sx={{ minWidth: 260, flex: 1 }} size="small">
                   <InputLabel>Industry Vertical Preset</InputLabel>
                   <Select
                     value={selectedIndustry}
                     label="Industry Vertical Preset"
-                    onChange={(e) => {
-                      setSelectedIndustry(e.target.value);
-                      setTimeout(() => loadTemplates(), 50);
-                    }}
+                    onChange={(e) => setSelectedIndustry(e.target.value)}
                   >
                     {INDUSTRY_VERTICALS.map((ind) => (
                       <MenuItem key={ind.id} value={ind.id}>{ind.name} ({ind.id})</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
 
-              <Grid item xs={12} sm={4}>
-                <FormControl fullWidth size="small">
+                <FormControl sx={{ minWidth: 260, flex: 1 }} size="small">
                   <InputLabel>CRM Event</InputLabel>
                   <Select
                     value={selectedEventKey}
@@ -869,24 +873,20 @@ export default function NotificationHubPage() {
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} sm={4}>
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    size="small"
-                    startIcon={<RestartAltIcon />}
-                    onClick={handleResetToDefault}
-                    disabled={resettingTemplates}
-                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                  >
-                    {resettingTemplates ? 'Resetting...' : 'Reset to Industry Standard'}
-                  </Button>
-                </Stack>
-              </Grid>
-            </Grid>
+              <Button
+                variant="outlined"
+                color="warning"
+                size="small"
+                startIcon={<RestartAltIcon />}
+                onClick={handleResetToDefault}
+                disabled={resettingTemplates}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 40, whiteSpace: 'nowrap', px: 2 }}
+              >
+                {resettingTemplates ? 'Resetting...' : 'Reset to Industry Standard'}
+              </Button>
+            </Box>
 
             {/* Click-to-Insert Merge Tag Toolbar */}
             <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
