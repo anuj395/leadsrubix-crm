@@ -330,7 +330,7 @@ export default function IndustriesPage() {
                   <GroupsIcon fontSize="small" color="primary" /> Baseline Team & Branch Defaults
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Default Team Name"
                       value={hubTeamName}
@@ -339,7 +339,7 @@ export default function IndustriesPage() {
                       helperText="Default team auto-created for new orgs (e.g. General Sales Team)"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Default Team Code"
                       value={hubTeamCode}
@@ -348,7 +348,7 @@ export default function IndustriesPage() {
                       helperText="Short code (e.g. GST)"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Default Branch Name"
                       value={hubBranchName}
@@ -357,7 +357,7 @@ export default function IndustriesPage() {
                       helperText="Default branch auto-created (e.g. Head Office)"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Default Branch Code"
                       value={hubBranchCode}
@@ -431,7 +431,7 @@ export default function IndustriesPage() {
                 Click below to configure the baseline templates for <strong>{templateHubIndustry?.name}</strong>. Any organization created under this vertical will inherit these configurations.
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent sx={{ flex: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -456,7 +456,7 @@ export default function IndustriesPage() {
                   </Card>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent sx={{ flex: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -481,7 +481,7 @@ export default function IndustriesPage() {
                   </Card>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent sx={{ flex: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -506,7 +506,7 @@ export default function IndustriesPage() {
                   </Card>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent sx={{ flex: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
