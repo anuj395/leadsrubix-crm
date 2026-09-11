@@ -221,7 +221,7 @@ export default function NotificationHubPage() {
 
   // Template Studio State
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('temp0001');
+  const [selectedIndustry, setSelectedIndustry] = useState<string>((user as any)?.industryId || (user as any)?.industry_id || 'temp0001');
   const [selectedEventKey, setSelectedEventKey] = useState<string>('lead.created');
   const [selectedChannel, setSelectedChannel] = useState<'whatsapp' | 'email' | 'push' | 'in_app'>('whatsapp');
   const [activeTemplateBody, setActiveTemplateBody] = useState<string>('');
@@ -367,12 +367,16 @@ export default function NotificationHubPage() {
 
   const loadTemplates = async (industryIdOverride?: string, eventKeyOverride?: string) => {
     try {
+      const targetIndustry = industryIdOverride || selectedIndustry;
       const data = await notificationHubApi.getTemplates({
-        industryId: industryIdOverride || selectedIndustry,
+        industryId: targetIndustry,
         eventKey: eventKeyOverride || selectedEventKey
       });
       if (data.success) {
         setTemplates(data.templates || []);
+        if (data.industryId && !industryIdOverride && selectedIndustry === 'temp0001' && data.industryId !== 'temp0001') {
+          setSelectedIndustry(data.industryId);
+        }
       }
     } catch (err: any) {
       console.warn('Failed to fetch templates:', err);
@@ -1489,15 +1493,15 @@ export default function NotificationHubPage() {
                             Uncontacted SLA Escalation
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            lead.uncontacted_sla
+                            task.sla_breach
                           </Typography>
                         </Box>
                       </Box>
                       <Switch
-                        checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'lead.uncontacted_sla')?.is_enabled !== false}
+                        checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'task.sla_breach')?.is_enabled !== false}
                         onChange={(e) => {
                           const checked = e.target.checked;
-                          setMatrixRules(prev => prev.map(r => (r.event_key || r.eventKey) === 'lead.uncontacted_sla' ? { ...r, is_enabled: checked } : r));
+                          setMatrixRules(prev => prev.map(r => (r.event_key || r.eventKey) === 'task.sla_breach' ? { ...r, is_enabled: checked } : r));
                         }}
                         color="error"
                         size="small"
@@ -1516,7 +1520,7 @@ export default function NotificationHubPage() {
                       <Button
                         size="small"
                         startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
-                        onClick={() => handleNavigateToTemplate('lead.uncontacted_sla', 'whatsapp')}
+                        onClick={() => handleNavigateToTemplate('task.sla_breach', 'whatsapp')}
                         sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
                       >
                         Customize ✏️
