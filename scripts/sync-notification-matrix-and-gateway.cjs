@@ -19,7 +19,12 @@ require.cache[mongoosePath] = {
 };
 
 const envPath = process.env.ENV_FILE || path.join(apiServerDir, '.env');
-require('dotenv').config({ path: envPath });
+try {
+  const dotenv = require(require.resolve('dotenv', { paths: [apiServerDir] }));
+  dotenv.config({ path: envPath });
+} catch (e) {
+  // dotenv might be injected by node --env-file
+}
 const { connect } = require(path.join(apiServerDir, 'src/db'));
 
 require(path.join(apiServerDir, 'src/models/whatsappConfigModel'));
