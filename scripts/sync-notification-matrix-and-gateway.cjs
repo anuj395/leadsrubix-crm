@@ -28,7 +28,7 @@ try {
 const { connect } = require(path.join(apiServerDir, 'src/db'));
 
 require(path.join(apiServerDir, 'src/models/whatsappConfigModel'));
-require(path.join(apiServerDir, 'src/models/notificationMatrixRuleModel'));
+require(path.join(apiServerDir, 'src/models/notificationMatrixModel'));
 require(path.join(apiServerDir, 'src/models/organizationModel'));
 
 const { DEFAULT_MATRIX_RULES, STANDARD_EVENTS } = require(path.join(apiServerDir, 'src/services/notificationDefaults'));
