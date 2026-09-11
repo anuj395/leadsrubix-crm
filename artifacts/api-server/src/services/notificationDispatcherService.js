@@ -380,7 +380,8 @@ async function dispatchCrmEvent({
             });
 
             if (!waRes || waRes.success === false) {
-              throw new Error(waRes?.message || waRes?.error || 'WhatsApp dispatch error');
+              const errText = waRes?.errorMessage || waRes?.message || waRes?.error || (typeof waRes?.recipients?.[0]?.error === 'string' ? waRes.recipients[0].error : null) || 'WhatsApp dispatch error';
+              throw new Error(errText);
             }
           } else if (channel === 'email') {
             target = recipientObj.email;

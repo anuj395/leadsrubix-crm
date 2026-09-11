@@ -420,21 +420,38 @@ router.get('/logs', authenticate, async (req, res) => {
       totalPages: Math.ceil(total / limit),
       logs: logs.map(l => ({
         id: String(l._id),
+        _id: String(l._id),
         organizationId: l.organization_id,
+        organization_id: l.organization_id,
         eventKey: l.event_key,
+        event_key: l.event_key,
         channel: l.channel,
         recipientRole: l.recipient_role,
+        recipient_role: l.recipient_role,
+        recipient_type: l.recipient_role,
+        recipientType: l.recipient_role,
         recipientName: l.recipient_name,
+        recipient_name: l.recipient_name,
         recipientId: l.recipient_id,
+        recipient_id: l.recipient_id,
         recipientTarget: l.recipient_target,
+        recipient_target: l.recipient_target,
+        recipientContact: l.recipient_target,
+        recipient_contact: l.recipient_target,
         provider: l.provider,
         isUniversal: l.is_universal,
-        status: l.status,
+        is_universal: l.is_universal,
+        status: String(l.status || 'queued').toLowerCase(),
+        rawStatus: l.status,
         title: l.title,
         messageBody: l.message_body,
+        message_body: l.message_body,
         errorMessage: l.error_message,
+        error_message: l.error_message,
         latencyMs: l.latency_ms,
-        createdAt: l.created_at || l.createdAt
+        latency_ms: l.latency_ms,
+        createdAt: l.created_at || l.createdAt,
+        created_at: l.created_at || l.createdAt
       }))
     });
   } catch (err) {
@@ -810,7 +827,7 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       });
       if (!waRes || waRes.success === false) {
         status = 'FAILED';
-        errorMessage = waRes?.message || waRes?.error || 'WhatsApp diagnostic failed';
+        errorMessage = waRes?.errorMessage || waRes?.message || waRes?.error || (typeof waRes?.recipients?.[0]?.error === 'string' ? waRes.recipients[0].error : null) || 'WhatsApp diagnostic failed';
       }
     } else if (channel === 'email') {
       const emailRes = await mailer.sendDynamicEmail({
@@ -843,7 +860,7 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
     }).catch(() => {});
 
     if (status === 'FAILED') {
-      return res.status(500).json({ success: false, message: errorMessage });
+      return res.status(500).json({ success: false, message: errorMessage, error: errorMessage });
     }
 
     return res.json({
