@@ -498,16 +498,20 @@ export default function NotificationHubPage() {
             enabled: true,
             channels: { whatsapp: false, email: false, push: false, in_app: false }
           };
+          const nextVal = !currentActive;
+          const nextChannels = {
+            ...currentRec.channels,
+            [channel]: nextVal
+          };
+          const hasAnyChannel = Object.values(nextChannels).some(Boolean);
           return {
             ...r,
             routing: {
               ...currentRouting,
               [recipient]: {
                 ...currentRec,
-                channels: {
-                  ...currentRec.channels,
-                  [channel]: !currentActive
-                }
+                enabled: hasAnyChannel,
+                channels: nextChannels
               }
             }
           };
