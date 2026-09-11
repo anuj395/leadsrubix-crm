@@ -752,6 +752,36 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   const updated = await contactModel.findByIdAndUpdate(id, { $set: cleaned }, { new: true });
   if (updated) {
     await enrichOrganizationNames([updated]);
+
+    // 1. Dispatch lead.stage_changed if stage transition occurred
+    const oldStage = existing.stage || existing.property_stage || existing.propertyStage;
+    const newStage = cleaned.stage || cleaned.property_stage || cleaned.propertyStage;
+    if (newStage && oldStage && String(newStage).trim().toUpperCase() !== String(oldStage).trim().toUpperCase()) {
+      try {
+        const { dispatchCrmEvent } = require('./notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'lead.stage_changed',
+          organizationId: targetOrgId || updated.organization_id || updated.organizationId,
+          entityType: 'contact',
+          entityData: updated
+        }).catch(err => console.error('[NotificationDispatcher] lead.stage_changed error in updateForUser:', err.message));
+      } catch (e) {}
+    }
+
+    // 2. Dispatch lead.assigned if contact owner changed
+    const oldOwner = existing.contactOwnerEmail || existing.contact_owner_email || existing.assignedTo || existing.assigned_to;
+    const newOwner = cleaned.contactOwnerEmail || cleaned.contact_owner_email || cleaned.assignedTo || cleaned.assigned_to;
+    if (newOwner && oldOwner && String(newOwner).trim().toLowerCase() !== String(oldOwner).trim().toLowerCase()) {
+      try {
+        const { dispatchCrmEvent } = require('./notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'lead.assigned',
+          organizationId: targetOrgId || updated.organization_id || updated.organizationId,
+          entityType: 'contact',
+          entityData: updated
+        }).catch(err => console.error('[NotificationDispatcher] lead.assigned error in updateForUser:', err.message));
+      } catch (e) {}
+    }
   }
   return updated;
 };
