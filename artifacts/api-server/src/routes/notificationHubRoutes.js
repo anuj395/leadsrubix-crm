@@ -145,8 +145,8 @@ router.get('/templates', authenticate, async (req, res) => {
       if (channelFilter && def.channel !== channelFilter) continue;
       if (eventFilter && def.event_key !== eventFilter) continue;
 
-      const tenantCustom = customTemplates.find(t => t.organization_id === orgId && t.event_key === def.event_key && t.channel === def.channel);
-      const platformCustom = customTemplates.find(t => !t.organization_id && t.event_key === def.event_key && t.channel === def.channel);
+      const tenantCustom = customTemplates.find(t => t.organization_id === orgId && t.event_key === def.event_key && t.channel === def.channel && (!t.industry_id || t.industry_id === industryId));
+      const platformCustom = customTemplates.find(t => !t.organization_id && t.event_key === def.event_key && t.channel === def.channel && (!t.industry_id || t.industry_id === industryId));
 
       const effective = tenantCustom || platformCustom || def;
 
