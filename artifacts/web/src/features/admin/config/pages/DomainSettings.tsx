@@ -27,10 +27,14 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import DnsIcon from '@mui/icons-material/Dns'
+import Tab from '@mui/material/Tab'
+import Tabs from '@mui/material/Tabs'
 import PublicIcon from '@mui/icons-material/Public'
+import EmailIcon from '@mui/icons-material/Email'
 import { AppCard } from '@/components/ui/AppCard'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/services/api'
+import { EmailSettingsTab } from '@/features/admin/setting/components/EmailSettingsTab'
 
 interface DomainSettingsForm {
   subdomain: string
@@ -42,6 +46,7 @@ interface DomainSettingsForm {
 
 export default function DomainSettingsPage() {
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<'web' | 'email'>('web')
   const [form, setForm] = useState<DomainSettingsForm>({
     subdomain: '',
     customDomain: '',
@@ -187,7 +192,37 @@ export default function DomainSettingsPage() {
         title="Custom Domain & Workspace Settings"
         subtitle="Configure your organization's custom domain mapping, subdomain, branding, and isolated workspace identity."
       >
-        {loading ? (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(_, val) => setActiveTab(val)}
+            sx={{
+              '& .MuiTab-root': {
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                minHeight: 48,
+              },
+            }}
+          >
+            <Tab
+              icon={<PublicIcon sx={{ fontSize: '1.2rem !important' }} />}
+              iconPosition="start"
+              label="Web Subdomain & Custom CNAME"
+              value="web"
+            />
+            <Tab
+              icon={<EmailIcon sx={{ fontSize: '1.2rem !important' }} />}
+              iconPosition="start"
+              label="Email Sending Domain (SES / DKIM)"
+              value="email"
+            />
+          </Tabs>
+        </Box>
+
+        {activeTab === 'email' ? (
+          <EmailSettingsTab showToast={(msg, sev) => setToast({ open: true, msg, sev: sev || 'success' })} />
+        ) : loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress />
           </Box>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Tab from '@mui/material/Tab'
 import Tabs from '@mui/material/Tabs'
@@ -27,25 +28,13 @@ import Switch from '@mui/material/Switch'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import BoltIcon from '@mui/icons-material/Bolt'
+import LanguageIcon from '@mui/icons-material/Language'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
 import { useConfirm } from '@/components/common/ConfirmContext'
 import { useAuth } from '@/hooks/useAuth'
-import { 
-  fetchNotificationSettings, 
-  updateNotificationSetting,
-  type NotificationSettingsResponse 
-} from '@/features/notifications/api/notificationApi'
-
-import { EmailSettingsTab } from '../components/EmailSettingsTab'
-import { ActionEmailTemplatesTab } from '../components/ActionEmailTemplatesTab'
-import { SuperAdminEmailQuotasTab } from '@/features/superAdmin/components/SuperAdminEmailQuotasTab'
-import { SuperAdminEmailLogsTab } from '@/features/superAdmin/components/SuperAdminEmailLogsTab'
-import { PushNotificationsTab } from '../components/PushNotificationsTab'
-import { CustomFieldsTab } from '../components/CustomFieldsTab'
-import { LeadDistributionTab } from '../components/LeadDistributionTab'
-import { SlaWorkflowsTab } from '../components/SlaWorkflowsTab'
-
 
 interface SettingItem {
   _id: string
@@ -65,17 +54,7 @@ interface Industry {
   name: string
 }
 
-type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys' | 'notification-settings' | 'notification-capabilities' | 'email-settings' | 'email-templates' | 'email-quotas' | 'super-admin-email-logs' | 'push-notifications' | 'custom-fields' | 'lead-distribution' | 'sla-workflows' | 'email-logs'
-
-
-
-
-const NOTIFICATION_TYPES = [
-  { value: 'LEAD_CREATED', label: 'New Lead Created', description: 'Triggered when a new lead is added to the organization.' },
-  { value: 'LEAD_ASSIGNED', label: 'New Lead Assigned', description: 'Triggered when a lead is assigned or transferred to a user.' },
-  { value: 'TASK_ASSIGNED', label: 'Task Assigned', description: 'Triggered when a task is created or assigned to a user.' },
-  { value: 'SYSTEM', label: 'System Notifications', description: 'General system-wide messages and alerts.' }
-]
+type TabType = 'teams' | 'branches' | 'designations' | 'roles' | 'role-keys'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -115,6 +94,7 @@ export default function SettingsPage() {
     return 'No items found. Click Add to create one.';
   };
 
+  const navigate = useNavigate()
   const isSuperAdmin = user?.role === 'superAdmin'
   const [tab, setTab] = useState<TabType>(isSuperAdmin ? 'roles' : 'teams')
   const [items, setItems] = useState<SettingItem[]>([])
@@ -122,7 +102,6 @@ export default function SettingsPage() {
   const [roleKeys, setRoleKeys] = useState<{ _id: string; value: string; label: string }[]>([])
   const [selectedIndustryId, setSelectedIndustryId] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [notificationPrefs, setNotificationPrefs] = useState<NotificationSettingsResponse | null>(null)
   const { confirmDelete } = useConfirm()
 
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
@@ -150,41 +129,7 @@ export default function SettingsPage() {
     setToast({ open: true, msg, sev })
   }
 
-  const loadNotificationSettings = async (industryIdFilter?: string) => {
-    setLoading(true)
-    try {
-      const res = await fetchNotificationSettings(industryIdFilter)
-      setNotificationPrefs(res)
-    } catch {
-      showToast('Failed to load notification settings', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleTogglePreference = async (level: 'industry' | 'org' | 'user', notificationType: string, currentVal: boolean, targetUserId?: string) => {
-    try {
-      await updateNotificationSetting({
-        level,
-        notificationType,
-        isEnabled: !currentVal,
-        industryId: level === 'industry' ? selectedIndustryId : undefined,
-        userId: targetUserId
-      })
-      showToast('Preference updated successfully')
-      void loadNotificationSettings(selectedIndustryId)
-    } catch {
-      showToast('Failed to update preference', 'error')
-    }
-  }
-
   const loadItems = async (currentTab: TabType, industryIdFilter?: string) => {
-    if (currentTab === 'email-settings' || currentTab === 'email-templates' || currentTab === 'email-quotas' || currentTab === 'super-admin-email-logs' || currentTab === 'email-logs') {
-      return
-    }
-    if (currentTab === 'notification-settings' || currentTab === 'notification-capabilities' || currentTab === 'push-notifications') {
-      return loadNotificationSettings(industryIdFilter)
-    }
     setLoading(true)
     try {
       const params = currentTab === 'roles' && industryIdFilter ? { industryId: industryIdFilter } : {}
@@ -369,6 +314,64 @@ export default function SettingsPage() {
         )}
       </Box>
 
+      {/* Quick Action Shortcuts Banner for Client Admin */}
+      {!isSuperAdmin && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.5,
+            mb: 2.5,
+            flexShrink: 0,
+            borderRadius: '12px',
+            backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(79, 106, 245, 0.08)' : 'rgba(79, 106, 245, 0.04)',
+            borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(79, 106, 245, 0.3)' : 'rgba(79, 106, 245, 0.2)',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 1.5,
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <BoltIcon sx={{ fontSize: '1.15rem' }} /> Looking for Automation Rules, Notifications, or Custom Domains?
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Configure omnichannel alerts (WhatsApp, Email, Bell, Push), delivery logs, or white-label portal domains in dedicated modules.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<BoltIcon sx={{ fontSize: '0.95rem !important' }} />}
+              onClick={() => navigate('/integrations/whatsapp')}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.78rem' }}
+            >
+              Notifications & Automation
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<LanguageIcon sx={{ fontSize: '0.95rem !important' }} />}
+              onClick={() => navigate('/configuration/domain-settings')}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.78rem' }}
+            >
+              Domain & Branding
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<CalendarMonthIcon sx={{ fontSize: '0.95rem !important' }} />}
+              onClick={() => navigate('/configuration/days-config')}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.78rem' }}
+            >
+              Working Days & Holidays
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+
       <AppCard
         fullHeight
         title="Workspace Parameters"
@@ -399,15 +402,8 @@ export default function SettingsPage() {
             >
               <Tab label="Roles" value="roles" />
               <Tab label="Role Keys" value="role-keys" />
-              <Tab label="Default Email & Domain" value="email-settings" />
-              <Tab label="Email Templates" value="email-templates" />
-              <Tab label="Notification Capabilities" value="notification-capabilities" />
-              <Tab label="Global Email Quotas" value="email-quotas" />
-              <Tab label="Global Email Logs" value="super-admin-email-logs" />
-              <Tab label="📲 Push Notifications" value="push-notifications" />
             </Tabs>
           ) : (
-
             <Tabs
               value={tab}
               onChange={(_, val: TabType) => setTab(val)}
@@ -431,310 +427,79 @@ export default function SettingsPage() {
               <Tab label="Teams" value="teams" />
               <Tab label="Branches" value="branches" />
               <Tab label="Designations" value="designations" />
-              <Tab label="Notification Settings" value="notification-settings" />
-              <Tab label="Email & Domain Setup" value="email-settings" />
-              <Tab label="Action Email Templates" value="email-templates" />
-              <Tab label="Email Logs" value="email-logs" />
-              <Tab label="📲 Push Notifications" value="push-notifications" />
             </Tabs>
           )}
 
-          {!(tab === 'notification-settings' || tab === 'notification-capabilities' || tab === 'email-settings' || tab === 'email-templates' || tab === 'email-quotas' || tab === 'super-admin-email-logs' || tab === 'email-logs' || tab === 'push-notifications') && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={openAdd}
-              sx={{
-                borderRadius: '10px',
-                textTransform: 'none',
-                fontWeight: 600,
-                boxShadow: 'none',
-                '&:hover': { boxShadow: 'none' },
-              }}
-            >
-              Add {tab === 'roles' ? 'Role' : tab === 'role-keys' ? 'Role Key' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
-            </Button>
-          )}
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openAdd}
+            sx={{
+              borderRadius: '10px',
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: 'none',
+              '&:hover': { boxShadow: 'none' },
+            }}
+          >
+            Add {tab === 'roles' ? 'Role' : tab === 'role-keys' ? 'Role Key' : tab === 'teams' ? 'Team' : tab === 'branches' ? 'Branch' : 'Designation'}
+          </Button>
         </Stack>
 
-        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 1, pt: 1 }}>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress size={40} />
             </Box>
-          ) : tab === 'push-notifications' ? (
-            <PushNotificationsTab showToast={showToast} notificationPrefs={notificationPrefs || undefined} loadNotificationSettings={loadNotificationSettings} />
-          ) : tab === 'email-settings' ? (
-            <EmailSettingsTab showToast={showToast} />
-          ) : tab === 'email-templates' ? (
-            <ActionEmailTemplatesTab showToast={showToast} />
-          ) : tab === 'email-quotas' ? (
-            <SuperAdminEmailQuotasTab showToast={showToast} />
-          ) : (tab === 'super-admin-email-logs' || tab === 'email-logs') ? (
-            <SuperAdminEmailLogsTab showToast={showToast} />
-          ) : (tab === 'notification-settings' || tab === 'notification-capabilities') ? (
-
-
-            <Stack spacing={4} sx={{ flex: 1, minHeight: 0, p: 0.5 }}>
-            {tab === 'notification-capabilities' && (
-              <Box>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Industry Notifications Capabilities</Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px' }}>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                        <TableCell sx={{ fontWeight: 700, width: '30%' }}>Notification Type</TableCell>
-                        <TableCell sx={{ fontWeight: 700, width: '50%' }}>Description</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, pr: 4 }}>Capability Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {NOTIFICATION_TYPES.map((type) => {
-                        const industrySetting = notificationPrefs?.industrySettings.find(s => s.notification_type === type.value);
-                        const isEnabled = industrySetting ? industrySetting.is_enabled !== false : true;
-                        return (
-                          <TableRow key={type.value} hover>
-                            <TableCell sx={{ fontWeight: 600 }}>{type.label}</TableCell>
-                            <TableCell sx={{ color: 'text.secondary' }}>{type.description}</TableCell>
-                            <TableCell align="right" sx={{ pr: 3 }}>
-                              <Switch
-                                checked={isEnabled}
-                                onChange={() => handleTogglePreference('industry', type.value, isEnabled)}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            )}
-
-            {(user?.role !== 'sales' && (notificationPrefs?.orgUsers || []).length > 0) && (
-              <Box sx={{ mt: 1, mb: 2 }}>
-                <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 700, color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  📲 Agent Mobile Push Notification Access Controls
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Enable or disable real-time mobile push notifications for individual sales agents and team members in your organization.
-                </Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', mb: 3 }}>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                        <TableCell sx={{ fontWeight: 700, width: '25%' }}>Team Member / Agent</TableCell>
-                        <TableCell sx={{ fontWeight: 700, width: '15%' }}>Role</TableCell>
-                        <TableCell sx={{ fontWeight: 700, width: '20%' }}>Device Push Status</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 700, width: '15%' }}>Mobile Push Active</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>Granular Notification Types</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {(notificationPrefs?.orgUsers || []).map((u) => {
-                        const hasToken = !!(u.device_id || (u.aws_push_tokens && u.aws_push_tokens.length > 0));
-                        const leadAssignedSetting = notificationPrefs?.allUsersSettings?.find(s => String(s.user_id) === String(u._id) && s.notification_type === 'LEAD_ASSIGNED');
-                        const isPushActive = leadAssignedSetting ? leadAssignedSetting.is_enabled !== false : true;
-
-                        return (
-                          <TableRow key={u._id} hover>
-                            <TableCell sx={{ fontWeight: 600 }}>
-                              {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : u.email.split('@')[0]}
-                              <Typography variant="caption" display="block" color="text.secondary">
-                                {u.email}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Alert severity="info" icon={false} sx={{ display: 'inline-flex', py: 0, px: 1, fontSize: '0.75rem', borderRadius: '4px', textTransform: 'uppercase' }}>
-                                {u.role || 'Sales Agent'}
-                              </Alert>
-                            </TableCell>
-                            <TableCell>
-                              <Alert severity={hasToken ? "success" : "warning"} icon={false} sx={{ display: 'inline-flex', py: 0, px: 1, fontSize: '0.75rem', borderRadius: '4px' }}>
-                                {hasToken ? '📱 Device Token Active' : '⚠️ No Push Token'}
-                              </Alert>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Switch
-                                checked={isPushActive}
-                                onChange={() => handleTogglePreference('user', 'LEAD_ASSIGNED', isPushActive, u._id)}
-                              />
-                            </TableCell>
-                            <TableCell align="right" sx={{ pr: 3 }}>
-                              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                {NOTIFICATION_TYPES.map((nt) => {
-                                  const userSetting = notificationPrefs?.allUsersSettings?.find(s => String(s.user_id) === String(u._id) && s.notification_type === nt.value);
-                                  const isEnabled = userSetting ? userSetting.is_enabled !== false : true;
-                                  return (
-                                    <FormControlLabel
-                                      key={nt.value}
-                                      control={
-                                        <Switch
-                                          size="small"
-                                          checked={isEnabled}
-                                          onChange={() => handleTogglePreference('user', nt.value, isEnabled, u._id)}
-                                        />
-                                      }
-                                      label={<Typography variant="caption" sx={{ fontSize: '0.7rem' }}>{nt.label.split(' ')[0]}</Typography>}
-                                    />
-                                  );
-                                })}
-                              </Stack>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            )}
-
-            {tab === 'notification-settings' && (
-              <>
-                {user?.role === 'admin' && (
-                  <Box>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Organization-wide Defaults</Typography>
-                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', mb: 3 }}>
-                      <Table>
-                        <TableHead>
-                          <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                            <TableCell sx={{ fontWeight: 700, width: '30%' }}>Notification Type</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: '50%' }}>Description</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 700, pr: 4 }}>Default Active Status</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {NOTIFICATION_TYPES.map((type) => {
-                            const industrySetting = notificationPrefs?.industrySettings.find(s => s.notification_type === type.value);
-                            const isAllowedByIndustry = industrySetting ? industrySetting.is_enabled !== false : true;
-
-                            const orgSetting = notificationPrefs?.orgSettings.find(s => s.notification_type === type.value);
-                            const isEnabled = orgSetting ? orgSetting.is_enabled !== false : true;
-
-                            return (
-                              <TableRow key={type.value} hover>
-                                <TableCell sx={{ fontWeight: 600, color: isAllowedByIndustry ? 'text.primary' : 'text.disabled' }}>{type.label}</TableCell>
-                                <TableCell sx={{ color: isAllowedByIndustry ? 'text.secondary' : 'text.disabled' }}>
-                                  {type.description}
-                                  {!isAllowedByIndustry && (
-                                    <Typography variant="caption" display="block" sx={{ color: 'error.main', mt: 0.5, fontWeight: 500 }}>
-                                      Disabled by enterprise industry configuration
-                                    </Typography>
-                                  )}
-                                </TableCell>
-                                <TableCell align="right" sx={{ pr: 3 }}>
-                                  <Switch
-                                    checked={isAllowedByIndustry && isEnabled}
-                                    disabled={!isAllowedByIndustry}
-                                    onChange={() => handleTogglePreference('org', type.value, isEnabled)}
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
-                )}
-
-                <Box>
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>My Individual Preferences</Typography>
-                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px' }}>
-                    <Table>
-                      <TableHead>
-                        <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                          <TableCell sx={{ fontWeight: 700, width: '30%' }}>Notification Type</TableCell>
-                          <TableCell sx={{ fontWeight: 700, width: '50%' }}>Description</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 700, pr: 4 }}>Receive Notifications</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {NOTIFICATION_TYPES.map((type) => {
-                          const industrySetting = notificationPrefs?.industrySettings.find(s => s.notification_type === type.value);
-                          const isAllowedByIndustry = industrySetting ? industrySetting.is_enabled !== false : true;
-
-                          const userSetting = notificationPrefs?.userSettings.find(s => s.notification_type === type.value);
-                          const isEnabled = userSetting ? userSetting.is_enabled !== false : true;
-
-                          return (
-                            <TableRow key={type.value} hover>
-                              <TableCell sx={{ fontWeight: 600, color: isAllowedByIndustry ? 'text.primary' : 'text.disabled' }}>{type.label}</TableCell>
-                              <TableCell sx={{ color: isAllowedByIndustry ? 'text.secondary' : 'text.disabled' }}>
-                                {type.description}
-                                {!isAllowedByIndustry && (
-                                  <Typography variant="caption" display="block" sx={{ color: 'error.main', mt: 0.5, fontWeight: 500 }}>
-                                    Disabled by enterprise industry configuration
-                                  </Typography>
-                                )}
-                              </TableCell>
-                              <TableCell align="right" sx={{ pr: 3 }}>
-                                <Switch
-                                  checked={isAllowedByIndustry && isEnabled}
-                                  disabled={!isAllowedByIndustry}
-                                  onChange={() => handleTogglePreference('user', type.value, isEnabled)}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              </>
-            )}
-          </Stack>
-        ) : (
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider', flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                  <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                  {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Key</TableCell>}
-                  {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Industry</TableCell>}
-                  {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>}
-                  {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>}
-                  <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={tab === 'roles' ? 5 : tab === 'designations' || tab === 'role-keys' ? 2 : 3} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                      {getEmptyStateMessage(tab)}
-                    </TableCell>
+          ) : (
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+                    {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Key</TableCell>}
+                    {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Industry</TableCell>}
+                    {tab === 'roles' && <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>}
+                    {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>}
+                    <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>Actions</TableCell>
                   </TableRow>
-                ) : (
-                  items.map((item) => (
-                    <TableRow key={item._id} hover>
-                      <TableCell sx={{ fontWeight: 500 }}>{item.label || item.value || item.name}</TableCell>
-                      {tab === 'roles' && <TableCell sx={{ fontFamily: 'monospace' }}>{item.key}</TableCell>}
-                      {tab === 'roles' && <TableCell>{typeof item.industryId === 'object' ? (item.industryId as any)?.name || '—' : item.industryId || '—'}</TableCell>}
-                      {tab === 'roles' && (
-                        <TableCell>
-                          <Alert severity={item.isActive !== false ? 'success' : 'error'} icon={false} sx={{ display: 'inline-flex', py: 0, px: 1, fontSize: '0.75rem', borderRadius: '4px' }}>
-                            {item.isActive !== false ? 'Active' : 'Inactive'}
-                          </Alert>
-                        </TableCell>
-                      )}
-                      {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && <TableCell>{item.code || '—'}</TableCell>}
-                      <TableCell align="right" sx={{ pr: 2 }}>
-                        <IconButton size="small" color="primary" onClick={() => openEdit(item)} sx={{ mr: 1 }}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => void handleDelete(item)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                </TableHead>
+                <TableBody>
+                  {items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={tab === 'roles' ? 5 : tab === 'designations' || tab === 'role-keys' ? 2 : 3} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                        {getEmptyStateMessage(tab)}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+                  ) : (
+                    items.map((item) => (
+                      <TableRow key={item._id} hover>
+                        <TableCell sx={{ fontWeight: 500 }}>{item.label || item.value || item.name}</TableCell>
+                        {tab === 'roles' && <TableCell sx={{ fontFamily: 'monospace' }}>{item.key}</TableCell>}
+                        {tab === 'roles' && <TableCell>{typeof item.industryId === 'object' ? (item.industryId as any)?.name || '—' : item.industryId || '—'}</TableCell>}
+                        {tab === 'roles' && (
+                          <TableCell>
+                            <Alert severity={item.isActive !== false ? 'success' : 'error'} icon={false} sx={{ display: 'inline-flex', py: 0, px: 1, fontSize: '0.75rem', borderRadius: '4px' }}>
+                              {item.isActive !== false ? 'Active' : 'Inactive'}
+                            </Alert>
+                          </TableCell>
+                        )}
+                        {tab !== 'designations' && tab !== 'roles' && tab !== 'role-keys' && <TableCell>{item.code || '—'}</TableCell>}
+                        <TableCell align="right" sx={{ pr: 2 }}>
+                          <IconButton size="small" color="primary" onClick={() => openEdit(item)} sx={{ mr: 1 }}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => void handleDelete(item)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Box>
       </AppCard>
 

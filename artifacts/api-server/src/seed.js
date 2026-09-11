@@ -58,6 +58,7 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'leadDistribution.list', name: 'Lead Distribution List', route: '/lead-distribution/list', icon: 'list', module: 'leadDistribution' },
         { key: 'leadDistribution.reassignList', name: 'Reassign List', route: '/reassign/list', icon: 'reassignList', module: 'leadDistribution' },
 
+        { key: 'configuration', name: 'Configuration', route: '', icon: 'configuration', module: 'configuration' },
         { key: 'configuration.projects', name: 'Project', route: '/configuration/projects', icon: 'projects', module: 'configuration' },
         { key: 'configuration.resources', name: 'Resource', route: '/configuration/resources', icon: 'resources', module: 'configuration' },
         { key: 'configuration.holiday', name: 'Holidays Configuration', route: '/configuration/holiday-config', icon: 'holiday', module: 'configuration' },
