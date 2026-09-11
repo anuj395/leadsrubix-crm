@@ -67,17 +67,21 @@ async function processTaskReminders() {
  * Starts the task reminder cron interval (every 2 minutes)
  */
 function startTaskReminderCron() {
+  const slaTriggerService = require('../services/slaTriggerService');
+
   // Initial check after 30 seconds
   setTimeout(() => {
     processTaskReminders().catch(() => {});
+    slaTriggerService.checkAndTriggerBreachedSlas().catch(() => {});
   }, 30000);
 
   // Repeat every 2 minutes
   setInterval(() => {
     processTaskReminders().catch(() => {});
+    slaTriggerService.checkAndTriggerBreachedSlas().catch(() => {});
   }, 2 * 60 * 1000);
 
-  console.log('[TaskReminderCron] Scheduled task reminder background worker (runs every 2 mins).');
+  console.log('[TaskReminderCron] Scheduled task reminder & SLA escalation background worker (runs every 2 mins).');
 }
 
 module.exports = {

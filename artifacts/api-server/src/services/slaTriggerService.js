@@ -1,7 +1,5 @@
 const mongoose = require('mongoose');
 const getDb = () => mongoose.connection.db;
-const ObjectId = mongoose.Types.ObjectId;
-const notificationService = require('./notificationService');
 
 /**
  * Service for SLA Timeout Tracking & Automated Escalation Alerts
@@ -9,6 +7,7 @@ const notificationService = require('./notificationService');
 const slaTriggerService = {
   async getSlaConfig(organizationId) {
     const db = getDb();
+    if (!db) return null;
     const config = await db.collection('sla_configs').findOne({ organizationId: String(organizationId) });
     if (!config) {
       return {
@@ -25,6 +24,7 @@ const slaTriggerService = {
 
   async updateSlaConfig(organizationId, payload) {
     const db = getDb();
+    if (!db) return null;
     const filter = { organizationId: String(organizationId) };
     const update = {
       $set: {
@@ -42,40 +42,56 @@ const slaTriggerService = {
   },
 
   async checkAndTriggerBreachedSlas() {
-    const db = getDb();
-    const configs = await db.collection('sla_configs').find({ enabled: true }).toArray();
+    try {
+      const db = getDb();
+      if (!db) return;
+      const Contact = mongoose.model('Contact');
+      const { dispatchCrmEvent } = require('./notificationDispatcherService');
 
-    for (const cfg of configs) {
-      const timeoutMs = (cfg.freshLeadTimeoutMinutes || 60) * 60 * 1000;
-      const cutoff = new Date(Date.now() - timeoutMs);
+      const configs = await db.collection('sla_configs').find({ enabled: true }).toArray();
 
-      // Untouched fresh leads created before cutoff date
-      const breachedLeads = await db.collection('contacts').find({
-        organizationId: String(cfg.organizationId),
-        stage: { $regex: /fresh/i },
-        slaBreached: { $ne: true },
-        createdAt: { $lte: cutoff },
-      }).toArray();
+      for (const cfg of configs) {
+        const timeoutMs = (cfg.freshLeadTimeoutMinutes || 60) * 60 * 1000;
+        const cutoff = new Date(Date.now() - timeoutMs);
 
-      for (const lead of breachedLeads) {
-        // Mark lead as SLA breached
-        await db.collection('contacts').updateOne(
-          { _id: lead._id },
-          { $set: { slaBreached: true, slaBreachedAt: new Date() } }
-        );
+        // Untouched fresh leads created before cutoff date
+        const breachedLeads = await Contact.find({
+          $or: [
+            { organization_id: String(cfg.organizationId) },
+            { organizationId: String(cfg.organizationId) }
+          ],
+          stage: { $regex: /fresh/i },
+          slaBreached: { $ne: true },
+          createdAt: { $lte: cutoff },
+        }).limit(25).exec();
 
-        // Notify Lead Owner & Manager
-        if (lead.contactOwnerEmail) {
-          await notificationService.createInAppNotification({
-            userId: lead.contactOwnerEmail,
+        for (const lead of breachedLeads) {
+          // Mark lead as SLA breached
+          lead.slaBreached = true;
+          lead.slaBreachedAt = new Date();
+          await lead.save().catch(e => console.warn('[SlaTriggerService] Save error:', e.message));
+
+          console.log(`[SlaTriggerService] SLA breached for lead "${lead.name || lead.customerName || lead._id}". Triggering task.sla_breach.`);
+
+          // Dispatch unified omnichannel task.sla_breach event
+          await dispatchCrmEvent({
+            eventKey: 'task.sla_breach',
             organizationId: cfg.organizationId,
-            title: '⚠️ SLA Breach Warning',
-            message: `Lead "${lead.name || 'Inquiry'}" has exceeded SLA response time of ${cfg.freshLeadTimeoutMinutes} minutes.`,
-            type: 'SLA_BREACH',
-            metadata: { leadId: lead._id.toString() },
-          }).catch(() => null);
+            entityType: 'contact',
+            entityData: {
+              _id: lead._id,
+              id: lead._id,
+              name: lead.name || lead.customerName || lead.customer_name || 'Inquiry',
+              customerName: lead.name || lead.customerName || lead.customer_name || 'Inquiry',
+              contactNumber: lead.contactNumber || lead.contact_number || lead.phone || '',
+              contactOwnerEmail: lead.contactOwnerEmail || lead.contact_owner_email || lead.assignedTo || lead.assigned_to || '',
+              slaTimeoutMinutes: cfg.freshLeadTimeoutMinutes || 60
+            }
+          }).catch(err => console.error('[SlaTriggerService] dispatch error:', err.message));
         }
       }
+    } catch (err) {
+      console.error('[SlaTriggerService] Error in checkAndTriggerBreachedSlas:', err.message);
     }
   },
 };
