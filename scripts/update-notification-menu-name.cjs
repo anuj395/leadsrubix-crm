@@ -9,7 +9,7 @@ async function run() {
 
   try {
     const checkQuery = `
-      SELECT id, data->>'key' as key, data->>'name' as name, data->>'route' as route 
+      SELECT _id, data->>'key' as key, data->>'name' as name, data->>'route' as route 
       FROM sidebar_menus 
       WHERE data->>'key' IN ('integrations.whatsapp', 'configuration.whatsapp') 
          OR data->>'route' IN ('/integrations/whatsapp', '/configuration/whatsapp');
