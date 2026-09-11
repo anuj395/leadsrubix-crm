@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { DEFAULT_MATRIX_RULES } = require('./notificationDefaults');
 
 exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
   const Role = mongoose.model('Role');
@@ -296,6 +297,30 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
       industry_id: String(industryDbId),
       designations: designationsList
     });
+  }
+
+  // Clone NotificationMatrixRules for new tenant workspace
+  try {
+    const NotificationMatrixRule = mongoose.model('NotificationMatrixRule');
+    const existingRules = await NotificationMatrixRule.find({
+      $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
+    }).lean().exec();
+
+    if (existingRules.length === 0) {
+      const templateRules = await NotificationMatrixRule.find({ organization_id: null }).lean().exec();
+      const rulesToClone = templateRules.length > 0 ? templateRules : DEFAULT_MATRIX_RULES;
+      for (const r of rulesToClone) {
+        await NotificationMatrixRule.create({
+          organization_id: organizationId,
+          event_key: r.event_key || r.eventKey,
+          event_label: r.event_label || r.eventLabel,
+          is_enabled: r.is_enabled !== undefined ? r.is_enabled : true,
+          routing: r.routing
+        }).catch(e => console.warn(`[WorkspaceCloner] Warning cloning matrix rule ${r.event_key}:`, e.message));
+      }
+    }
+  } catch (matrixCloneErr) {
+    console.warn('[WorkspaceCloner] Error cloning notification matrix rules:', matrixCloneErr.message);
   }
 };
 

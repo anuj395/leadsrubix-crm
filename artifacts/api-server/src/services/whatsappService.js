@@ -300,8 +300,10 @@ async function sendNotification({
   organizationId,
   contact,
   eventType = 'incoming',
+  action = null,
   customRecipient = null,
   customMessage = null,
+  customRecipients = null,
   testProvider = null,
   testCredentials = null
 }) {
@@ -310,6 +312,11 @@ async function sendNotification({
     const WhatsAppLog = mongoose.model('WhatsAppLog');
     const Organization = mongoose.model('Organization');
     const User = mongoose.model('User');
+
+    // Normalize eventType if action was provided
+    if (action && (!eventType || eventType === 'incoming')) {
+      eventType = action;
+    }
 
     // 1. Fetch Organization Details
     const org = organizationId ? await Organization.findOne({
@@ -330,6 +337,9 @@ async function sendNotification({
       org?.organizationId
     ].filter(Boolean);
 
+    // Helper: Valid token check
+    const hasValidKey = (token) => Boolean(token && String(token).trim().length > 0);
+
     // 2. Resolve 2-Tier Gateway ('Custom Client' vs 'SuperAdmin Universal')
     let tenantConfig = null;
     if (targetOrgIds.length > 0) {
@@ -341,15 +351,33 @@ async function sendNotification({
       }).lean().exec();
     }
 
-    const universalConfig = await WhatsAppConfig.findOne({
-      $or: [{ organization_id: null }, { organizationId: null }]
+    // Load all candidate global universal configs
+    const candidateUniversal = await WhatsAppConfig.find({
+      $or: [
+        { organization_id: null },
+        { organizationId: null },
+        { organization_id: '' },
+        { organizationId: '' }
+      ]
     }).lean().exec();
 
-    // Determine whether Tenant has active Custom API
+    // Prioritize universal config with valid WHAPI token, then Simply, then ChatSimplified
+    let universalConfig = candidateUniversal.find(c => hasValidKey(c.wapi?.wapi_token));
+    if (!universalConfig) {
+      universalConfig = candidateUniversal.find(c => hasValidKey(c.simply?.access_token));
+    }
+    if (!universalConfig) {
+      universalConfig = candidateUniversal.find(c => hasValidKey(c.chat_simplified?.api_key || c.chatSimplified?.apiKey));
+    }
+    if (!universalConfig && candidateUniversal.length > 0) {
+      universalConfig = candidateUniversal[0];
+    }
+
+    // Determine whether Tenant has active and properly configured Custom API
     const isCustomActive = tenantConfig && tenantConfig.use_custom_api !== false && (
-      Boolean(tenantConfig.wapi?.active && tenantConfig.wapi?.wapi_token) ||
-      Boolean(tenantConfig.simply?.active && tenantConfig.simply?.access_token) ||
-      Boolean((tenantConfig.chat_simplified?.active || tenantConfig.chatSimplified?.active) && (tenantConfig.chat_simplified?.api_key || tenantConfig.chatSimplified?.apiKey))
+      Boolean(tenantConfig.wapi?.active && hasValidKey(tenantConfig.wapi?.wapi_token)) ||
+      Boolean(tenantConfig.simply?.active && hasValidKey(tenantConfig.simply?.access_token)) ||
+      Boolean((tenantConfig.chat_simplified?.active || tenantConfig.chatSimplified?.active) && hasValidKey(tenantConfig.chat_simplified?.api_key || tenantConfig.chatSimplified?.apiKey))
     );
 
     let activeConfig = null;
@@ -363,7 +391,7 @@ async function sendNotification({
       // Tenant's custom verified WhatsApp API takes precedence
       activeConfig = tenantConfig;
       isUniversalGateway = false;
-    } else if (universalConfig && (universalConfig.wapi?.active || universalConfig.simply?.active || universalConfig.chat_simplified?.active || universalConfig.chatSimplified?.active)) {
+    } else if (universalConfig && (hasValidKey(universalConfig.wapi?.wapi_token) || hasValidKey(universalConfig.simply?.access_token) || hasValidKey(universalConfig.chat_simplified?.api_key || universalConfig.chatSimplified?.apiKey))) {
       // Seamless fallback to SuperAdmin Universal Platform Gateway
       activeConfig = universalConfig;
       isUniversalGateway = true;
@@ -372,21 +400,44 @@ async function sendNotification({
       isUniversalGateway = false;
     }
 
-    // 3. Resolve Active Channel & Credentials
+    // 3. Resolve Active Channel & Credentials (Defensive check: only select provider if credentials exist!)
     let activeChannel = testProvider || '';
     let channelSettings = testCredentials || null;
 
     if (!activeChannel || !channelSettings) {
       if (activeConfig) {
-        if (activeConfig.wapi?.active) {
+        if (activeConfig.wapi?.active && hasValidKey(activeConfig.wapi?.wapi_token)) {
           activeChannel = 'wapi';
           channelSettings = activeConfig.wapi;
-        } else if (activeConfig.simply?.active) {
+        } else if (activeConfig.simply?.active && hasValidKey(activeConfig.simply?.access_token)) {
           activeChannel = 'simply';
           channelSettings = activeConfig.simply;
-        } else if (activeConfig.chat_simplified?.active || activeConfig.chatSimplified?.active) {
+        } else if ((activeConfig.chat_simplified?.active || activeConfig.chatSimplified?.active) && hasValidKey(activeConfig.chat_simplified?.api_key || activeConfig.chatSimplified?.apiKey)) {
           activeChannel = 'chatsimplified';
           channelSettings = activeConfig.chat_simplified || activeConfig.chatSimplified;
+        } else if (hasValidKey(activeConfig.wapi?.wapi_token)) {
+          activeChannel = 'wapi';
+          channelSettings = { ...activeConfig.wapi, active: true };
+        }
+      }
+
+      // If tenant config lacked active/valid credentials, fallback to platform Universal Gateway
+      if (!activeChannel && universalConfig) {
+        if (hasValidKey(universalConfig.wapi?.wapi_token)) {
+          activeChannel = 'wapi';
+          channelSettings = { ...universalConfig.wapi, active: true };
+          isUniversalGateway = true;
+          activeConfig = universalConfig;
+        } else if (hasValidKey(universalConfig.simply?.access_token)) {
+          activeChannel = 'simply';
+          channelSettings = { ...universalConfig.simply, active: true };
+          isUniversalGateway = true;
+          activeConfig = universalConfig;
+        } else if (hasValidKey(universalConfig.chat_simplified?.api_key || universalConfig.chatSimplified?.apiKey)) {
+          activeChannel = 'chatsimplified';
+          channelSettings = { ...(universalConfig.chat_simplified || universalConfig.chatSimplified), active: true };
+          isUniversalGateway = true;
+          activeConfig = universalConfig;
         }
       }
     }
@@ -417,12 +468,27 @@ async function sendNotification({
 
     const recipientsQueue = [];
 
-    if (customRecipient) {
+    if (customRecipients && Array.isArray(customRecipients) && customRecipients.length > 0) {
+      // Support pre-rendered custom recipients list
+      for (const cr of customRecipients) {
+        const clean = normalizePhoneNumber(cr.phone || cr.customRecipient || cr.target, orgCountryCode);
+        if (clean) {
+          recipientsQueue.push({
+            type: cr.type || cr.role || 'custom',
+            role: cr.role || cr.type || 'agent',
+            name: cr.name || 'Direct Recipient',
+            phone: clean,
+            message: cr.message || cr.messageBody || customMessage || null
+          });
+        }
+      }
+    } else if (customRecipient) {
       // Manual custom test / override recipient
       const cleanCustom = normalizePhoneNumber(customRecipient, orgCountryCode);
       if (cleanCustom) {
         recipientsQueue.push({
           type: 'custom',
+          role: 'custom',
           name: 'Direct Recipient',
           phone: cleanCustom,
           message: customMessage || `🚀 Leads Rubix Test Message via ${activeChannel.toUpperCase()} (${isUniversalGateway ? 'Universal' : 'Custom'} Gateway).`
@@ -687,13 +753,17 @@ async function sendDirectWhatsAppMessage({ organizationId, phone, name = '', rol
   if (!normPhone) return { success: false, error: 'Valid recipient phone number required' };
 
   return sendNotification({
+    eventType,
     action: eventType,
     organizationId,
     contact: { customerName: name, phone: normPhone },
+    customRecipient: normPhone,
+    customMessage: messageBody,
     customRecipients: [
       {
         name: name || 'User',
         phone: normPhone,
+        role,
         type: role,
         message: messageBody
       }
