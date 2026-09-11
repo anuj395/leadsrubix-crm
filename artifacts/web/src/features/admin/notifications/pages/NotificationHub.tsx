@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Button from '@mui/material/Button';
+import ButtonGroup from '@mui/material/ButtonGroup';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import Switch from '@mui/material/Switch';
@@ -63,6 +64,7 @@ import SettingsInputAntennaIcon from '@mui/icons-material/SettingsInputAntenna';
 import PersonIcon from '@mui/icons-material/Person';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import BusinessIcon from '@mui/icons-material/Business';
 import ForumIcon from '@mui/icons-material/Forum';
 import SecurityIcon from '@mui/icons-material/Security';
 import LockIcon from '@mui/icons-material/Lock';
@@ -1195,114 +1197,124 @@ export default function NotificationHubPage() {
           )}
 
           {/* Platform Assurance Banner for Client Admin */}
+          {/* Consolidated Command Header: Platform Status, 1-Click Presets & Save Button */}
           {isAdmin && (
             <Paper
               elevation={0}
               sx={{
-                p: 2.5,
-                mb: 3,
+                p: { xs: 1.5, sm: 2 },
+                mb: 2.5,
                 borderRadius: 2.5,
-                background: 'linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(124,58,237,0.06) 100%)',
-                border: '1px solid rgba(37,99,235,0.2)',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
                 display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
+                flexDirection: { xs: 'column', lg: 'row' },
+                alignItems: { xs: 'stretch', lg: 'center' },
                 justifyContent: 'space-between',
-                gap: 2
+                gap: 2,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.03)'
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(37,99,235,0.25)' }}>
-                  <BoltIcon fontSize="medium" />
+              {/* Left: Platform Engine Live Status */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ width: 38, height: 38, borderRadius: 2, bgcolor: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 6px rgba(37,99,235,0.25)' }}>
+                  <BoltIcon fontSize="small" />
                 </Box>
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       Universal Platform Engine Active
                     </Typography>
-                    <Chip label="Zero Setup Required" size="small" color="success" sx={{ fontWeight: 700, fontSize: '0.72rem', height: 22 }} />
+                    <Chip label="Zero Setup" size="small" color="success" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 20 }} />
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                    Pre-connected to Leads Rubix cloud infrastructure. Omnichannel alerts across WhatsApp, Email, Push, and Bell notifications are active out of the box with recommended industry routing.
+                  <Typography variant="caption" color="text.secondary">
+                    Pre-connected cloud delivery across WhatsApp, Email, Push & Bell.
                   </Typography>
                 </Box>
               </Box>
-            </Paper>
-          )}
 
-          {/* 1-Click High-Level Presets Toolbar */}
-          {isAdmin && (
-            <Paper elevation={0} sx={{ p: 2.5, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    1-Click Omnichannel Presets
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Select a ready-to-run operational profile or fine-tune below.
-                  </Typography>
-                </Box>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              {/* Right: 1-Click Presets & Save Button within fingertip reach */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center" justifyContent="flex-end">
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: { xs: 'none', md: 'block' }, mr: 0.5 }}>
+                  Presets:
+                </Typography>
+                <ButtonGroup size="small" variant="outlined" sx={{ borderRadius: 2 }}>
                   <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<AutoFixHighIcon />}
                     onClick={() => handleApplyPreset('recommended')}
-                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, py: 0.75, px: 2 }}
+                    sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', py: 0.6, px: 1.25 }}
                   >
-                    🌟 Recommended Standard
+                    🌟 Standard
                   </Button>
                   <Button
-                    variant="outlined"
-                    color="secondary"
-                    startIcon={<SpeedIcon />}
                     onClick={() => handleApplyPreset('high_velocity')}
-                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, py: 0.75, px: 2 }}
+                    sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', py: 0.6, px: 1.25 }}
                   >
                     🚀 High Velocity
                   </Button>
                   <Button
-                    variant="outlined"
-                    color="inherit"
-                    startIcon={<NotificationsOffIcon />}
                     onClick={() => handleApplyPreset('essential')}
-                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, py: 0.75, px: 2 }}
+                    sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', py: 0.6, px: 1.25 }}
                   >
-                    🔕 Essential Only
+                    🔕 Essential
                   </Button>
-                </Stack>
-              </Box>
+                </ButtonGroup>
+
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<SaveIcon sx={{ fontSize: '16px !important' }} />}
+                  onClick={handleSaveMatrix}
+                  disabled={savingMatrix}
+                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, height: 34, px: 2, ml: { sm: 1 }, whiteSpace: 'nowrap' }}
+                >
+                  {savingMatrix ? 'Saving...' : 'Save Routing'}
+                </Button>
+              </Stack>
             </Paper>
           )}
 
-          {/* 5 Layman Smart Workflow Cards */}
+          {/* 5 Layman Smart Workflow Micro-Cards */}
           {isAdmin && (
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Key Automation Workflows
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Core event workflows configured for your sales team. Toggle active status or customize messaging with one click.
-              </Typography>
+            <Box sx={{ mb: 2.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Core Automation Workflows
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Essential automated alerts configured for your sales team. Toggle active status or customize copy.
+                  </Typography>
+                </Box>
+              </Box>
 
-              <Grid container spacing={2}>
+              <Grid container spacing={1.5}>
                 {/* Workflow Card 1: New Lead Arrival */}
-                <Grid item xs={12} md={6} lg={4}>
-                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(37,99,235,0.1)', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <PersonIcon fontSize="small" />
+                <Grid item xs={12} sm={6} lg={4}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      '&:hover': { borderColor: 'primary.main', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: 'rgba(37,99,235,0.1)', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <PersonIcon sx={{ fontSize: 17 }} />
                         </Box>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            New Lead Arrival Alert
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            lead.created
-                          </Typography>
-                        </Box>
-                      </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                          New Lead Inbound Alert
+                        </Typography>
+                      </Stack>
                       <Switch
                         checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'lead.created')?.is_enabled !== false}
                         onChange={(e) => {
@@ -1313,21 +1325,20 @@ export default function NotificationHubPage() {
                         size="small"
                       />
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
-                      Alerts assigned reps instantly when a new lead is captured via website, Facebook, Google ads, or CSV import.
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, flex: 1, lineHeight: 1.35 }}>
+                      Alerts assigned reps instantly when a prospect inquires via ads, website, or import.
                     </Typography>
-                    <Divider sx={{ my: 1.5 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
                       <Stack direction="row" spacing={0.5}>
-                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '13px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '12px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '12px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '12px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
                       </Stack>
                       <Button
                         size="small"
-                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        startIcon={<EditIcon sx={{ fontSize: '13px !important' }} />}
                         onClick={() => handleNavigateToTemplate('lead.created', 'whatsapp')}
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.25, px: 0.75, minWidth: 'auto' }}
                       >
                         Customize ✏️
                       </Button>
@@ -1336,22 +1347,30 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 2: Callback & Task Due */}
-                <Grid item xs={12} md={6} lg={4}>
-                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(234,179,8,0.1)', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <AssignmentIcon fontSize="small" />
+                <Grid item xs={12} sm={6} lg={4}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      '&:hover': { borderColor: 'warning.main', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: 'rgba(234,179,8,0.1)', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <AssignmentIcon sx={{ fontSize: 17 }} />
                         </Box>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            Follow-Up & Task Due
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            task.reminder
-                          </Typography>
-                        </Box>
-                      </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                          Follow-Up & Task Due
+                        </Typography>
+                      </Stack>
                       <Switch
                         checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'task.reminder')?.is_enabled !== false}
                         onChange={(e) => {
@@ -1362,21 +1381,20 @@ export default function NotificationHubPage() {
                         size="small"
                       />
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
-                      Sends timely reminders to reps before a scheduled callback, site inspection, or customer commitment deadline.
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, flex: 1, lineHeight: 1.35 }}>
+                      Sends timely reminders to reps before a scheduled callback, inspection, or task due date.
                     </Typography>
-                    <Divider sx={{ my: 1.5 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
                       <Stack direction="row" spacing={0.5}>
-                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '13px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '12px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '12px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '12px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
                       </Stack>
                       <Button
                         size="small"
-                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        startIcon={<EditIcon sx={{ fontSize: '13px !important' }} />}
                         onClick={() => handleNavigateToTemplate('task.reminder', 'whatsapp')}
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.25, px: 0.75, minWidth: 'auto' }}
                       >
                         Customize ✏️
                       </Button>
@@ -1385,46 +1403,53 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 3: Instant Customer Welcome */}
-                <Grid item xs={12} md={6} lg={4}>
-                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(34,197,94,0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <WhatsAppIcon fontSize="small" />
+                <Grid item xs={12} sm={6} lg={4}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      '&:hover': { borderColor: 'success.main', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: 'rgba(34,197,94,0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <WhatsAppIcon sx={{ fontSize: 17 }} />
                         </Box>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            Customer WhatsApp Greeting
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Direct to Lead
-                          </Typography>
-                        </Box>
-                      </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                          Customer Welcome Greeting
+                        </Typography>
+                      </Stack>
                       <Switch
                         checked={(() => {
-                          const r = matrixRules.find(x => (x.event_key || x.eventKey) === 'lead.created');
+                          const r = matrixRules.find(x => (x.event_key || x.eventKey) === 'customer.welcome' || (x.event_key || x.eventKey) === 'lead.created');
                           return r ? getChannelActive(r, 'customer', 'whatsapp') : false;
                         })()}
-                        onChange={() => handleMatrixToggle('lead.created', 'customer', 'whatsapp')}
+                        onChange={() => handleMatrixToggle('customer.welcome', 'customer', 'whatsapp')}
                         color="success"
                         size="small"
                       />
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
-                      Sends a warm, professional WhatsApp welcome greeting directly to the prospect immediately upon lead creation.
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, flex: 1, lineHeight: 1.35 }}>
+                      Sends a warm, professional WhatsApp welcome greeting directly to the prospect immediately.
                     </Typography>
-                    <Divider sx={{ my: 1.5 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
                       <Stack direction="row" spacing={0.5}>
-                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip label="Customer Direct" size="small" variant="filled" sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'rgba(34,197,94,0.15)', color: '#15803d', fontWeight: 600 }} />
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '12px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip label="Direct to Lead" size="small" variant="filled" sx={{ height: 20, fontSize: '0.68rem', bgcolor: 'rgba(34,197,94,0.15)', color: '#15803d', fontWeight: 700 }} />
                       </Stack>
                       <Button
                         size="small"
-                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
-                        onClick={() => handleNavigateToTemplate('lead.created', 'whatsapp')}
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                        startIcon={<EditIcon sx={{ fontSize: '13px !important' }} />}
+                        onClick={() => handleNavigateToTemplate('customer.welcome', 'whatsapp')}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.25, px: 0.75, minWidth: 'auto' }}
                       >
                         Customize ✏️
                       </Button>
@@ -1433,22 +1458,30 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 4: Deal Won Milestone */}
-                <Grid item xs={12} md={6} lg={4}>
-                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(168,85,247,0.1)', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <TrendingUpIcon fontSize="small" />
+                <Grid item xs={12} sm={6} lg={4}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      '&:hover': { borderColor: '#9333ea', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: 'rgba(168,85,247,0.1)', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <TrendingUpIcon sx={{ fontSize: 17 }} />
                         </Box>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            Deal Won Celebration
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            deal.won
-                          </Typography>
-                        </Box>
-                      </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                          Deal Won Victory Milestone
+                        </Typography>
+                      </Stack>
                       <Switch
                         checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'deal.won')?.is_enabled !== false}
                         onChange={(e) => {
@@ -1459,20 +1492,19 @@ export default function NotificationHubPage() {
                         size="small"
                       />
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
-                      Broadcasts victory alerts to managers and executives when an opportunity is successfully closed and won.
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, flex: 1, lineHeight: 1.35 }}>
+                      Broadcasts victory alerts to managers and reps when an opportunity is successfully closed.
                     </Typography>
-                    <Divider sx={{ my: 1.5 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
                       <Stack direction="row" spacing={0.5}>
-                        <Chip icon={<EmailIcon sx={{ fontSize: '13px !important' }} />} label="Email" size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<EmailIcon sx={{ fontSize: '12px !important' }} />} label="Email" size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '12px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
                       </Stack>
                       <Button
                         size="small"
-                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        startIcon={<EditIcon sx={{ fontSize: '13px !important' }} />}
                         onClick={() => handleNavigateToTemplate('deal.won', 'email')}
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.25, px: 0.75, minWidth: 'auto' }}
                       >
                         Customize ✏️
                       </Button>
@@ -1481,22 +1513,30 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 5: Uncontacted SLA Escalation */}
-                <Grid item xs={12} md={6} lg={4}>
-                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(239,68,68,0.1)', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <ErrorOutlineIcon fontSize="small" />
+                <Grid item xs={12} sm={6} lg={4}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      '&:hover': { borderColor: 'error.main', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: 'rgba(239,68,68,0.1)', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <ErrorOutlineIcon sx={{ fontSize: 17 }} />
                         </Box>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            Uncontacted SLA Escalation
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            task.sla_breach
-                          </Typography>
-                        </Box>
-                      </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                          Urgent SLA Escalation
+                        </Typography>
+                      </Stack>
                       <Switch
                         checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'task.sla_breach')?.is_enabled !== false}
                         onChange={(e) => {
@@ -1507,21 +1547,20 @@ export default function NotificationHubPage() {
                         size="small"
                       />
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
-                      Escalates to Team Leads and Admins when a new lead remains without contact past the response SLA window.
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, flex: 1, lineHeight: 1.35 }}>
+                      Escalates to Team Leads and Admins when a new lead remains uncontacted past the response SLA window.
                     </Typography>
-                    <Divider sx={{ my: 1.5 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
                       <Stack direction="row" spacing={0.5}>
-                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '13px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
-                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '12px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '12px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '12px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.68rem' }} />
                       </Stack>
                       <Button
                         size="small"
-                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        startIcon={<EditIcon sx={{ fontSize: '13px !important' }} />}
                         onClick={() => handleNavigateToTemplate('task.sla_breach', 'whatsapp')}
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.72rem', py: 0.25, px: 0.75, minWidth: 'auto' }}
                       >
                         Customize ✏️
                       </Button>
@@ -1827,24 +1866,41 @@ export default function NotificationHubPage() {
           <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, flex: 1 }}>
-                <FormControl sx={{ minWidth: 260, flex: 1 }} size="small">
-                  <InputLabel>Industry Vertical Preset</InputLabel>
-                  <Select
-                    value={selectedIndustry}
-                    label="Industry Vertical Preset"
-                    onChange={(e) => setSelectedIndustry(e.target.value)}
-                  >
-                    {INDUSTRY_VERTICALS.map((ind) => (
-                      <MenuItem key={ind.id} value={ind.id}>{ind.name} ({ind.id})</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {isSuperAdmin ? (
+                  <FormControl sx={{ minWidth: 260, flex: 1 }} size="small">
+                    <InputLabel>Platform Industry Baseline</InputLabel>
+                    <Select
+                      value={selectedIndustry}
+                      label="Platform Industry Baseline"
+                      onChange={(e) => setSelectedIndustry(e.target.value)}
+                    >
+                      {INDUSTRY_VERTICALS.map((ind) => (
+                        <MenuItem key={ind.id} value={ind.id}>{ind.name} ({ind.id})</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, px: 1.75, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider', flex: 1 }}>
+                    <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'primary.main', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <BusinessIcon fontSize="small" />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', lineHeight: 1.1 }}>
+                        Workspace Industry
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        {INDUSTRY_VERTICALS.find(i => i.id === selectedIndustry)?.name || 'Real Estate & Properties'}
+                      </Typography>
+                    </Box>
+                    <Chip label="Configured" size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 20 }} />
+                  </Box>
+                )}
 
                 <FormControl sx={{ minWidth: 260, flex: 1 }} size="small">
-                  <InputLabel>CRM Event</InputLabel>
+                  <InputLabel>Notification Trigger Event</InputLabel>
                   <Select
                     value={selectedEventKey}
-                    label="CRM Event"
+                    label="Notification Trigger Event"
                     onChange={(e) => setSelectedEventKey(e.target.value)}
                   >
                     {eventsList.map((ev) => {
@@ -1852,7 +1908,7 @@ export default function NotificationHubPage() {
                       const label = ev.name || (ev as any).event_label || k;
                       return (
                         <MenuItem key={k} value={k}>
-                          {label} ({k})
+                          {label}
                         </MenuItem>
                       );
                     })}
@@ -2009,7 +2065,7 @@ export default function NotificationHubPage() {
 
             {/* Right Column: Live Device Mockup Preview */}
             <Grid item xs={12} md={5}>
-              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column', position: { md: 'sticky' }, top: 20 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
                     LIVE DEVICE PREVIEW ({selectedChannel.toUpperCase()})
