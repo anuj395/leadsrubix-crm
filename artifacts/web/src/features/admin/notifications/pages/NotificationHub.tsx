@@ -70,6 +70,10 @@ import BusinessIcon from '@mui/icons-material/Business';
 import ForumIcon from '@mui/icons-material/Forum';
 import SecurityIcon from '@mui/icons-material/Security';
 import LockIcon from '@mui/icons-material/Lock';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { useAuth } from '@/hooks/useAuth';
 import { AppCard } from '@/components/ui/AppCard';
@@ -106,6 +110,16 @@ export default function NotificationHubPage() {
   const [savingMatrix, setSavingMatrix] = useState<boolean>(false);
   const [savingTemplate, setSavingTemplate] = useState<boolean>(false);
   const [resettingTemplates, setResettingTemplates] = useState<boolean>(false);
+  const [matrixSearchQuery, setMatrixSearchQuery] = useState<string>('');
+  const [showWaToken, setShowWaToken] = useState<boolean>(false);
+  const contentContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto reset scroll to top on tab change so user never lands halfway down a page
+  useEffect(() => {
+    if (contentContainerRef.current) {
+      contentContainerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [activeTab]);
 
   // Snackbar alerts
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
@@ -525,11 +539,24 @@ export default function NotificationHubPage() {
     }
   };
 
-  // Insert Merge Tag into template body
+  // Insert Merge Tag into template body with cursor awareness and focus preservation
   const handleInsertMergeTag = (rawTag: string) => {
     const clean = rawTag.replace(/[\{\}]/g, '');
     const tagString = `{{${clean}}}`;
-    setActiveTemplateBody((prev) => (prev ? prev + (prev.endsWith(' ') ? '' : ' ') : '') + tagString + ' ');
+    const textarea = templateBodyInputRef.current;
+    if (textarea && typeof textarea.selectionStart === 'number') {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const val = textarea.value || activeTemplateBody;
+      const nextVal = val.substring(0, start) + tagString + ' ' + val.substring(end);
+      setActiveTemplateBody(nextVal);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + tagString.length + 1, start + tagString.length + 1);
+      }, 0);
+    } else {
+      setActiveTemplateBody((prev) => (prev ? prev + (prev.endsWith(' ') ? '' : ' ') : '') + tagString + ' ');
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -759,135 +786,172 @@ export default function NotificationHubPage() {
     return text;
   }, [activeTemplateBody]);
 
+  // Helper to render authentic bold formatting in WhatsApp preview
+  const renderFormattedWhatsAppText = (text: string) => {
+    if (!text) return 'Template message text will preview here...';
+    return text.split('\n').map((line, lIdx) => {
+      const parts = line.split(/(\*[^*]+\*)/g);
+      return (
+        <span key={lIdx} style={{ display: 'block', minHeight: line ? undefined : '1em' }}>
+          {parts.map((part, pIdx) => {
+            if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+              return <strong key={pIdx}>{part.slice(1, -1)}</strong>;
+            }
+            return part;
+          })}
+        </span>
+      );
+    });
+  };
+
   return (
     <Box
       sx={{
         flex: 1,
         height: '100%',
         minHeight: 0,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        p: { xs: 1.5, sm: 3 },
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
         maxWidth: 1600,
         mx: 'auto',
         width: '100%',
         boxSizing: 'border-box'
       }}
     >
-      {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Box
-              sx={{
-                width: 46,
-                height: 46,
-                borderRadius: 2,
-                background: roleBadgeConfig.bg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-              }}
-            >
-              <HubIcon fontSize="medium" />
-            </Box>
-            <Box>
-              <Stack direction="row" spacing={1.2} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
+      {/* Pinned Top Region: Header & Main Tabs Navigation (NEVER SCROLLS) */}
+      <Box
+        sx={{
+          flexShrink: 0,
+          pt: { xs: 1.5, sm: 2.5 },
+          px: { xs: 1.5, sm: 3 },
+          pb: 0,
+          bgcolor: 'background.default',
+          borderBottom: 1,
+          borderColor: 'divider',
+          zIndex: 5
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ mb: 2, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 2,
+                  background: roleBadgeConfig.bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  flexShrink: 0
+                }}
+              >
+                <HubIcon fontSize="medium" />
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1.2} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                    {isAdmin
+                      ? 'Omnichannel Notification & Automation Hub'
+                      : isTeamLead
+                      ? 'Team Notification & Alert Center'
+                      : 'My Alerts & Notification Center'}
+                  </Typography>
+                  <Chip
+                    label={roleBadgeConfig.label}
+                    size="small"
+                    sx={{
+                      bgcolor: roleBadgeConfig.chipBg,
+                      color: roleBadgeConfig.chipColor,
+                      fontWeight: 700,
+                      fontSize: '0.72rem',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      height: 22
+                    }}
+                  />
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block', fontSize: '0.8rem' }}>
                   {isAdmin
-                    ? 'Omnichannel Notification & Automation Hub'
+                    ? 'Configure multi-recipient routing (Agents, Team Leads, Admins, Customers), vertical templates, and live delivery logs.'
                     : isTeamLead
-                    ? 'Team Notification & Alert Center'
-                    : 'My Alerts & Notification Center'}
+                    ? 'Supervise team routing rules, preview customer message templates, and manage your personal alert channels.'
+                    : 'Manage how you receive notifications for assigned leads, task deadlines, and customer responses across your devices.'}
                 </Typography>
-                <Chip
-                  label={roleBadgeConfig.label}
-                  size="small"
-                  sx={{
-                    bgcolor: roleBadgeConfig.chipBg,
-                    color: roleBadgeConfig.chipColor,
-                    fontWeight: 700,
-                    fontSize: '0.72rem',
-                    border: '1px solid',
-                    borderColor: 'divider'
-                  }}
-                />
-              </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                {isAdmin
-                  ? 'Configure multi-recipient routing (Agents, Team Leads, Admins, Customers), vertical templates, and live delivery logs.'
-                  : isTeamLead
-                  ? 'Supervise team routing rules, preview customer message templates, and manage your personal alert channels.'
-                  : 'Manage how you receive notifications for assigned leads, task deadlines, and customer responses across your devices.'}
-              </Typography>
-            </Box>
+              </Box>
+            </Stack>
+          </Box>
+
+          <Stack direction="row" spacing={1.25} alignItems="center" flexShrink={0}>
+            <Tooltip title={isAdmin ? 'Test live delivery across WhatsApp, Email, or Push directly' : 'Send a diagnostic test alert to your verified personal device'}>
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                startIcon={<SendIcon />}
+                onClick={() => {
+                  if (!isAdmin) {
+                    setTestRecipient(testChannel === 'email' ? (user?.email || '') : (user?.contactNumber || user?.phone || ''));
+                    setTestName(user?.name || 'Sales Representative');
+                  }
+                  setTestModalOpen(true);
+                  setTestResult(null);
+                }}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}
+              >
+                {isAdmin ? 'Test Dispatch' : 'Quick Test Alert'}
+              </Button>
+            </Tooltip>
+            <Tooltip title="View layman guide, merge tags reference, and automation best practices">
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<MenuBookIcon />}
+                onClick={() => setGuideModalOpen(true)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  borderColor: 'divider',
+                  color: 'text.secondary',
+                  height: 36,
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    bgcolor: 'action.hover'
+                  }
+                }}
+              >
+                Automation Guide
+              </Button>
+            </Tooltip>
+            <Tooltip title="Refresh all rules and logs">
+              <IconButton onClick={loadAllData} disabled={loading} size="small" sx={{ bgcolor: 'action.hover', borderRadius: 2, width: 36, height: 36 }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Stack>
         </Box>
 
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Tooltip title={isAdmin ? 'Test live delivery across WhatsApp, Email, or Push directly' : 'Send a diagnostic test alert to your verified personal device'}>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<SendIcon />}
-              onClick={() => {
-                if (!isAdmin) {
-                  setTestRecipient(testChannel === 'email' ? (user?.email || '') : (user?.contactNumber || user?.phone || ''));
-                  setTestName(user?.name || 'Sales Representative');
-                }
-                setTestModalOpen(true);
-                setTestResult(null);
-              }}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-            >
-              {isAdmin ? 'Test Dispatch' : 'Quick Test Alert'}
-            </Button>
-          </Tooltip>
-          <Tooltip title="View layman guide, merge tags reference, and automation best practices">
-            <Button
-              variant="outlined"
-              startIcon={<MenuBookIcon />}
-              onClick={() => setGuideModalOpen(true)}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: 2,
-                borderColor: 'divider',
-                color: 'text.secondary',
-                '&:hover': {
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  bgcolor: 'action.hover'
-                }
-              }}
-            >
-              Automation Guide
-            </Button>
-          </Tooltip>
-          <Tooltip title="Refresh all rules and logs">
-            <IconButton onClick={loadAllData} disabled={loading} sx={{ bgcolor: 'action.hover', borderRadius: 2 }}>
-              <RefreshIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      </Box>
-
-      {/* Main Tabs Navigation */}
-      <Paper elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+        {/* Main Tabs Navigation */}
         <Tabs
           value={activeTab}
           onChange={(_, val) => setActiveTab(val)}
           variant="scrollable"
           scrollButtons="auto"
           sx={{
-            px: 2,
+            minHeight: 46,
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 600,
-              fontSize: '0.95rem',
-              minHeight: 52,
+              fontSize: '0.92rem',
+              minHeight: 46,
+              py: 0.75,
+              px: 2,
               gap: 1
             }
           }}
@@ -896,7 +960,21 @@ export default function NotificationHubPage() {
             <Tab key={t.key} icon={t.icon} iconPosition="start" label={t.label} />
           ))}
         </Tabs>
-      </Paper>
+      </Box>
+
+      {/* Scrollable Tab Panel Body with Auto-Reset to Top */}
+      <Box
+        ref={contentContainerRef}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          p: { xs: 1.5, sm: 3 },
+          '&::-webkit-scrollbar': { width: 6 },
+          '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 3 }
+        }}
+      >
 
       {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 6 }}>
@@ -1598,7 +1676,7 @@ export default function NotificationHubPage() {
 
           {/* Advanced Channel Matrix Accordion */}
           <Accordion
-            defaultExpanded={isSuperAdmin}
+            defaultExpanded={false}
             sx={{
               border: '1px solid',
               borderColor: 'divider',
@@ -1609,28 +1687,68 @@ export default function NotificationHubPage() {
               mb: 3
             }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'action.hover', minHeight: 56 }}>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <TuneIcon color="primary" fontSize="small" />
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    Advanced Granular Channel Matrix (144-Switch Grid)
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Fine-tune specific delivery channels (WhatsApp, Email, Push, Bell) per recipient role and CRM lifecycle event.
-                  </Typography>
-                </Box>
-              </Stack>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'action.hover', minHeight: 52 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', pr: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <TuneIcon color="primary" fontSize="small" />
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Advanced Granular Channel Matrix (144-Switch Grid)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Fine-tune specific delivery channels (WhatsApp, Email, Push, Bell) per recipient role and CRM lifecycle event.
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Chip label="12 Events × 4 Channels × 3 Roles" size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
+              </Box>
             </AccordionSummary>
-            <AccordionDetails sx={{ p: 0 }}>
+            <AccordionDetails sx={{ p: { xs: 1.5, sm: 2 } }}>
+              {/* Quick Search inside Matrix */}
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
+                <TextField
+                  size="small"
+                  placeholder="Filter matrix events (e.g., 'Lead', 'Deal', 'Payment', 'Task')..."
+                  value={matrixSearchQuery}
+                  onChange={(e) => setMatrixSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: matrixSearchQuery ? (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setMatrixSearchQuery('')}>
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null
+                  }}
+                  sx={{ width: { xs: '100%', sm: 360 } }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Showing {matrixRules.filter(r => {
+                    if (!matrixSearchQuery.trim()) return true;
+                    const q = matrixSearchQuery.toLowerCase();
+                    const rk = (r.eventKey || r.event_key || '').toLowerCase();
+                    const rl = (r.eventLabel || r.event_label || '').toLowerCase();
+                    return rk.includes(q) || rl.includes(q);
+                  }).length} of {matrixRules.length} configurable events
+                </Typography>
+              </Box>
+
               <TableContainer
                 sx={{
                   overflowX: 'auto',
+                  borderRadius: 1.5,
+                  border: '1px solid',
+                  borderColor: 'divider',
                   '&::-webkit-scrollbar': { height: 6 },
                   '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 3 }
                 }}
               >
-                <Table size="medium" sx={{ minWidth: 960 }}>
+                <Table size="small" sx={{ minWidth: 960 }}>
                 <TableHead sx={{ bgcolor: 'action.hover' }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700, width: '22%' }}>CRM Lifecycle Event</TableCell>
@@ -1661,7 +1779,16 @@ export default function NotificationHubPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {matrixRules.map((rule) => {
+                  {matrixRules
+                    .filter((rule) => {
+                      if (!matrixSearchQuery.trim()) return true;
+                      const q = matrixSearchQuery.toLowerCase();
+                      const ruleKey = (rule.eventKey || rule.event_key || '').toLowerCase();
+                      const ruleLabel = (rule.eventLabel || rule.event_label || '').toLowerCase();
+                      const desc = (rule.description || '').toLowerCase();
+                      return ruleKey.includes(q) || ruleLabel.includes(q) || desc.includes(q);
+                    })
+                    .map((rule) => {
                     const ruleKey = rule.eventKey || rule.event_key;
                     const eventDef = eventsList.find((e) => (e.key === ruleKey || (e as any).event_key === ruleKey));
                     return (
@@ -1956,55 +2083,101 @@ export default function NotificationHubPage() {
               )}
             </Box>
 
-            {/* Click-to-Insert Merge Tag Toolbar */}
+            {/* Click-to-Insert Merge Tag Toolbar (Categorized) */}
             {isAdmin && (
-              <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1 }}>
-                  Click to Insert Standard Merge Tags:
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {mergeTagsList.map((tag) => {
-                    const cleanTag = tag.tag.replace(/[\{\}]/g, '');
-                    return (
+              <Box sx={{ mt: 2, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Click-to-Insert Merge Tags:
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>
+                    Inserts dynamic lead, agent & deal data at cursor
+                  </Typography>
+                </Box>
+                <Stack spacing={1}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                    <Chip label="Prospect" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22, bgcolor: 'rgba(37,99,235,0.08)', color: '#2563eb' }} />
+                    {['customer_name', 'customer_phone', 'customer_email', 'lead_source', 'location'].map((tag) => (
                       <Chip
-                        key={cleanTag}
-                        label={`{{${cleanTag}}}`}
+                        key={tag}
+                        label={`{{${tag}}}`}
                         size="small"
-                        onClick={() => handleInsertMergeTag(cleanTag)}
+                        onClick={() => handleInsertMergeTag(tag)}
                         clickable
                         sx={{
                           fontSize: '0.75rem',
                           fontWeight: 600,
                           fontFamily: 'monospace',
+                          height: 24,
                           bgcolor: 'action.hover',
-                          '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
+                          '&:hover': { bgcolor: 'primary.main', color: '#fff' }
                         }}
                       />
-                    );
-                  })}
+                    ))}
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                    <Chip label="Rep & Team" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22, bgcolor: 'rgba(16,185,129,0.08)', color: '#059669' }} />
+                    {['assigned_agent_name', 'assigned_agent_phone', 'team_lead_name'].map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={`{{${tag}}}`}
+                        size="small"
+                        onClick={() => handleInsertMergeTag(tag)}
+                        clickable
+                        sx={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          fontFamily: 'monospace',
+                          height: 24,
+                          bgcolor: 'action.hover',
+                          '&:hover': { bgcolor: 'success.main', color: '#fff' }
+                        }}
+                      />
+                    ))}
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                    <Chip label="Deal & Info" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22, bgcolor: 'rgba(147,51,234,0.08)', color: '#7c3aed' }} />
+                    {['project_name', 'property_type', 'budget', 'deal_title', 'crm_lead_url', 'organization_name'].map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={`{{${tag}}}`}
+                        size="small"
+                        onClick={() => handleInsertMergeTag(tag)}
+                        clickable
+                        sx={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          fontFamily: 'monospace',
+                          height: 24,
+                          bgcolor: 'action.hover',
+                          '&:hover': { bgcolor: '#7c3aed', color: '#fff' }
+                        }}
+                      />
+                    ))}
+                  </Box>
                 </Stack>
               </Box>
             )}
           </Paper>
 
-          {/* Main Studio Editor: Channel Selector & Live Mockups */}
-          <Grid container spacing={3}>
+          {/* Main Studio Editor: 2-Column Responsive Workspace */}
+          <Grid container spacing={2.5}>
             {/* Left Column: Template Editor Form */}
             <Grid item xs={12} md={7}>
-              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Tabs
                     value={selectedChannel}
                     onChange={(_, val) => setSelectedChannel(val)}
                     sx={{
-                      minHeight: 40,
+                      minHeight: 38,
                       '& .MuiTab-root': {
-                        minHeight: 40,
+                        minHeight: 38,
                         py: 0.5,
-                        px: 2,
+                        px: 1.75,
                         textTransform: 'none',
                         fontWeight: 600,
-                        fontSize: '0.875rem',
+                        fontSize: '0.85rem',
                         gap: 0.75
                       }
                     }}
@@ -2045,9 +2218,9 @@ export default function NotificationHubPage() {
                 <TextField
                   fullWidth
                   multiline
-                  minRows={10}
-                  maxRows={16}
-                  label={`${selectedChannel.toUpperCase()} Message Body`}
+                  minRows={8}
+                  maxRows={13}
+                  label={`${selectedChannel.toUpperCase()} Message Copy`}
                   value={activeTemplateBody}
                   onChange={(e) => setActiveTemplateBody(e.target.value)}
                   placeholder="Enter template copy using merge tags like {{customer_name}}..."
@@ -2057,7 +2230,7 @@ export default function NotificationHubPage() {
                   }}
                   sx={{
                     fontFamily: 'monospace',
-                    fontSize: '0.9rem',
+                    fontSize: '0.88rem',
                     '& .MuiInputBase-input': {
                       fontFamily: 'monospace',
                     }
@@ -2090,8 +2263,8 @@ export default function NotificationHubPage() {
 
             {/* Right Column: Live Device Mockup Preview */}
             <Grid item xs={12} md={5}>
-              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column', position: { md: 'sticky' }, top: 20 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column', position: { md: 'sticky' }, top: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
                     LIVE DEVICE PREVIEW ({selectedChannel.toUpperCase()})
                   </Typography>
@@ -2104,35 +2277,56 @@ export default function NotificationHubPage() {
                     sx={{
                       flex: 1,
                       bgcolor: '#efeae2',
-                      borderRadius: 2,
-                      p: 2,
+                      borderRadius: 2.5,
+                      overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column',
-                      backgroundImage: 'radial-gradient(#d1d7db 1px, transparent 1px)',
+                      backgroundImage: 'radial-gradient(#d1d7db 1.2px, transparent 1.2px)',
                       backgroundSize: '16px 16px',
-                      minHeight: 320
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      minHeight: 340
                     }}
                   >
-                    <Box
-                      sx={{
-                        maxWidth: '88%',
-                        bgcolor: '#ffffff',
-                        borderRadius: '8px 8px 8px 0px',
-                        p: 1.5,
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
-                        position: 'relative',
-                        whiteSpace: 'pre-wrap',
-                        fontFamily: 'sans-serif',
-                        fontSize: '0.88rem',
-                        lineHeight: 1.45
-                      }}
-                    >
-                      {previewContent || 'Template message text will preview here...'}
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.68rem', color: '#667781' }}>
-                          11:42 AM
+                    {/* Simulated WhatsApp Chat App Header */}
+                    <Box sx={{ bgcolor: '#075e54', color: '#fff', p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ width: 34, height: 34, borderRadius: '50%', bgcolor: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        <WhatsAppIcon sx={{ fontSize: 20 }} />
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#fff', lineHeight: 1.2, fontSize: '0.85rem' }}>
+                          LeadsRubix Alerts
                         </Typography>
-                        <CheckCircleIcon sx={{ fontSize: 13, color: '#53bdeb' }} />
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.68rem', display: 'block' }}>
+                          Official Business Account • Online
+                        </Typography>
+                      </Box>
+                      <Chip label="Verified" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.65rem', height: 20 }} />
+                    </Box>
+
+                    {/* Chat Messages Area */}
+                    <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <Box
+                        sx={{
+                          maxWidth: '92%',
+                          bgcolor: '#ffffff',
+                          borderRadius: '8px 8px 8px 0px',
+                          p: 1.5,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                          position: 'relative',
+                          fontFamily: 'sans-serif',
+                          fontSize: '0.86rem',
+                          lineHeight: 1.45,
+                          color: '#111b21'
+                        }}
+                      >
+                        {renderFormattedWhatsAppText(previewContent)}
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#667781' }}>
+                            10:42 AM
+                          </Typography>
+                          <CheckCircleIcon sx={{ fontSize: 13, color: '#53bdeb' }} />
+                        </Box>
                       </Box>
                     </Box>
                   </Box>
@@ -2145,12 +2339,12 @@ export default function NotificationHubPage() {
                       flex: 1,
                       border: '1px solid',
                       borderColor: 'divider',
-                      borderRadius: 2,
+                      borderRadius: 2.5,
                       p: 2,
                       bgcolor: '#ffffff',
                       display: 'flex',
                       flexDirection: 'column',
-                      minHeight: 320
+                      minHeight: 340
                     }}
                   >
                     <Box sx={{ borderBottom: '1px solid #e5e7eb', pb: 1.5, mb: 1.5 }}>
@@ -2176,13 +2370,13 @@ export default function NotificationHubPage() {
                     sx={{
                       flex: 1,
                       bgcolor: '#111827',
-                      borderRadius: 2,
+                      borderRadius: 2.5,
                       p: 2,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      minHeight: 320
+                      minHeight: 340
                     }}
                   >
                     <Box
@@ -2224,12 +2418,12 @@ export default function NotificationHubPage() {
                       flex: 1,
                       border: '1px solid',
                       borderColor: 'divider',
-                      borderRadius: 2,
+                      borderRadius: 2.5,
                       p: 2,
                       bgcolor: 'background.paper',
                       display: 'flex',
                       flexDirection: 'column',
-                      minHeight: 320
+                      minHeight: 340
                     }}
                   >
                     <Paper elevation={2} sx={{ p: 1.5, borderRadius: 2, borderLeft: '4px solid #2563eb' }}>
@@ -2258,40 +2452,40 @@ export default function NotificationHubPage() {
         </Box>
       )}
 
-      {/* TAB 2: GATEWAYS & CHANNELS */}
+      {/* TAB 2: GATEWAYS & CHANNELS (Sleek 2x2 Dashboard Grid) */}
       {!loading && currentTabKey === 'gateways' && isAdmin && (
         <Box>
-          <Grid container spacing={3}>
+          <Grid container spacing={2.5}>
             {/* WhatsApp Gateway Card */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                     <WhatsAppIcon fontSize="small" />
                   </Box>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>WhatsApp Gateway</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>WhatsApp Cloud Gateway</Typography>
                     <Typography variant="caption" color="text.secondary">Direct Cloud API / WHAPI Provider</Typography>
                   </Box>
-                  <Box sx={{ ml: 'auto !important' }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={waConfig.isActive}
-                          onChange={(e) => setWaConfig({ ...waConfig, isActive: e.target.checked })}
-                          color="success"
-                        />
-                      }
-                      label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Active</Typography>}
-                    />
-                  </Box>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={waConfig.isActive}
+                        onChange={(e) => setWaConfig({ ...waConfig, isActive: e.target.checked })}
+                        color="success"
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="caption" sx={{ fontWeight: 700 }}>{waConfig.isActive ? 'Active' : 'Disabled'}</Typography>}
+                    sx={{ m: 0 }}
+                  />
                 </Stack>
 
-                <Alert severity="success" sx={{ mb: 2, fontSize: '0.8rem' }}>
-                  <strong>Universal Platform Fallback:</strong> If tenant API credentials are not configured or quota is exhausted, outgoing alerts automatically fallback to the SuperAdmin gateway with zero downtime.
+                <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                  <strong>Universal Platform Fallback:</strong> If tenant API credentials are not set, outgoing alerts fallback to the SuperAdmin gateway with zero downtime.
                 </Alert>
 
-                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
                   <InputLabel>Provider</InputLabel>
                   <Select
                     value={waConfig.type}
@@ -2310,53 +2504,77 @@ export default function NotificationHubPage() {
                   label="API Base URL"
                   value={waConfig.wapiUrl}
                   onChange={(e) => setWaConfig({ ...waConfig, wapiUrl: e.target.value })}
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 1.5 }}
                 />
 
                 <TextField
                   fullWidth
                   size="small"
-                  type="password"
+                  type={showWaToken ? 'text' : 'password'}
                   label="Bearer Token / API Key"
                   value={waConfig.wapiToken}
                   onChange={(e) => setWaConfig({ ...waConfig, wapiToken: e.target.value })}
                   placeholder="Paste your WHAPI or Gateway Bearer token"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowWaToken(!showWaToken)}>
+                          {showWaToken ? <VisibilityOff fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
                   sx={{ mb: 2 }}
                 />
 
-                <Button
-                  variant="contained"
-                  color="success"
-                  onClick={handleSaveWaGateway}
-                  disabled={savingGateway}
-                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                >
-                  {savingGateway ? 'Saving...' : 'Save WhatsApp Configuration'}
-                </Button>
+                <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    onClick={handleSaveWaGateway}
+                    disabled={savingGateway}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36, px: 2 }}
+                  >
+                    {savingGateway ? 'Saving...' : 'Save Configuration'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="success"
+                    size="small"
+                    startIcon={<WhatsAppIcon />}
+                    onClick={() => {
+                      setTestChannel('whatsapp');
+                      setTestRecipient(user?.contactNumber || user?.phone || '');
+                      setTestModalOpen(true);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}
+                  >
+                    Test WhatsApp
+                  </Button>
+                </Box>
               </Paper>
             </Grid>
 
             {/* Email SMTP Gateway Card */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                     <EmailIcon fontSize="small" />
                   </Box>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Email (SMTP / Amazon SES)</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Email (SMTP / Amazon SES)</Typography>
                     <Typography variant="caption" color="text.secondary">Transactional & Lead Alert Emails</Typography>
                   </Box>
-                  <Box sx={{ ml: 'auto !important' }}>
-                    <Chip label="Active" color="success" size="small" />
-                  </Box>
+                  <Chip label="Active - Cloud Managed" color="success" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }} />
                 </Stack>
 
-                <Alert severity="info" sx={{ mb: 2, fontSize: '0.8rem' }}>
+                <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
                   Standard SMTP server connection configured via environment (Amazon SES / Nodemailer).
                 </Alert>
 
-                <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid container spacing={1.5} sx={{ mb: 2 }}>
                   <Grid item xs={8}>
                     <TextField fullWidth size="small" label="SMTP Host" value={emailConfig.host} disabled />
                   </Grid>
@@ -2368,103 +2586,109 @@ export default function NotificationHubPage() {
                   </Grid>
                 </Grid>
 
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => {
-                    setTestChannel('email');
-                    setTestRecipient(emailConfig.fromEmail);
-                    setTestModalOpen(true);
-                  }}
-                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                >
-                  Test Outbound Email
-                </Button>
+                <Box sx={{ mt: 'auto' }}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<EmailIcon />}
+                    onClick={() => {
+                      setTestChannel('email');
+                      setTestRecipient(emailConfig.fromEmail);
+                      setTestModalOpen(true);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}
+                  >
+                    Test Outbound Email
+                  </Button>
+                </Box>
               </Paper>
             </Grid>
 
             {/* Mobile Push Gateway Card */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                     <PhoneIphoneIcon fontSize="small" />
                   </Box>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Mobile Push Notification</Typography>
-                    <Typography variant="caption" color="text.secondary">AWS SNS Platform Application & Expo Push</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Mobile Push Notification</Typography>
+                    <Typography variant="caption" color="text.secondary">AWS SNS Platform & Expo Push</Typography>
                   </Box>
+                  <Chip label="Auto-Provisioned" color="secondary" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }} />
                 </Stack>
 
-                <Alert severity="info" sx={{ mb: 2, fontSize: '0.8rem' }}>
+                <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
                   Mobile devices automatically register their FCM/APNS push tokens upon login to the LeadsRubix mobile app.
                 </Alert>
 
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="AWS Region"
-                  value={pushConfig.region}
-                  disabled
-                  sx={{ mb: 2 }}
-                />
+                <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                  <Grid item xs={6}>
+                    <TextField fullWidth size="small" label="AWS Region" value={pushConfig.region} disabled />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField fullWidth size="small" label="Expo Push Relay" value="Enabled (exp.host)" disabled />
+                  </Grid>
+                </Grid>
 
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Expo Fallback Relay"
-                  value="Enabled (https://exp.host/--/api/v2/push/send)"
-                  disabled
-                  sx={{ mb: 2 }}
-                />
-
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => {
-                    setTestChannel('push');
-                    setTestRecipient('ExponentPushToken[sample]');
-                    setTestModalOpen(true);
-                  }}
-                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                >
-                  Test Mobile Push
-                </Button>
+                <Box sx={{ mt: 'auto' }}>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="small"
+                    startIcon={<PhoneIphoneIcon />}
+                    onClick={() => {
+                      setTestChannel('push');
+                      setTestRecipient('ExponentPushToken[sample]');
+                      setTestModalOpen(true);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}
+                  >
+                    Test Mobile Push
+                  </Button>
+                </Box>
               </Paper>
             </Grid>
 
-            {/* In-App Bell Notification Service */}
+            {/* In-App Bell Center Card */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+              <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                     <NotificationsIcon fontSize="small" />
                   </Box>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>In-App Bell Center</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>In-App Bell Center</Typography>
                     <Typography variant="caption" color="text.secondary">CRM Top-Bar Bell & WebSockets</Typography>
                   </Box>
-                  <Box sx={{ ml: 'auto !important' }}>
-                    <Chip label="Native Active" color="success" size="small" />
-                  </Box>
+                  <Chip label="Native Active" color="warning" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }} />
                 </Stack>
 
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  In-App notifications are automatically stored in the primary database and pushed in real-time to active user sessions across all roles.
+                <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                  Real-time PostgreSQL database storage and WebSocket push to active user sessions across all roles.
+                </Alert>
+
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  In-app notifications trigger audible alerts, top-bar badge counters, and real-time toast banners across both desktop and mobile web sessions.
                 </Typography>
 
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  onClick={() => {
-                    setTestChannel('in_app');
-                    setTestRecipient('Current Authed User');
-                    setTestModalOpen(true);
-                  }}
-                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
-                >
-                  Test Bell Notification
-                </Button>
+                <Box sx={{ mt: 'auto' }}>
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    size="small"
+                    startIcon={<NotificationsIcon />}
+                    onClick={() => {
+                      setTestChannel('in_app');
+                      setTestRecipient('Current Authed User');
+                      setTestModalOpen(true);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}
+                  >
+                    Test Bell Notification
+                  </Button>
+                </Box>
               </Paper>
             </Grid>
           </Grid>
@@ -2639,6 +2863,7 @@ export default function NotificationHubPage() {
           </Paper>
         </Box>
       )}
+      </Box>
 
       {/* DIAGNOSTIC TEST DISPATCH MODAL */}
       <Dialog open={testModalOpen} onClose={() => setTestModalOpen(false)} maxWidth="sm" fullWidth>
