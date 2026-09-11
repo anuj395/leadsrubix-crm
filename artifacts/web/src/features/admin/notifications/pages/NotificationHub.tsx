@@ -58,6 +58,8 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SaveIcon from '@mui/icons-material/Save';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import HubIcon from '@mui/icons-material/Hub';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import CloseIcon from '@mui/icons-material/Close';
 import TuneIcon from '@mui/icons-material/Tune';
 import HistoryIcon from '@mui/icons-material/History';
 import SettingsInputAntennaIcon from '@mui/icons-material/SettingsInputAntenna';
@@ -266,6 +268,8 @@ export default function NotificationHubPage() {
 
   // Diagnostic Test Modal State
   const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
+  const [guideModalOpen, setGuideModalOpen] = useState<boolean>(false);
+  const [guideTab, setGuideTab] = useState<number>(0);
   const [testChannel, setTestChannel] = useState<'whatsapp' | 'email' | 'push' | 'in_app'>('whatsapp');
   const [testRecipient, setTestRecipient] = useState<string>('');
   const [testName, setTestName] = useState<string>('Sales Agent');
@@ -839,6 +843,27 @@ export default function NotificationHubPage() {
               sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
             >
               {isAdmin ? 'Test Dispatch' : 'Quick Test Alert'}
+            </Button>
+          </Tooltip>
+          <Tooltip title="View layman guide, merge tags reference, and automation best practices">
+            <Button
+              variant="outlined"
+              startIcon={<MenuBookIcon />}
+              onClick={() => setGuideModalOpen(true)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 2,
+                borderColor: 'divider',
+                color: 'text.secondary',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  bgcolor: 'action.hover'
+                }
+              }}
+            >
+              Automation Guide
             </Button>
           </Tooltip>
           <Tooltip title="Refresh all rules and logs">
@@ -2766,6 +2791,320 @@ export default function NotificationHubPage() {
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setSelectedLogPayload(null)} sx={{ textTransform: 'none' }}>
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* COMPREHENSIVE AUTOMATION & NOTIFICATION GUIDE MODAL */}
+      <Dialog
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3, overflow: 'hidden' }
+        }}
+      >
+        <DialogTitle sx={{ p: 2.5, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: 'primary.main', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MenuBookIcon />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                Notifications & Automation Guide
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Layman guide to multi-channel routing, dynamic templates, merge tags & delivery engines
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={() => setGuideModalOpen(false)} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.default', px: 2.5 }}>
+          <Tabs
+            value={guideTab}
+            onChange={(_, v) => setGuideTab(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              minHeight: 48,
+              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.875rem', minHeight: 48 }
+            }}
+          >
+            <Tab label="⚡ Universal Engine" />
+            <Tab label="🎛️ 1-Click Presets" />
+            <Tab label="📝 Dynamic Merge Tags" />
+            <Tab label="🔌 Custom Gateways" />
+            <Tab label="❓ Common Questions (FAQ)" />
+          </Tabs>
+        </Box>
+
+        <DialogContent sx={{ p: 3, maxHeight: '60vh', overflowY: 'auto' }}>
+          {/* TAB 0: Universal Engine */}
+          {guideTab === 0 && (
+            <Stack spacing={2.5}>
+              <Alert severity="success" icon={<CheckCircleIcon fontSize="inherit" />} sx={{ borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Universal Platform Engine Active (Zero Setup Required)
+                </Typography>
+                <Typography variant="body2">
+                  Your CRM is pre-connected to our high-speed central notification infrastructure. Lead alerts, task reminders, and welcome messages dispatch automatically without purchasing extra phone numbers or API licenses.
+                </Typography>
+              </Alert>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                      <WhatsAppIcon sx={{ color: '#25D366' }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        WhatsApp Delivery
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      Delivers rich text alerts to assigned reps on new inquiries and sends personalized welcome messages directly to prospective customers.
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                      <PhoneIphoneIcon sx={{ color: '#0284C7' }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        Mobile Device Push
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      Pushes real-time sound and lock-screen alerts to reps' mobile devices when on the road or outside the office.
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                      <NotificationsIcon sx={{ color: '#F59E0B' }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        In-App Bell Alerts
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      Provides an unmissable red badge counter and audio chime inside the desktop web portal for reps currently online.
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                      <EmailIcon sx={{ color: '#EA4335' }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        Corporate Email (SMTP)
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      Sends branded HTML deal-won milestones and escalation notices with full lead records directly to leadership inboxes.
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Stack>
+          )}
+
+          {/* TAB 1: 1-Click Presets */}
+          {guideTab === 1 && (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Instead of manually configuring 144 individual channel toggles, you can select one of 3 battle-tested industry presets:
+              </Typography>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #3B82F6' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                  🌟 Standard Preset (Recommended)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8125rem' }}>
+                  Balanced setup for most sales teams. Alerts assigned reps via WhatsApp, Push, and Bell on new leads and task follow-ups, sends an automated welcome greeting to the customer, and emails managers when deals are closed.
+                </Typography>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #10B981' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'success.main' }}>
+                  🚀 High Velocity Preset
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8125rem' }}>
+                  Maximum speed-to-lead. Dispatches aggressive alerts simultaneously to both assigned reps and team leads across all 4 channels (WhatsApp + Push + Bell + Email) on every lead lifecycle event.
+                </Typography>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: '4px solid #6B7280' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                  🔕 Essential Only Preset
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8125rem' }}>
+                  Low-noise mode for established teams. Silences frequent routine reminders and alerts leadership only on high-priority deal closures and SLA response breaches.
+                </Typography>
+              </Paper>
+
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                  💡 Zero-Scroll Tip:
+                </Typography>
+                <Typography variant="caption">
+                  After clicking any preset, simply click the blue <strong>Save Routing</strong> button right in the top command bar. You do not need to scroll to the bottom of the page!
+                </Typography>
+              </Alert>
+            </Stack>
+          )}
+
+          {/* TAB 2: Dynamic Merge Tags */}
+          {guideTab === 2 && (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Use merge tags in Template Studio to dynamically personalize notification copy. Click any tag in the studio to insert it directly into your message.
+              </Typography>
+
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: 'action.hover' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>Tag Variable</TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>Replaced With</TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>Example Output</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[
+                      { tag: '{{customer_name}}', desc: 'Full name of the prospect', eg: 'Sarah Jenkins' },
+                      { tag: '{{customer_phone}}', desc: 'Contact phone number of the lead', eg: '+91 98765 43210' },
+                      { tag: '{{customer_email}}', desc: 'Email address of the lead', eg: 'sarah.j@gmail.com' },
+                      { tag: '{{lead_source}}', desc: 'Channel where the lead originated', eg: 'Facebook Ads / Website' },
+                      { tag: '{{project_name}}', desc: 'Project or property category', eg: 'Horizon Heights Phase 2' },
+                      { tag: '{{property_type}}', desc: 'Specific subtype or inventory classification', eg: '3 BHK Luxury Apartment' },
+                      { tag: '{{budget}}', desc: 'Customer indicated budget range', eg: '$75,000 - $90,000' },
+                      { tag: '{{location}}', desc: 'Customer preferred location / city', eg: 'Bangalore, India' },
+                      { tag: '{{assigned_agent_name}}', desc: 'Name of the sales rep handling this lead', eg: 'Alex Rivera' },
+                      { tag: '{{organization_name}}', desc: 'Your company or agency workspace name', eg: 'Acme Properties' },
+                      { tag: '{{crm_lead_url}}', desc: '1-Click secure link to open the lead in CRM', eg: 'http://crm.company.com/leads/123' },
+                    ].map((row) => (
+                      <TableRow key={row.tag}>
+                        <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'primary.main', fontSize: '0.78rem' }}>
+                          {row.tag}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.8rem' }}>{row.desc}</TableCell>
+                        <TableCell sx={{ fontSize: '0.78rem', color: 'text.secondary', fontStyle: 'italic' }}>{row.eg}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Stack>
+          )}
+
+          {/* TAB 3: Custom Gateways */}
+          {guideTab === 3 && (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                You have the choice to use our pre-connected platform gateway or connect your company's own verified messaging channels:
+              </Typography>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CheckCircleIcon color="success" fontSize="small" />
+                  Mode 1: Universal Platform Gateway (Default)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8125rem' }}>
+                  Requires zero setup. All internal alerts to your reps, managers, and admins run through the Leads Rubix high-availability gateway automatically.
+                </Typography>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <WhatsAppIcon sx={{ color: '#25D366' }} fontSize="small" />
+                  Mode 2: Bring Your Own (BYO) WhatsApp Gateway
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8125rem' }}>
+                  If your company already has an official WhatsApp Business API account with <strong>WHAPI</strong>, <strong>ChatSimplified</strong>, or <strong>Simply</strong>, navigate to the <strong>Gateways & Channels</strong> tab and toggle on your provider. All customer-facing messages will be sent from your brand's verified WhatsApp number.
+                </Typography>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EmailIcon color="primary" fontSize="small" />
+                  Custom Email SMTP Settings
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8125rem' }}>
+                  Configure your company's Google Workspace, Microsoft 365, or Amazon SES SMTP server under <strong>Configuration ➔ Domain & Email</strong> so outgoing emails are sent from your company domain (e.g. <code>info@yourcompany.com</code>).
+                </Typography>
+              </Paper>
+            </Stack>
+          )}
+
+          {/* TAB 4: Common Questions FAQ */}
+          {guideTab === 4 && (
+            <Stack spacing={1.5}>
+              {[
+                {
+                  q: 'Why didn’t my sales rep receive a WhatsApp alert?',
+                  a: 'Make sure the rep has a valid mobile number configured in Team Members. Also verify the assigned agent switch is turned ON in the Automation Matrix.'
+                },
+                {
+                  q: 'Can sales reps manage their own sound and alert channels?',
+                  a: 'Yes! When reps log into the CRM, clicking the bell icon in the top navbar gives them their own personal Notification Preferences drawer to toggle WhatsApp, Sound, or Bell.'
+                },
+                {
+                  q: 'What happens if a customer provides an invalid phone number?',
+                  a: 'The engine records the delivery attempt in Delivery Audit Logs, marks it with an informative failure notice, and ensures the assigned rep still gets their internal desktop bell alert.'
+                },
+                {
+                  q: 'Can I revert custom template copy back to the default?',
+                  a: 'Yes. In the Template Studio tab, simply click the "Reset to Industry Standard" button at any time to restore the verified baseline copy.'
+                },
+                {
+                  q: 'Where can I see live delivery statuses?',
+                  a: 'Switch to the "Delivery Audit Logs" tab to inspect the timestamp, recipient, channel, and payload of every single alert sent.'
+                }
+              ].map((faq, i) => (
+                <Accordion key={i} variant="outlined" sx={{ borderRadius: 2, '&:before': { display: 'none' } }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                      {faq.q}
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ pt: 0 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      {faq.a}
+                    </Typography>
+                  </AccordionDetails>
+                </Accordion>
+              ))}
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider', justifyContent: 'space-between' }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<SendIcon />}
+            onClick={() => {
+              setGuideModalOpen(false);
+              setTestModalOpen(true);
+            }}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Test Live Alert Dispatch
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => setGuideModalOpen(false)}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Got It, Close Guide
           </Button>
         </DialogActions>
       </Dialog>

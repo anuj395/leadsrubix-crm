@@ -223,8 +223,8 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
       'configuration.days': 'Working Days:\nAdjust office schedules,\nhours, and weekly offs.',
       'configuration.daysConfig': 'Working Days:\nAdjust office schedules,\nhours, and weekly offs.',
       'configuration.domainSettings': 'Domain Setting:\nCustomize white-label subdomain\nand portal brandings.',
-      'integrations.api': 'API Token:\nGenerate secure credentials\nfor integrations.',
-      'integrations.whatsapp': 'WhatsApp API:\nConfigure templates and\nactive outreach numbers.',
+      'integrations.api': 'API Token:\nGenerate secure authentication credentials\nand tokens for external apps and services.',
+      'integrations.whatsapp': 'Notifications & Automation:\nAutomate multi-channel alerts (WhatsApp,\nEmail, Push & Bell) for new leads, tasks,\nand SLA escalations with zero setup.',
       'integrations.apiData': 'API Data:\nView incoming payload logs\nfrom third-party integrations.',
       'integrations.webhook': 'Webhook Integrations:\nConnect incoming hooks\nfor leads ingestion.',
     }
@@ -536,7 +536,20 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                   {item.name}
                 </Typography>
                 {description && (
-                  <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{description}</Box>} placement="right">
+                  <Tooltip
+                    arrow
+                    placement="right"
+                    title={
+                      <Box sx={{ p: 0.5, maxWidth: 270 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff', mb: 0.35 }}>
+                          {item.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', fontSize: '0.74rem', lineHeight: 1.45, color: 'rgba(255,255,255,0.88)', whiteSpace: 'pre-line' }}>
+                          {description.includes(':\n') ? description.split(':\n')[1] : description}
+                        </Typography>
+                      </Box>
+                    }
+                  >
                     <InfoOutlinedIcon
                       onClick={(e) => {
                         e.preventDefault();
@@ -545,10 +558,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                       sx={{
                         fontSize: '0.95rem',
                         color: theme.palette.text.disabled,
-                        opacity: 0.6,
+                        opacity: 0.65,
                         mr: 0.5,
                         cursor: 'pointer',
-                        '&:hover': { opacity: 1, color: theme.palette.secondary.main }
+                        transition: 'all 0.18s ease-in-out',
+                        '&:hover': { opacity: 1, color: theme.palette.primary.main, transform: 'scale(1.2)' }
                       }}
                     />
                   </Tooltip>
@@ -595,18 +609,32 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
                     {child.name}
                   </Typography>
                   {childDesc && (
-                    <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{childDesc}</Box>} placement="right">
+                    <Tooltip
+                      arrow
+                      placement="right"
+                      title={
+                        <Box sx={{ p: 0.5, maxWidth: 270 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff', mb: 0.35 }}>
+                            {child.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ display: 'block', fontSize: '0.74rem', lineHeight: 1.45, color: 'rgba(255,255,255,0.88)', whiteSpace: 'pre-line' }}>
+                            {childDesc.includes(':\n') ? childDesc.split(':\n')[1] : childDesc}
+                          </Typography>
+                        </Box>
+                      }
+                    >
                       <InfoOutlinedIcon
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                         }}
                         sx={{
-                          fontSize: '0.85rem',
+                          fontSize: '0.9rem',
                           color: theme.palette.text.disabled,
-                          opacity: 0.5,
+                          opacity: 0.65,
                           cursor: 'pointer',
-                          '&:hover': { opacity: 1, color: theme.palette.secondary.main }
+                          transition: 'all 0.18s ease-in-out',
+                          '&:hover': { opacity: 1, color: theme.palette.primary.main, transform: 'scale(1.2)' }
                         }}
                       />
                     </Tooltip>
