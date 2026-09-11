@@ -67,7 +67,7 @@ const DEFAULT_SIDEBAR_CONFIGS = [
         { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', module: 'integrations' },
         { key: 'integrations.webhook', name: 'Webhook Integrations', route: '/integrations', icon: 'api', module: 'integrations' },
         { key: 'integrations.api', name: 'API Token', route: '/integrations/api', icon: 'api', module: 'integrations' },
-        { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', module: 'integrations' },
+        { key: 'integrations.whatsapp', name: 'Notifications & Automation', route: '/integrations/whatsapp', icon: 'whatsapp', module: 'integrations' },
 
         { key: 'invoices.paymentLogs', name: 'Payment Invoices Logs', route: '/invoices/payment-invoices', icon: 'billing', module: 'invoices' },
         { key: 'invoices.receiptsHistory', name: 'Receipts & Historical Charges', route: '/invoices/receipts-history', icon: 'subscription', module: 'invoices' },
@@ -2535,7 +2535,7 @@ async function seedAdminAnalyticsSidebarPermissions() {
     { key: 'integrations.apiData', name: 'API Data', route: '/integrations/api-data', icon: 'apiData', parentKey: 'integrations', order: 8.1 },
     { key: 'integrations.webhook', name: 'Webhook Integrations', route: '/integrations', icon: 'api', parentKey: 'integrations', order: 8.2 },
     { key: 'integrations.api', name: 'API Token', route: '/integrations/api', icon: 'api', parentKey: 'integrations', order: 8.3 },
-    { key: 'integrations.whatsapp', name: 'WhatsApp API', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 8.4 },
+    { key: 'integrations.whatsapp', name: 'Notifications & Automation', route: '/integrations/whatsapp', icon: 'whatsapp', parentKey: 'integrations', order: 8.4 },
     { key: 'uiNavigation', name: 'UI & Navigation', route: '', icon: 'sidebar', parentKey: null, order: 9 },
     { key: 'uiNavigation.analyticsConfig', name: 'Analytics Layout Builder', route: '/ui-navigation/analytics-config', icon: 'settings', parentKey: 'uiNavigation', order: 9.1 },
     { key: 'uiNavigation.menus', name: 'Sidebar Menus', route: '/ui-navigation/menus', icon: 'sidebar', parentKey: 'uiNavigation', order: 9.2 },

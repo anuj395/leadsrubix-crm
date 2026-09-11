@@ -71,8 +71,8 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
   },
   {
     key: 'whatsapp',
-    name: 'WhatsApp',
-    description: 'Send automated lead alerts and sync customer communications via your WhatsApp API account.',
+    name: 'Notifications & Automation',
+    description: 'Universal platform engine: multi-channel alerts (WhatsApp, Email, Push, Bell), dynamic templates & routing rules.',
     icon: <WhatsAppIcon sx={{ fontSize: 32, color: '#25D366' }} />,
   },
   {

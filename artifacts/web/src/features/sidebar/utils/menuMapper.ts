@@ -41,6 +41,10 @@ function formatMenuName(key: string, route?: string, rawName?: string): string {
     return n;
   }
 
+  if (k === 'integrations.whatsapp' || k === 'configuration.whatsapp' || r === '/integrations/whatsapp' || r === '/configuration/whatsapp' || r === '/configuration/notifications' || r === '/integrations/notifications') {
+    return 'Notifications & Automation';
+  }
+
   return n;
 }
 
