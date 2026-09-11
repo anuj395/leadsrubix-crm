@@ -40,6 +40,35 @@ function normalizePhoneNumber(rawPhone, defaultCountry = '91') {
 }
 
 /**
+ * Formats raw WhatsApp gateway API errors into friendly, actionable explanations.
+ */
+function formatWhatsAppGatewayError(rawError) {
+  if (!rawError) return 'WhatsApp delivery failed';
+  let errString = typeof rawError === 'string' ? rawError : JSON.stringify(rawError);
+  try {
+    const parsed = typeof rawError === 'object' ? rawError : JSON.parse(errString);
+    if (parsed.error?.message) errString = parsed.error.message;
+    else if (parsed.message) errString = parsed.message;
+    else if (parsed.description) errString = parsed.description;
+  } catch (e) {}
+
+  const lower = String(errString).toLowerCase();
+  if (lower.includes('need channel authorization') || lower.includes('401') || lower.includes('unauthorized')) {
+    return 'WhatsApp Gateway Authorization Required: Your WhatsApp instance is disconnected or unlinked (WHAPI Code 401: need channel authorization). Please scan the QR code in Whapi Cloud dashboard to link your WhatsApp account.';
+  }
+  if (lower.includes('not on whatsapp') || lower.includes('not registered') || lower.includes('invalid recipient') || lower.includes('not found')) {
+    return 'Recipient phone number is not registered on WhatsApp or is invalid.';
+  }
+  if (lower.includes('rate limit') || lower.includes('429') || lower.includes('too many requests')) {
+    return 'WhatsApp gateway rate limit exceeded. Please wait a moment before sending another alert.';
+  }
+  if (lower.includes('quota') || lower.includes('insufficient balance') || lower.includes('payment required') || lower.includes('402')) {
+    return 'WhatsApp gateway balance/quota exhausted. Please recharge your provider credits.';
+  }
+  return `WhatsApp gateway error: ${errString}`;
+}
+
+/**
  * Resolves all CRM placeholder mappings for WhatsApp message templates
  */
 function resolveTemplate(templateStr, contact = {}, orgName = '', assignedUserName = '') {
@@ -728,20 +757,27 @@ async function sendNotification({
 
     const results = await Promise.allSettled(dispatchPromises);
     const successfulDispatches = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    const recipientResults = results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason });
+    const firstFailed = recipientResults.find(r => !r.success);
+    const friendlyError = firstFailed?.error ? formatWhatsAppGatewayError(firstFailed.error) : 'WhatsApp delivery failed';
 
     return {
       success: successfulDispatches > 0,
       totalDispatched: successfulDispatches,
       gateway: isUniversalGateway ? 'universal' : 'custom',
       provider: activeChannel,
-      recipients: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
+      message: successfulDispatches > 0 ? 'Message dispatched successfully' : friendlyError,
+      error: successfulDispatches > 0 ? null : friendlyError,
+      errorMessage: successfulDispatches > 0 ? null : friendlyError,
+      recipients: recipientResults
     };
   } catch (err) {
     const errorDetails = err.response?.data
       ? (typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data))
       : err.message;
     console.error('[WhatsAppService] Fatal error in sendNotification:', errorDetails);
-    return { success: false, message: errorDetails };
+    const friendlyError = formatWhatsAppGatewayError(errorDetails);
+    return { success: false, message: friendlyError, error: friendlyError, errorMessage: friendlyError };
   }
 }
 
@@ -773,6 +809,7 @@ async function sendDirectWhatsAppMessage({ organizationId, phone, name = '', rol
 
 module.exports = {
   normalizePhoneNumber,
+  formatWhatsAppGatewayError,
   resolveTemplate,
   formatMessage,
   resolveUserAndPhone,

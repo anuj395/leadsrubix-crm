@@ -2808,58 +2808,84 @@ export default function NotificationHubPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    logs.map((log) => (
-                      <TableRow key={log._id} hover>
-                        <TableCell sx={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
-                          {log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {log.channel === 'whatsapp' && (
-                            <Chip icon={<WhatsAppIcon sx={{ fontSize: '14px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" />
-                          )}
-                          {log.channel === 'email' && (
-                            <Chip icon={<EmailIcon sx={{ fontSize: '14px !important' }} />} label="Email" size="small" color="primary" variant="outlined" />
-                          )}
-                          {log.channel === 'push' && (
-                            <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '14px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" />
-                          )}
-                          {log.channel === 'in_app' && (
-                            <Chip icon={<NotificationsIcon sx={{ fontSize: '14px !important' }} />} label="In-App" size="small" color="warning" variant="outlined" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.82rem' }}>
-                            {log.event_key || log.eventKey}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={{ textTransform: 'capitalize', fontSize: '0.82rem' }}>
-                          {String(log.recipient_type || '').replace('_', ' ')}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: '0.82rem' }}>
-                          <strong>{log.recipient_name || ''}</strong>
-                          {log.recipient_contact && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              {log.recipient_contact}
+                    logs.map((log: any) => {
+                      const logDate = log.createdAt || log.created_at;
+                      const logStatus = String(log.status || log.rawStatus || '').toLowerCase();
+                      const recipientRole = log.recipientRole || log.recipient_role || log.recipient_type || log.recipientType || '';
+                      const recipientName = log.recipientName || log.recipient_name || '';
+                      const recipientContact = log.recipientTarget || log.recipient_target || log.recipientContact || log.recipient_contact || '';
+                      const logError = log.errorMessage || log.error_message || '';
+                      const logEventKey = log.eventKey || log.event_key || '';
+                      const logId = log._id || log.id || Math.random().toString();
+
+                      return (
+                        <TableRow key={logId} hover>
+                          <TableCell sx={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                            {logDate ? new Date(logDate).toLocaleString() : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {log.channel === 'whatsapp' && (
+                              <Chip icon={<WhatsAppIcon sx={{ fontSize: '14px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" />
+                            )}
+                            {log.channel === 'email' && (
+                              <Chip icon={<EmailIcon sx={{ fontSize: '14px !important' }} />} label="Email" size="small" color="primary" variant="outlined" />
+                            )}
+                            {log.channel === 'push' && (
+                              <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '14px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" />
+                            )}
+                            {log.channel === 'in_app' && (
+                              <Chip icon={<NotificationsIcon sx={{ fontSize: '14px !important' }} />} label="In-App" size="small" color="warning" variant="outlined" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.82rem' }}>
+                              {logEventKey}
                             </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {log.status === 'delivered' && <Chip label="Delivered" size="small" color="success" sx={{ height: 22, fontSize: '0.72rem' }} />}
-                          {log.status === 'sent' && <Chip label="Sent" size="small" color="info" sx={{ height: 22, fontSize: '0.72rem' }} />}
-                          {log.status === 'failed' && (
-                            <Tooltip title={log.error_message || 'Delivery error'}>
-                              <Chip label="Failed" size="small" color="error" sx={{ height: 22, fontSize: '0.72rem' }} />
-                            </Tooltip>
-                          )}
-                          {log.status === 'queued' && <Chip label="Queued" size="small" color="warning" sx={{ height: 22, fontSize: '0.72rem' }} />}
-                        </TableCell>
-                        <TableCell align="center">
-                          <IconButton size="small" onClick={() => setSelectedLogPayload(log)}>
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+                          <TableCell sx={{ textTransform: 'capitalize', fontSize: '0.82rem' }}>
+                            {String(recipientRole).replace(/_/g, ' ')}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.82rem' }}>
+                            {recipientName && <strong>{recipientName}</strong>}
+                            {recipientContact && (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: recipientName ? 'block' : 'inline' }}>
+                                {recipientContact}
+                              </Typography>
+                            )}
+                            {!recipientName && !recipientContact && 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {(logStatus === 'delivered' || logStatus === 'success') && (
+                              <Chip label="Delivered" size="small" color="success" sx={{ height: 22, fontSize: '0.72rem' }} />
+                            )}
+                            {logStatus === 'sent' && (
+                              <Chip label="Sent" size="small" color="info" sx={{ height: 22, fontSize: '0.72rem' }} />
+                            )}
+                            {logStatus === 'failed' && (
+                              <Tooltip title={logError || 'Delivery error'}>
+                                <Chip label="Failed" size="small" color="error" sx={{ height: 22, fontSize: '0.72rem', cursor: logError ? 'help' : 'default' }} />
+                              </Tooltip>
+                            )}
+                            {logStatus === 'queued' && (
+                              <Chip label="Queued" size="small" color="warning" sx={{ height: 22, fontSize: '0.72rem' }} />
+                            )}
+                            {logStatus === 'suppressed' && (
+                              <Tooltip title={logError || 'Suppressed'}>
+                                <Chip label="Suppressed" size="small" color="default" sx={{ height: 22, fontSize: '0.72rem' }} />
+                              </Tooltip>
+                            )}
+                            {!['delivered', 'success', 'sent', 'failed', 'queued', 'suppressed'].includes(logStatus) && (
+                              <Chip label={log.status || log.rawStatus || 'Unknown'} size="small" sx={{ height: 22, fontSize: '0.72rem' }} />
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            <IconButton size="small" onClick={() => setSelectedLogPayload(log)}>
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -2919,10 +2945,11 @@ export default function NotificationHubPage() {
               <TextField
                 fullWidth
                 size="small"
-                label={testChannel === 'email' ? 'Recipient Email Address' : testChannel === 'whatsapp' ? 'Recipient Phone Number (+91...)' : 'Recipient Identifier'}
+                label={testChannel === 'email' ? 'Recipient Email Address' : testChannel === 'whatsapp' ? 'Recipient Phone Number' : 'Recipient Identifier'}
                 value={testRecipient}
                 onChange={(e) => setTestRecipient(e.target.value)}
-                placeholder={testChannel === 'email' ? 'e.g. agent@company.com' : '+919876543210'}
+                placeholder={testChannel === 'email' ? 'e.g. agent@company.com' : 'e.g. 9808080440 or +919808080440'}
+                helperText={testChannel === 'whatsapp' ? 'Enter 10-digit mobile (e.g. 9808080440) or full international format (+91...)' : ''}
               />
             </Grid>
 
@@ -2944,6 +2971,12 @@ export default function NotificationHubPage() {
               sx={{ mt: 2, fontSize: '0.85rem' }}
             >
               <strong>{testResult.success ? 'Success!' : 'Error:'}</strong> {testResult.message || testResult.error || JSON.stringify(testResult)}
+            </Alert>
+          )}
+
+          {testResult && !testResult.success && (String(testResult.message || testResult.error).toLowerCase().includes('authorization') || String(testResult.message || testResult.error).toLowerCase().includes('qr') || String(testResult.message || testResult.error).toLowerCase().includes('401')) && (
+            <Alert severity="warning" sx={{ mt: 1.5, fontSize: '0.82rem' }}>
+              <strong>Action Required:</strong> WhatsApp instance authorization needed (WHAPI Code 401: QR scan required). Please log in to your Whapi Cloud console (<a href="https://panel.whapi.cloud" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 'bold' }}>panel.whapi.cloud</a>), open channel <strong>MANTIS-UGCEF</strong>, and scan the QR code with your WhatsApp app.
             </Alert>
           )}
         </DialogContent>
@@ -2975,7 +3008,7 @@ export default function NotificationHubPage() {
               <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ xs: 4 }}>
                   <Typography variant="caption" color="text.secondary">Event:</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLogPayload.event_key || selectedLogPayload.eventKey}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLogPayload.eventKey || selectedLogPayload.event_key || 'N/A'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 4 }}>
                   <Typography variant="caption" color="text.secondary">Channel:</Typography>
@@ -2983,15 +3016,21 @@ export default function NotificationHubPage() {
                 </Grid>
                 <Grid size={{ xs: 4 }}>
                   <Typography variant="caption" color="text.secondary">Status:</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{selectedLogPayload.status}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{selectedLogPayload.status || selectedLogPayload.rawStatus}</Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" color="text.secondary">Recipient Contact:</Typography>
-                  <Typography variant="body2">{selectedLogPayload.recipient_contact} ({selectedLogPayload.recipient_name || 'N/A'})</Typography>
+                  <Typography variant="body2">
+                    {selectedLogPayload.recipientTarget || selectedLogPayload.recipient_target || selectedLogPayload.recipientContact || selectedLogPayload.recipient_contact || 'N/A'}
+                    {' '}
+                    ({selectedLogPayload.recipientName || selectedLogPayload.recipient_name || 'N/A'})
+                  </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" color="text.secondary">Recipient Role:</Typography>
-                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{String(selectedLogPayload.recipient_type).replace('_', ' ')}</Typography>
+                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                    {String(selectedLogPayload.recipientRole || selectedLogPayload.recipient_role || selectedLogPayload.recipientType || selectedLogPayload.recipient_type || 'N/A').replace(/_/g, ' ')}
+                  </Typography>
                 </Grid>
               </Grid>
 
@@ -3001,16 +3040,16 @@ export default function NotificationHubPage() {
                 Rendered Message Body:
               </Typography>
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                {selectedLogPayload.message_body}
+                {selectedLogPayload.messageBody || selectedLogPayload.message_body || '(Empty body)'}
               </Paper>
 
-              {selectedLogPayload.error_message && (
+              {(selectedLogPayload.errorMessage || selectedLogPayload.error_message) && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="caption" color="error" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
                     Error Output:
                   </Typography>
                   <Alert severity="error" sx={{ fontSize: '0.85rem' }}>
-                    {selectedLogPayload.error_message}
+                    {selectedLogPayload.errorMessage || selectedLogPayload.error_message}
                   </Alert>
                 </Box>
               )}
