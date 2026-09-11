@@ -20,6 +20,11 @@ function escapeRegex(str) {
   return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// In-memory rate limiting store for universal gateway test dispatches (Anti-Abuse Shield)
+// Key: organizationId -> Array of timestamps within the past 60 minutes
+const universalTestRateLimits = new Map();
+const MAX_UNIVERSAL_TESTS_PER_HOUR = 5;
+
 /**
  * Helper to resolve effective organizationId from user context or SuperAdmin query
  */
@@ -194,6 +199,7 @@ router.post('/templates', authenticate, permitAtLeast('admin'), async (req, res)
     const ctaLabel = req.body.ctaLabel || req.body.cta_label || '';
     const ctaUrlTemplate = req.body.ctaUrlTemplate || req.body.cta_url_template || '';
     const isActive = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.is_active !== undefined ? Boolean(req.body.is_active) : true);
+    const industryId = req.body.industryId || req.body.industry_id || 'temp0001';
 
     if (!eventKey || !channel || !bodyTemplate) {
       return res.status(400).json({
@@ -202,13 +208,19 @@ router.post('/templates', authenticate, permitAtLeast('admin'), async (req, res)
       });
     }
 
+    // Role-based isolation: client admin can only save for their own workspace
+    const targetOrgId = req.user.role === 'superAdmin'
+      ? (req.body.isPlatformDefault || req.body.organizationId === null ? null : (req.body.organizationId || orgId))
+      : orgId;
+
     const filter = {
-      organization_id: orgId,
+      organization_id: targetOrgId,
       event_key: eventKey,
       channel
     };
 
     const update = {
+      industry_id: industryId,
       name,
       subject_template: subjectTemplate,
       body_template: bodyTemplate,
@@ -225,7 +237,7 @@ router.post('/templates', authenticate, permitAtLeast('admin'), async (req, res)
 
     return res.json({
       success: true,
-      message: `Template for ${eventKey} (${channel}) saved successfully.`,
+      message: `Template for ${eventKey} (${channel}) saved successfully for workspace.`,
       template: saved
     });
   } catch (err) {
@@ -255,7 +267,12 @@ router.post('/templates/reset', authenticate, permitAtLeast('admin'), async (req
     }
     industryId = industryId || 'temp0001';
 
-    const deleteFilter = { organization_id: orgId };
+    // Role-based isolation: Client admin resets their tenant override
+    const targetOrgId = req.user.role === 'superAdmin'
+      ? (req.body.isPlatformDefault || req.body.organizationId === null ? null : (req.body.organizationId || orgId))
+      : orgId;
+
+    const deleteFilter = { organization_id: targetOrgId };
     if (eventKey) deleteFilter.event_key = eventKey;
     if (channel) deleteFilter.channel = channel;
 
@@ -670,26 +687,108 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
     const orgId = resolveOrgId(req);
     const { channel, recipientTarget, recipientName, messageContent, eventKey } = req.body;
     const userRole = req.user?.role;
-    const userEmail = req.user?.email;
-    const userPhone = req.user?.contactNumber || req.user?.contact_number || req.user?.phone;
+    const userEmail = (req.user?.email || '').toLowerCase().trim();
+    const userPhone = String(req.user?.contactNumber || req.user?.contact_number || req.user?.phone || '').replace(/[^\d+]/g, '');
 
     if (!channel || !recipientTarget) {
       return res.status(400).json({ success: false, message: 'channel and recipientTarget are required.' });
     }
 
-    // Role-based security check for test dispatch
-    if (userRole !== 'admin' && userRole !== 'superAdmin') {
-      const isTargetingSelf =
-        recipientTarget === userEmail ||
-        recipientTarget === userPhone ||
-        recipientTarget === String(req.user?.id);
+    const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+    const Organization = mongoose.model('Organization');
+    const User = mongoose.model('User');
+    const Contact = mongoose.model('Contact');
 
-      if (!isTargetingSelf) {
-        return res.status(403).json({
+    // Determine if organization is using a custom gateway or the shared universal gateway
+    let hasCustomGateway = false;
+    if (channel === 'whatsapp') {
+      const waConfig = await WhatsAppConfig.findOne({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      }).lean().exec();
+      if (waConfig) {
+        hasCustomGateway = Boolean(
+          (waConfig.simply?.active && waConfig.simply?.access_token) ||
+          (waConfig.wapi?.active && waConfig.wapi?.wapi_token) ||
+          (waConfig.chat_simplified?.active && waConfig.chat_simplified?.api_key) ||
+          (waConfig.chatSimplified?.active && waConfig.chatSimplified?.apiKey)
+        );
+      }
+    } else if (channel === 'email') {
+      const org = await Organization.findOne({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      }).lean().exec();
+      hasCustomGateway = Boolean(org?.smtp_config?.useCustomSmtp && org?.smtp_config?.smtpPass);
+    }
+
+    // Anti-Leakage & Quota Shield for Universal Platform Gateway
+    if (!hasCustomGateway && userRole !== 'superAdmin') {
+      const now = Date.now();
+      const oneHourAgo = now - 60 * 60 * 1000;
+      const rateLimitKey = String(orgId || req.user?.id || 'default');
+      const timestamps = (universalTestRateLimits.get(rateLimitKey) || []).filter(t => t > oneHourAgo);
+
+      if (timestamps.length >= MAX_UNIVERSAL_TESTS_PER_HOUR) {
+        return res.status(429).json({
           success: false,
-          message: 'Non-admin users may only dispatch test notifications to their own verified email or phone number.'
+          message: `Hourly platform test limit reached (${MAX_UNIVERSAL_TESTS_PER_HOUR}/hour). To protect shared platform resources, please wait before dispatching more test alerts or connect your custom gateway.`
         });
       }
+
+      // Recipient Whitelisting: Must be self, team member, or existing CRM lead
+      const cleanTarget = String(recipientTarget).trim();
+      const cleanTargetPhone = cleanTarget.replace(/[^\d+]/g, '');
+      const isTargetingSelf =
+        (channel === 'email' && cleanTarget.toLowerCase() === userEmail) ||
+        (channel === 'whatsapp' && userPhone && (cleanTargetPhone.endsWith(userPhone.slice(-10)) || userPhone.endsWith(cleanTargetPhone.slice(-10))));
+
+      if (!isTargetingSelf) {
+        let isAuthorizedRecipient = false;
+
+        // Check if recipient is a team member in this organization
+        if (orgId) {
+          const teamUser = await User.findOne({
+            $or: [{ organization_id: orgId }, { organizationId: orgId }],
+            $or: [
+              { email: { $regex: new RegExp(`^${escapeRegex(cleanTarget)}$`, 'i') } },
+              ...(cleanTargetPhone.length >= 7 ? [
+                { contactNumber: { $regex: escapeRegex(cleanTargetPhone.slice(-10)) } },
+                { phone: { $regex: escapeRegex(cleanTargetPhone.slice(-10)) } }
+              ] : [])
+            ]
+          }).lean().exec();
+
+          if (teamUser) {
+            isAuthorizedRecipient = true;
+          } else {
+            // Check if recipient is an existing contact/lead in this organization
+            const contactLead = await Contact.findOne({
+              $or: [{ organization_id: orgId }, { organizationId: orgId }],
+              $or: [
+                { email: { $regex: new RegExp(`^${escapeRegex(cleanTarget)}$`, 'i') } },
+                ...(cleanTargetPhone.length >= 7 ? [
+                  { phone: { $regex: escapeRegex(cleanTargetPhone.slice(-10)) } },
+                  { contactNumber: { $regex: escapeRegex(cleanTargetPhone.slice(-10)) } }
+                ] : [])
+              ]
+            }).lean().exec();
+
+            if (contactLead) {
+              isAuthorizedRecipient = true;
+            }
+          }
+        }
+
+        if (!isAuthorizedRecipient) {
+          return res.status(403).json({
+            success: false,
+            message: 'To protect shared platform quota, test alerts via the universal platform gateway can only be sent to verified workspace team members or leads in your CRM. Connect your custom gateway in the Gateways tab to test arbitrary external numbers.'
+          });
+        }
+      }
+
+      // Record rate limit consumption
+      timestamps.push(now);
+      universalTestRateLimits.set(rateLimitKey, timestamps);
     }
 
     const whatsappService = require('../services/whatsappService');
