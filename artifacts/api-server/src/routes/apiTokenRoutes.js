@@ -223,21 +223,17 @@ router.post('/', authenticate, requireScreenAction('configApi', 'add'), async (r
     let leadSourceId = req.body.leadSourceId || req.body.leadSource_id || null;
     if (!leadSourceId && req.body.source) {
       try {
-        const OrganizationResources = mongoose.model('OrganizationResources');
-        const resDoc = await OrganizationResources.findOne({
-          $or: [
-            { organizationId: orgId },
-            { organizationId: null },
-            { organizationId: '' }
-          ]
-        }).exec();
-        if (resDoc && resDoc.leadSources) {
-          const matched = resDoc.leadSources.find(s => 
-            String(s.leadSource || s.name || s.value || '').toLowerCase() === String(req.body.source).toLowerCase()
-          );
-          if (matched) {
-            leadSourceId = matched.id || matched._id || null;
-          }
+        const resourceItemModel = require('../models/resourceItemModel');
+        const sources = await resourceItemModel.list({
+          organizationId: orgId,
+          industryId: req.body.industryId || req.body.industry_id || req.user?.industryId,
+          resource_key: 'resourceLeadSources'
+        });
+        const matched = (sources || []).find(s => 
+          String(s.leadSource || s.source || s.name || s.value || '').toLowerCase() === String(req.body.source).toLowerCase()
+        );
+        if (matched) {
+          leadSourceId = matched.id || matched._id || matched.leadSourceId || null;
         }
       } catch (err) {
         console.error('Failed to resolve leadSourceId from source:', err);
@@ -295,22 +291,18 @@ router.put('/:id', authenticate, async (req, res, next) => {
     let resolvedLeadSourceId = leadSourceId || leadSource_id || doc.leadSourceId;
     if ((leadSourceId === undefined && leadSource_id === undefined) && updatePayload.source && updatePayload.source !== doc.source) {
       try {
-        const OrganizationResources = mongoose.model('OrganizationResources');
+        const resourceItemModel = require('../models/resourceItemModel');
         const orgId = doc.organization_id || doc.organizationId;
-        const resDoc = await OrganizationResources.findOne({
-          $or: [
-            { organizationId: orgId },
-            { organizationId: null },
-            { organizationId: '' }
-          ]
-        }).exec();
-        if (resDoc && resDoc.leadSources) {
-          const matched = resDoc.leadSources.find(s => 
-            String(s.leadSource || s.name || s.value || '').toLowerCase() === String(updatePayload.source).toLowerCase()
-          );
-          if (matched) {
-            resolvedLeadSourceId = matched.id || matched._id || null;
-          }
+        const sources = await resourceItemModel.list({
+          organizationId: orgId,
+          industryId: doc.industry_id || doc.industryId || req.user?.industryId,
+          resource_key: 'resourceLeadSources'
+        });
+        const matched = (sources || []).find(s => 
+          String(s.leadSource || s.source || s.name || s.value || '').toLowerCase() === String(updatePayload.source).toLowerCase()
+        );
+        if (matched) {
+          resolvedLeadSourceId = matched.id || matched._id || matched.leadSourceId || null;
         }
       } catch (err) {
         console.error('Failed to resolve leadSourceId from source inside PUT:', err);

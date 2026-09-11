@@ -71,14 +71,8 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
   },
   {
     key: 'whatsapp',
-    name: 'Notifications & Automation',
-    description: 'Universal platform engine: multi-channel alerts (WhatsApp, Email, Push, Bell), dynamic templates & routing rules.',
-    icon: <WhatsAppIcon sx={{ fontSize: 32, color: '#25D366' }} />,
-  },
-  {
-    key: 'notifications',
-    name: 'Omnichannel Notifications',
-    description: 'Configure event matrix rules, email SMTP, mobile push, and multi-recipient alerts for agents & admins.',
+    name: 'Notification Hub & Automation',
+    description: 'Universal notification engine: multi-channel alerts (WhatsApp, Email, Push, Bell), dynamic templates & CRM routing rules.',
     icon: <HubIcon sx={{ fontSize: 32, color: '#2563EB' }} />,
   },
 ]

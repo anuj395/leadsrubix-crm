@@ -389,6 +389,95 @@ const migrateExistingWorkspaces = async () => {
     console.error('[migration] Failed to self-heal cloned menu parent_ids:', e);
   }
 
+  // 7. Self-heal and ensure master templates for all industry verticals have standard lead sources populated
+  try {
+    const OrganizationResources = mongoose.model('OrganizationResources');
+    const Industry = mongoose.model('Industry');
+    const allIndustries = await Industry.find({}).exec();
+
+    // Industry standard lead source definitions
+    const INDUSTRY_DEFAULT_SOURCES = {
+      temp0001: [
+        'Website', '99 Acres', 'Magicbricks', 'Housing.com', 'Google Ads', 'Facebook', 
+        'LinkedIn Ads', 'Indiamart', 'Justdial', 'Makaan.com', 'OLX', 'Sulekha', 'Walk-in', 'Channel Partner', 'Referral'
+      ],
+      temp0002: [
+        'Website', 'Online Store', 'Instagram Shop', 'Google Shopping', 'Amazon', 'Flipkart', 
+        'Direct Inquiry', 'Facebook Ads', 'Email Campaign', 'Referral', 'Walk-in'
+      ],
+      temp0003: [
+        'Hospital Website', 'Practo', 'Google Search', 'Doctor Referral', 'Walk-in', 
+        'Emergency / Ambulance', 'Camp / Health Checkup', 'Insurance Partner', 'Telephone Inquiry'
+      ],
+      temp0004: [
+        'Campus Website', 'Education Fair', 'Shiksha', 'CollegeDunia', 'Social Media', 
+        'Walk-in / Campus Visit', 'Alumni Referral', 'School Outreach', 'Inquiry Call'
+      ],
+      temp0005: [
+        'Company Website', 'Partner Referral', 'Financial Advisor', 'Direct Walk-in', 
+        'Telemarketing', 'LinkedIn Outreach', 'Branch Visit', 'Google Ads', 'Corporate Tie-up'
+      ],
+      temp0006: [
+        'Agency Website', 'Clutch', 'LinkedIn Outreach', 'Google Search Ads', 'Direct Inbound', 
+        'Partner Referral', 'Webinar / Event', 'G2 Crowd', 'Cold Email'
+      ],
+      temp0007: [
+        'Factory Website', 'IndiaMART', 'TradeIndia', 'Trade Expo / B2B Fair', 'Distributor Network', 
+        'Direct RFQ', 'Email Inquiry', 'Tender Portal', 'Agent Referral'
+      ]
+    };
+
+    const colorPalette = ['#3B82F6', '#F59E0B', '#EF4444', '#EC4899', '#34A853', '#1877F2', '#0A66C2', '#2563EB', '#14B8A6', '#8B5CF6', '#F97316', '#10B981', '#06B6D4'];
+
+    for (const ind of allIndustries) {
+      const indCode = String(ind.code || '').toLowerCase();
+      const indIdStr = String(ind._id);
+      const rawSources = INDUSTRY_DEFAULT_SOURCES[indCode] || ['Website', 'Direct Inbound', 'Referral', 'Social Media', 'Walk-in'];
+
+      const formattedSources = rawSources.map((s, idx) => ({
+        id: `${indCode}_ls_${idx + 1}`,
+        name: s,
+        source: s,
+        leadSource: s,
+        lead_source: s,
+        leadSourceColor: colorPalette[idx % colorPalette.length]
+      }));
+
+      let masterDoc = await OrganizationResources.findOne({
+        organization_id: null,
+        $or: [
+          { industry_id: ind.code },
+          { industry_id: indCode },
+          { industry_id: ind.code ? ind.code.toUpperCase() : '' },
+          { industryId: ind.code },
+          { industry_id: indIdStr },
+          { industryId: indIdStr }
+        ].filter(cond => Object.values(cond)[0])
+      }).exec();
+
+      if (!masterDoc) {
+        await OrganizationResources.create({
+          organization_id: null,
+          organizationId: null,
+          industry_id: ind.code,
+          industryId: ind.code,
+          lead_sources: formattedSources,
+          leadSources: formattedSources
+        });
+        console.log(`[migration] Created master resources template for ${ind.code} (${ind.name}) with default lead sources.`);
+      } else if (!masterDoc.lead_sources || masterDoc.lead_sources.length === 0) {
+        masterDoc.lead_sources = formattedSources;
+        masterDoc.leadSources = formattedSources;
+        masterDoc.markModified('lead_sources');
+        masterDoc.markModified('leadSources');
+        await masterDoc.save();
+        console.log(`[migration] Populated master template for ${ind.code} (${ind.name}) with default lead sources.`);
+      }
+    }
+  } catch (err) {
+    console.error('[migration] Failed to ensure multi-industry master lead sources:', err.message);
+  }
+
   const organizations = await Organization.find({}).exec();
   for (const org of organizations) {
     const orgId = org.organizationId || org.organization_id;
