@@ -467,29 +467,35 @@ async function dispatchCrmEvent({
     // Evaluate Matrix for each Recipient & Channel
     const routing = matrixRule.routing || {};
 
+    const isRoleEligible = (roleConfig) => {
+      if (!roleConfig) return false;
+      if (roleConfig.enabled === false && !Object.values(roleConfig.channels || {}).some(Boolean)) return false;
+      return true;
+    };
+
     // 1. Agent
-    if (routing.assigned_agent?.enabled && recipients.agent) {
+    if (isRoleEligible(routing.assigned_agent) && recipients.agent) {
       for (const [ch, isEnabled] of Object.entries(routing.assigned_agent.channels || {})) {
         if (isEnabled) enqueueDispatch({ recipientRole: 'agent', recipientObj: recipients.agent, channel: ch });
       }
     }
 
     // 2. Team Lead
-    if (routing.team_lead?.enabled && recipients.teamLead) {
+    if (isRoleEligible(routing.team_lead) && recipients.teamLead) {
       for (const [ch, isEnabled] of Object.entries(routing.team_lead.channels || {})) {
         if (isEnabled) enqueueDispatch({ recipientRole: 'team_lead', recipientObj: recipients.teamLead, channel: ch });
       }
     }
 
     // 3. Org Admin
-    if (routing.org_admin?.enabled && recipients.admin) {
+    if (isRoleEligible(routing.org_admin) && recipients.admin) {
       for (const [ch, isEnabled] of Object.entries(routing.org_admin.channels || {})) {
         if (isEnabled) enqueueDispatch({ recipientRole: 'admin', recipientObj: recipients.admin, channel: ch });
       }
     }
 
     // 4. Customer
-    if (routing.customer?.enabled && recipients.customer) {
+    if (isRoleEligible(routing.customer) && recipients.customer) {
       for (const [ch, isEnabled] of Object.entries(routing.customer.channels || {})) {
         if (isEnabled) enqueueDispatch({ recipientRole: 'customer', recipientObj: recipients.customer, channel: ch });
       }
