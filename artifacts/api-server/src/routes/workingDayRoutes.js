@@ -33,9 +33,9 @@ router.get('/', authenticate, requireScreenAction('workingDays', 'view'), async 
       const obj = d.toObject();
       return {
         ...obj,
-        id: d._id,
-        opensAt: d.opensAt || d.opens_at,
-        closesAt: d.closesAt || d.closes_at,
+        id: d._id || d.id,
+        opensAt: d.opensAt || d.opens_at || d.open_time || d.startTime || d.start_time || '09:00',
+        closesAt: d.closesAt || d.closes_at || d.close_time || d.endTime || d.end_time || '18:00',
       };
     });
     

@@ -898,7 +898,7 @@ export default function SettingsPage() {
                           <TableRow key={d.id} hover>
                             <TableCell sx={{ fontWeight: 600 }}>{d.day}</TableCell>
                             <TableCell><StatusBadge value={d.closed ? 'Closed' : 'Open'} /></TableCell>
-                            <TableCell>{d.closed ? 'Closed' : `${d.opensAt} - ${d.closesAt}`}</TableCell>
+                            <TableCell>{d.closed ? 'Closed' : `${d.opensAt || (d as any).opens_at || '09:00'} - ${d.closesAt || (d as any).closes_at || '18:00'}`}</TableCell>
                             <TableCell sx={{ color: 'text.secondary' }}>{d.notes || '—'}</TableCell>
                             <TableCell align="right">
                               <IconButton size="small" color="primary" onClick={() => openEditDay(d)}>
