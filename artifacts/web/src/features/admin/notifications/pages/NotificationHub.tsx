@@ -899,7 +899,7 @@ export default function NotificationHubPage() {
                 startIcon={<SendIcon />}
                 onClick={() => {
                   if (!isAdmin) {
-                    setTestRecipient(testChannel === 'email' ? (user?.email || '') : (user?.contactNumber || user?.phone || ''));
+                    setTestRecipient(testChannel === 'email' ? (user?.email || '') : ((user as any)?.contactNumber || (user as any)?.phone || ''));
                     setTestName(user?.name || 'Sales Representative');
                   }
                   setTestModalOpen(true);
@@ -1044,9 +1044,9 @@ export default function NotificationHubPage() {
                 <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} useFlexGap>
                   <Chip
                     icon={<WhatsAppIcon sx={{ fontSize: '15px !important' }} />}
-                    label={`WhatsApp: ${user?.contactNumber || user?.phone || 'Not set'}`}
+                    label={`WhatsApp: ${(user as any)?.contactNumber || (user as any)?.phone || 'Not set'}`}
                     variant="outlined"
-                    color={user?.contactNumber || user?.phone ? 'success' : 'default'}
+                    color={(user as any)?.contactNumber || (user as any)?.phone ? 'success' : 'default'}
                     size="small"
                     sx={{ fontWeight: 600 }}
                   />
@@ -1793,7 +1793,7 @@ export default function NotificationHubPage() {
                       return ruleKey.includes(q) || ruleLabel.includes(q) || desc.includes(q);
                     })
                     .map((rule) => {
-                    const ruleKey = rule.eventKey || rule.event_key;
+                    const ruleKey = rule.eventKey || rule.event_key || '';
                     const eventDef = eventsList.find((e) => (e.key === ruleKey || (e as any).event_key === ruleKey));
                     return (
                       <TableRow key={ruleKey} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
@@ -2549,7 +2549,7 @@ export default function NotificationHubPage() {
                     startIcon={<WhatsAppIcon />}
                     onClick={() => {
                       setTestChannel('whatsapp');
-                      setTestRecipient(user?.contactNumber || user?.phone || '');
+                      setTestRecipient((user as any)?.contactNumber || (user as any)?.phone || '');
                       setTestModalOpen(true);
                     }}
                     sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}

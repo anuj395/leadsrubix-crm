@@ -347,6 +347,34 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
     }
   }
 
+  // Auto-include parent menus for dot-notation keys (e.g. configuration.* -> configuration)
+  const existingKeys = new Set([...menuById.values()].map(m => m.key));
+  const parentKeysToFetch = [];
+  for (const m of menuById.values()) {
+    if (m.key && m.key.includes('.')) {
+      const parentKey = m.key.split('.')[0];
+      if (!existingKeys.has(parentKey) && !parentKeysToFetch.includes(parentKey)) {
+        parentKeysToFetch.push(parentKey);
+      }
+    }
+  }
+  if (parentKeysToFetch.length) {
+    const parentsByKey = await SidebarMenuModel.find({
+      $or: [
+        { organization_id: targetOrgId },
+        { organization_id: null }
+      ],
+      key: { $in: parentKeysToFetch },
+      is_active: { $ne: false }
+    }).lean().exec();
+    for (const p of parentsByKey) {
+      if (!existingKeys.has(p.key)) {
+        menuById.set(String(p._id), p);
+        existingKeys.add(p.key);
+      }
+    }
+  }
+
   const indCode = String(code || '').toLowerCase().trim();
   const industryOverrides = INDUSTRY_MENU_OVERRIDES[indCode] || {};
 

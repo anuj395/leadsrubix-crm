@@ -44,7 +44,9 @@ export interface NotificationTemplate {
   industry_id?: string;
   industryId?: string;
   subject?: string;
+  subjectTemplate?: string;
   body: string;
+  bodyTemplate?: string;
   is_active: boolean;
   isActive?: boolean;
   is_default?: boolean;
