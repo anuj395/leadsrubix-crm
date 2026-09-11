@@ -20,5 +20,9 @@ All code changes and additions must strictly adhere to the project's naming conv
    - Ensure backwards compatibility, fallback defaults, defensive checks, and robust logging on every critical path (Webhooks, Lead Routing, Auth, Notifications, Multi-Tenancy).
 5. **End-to-End Empirical Verification**:
    - Never declare success without running build (`pnpm build` / `node -c`), checking imports, and empirically verifying the live UI in Chrome DevTools with visual proof.
-6. **Mission Goal**:
+6. **Modern Industry Best-Practices Standard (Never Perpetuate Flawed Legacy Logic)**:
+   - When modifying or enhancing any module, endpoint, or screen, DO NOT blindly follow, inherit, or propagate flawed legacy patterns, historical hacks, or convoluted UX logic simply because it exists in the codebase.
+   - Always benchmark against modern, world-class enterprise SaaS standards (HubSpot, Salesforce, Zoho) grounded in authentic domain and industry knowledge.
+   - Proactively elevate and refactor flawed code into clean, scalable, layman-friendly, and enterprise-grade implementations.
+7. **Mission Goal**:
    - Every change must move the product closer to being the industry's best, most reliable, multi-tenant enterprise CRM.
