@@ -137,11 +137,42 @@ export default function UserFormPage() {
 
     setProvisioningDefaults(true);
     try {
-      await Promise.allSettled([
-        api.post('teams', { name: 'General Sales Team', code: 'GST', organizationId: orgId, industryId: indId }),
-        api.post('branches', { name: 'Head Office', code: 'HQ', organizationId: orgId, industryId: indId }),
-        api.post('designations', { name: 'Sales Executive', organizationId: orgId, industryId: indId }),
-      ]);
+    const code = String(indId || '').toLowerCase();
+    let defaultTeam = { name: 'Sales Team', code: 'ST' };
+    let defaultBranch = { name: 'Head Office', code: 'HQ' };
+    let defaultDesig = 'Sales Executive';
+
+    if (code.includes('temp0003') || code.includes('health')) {
+      defaultTeam = { name: 'Medical Department', code: 'MED' };
+      defaultBranch = { name: 'Main Clinic', code: 'HQ' };
+      defaultDesig = 'Patient Coordinator';
+    } else if (code.includes('temp0004') || code.includes('edu')) {
+      defaultTeam = { name: 'Admissions Department', code: 'ADM' };
+      defaultBranch = { name: 'Main Campus', code: 'HQ' };
+      defaultDesig = 'Admissions Counselor';
+    } else if (code.includes('temp0005') || code.includes('finan')) {
+      defaultTeam = { name: 'Advisory Team', code: 'ADV' };
+      defaultBranch = { name: 'Branch Office', code: 'HQ' };
+      defaultDesig = 'Wealth Advisor';
+    } else if (code.includes('temp0006') || code.includes('tech') || code.includes('it')) {
+      defaultTeam = { name: 'Engineering Team', code: 'ENG' };
+      defaultBranch = { name: 'Delivery Center', code: 'HQ' };
+      defaultDesig = 'Account Executive';
+    } else if (code.includes('temp0007') || code.includes('manuf')) {
+      defaultTeam = { name: 'Plant Operations', code: 'OPS' };
+      defaultBranch = { name: 'Manufacturing Facility', code: 'HQ' };
+      defaultDesig = 'Sales Representative';
+    } else if (code.includes('temp0002')) {
+      defaultTeam = { name: 'Fulfillment Team', code: 'FLM' };
+      defaultBranch = { name: 'Central Warehouse', code: 'HQ' };
+      defaultDesig = 'Store Associate';
+    }
+
+    await Promise.allSettled([
+      api.post('teams', { name: defaultTeam.name, code: defaultTeam.code, organizationId: orgId, industryId: indId }),
+      api.post('branches', { name: defaultBranch.name, code: defaultBranch.code, organizationId: orgId, industryId: indId }),
+      api.post('designations', { name: defaultDesig, organizationId: orgId, industryId: indId }),
+    ]);
       setConfigMissing(false);
       setToast({ open: true, msg: 'Baseline team, branch, and designation provisioned successfully!', sev: 'success' });
     } catch (e: any) {

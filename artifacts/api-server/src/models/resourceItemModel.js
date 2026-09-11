@@ -73,25 +73,52 @@ exports.ResourceItem = OrganizationResources;
 
 exports.list = async ({ organizationId, industryId, workspaceId, resource_key, all = false } = {}) => {
   const isProjects = resource_key === 'resource_projects' || resource_key === 'resourceProjects';
+  const targetOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
+
+  let effectiveIndustryId = industryId;
+  if (!effectiveIndustryId && targetOrgId) {
+    try {
+      const Organization = mongoose.model('Organization');
+      const orgDoc = await Organization.findOne({
+        $or: [
+          { _id: mongoose.Types.ObjectId.isValid(targetOrgId) ? targetOrgId : null },
+          { organization_id: targetOrgId },
+          { organizationId: targetOrgId }
+        ].filter(Boolean)
+      }).lean().exec();
+      if (orgDoc) {
+        effectiveIndustryId = orgDoc.industry_id || orgDoc.industryId;
+      }
+    } catch (e) {}
+  }
+  if (!effectiveIndustryId && targetOrgId) {
+    try {
+      const Industry = mongoose.model('Industry');
+      const defaultInd = await Industry.findOne({ is_active: { $ne: false } }).exec();
+      if (defaultInd) {
+        effectiveIndustryId = defaultInd.code || String(defaultInd._id);
+      }
+    } catch (e) {}
+  }
 
   let resolvedIndustryObjectId = null;
   let resolvedIndustryCode = null;
-  if (industryId) {
+  if (effectiveIndustryId) {
     const Industry = mongoose.model('Industry');
-    if (mongoose.Types.ObjectId.isValid(industryId)) {
-      resolvedIndustryObjectId = String(industryId);
+    if (mongoose.Types.ObjectId.isValid(effectiveIndustryId)) {
+      resolvedIndustryObjectId = String(effectiveIndustryId);
       try {
-        const ind = await Industry.findById(industryId).exec();
+        const ind = await Industry.findById(effectiveIndustryId).exec();
         if (ind) resolvedIndustryCode = ind.code;
       } catch (e) {}
     } else {
-      resolvedIndustryCode = String(industryId);
+      resolvedIndustryCode = String(effectiveIndustryId);
       try {
         const ind = await Industry.findOne({
           $or: [
-            { code: String(industryId).toLowerCase() },
-            { code: String(industryId).toUpperCase() },
-            { code: String(industryId) }
+            { code: String(effectiveIndustryId).toLowerCase() },
+            { code: String(effectiveIndustryId).toUpperCase() },
+            { code: String(effectiveIndustryId) }
           ]
         }).exec();
         if (ind) resolvedIndustryObjectId = String(ind._id);
@@ -115,8 +142,6 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
       const oid = o.organization_id || o.organizationId || o._id.toString();
       orgMap[oid] = o.organization_name || o.name || o.organizationName || '';
     });
-
-    const targetOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
 
     if (!targetOrgId || all) {
       const query = { organization_id: { $ne: null } };
@@ -176,7 +201,6 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   }
 
   // Generic static options (budgets, locations, lead sources, stages, types, carousel, etc.)
-  const targetOrgId = (organizationId === 'null' || !organizationId || organizationId === 'all') ? null : organizationId;
   const primaryFieldName = getFieldName(resource_key);
   const candidateFields = [primaryFieldName];
   if (primaryFieldName === 'propertyStages') candidateFields.push('property_stages');
@@ -209,11 +233,16 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   }
 
   // 2. Fetch industry master resources (where organization_id is null)
-  let masterQuery = { organization_id: null };
+  let masterDocs = [];
   if (indMatchConditions.length > 0) {
-    masterQuery.industry_id = { $in: indMatchConditions };
+    masterDocs = await OrganizationResources.find({
+      organization_id: null,
+      industry_id: { $in: indMatchConditions }
+    }).exec();
+  } else if (!targetOrgId && all) {
+    // Only if all is explicitly true and no target organization was requested
+    masterDocs = await OrganizationResources.find({ organization_id: null }).exec();
   }
-  const masterDocs = await OrganizationResources.find(masterQuery).exec();
   masterDocs.forEach(d => {
     for (const f of candidateFields) {
       if (Array.isArray(d[f])) {

@@ -23,6 +23,9 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import InputOutlinedIcon from '@mui/icons-material/InputOutlined'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined'
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
+import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined'
 import Avatar from '@mui/material/Avatar'
 import Badge from '@mui/material/Badge'
 import Box from '@mui/material/Box'
@@ -112,6 +115,7 @@ const breadcrumbMap: Record<string, string[]> = {
     '/lead-distribution/logic': ['Home', 'Lead Distribution', 'Lead Distribution Logic'],
     '/reassign/list': ['Home', 'Lead Distribution', 'Reassign List'],
     '/reassign/logic': ['Home', 'Lead Distribution', 'Reassign Logic'],
+    '/settings': ['Home', 'Settings', 'Workspace Settings'],
 }
 
 function getBreadcrumbPath(crumb: string): string | null {
@@ -875,7 +879,7 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
 
                     <Divider sx={{ mx: 1.25 }} />
 
-                    <Stack spacing={0.1} sx={{ px: 1, pt: 0.75, pb: 1 }}>
+                    <Stack spacing={0.25} sx={{ px: 1, pt: 0.75, pb: 1 }}>
                         {(user?.role === 'superAdmin' || user?.role === 'admin') && (
                             <ButtonBase
                                 onClick={() => { handleCloseProfileMenu(); navigate('/settings') }}
@@ -883,20 +887,84 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                     justifyContent: 'flex-start',
                                     gap: 1.25,
                                     width: '100%',
-                                    px: 0.75,
-                                    py: { xs: 0.75, sm: 0.6 },
+                                    px: 1,
+                                    py: 0.75,
                                     borderRadius: '8px',
                                     color: theme.palette.text.primary,
-                                    minHeight: 42,
+                                    minHeight: 38,
                                     '&:hover': {
                                         backgroundColor: theme.palette.action.hover,
                                     },
                                 }}
                             >
-                                <SettingsOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.2rem' }} />
-                                <Typography sx={profileMenuLabelSx}>Settings</Typography>
+                                <SettingsOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.15rem' }} />
+                                <Typography sx={profileMenuLabelSx}>Workspace Settings</Typography>
                             </ButtonBase>
                         )}
+
+                        {user?.role === 'admin' && (
+                            <>
+                                <ButtonBase
+                                    onClick={() => { handleCloseProfileMenu(); navigate('/account/subscription-details') }}
+                                    sx={{
+                                        justifyContent: 'flex-start',
+                                        gap: 1.25,
+                                        width: '100%',
+                                        px: 1,
+                                        py: 0.75,
+                                        borderRadius: '8px',
+                                        color: theme.palette.text.primary,
+                                        minHeight: 38,
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.action.hover,
+                                        },
+                                    }}
+                                >
+                                    <CreditCardOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.15rem' }} />
+                                    <Typography sx={profileMenuLabelSx}>Subscription & Plan</Typography>
+                                </ButtonBase>
+
+                                <ButtonBase
+                                    onClick={() => { handleCloseProfileMenu(); navigate('/account/payment-invoices') }}
+                                    sx={{
+                                        justifyContent: 'flex-start',
+                                        gap: 1.25,
+                                        width: '100%',
+                                        px: 1,
+                                        py: 0.75,
+                                        borderRadius: '8px',
+                                        color: theme.palette.text.primary,
+                                        minHeight: 38,
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.action.hover,
+                                        },
+                                    }}
+                                >
+                                    <ReceiptLongOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.15rem' }} />
+                                    <Typography sx={profileMenuLabelSx}>Invoices & Billing</Typography>
+                                </ButtonBase>
+                            </>
+                        )}
+
+                        <ButtonBase
+                            onClick={() => { handleCloseProfileMenu(); navigate('/account/update-password') }}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                gap: 1.25,
+                                width: '100%',
+                                px: 1,
+                                py: 0.75,
+                                borderRadius: '8px',
+                                color: theme.palette.text.primary,
+                                minHeight: 38,
+                                '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                },
+                            }}
+                        >
+                            <LockResetOutlinedIcon sx={{ color: theme.palette.text.secondary, fontSize: '1.15rem' }} />
+                            <Typography sx={profileMenuLabelSx}>Update Password</Typography>
+                        </ButtonBase>
 
                         {/* Logout button — red accent, full width, prominent */}
                         <ButtonBase

@@ -360,19 +360,15 @@ router.post('/createContacts', async (req, res, next) => {
       const resourceItemModel = require('../models/resourceItemModel');
       const orgSources = await resourceItemModel.list({
         organizationId: orgId,
+        industryId: tokenData.industryId || tokenData.industry_id || (ownerUser ? (ownerUser.industryId || ownerUser.industry_id) : null),
         resource_key: 'resourceLeadSources'
       });
       const registeredSources = (orgSources || [])
         .map(s => s.leadSource || s.source || s.name || s.value || '')
         .filter(Boolean);
 
-      const { matchSources } = require('../services/sourceMatcher');
-      for (const reg of registeredSources) {
-        if (matchSources(sourceVal, reg)) {
-          sourceVal = reg;
-          break;
-        }
-      }
+      const { canonicalizeSource } = require('../services/sourceMatcher');
+      sourceVal = canonicalizeSource(sourceVal, registeredSources);
     } catch (err) {
       // Fallback to raw sourceVal
     }

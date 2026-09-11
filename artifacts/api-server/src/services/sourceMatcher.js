@@ -35,6 +35,10 @@ function getSourceRoot(str) {
     .replace(/[\s\-_.]/g, '');
 }
 
+const GENERIC_SOURCE_TOKENS = new Set([
+  'website', 'web', 'ads', 'lead', 'leads', 'form', 'forms', 'portal', 'api', 'call', 'calls', 'inquiry', 'inquiries'
+]);
+
 /**
  * Compares an incoming lead source against a rule source.
  * Fully universal and dynamic: works for WebSite, Housing.com, 99 Acres, MagicBricks,
@@ -64,25 +68,96 @@ function matchSources(leadSource, ruleSource) {
   // 1. Exact string match (case-insensitive)
   if (cleanLead === cleanRule) return true;
 
-  // 2. Substring inclusion match (e.g. 'Google Ads' in 'Google Search Ads')
-  if (cleanLead.includes(cleanRule) || cleanRule.includes(cleanLead)) return true;
+  // 2. Substring inclusion match:
+  // - If lead is a specific variant containing the rule (e.g. 'Google Search Ads' contains rule 'Google Ads')
+  // - Avoid matching when lead is a generic single token (e.g. lead 'Website' should NEVER match rule 'Hospital Website')
+  if (cleanLead.includes(cleanRule)) return true;
+  if (!GENERIC_SOURCE_TOKENS.has(cleanLead) && cleanRule.includes(cleanLead)) return true;
 
   // 3. Space & punctuation normalized match (e.g. '99 Acres' vs '99acres' vs '99Acres')
   const normLead = normalizeSource(cleanLead);
   const normRule = normalizeSource(cleanRule);
   if (normLead === normRule) return true;
   if (normLead.length >= 3 && normRule.length >= 3) {
-    if (normLead.includes(normRule) || normRule.includes(normLead)) return true;
+    if (normLead.includes(normRule)) return true;
+    if (!GENERIC_SOURCE_TOKENS.has(normLead) && normRule.includes(normLead)) return true;
   }
 
   // 4. Root comparison (e.g. 'Housing.com' vs 'Housing', 'Makaan.com' vs 'Makaan')
   const rootLead = getSourceRoot(cleanLead);
   const rootRule = getSourceRoot(cleanRule);
-  if (rootLead && rootRule && (rootLead === rootRule || rootLead.includes(rootRule) || rootRule.includes(rootLead))) {
-    return true;
+  if (rootLead && rootRule) {
+    if (rootLead === rootRule) return true;
+    if (rootLead.includes(rootRule)) return true;
+    if (!GENERIC_SOURCE_TOKENS.has(rootLead) && rootRule.includes(rootLead)) return true;
   }
 
   return false;
+}
+
+/**
+ * Safely canonicalizes an incoming source name against an organization's registered sources.
+ * Strictly preserves generic sources (e.g. 'Website', 'Walk-in') from being rewritten
+ * into vertical-specific compound sources (e.g. 'Hospital Website', 'College Walk-in').
+ * 
+ * @param {string} incomingSource 
+ * @param {Array<string>} registeredSources 
+ * @returns {string}
+ */
+function canonicalizeSource(incomingSource, registeredSources = []) {
+  if (!incomingSource) return '';
+  const cleanIncoming = String(incomingSource).trim();
+  if (!cleanIncoming) return '';
+  if (!Array.isArray(registeredSources) || registeredSources.length === 0) {
+    return cleanIncoming;
+  }
+
+  const lowerIncoming = cleanIncoming.toLowerCase();
+  const normIncoming = normalizeSource(cleanIncoming);
+  const rootIncoming = getSourceRoot(cleanIncoming);
+
+  // 1. Exact string match (case-insensitive)
+  for (const reg of registeredSources) {
+    if (!reg) continue;
+    const cleanReg = String(reg).trim();
+    if (cleanReg.toLowerCase() === lowerIncoming) {
+      return cleanReg;
+    }
+  }
+
+  // 2. Normalized space & punctuation match (e.g. '99acres' -> '99 Acres', 'just-dial' -> 'Justdial')
+  for (const reg of registeredSources) {
+    if (!reg) continue;
+    const cleanReg = String(reg).trim();
+    if (normalizeSource(cleanReg) === normIncoming) {
+      return cleanReg;
+    }
+  }
+
+  // 3. Root comparison (e.g. 'housing.com' -> 'Housing.com', 'makaan.com' -> 'Makaan.com')
+  if (rootIncoming) {
+    for (const reg of registeredSources) {
+      if (!reg) continue;
+      const cleanReg = String(reg).trim();
+      const rootReg = getSourceRoot(cleanReg);
+      if (rootReg && rootReg === rootIncoming) {
+        return cleanReg;
+      }
+    }
+  }
+
+  // 4. Safe prefix match ONLY when incoming starts with registered source (e.g. 'Facebook Lead Ad' -> 'Facebook')
+  for (const reg of registeredSources) {
+    if (!reg) continue;
+    const cleanReg = String(reg).trim();
+    const lowerReg = cleanReg.toLowerCase();
+    if (lowerIncoming.startsWith(lowerReg) && lowerIncoming.length > lowerReg.length) {
+      return cleanReg;
+    }
+  }
+
+  // If no match in organization's registered sources, return the original incoming source untouched
+  return cleanIncoming;
 }
 
 /**
@@ -111,5 +186,6 @@ module.exports = {
   normalizeSource,
   getSourceRoot,
   matchSources,
+  canonicalizeSource,
   matchLeadSourceAndCampaign
 };
