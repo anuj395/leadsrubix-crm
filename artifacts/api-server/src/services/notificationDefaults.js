@@ -100,8 +100,8 @@ const DEFAULT_MATRIX_RULES = [
         channels: { whatsapp: false, email: false, push: true, in_app: true }
       },
       org_admin: {
-        enabled: false,
-        channels: { whatsapp: false, email: false, push: false, in_app: true },
+        enabled: true,
+        channels: { whatsapp: true, email: true, push: false, in_app: true },
         override_phone: '',
         override_email: ''
       },
@@ -126,7 +126,7 @@ const DEFAULT_MATRIX_RULES = [
       },
       org_admin: {
         enabled: true,
-        channels: { whatsapp: false, email: true, push: false, in_app: true },
+        channels: { whatsapp: true, email: true, push: false, in_app: true },
         override_phone: '',
         override_email: ''
       },
@@ -143,15 +143,15 @@ const DEFAULT_MATRIX_RULES = [
     routing: {
       assigned_agent: {
         enabled: true,
-        channels: { whatsapp: false, email: false, push: true, in_app: true }
+        channels: { whatsapp: true, email: true, push: true, in_app: true }
       },
       team_lead: {
         enabled: true,
         channels: { whatsapp: false, email: false, push: true, in_app: true }
       },
       org_admin: {
-        enabled: false,
-        channels: { whatsapp: false, email: false, push: false, in_app: true },
+        enabled: true,
+        channels: { whatsapp: false, email: true, push: false, in_app: true },
         override_phone: '',
         override_email: ''
       },
@@ -243,15 +243,15 @@ const DEFAULT_MATRIX_RULES = [
     routing: {
       assigned_agent: {
         enabled: true,
-        channels: { whatsapp: false, email: false, push: true, in_app: true }
+        channels: { whatsapp: true, email: true, push: true, in_app: true }
       },
       team_lead: {
         enabled: true,
         channels: { whatsapp: false, email: false, push: true, in_app: true }
       },
       org_admin: {
-        enabled: false,
-        channels: { whatsapp: false, email: false, push: false, in_app: true },
+        enabled: true,
+        channels: { whatsapp: false, email: true, push: false, in_app: true },
         override_phone: '',
         override_email: ''
       },
@@ -486,7 +486,75 @@ ${verticalConfig.detailTags}
       cta_url_template: '{{crm_lead_url}}'
     },
 
-    // 2. LEAD.TRANSFERRED TEMPLATES
+    // 2. LEAD.ASSIGNED TEMPLATES
+    {
+      event_key: 'lead.assigned',
+      channel: 'whatsapp',
+      name: 'Lead Assigned WhatsApp Alert',
+      subject_template: '👤 Lead Assigned: {{customer_name}}',
+      body_template: `👤 *New Lead Assigned to You*
+
+*Prospect:* {{customer_name}}
+*Phone:* {{customer_phone}}
+*Source:* {{lead_source}}
+${verticalConfig.detailTags}
+*Assigned Rep:* {{assigned_agent_name}}
+*Workspace:* {{organization_name}}
+
+⚡ *Speed-to-Lead:* Please call or WhatsApp this prospect promptly to initiate sales engagement.`,
+      cta_label: 'View Lead in CRM',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'lead.assigned',
+      channel: 'email',
+      name: 'Lead Assigned Email Notification',
+      subject_template: '🎯 Lead Assigned: {{customer_name}} ({{lead_source}})',
+      body_template: `
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;">
+  <div style="border-bottom: 2px solid #272944; padding-bottom: 12px; margin-bottom: 20px;">
+    <h2 style="color: #272944; margin: 0; font-size: 20px;">New Lead Assigned to Your Pipeline</h2>
+    <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0 0;">{{organization_name}} • ${verticalConfig.verticalName}</p>
+  </div>
+  <p style="font-size: 15px; color: #1f2937;">Hello <strong>{{assigned_agent_name}}</strong>,</p>
+  <p style="font-size: 14px; color: #4b5563; line-height: 22px;">A prospect has been assigned to your CRM pipeline:</p>
+  
+  <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin: 18px 0;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <tr><td style="padding: 6px 0; color: #6b7280; width: 140px;">Customer:</td><td style="font-weight: 700; color: #111827;">{{customer_name}}</td></tr>
+      <tr><td style="padding: 6px 0; color: #6b7280;">Contact Number:</td><td style="font-weight: 600; color: #111827;">{{customer_phone}}</td></tr>
+      <tr><td style="padding: 6px 0; color: #6b7280;">Email ID:</td><td style="font-weight: 600; color: #111827;">{{customer_email}}</td></tr>
+      <tr><td style="padding: 6px 0; color: #6b7280;">Source:</td><td style="font-weight: 600; color: #111827;">{{lead_source}}</td></tr>
+      ${verticalConfig.emailDetailRows}
+    </table>
+  </div>
+  <div style="text-align: center; margin-top: 24px;">
+    <a href="{{crm_lead_url}}" style="display: inline-block; background-color: #272944; color: #ffffff; padding: 12px 28px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px;">Open Lead in CRM</a>
+  </div>
+</div>`,
+      cta_label: 'Open Lead in CRM',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'lead.assigned',
+      channel: 'push',
+      name: 'Lead Assigned Mobile Push',
+      subject_template: '👤 Lead Assigned: {{customer_name}}',
+      body_template: '{{customer_name}} ({{lead_source}}) assigned to you. Tap to view and call.',
+      cta_label: 'View Lead',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'lead.assigned',
+      channel: 'in_app',
+      name: 'Lead Assigned In-App Alert',
+      subject_template: 'Lead Assigned: {{customer_name}}',
+      body_template: '{{customer_name}} from {{lead_source}} was assigned to your pipeline.',
+      cta_label: 'View',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+
+    // 3. LEAD.TRANSFERRED TEMPLATES
     {
       event_key: 'lead.transferred',
       channel: 'whatsapp',
@@ -538,6 +606,60 @@ _Please review the CRM activity history and take immediate next action._`,
       subject_template: 'Lead Reassigned: {{customer_name}}',
       body_template: '{{customer_name}} was reassigned to you from {{previous_agent_name}}.',
       cta_label: 'Open',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+
+    // 4. LEAD.STAGE_CHANGED TEMPLATES
+    {
+      event_key: 'lead.stage_changed',
+      channel: 'whatsapp',
+      name: 'Lead Stage Transition WhatsApp Alert',
+      subject_template: '📊 Stage Transition: {{customer_name}} ➔ {{deal_stage}}',
+      body_template: `📊 *Lead Stage Transition*
+
+*Customer:* {{customer_name}}
+*Phone:* {{customer_phone}}
+*New Stage:* {{deal_stage}}
+*Representative:* {{assigned_agent_name}}
+*Workspace:* {{organization_name}}
+
+_Lead stage updated in CRM pipeline._`,
+      cta_label: 'View Lead',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'lead.stage_changed',
+      channel: 'email',
+      name: 'Lead Stage Transition Email Notification',
+      subject_template: '📊 Stage Transition: {{customer_name}} moved to {{deal_stage}}',
+      body_template: `
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;">
+  <h2 style="color: #272944; margin: 0 0 16px 0; font-size: 20px;">Lead Stage Transition</h2>
+  <p style="font-size: 14px; color: #4b5563;">Prospect <strong>{{customer_name}}</strong> ({{customer_phone}}) has moved to stage <strong>{{deal_stage}}</strong>.</p>
+  <p style="font-size: 14px; color: #4b5563;">Representative: <strong>{{assigned_agent_name}}</strong></p>
+  <div style="text-align: center; margin: 24px 0;">
+    <a href="{{crm_lead_url}}" style="display: inline-block; background-color: #272944; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px;">View Lead in CRM</a>
+  </div>
+</div>`,
+      cta_label: 'View Lead',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'lead.stage_changed',
+      channel: 'push',
+      name: 'Lead Stage Transition Mobile Push',
+      subject_template: '📊 Stage Transition: {{customer_name}}',
+      body_template: '{{customer_name}} moved to {{deal_stage}} by {{assigned_agent_name}}.',
+      cta_label: 'View',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'lead.stage_changed',
+      channel: 'in_app',
+      name: 'Lead Stage Transition In-App Alert',
+      subject_template: 'Stage Transition: {{customer_name}}',
+      body_template: '{{customer_name}} transitioned to {{deal_stage}}.',
+      cta_label: 'View',
       cta_url_template: '{{crm_lead_url}}'
     },
 
@@ -599,7 +721,63 @@ _Speed-to-contact is critical. Please complete this call on schedule._`,
       cta_url_template: '{{crm_lead_url}}'
     },
 
-    // 4. DEAL.WON TEMPLATES
+    // 6. TASK.SLA_BREACH TEMPLATES
+    {
+      event_key: 'task.sla_breach',
+      channel: 'whatsapp',
+      name: 'SLA Escalation WhatsApp Alert',
+      subject_template: '🚨 SLA Escalation: {{customer_name}}',
+      body_template: `🚨 *SLA Escalation Alert*
+
+*Prospect:* {{customer_name}}
+*Phone:* {{customer_phone}}
+*Source:* {{lead_source}}
+*Assigned Rep:* {{assigned_agent_name}}
+*Workspace:* {{organization_name}}
+
+⚠️ *Action Overdue:* This lead has not been contacted within the required SLA window. Immediate attention required!`,
+      cta_label: 'Call Lead Now',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'task.sla_breach',
+      channel: 'email',
+      name: 'SLA Escalation Email Notification',
+      subject_template: '🚨 SLA Breach Alert: Uncontacted Lead {{customer_name}}',
+      body_template: `
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #ffffff; border: 1px solid #ef4444; border-radius: 10px;">
+  <div style="border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin-bottom: 20px;">
+    <h2 style="color: #dc2626; margin: 0; font-size: 20px;">⚠️ SLA Escalation: Uncontacted Lead</h2>
+  </div>
+  <p style="font-size: 14px; color: #4b5563;">Prospect <strong>{{customer_name}}</strong> ({{customer_phone}}) has exceeded the initial contact SLA window.</p>
+  <p style="font-size: 14px; color: #4b5563;">Assigned Representative: <strong>{{assigned_agent_name}}</strong></p>
+  <div style="text-align: center; margin: 24px 0;">
+    <a href="{{crm_lead_url}}" style="display: inline-block; background-color: #dc2626; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px;">Take Action Now</a>
+  </div>
+</div>`,
+      cta_label: 'Take Action Now',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'task.sla_breach',
+      channel: 'push',
+      name: 'SLA Escalation Mobile Push',
+      subject_template: '🚨 SLA Escalation: {{customer_name}}',
+      body_template: 'SLA breached for {{customer_name}}. Please connect immediately.',
+      cta_label: 'Call Now',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'task.sla_breach',
+      channel: 'in_app',
+      name: 'SLA Escalation In-App Alert',
+      subject_template: 'SLA Escalation: {{customer_name}}',
+      body_template: 'Initial contact SLA breached for {{customer_name}}.',
+      cta_label: 'Take Action',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+
+    // 7. DEAL.WON TEMPLATES
     {
       event_key: 'deal.won',
       channel: 'whatsapp',
@@ -655,6 +833,59 @@ _Congratulations to {{assigned_agent_name}} and the entire team on this win!_ �
       name: 'Deal Won In-App Alert',
       subject_template: 'Deal Closed Won: {{deal_title}}',
       body_template: '{{assigned_agent_name}} successfully closed {{deal_title}} for ₹{{deal_amount}}.',
+      cta_label: 'View Deal',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+
+    // 8. DEAL.LOST TEMPLATES
+    {
+      event_key: 'deal.lost',
+      channel: 'whatsapp',
+      name: 'Deal Lost WhatsApp Notification',
+      subject_template: '📉 Deal Closed Lost: {{deal_title}}',
+      body_template: `📉 *Deal Marked Closed Lost*
+
+*Opportunity:* {{deal_title}}
+*Customer:* {{customer_name}}
+*Value:* ₹{{deal_amount}}
+*Representative:* {{assigned_agent_name}}
+*Workspace:* {{organization_name}}
+
+_Opportunity closed as dropped/lost in CRM._`,
+      cta_label: 'View Deal',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'deal.lost',
+      channel: 'email',
+      name: 'Deal Lost Email Notification',
+      subject_template: '📉 Deal Closed Lost: {{deal_title}} (₹{{deal_amount}})',
+      body_template: `
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;">
+  <h2 style="color: #6b7280; margin: 0 0 16px 0; font-size: 20px;">Deal Marked Closed Lost</h2>
+  <p style="font-size: 14px; color: #4b5563;">Opportunity <strong>{{deal_title}}</strong> (₹{{deal_amount}}) was marked Closed Lost by <strong>{{assigned_agent_name}}</strong>.</p>
+  <div style="text-align: center; margin: 24px 0;">
+    <a href="{{crm_lead_url}}" style="display: inline-block; background-color: #4b5563; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px;">View Deal Summary</a>
+  </div>
+</div>`,
+      cta_label: 'View Deal Summary',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'deal.lost',
+      channel: 'push',
+      name: 'Deal Lost Mobile Push Alert',
+      subject_template: '📉 Deal Closed Lost: {{deal_title}}',
+      body_template: '{{deal_title}} was marked Closed Lost by {{assigned_agent_name}}.',
+      cta_label: 'View',
+      cta_url_template: '{{crm_lead_url}}'
+    },
+    {
+      event_key: 'deal.lost',
+      channel: 'in_app',
+      name: 'Deal Lost In-App Alert',
+      subject_template: 'Deal Closed Lost: {{deal_title}}',
+      body_template: '{{deal_title}} was marked Closed Lost by {{assigned_agent_name}}.',
       cta_label: 'View Deal',
       cta_url_template: '{{crm_lead_url}}'
     },

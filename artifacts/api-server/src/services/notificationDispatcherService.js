@@ -316,8 +316,31 @@ async function dispatchCrmEvent({
       const tenantTpl = customTemplates.find(t => t.organization_id === organizationId && t.channel === ch);
       const platformTpl = customTemplates.find(t => !t.organization_id && t.channel === ch);
       const defaultTpl = defaultTemplates.find(t => t.event_key === eventKey && t.channel === ch);
-      templateByChannel[ch] = tenantTpl || platformTpl || defaultTpl || null;
+      // Fallback to lead.created template for the same channel if available
+      const fallbackTpl = defaultTemplates.find(t => t.event_key === 'lead.created' && t.channel === ch);
+      templateByChannel[ch] = tenantTpl || platformTpl || defaultTpl || fallbackTpl || null;
     }
+
+    // Helper: Dynamic fallback content generator if no template exists
+    const getDynamicFallbackContent = (channel) => {
+      const eventLabel = STANDARD_EVENTS.find(e => e.event_key === eventKey)?.event_label || eventKey;
+      if (channel === 'whatsapp') {
+        return {
+          subject: `CRM Alert: ${eventLabel}`,
+          body: `*CRM Notification: ${eventLabel}*\n\n*Customer:* {{customer_name}}\n*Phone:* {{customer_phone}}\n*Source:* {{lead_source}}\n*Assigned Rep:* {{assigned_agent_name}}\n*Workspace:* {{organization_name}}\n\n_Please check your CRM pipeline for details._`
+        };
+      }
+      if (channel === 'email') {
+        return {
+          subject: `CRM Alert: ${eventLabel} - {{customer_name}}`,
+          body: `<div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;"><h2>CRM Alert: ${eventLabel}</h2><p>Customer: <strong>{{customer_name}}</strong> ({{customer_phone}})</p><p>Representative: <strong>{{assigned_agent_name}}</strong></p><p><a href="{{crm_lead_url}}" style="display:inline-block;padding:10px 20px;background:#272944;color:#fff;text-decoration:none;border-radius:4px;">Open in CRM</a></p></div>`
+        };
+      }
+      return {
+        subject: `${eventLabel}: {{customer_name}}`,
+        body: `${eventLabel} notification for {{customer_name}} ({{lead_source}}).`
+      };
+    };
 
     // 6. Build Dispatch Queue
     const dispatchTasks = [];
@@ -326,10 +349,13 @@ async function dispatchCrmEvent({
     const enqueueDispatch = ({ recipientRole, recipientObj, channel }) => {
       if (!recipientObj) return;
       const tpl = templateByChannel[channel];
-      if (!tpl && channel !== 'in_app') return;
+      const dynamicFallback = !tpl ? getDynamicFallbackContent(channel) : null;
 
-      const renderedSubject = tpl?.subject_template ? replaceMergeTokens(tpl.subject_template, mergeMap) : `CRM Alert: ${eventKey}`;
-      const renderedBody = tpl?.body_template ? replaceMergeTokens(tpl.body_template, mergeMap) : `Notification for ${mergeMap.customer_name}`;
+      const subjectTpl = tpl?.subject_template || dynamicFallback?.subject || `CRM Alert: ${eventKey}`;
+      const bodyTpl = tpl?.body_template || dynamicFallback?.body || `Notification for ${mergeMap.customer_name}`;
+
+      const renderedSubject = replaceMergeTokens(subjectTpl, mergeMap);
+      const renderedBody = replaceMergeTokens(bodyTpl, mergeMap);
 
       dispatchTasks.push(async () => {
         const itemStartTime = Date.now();
