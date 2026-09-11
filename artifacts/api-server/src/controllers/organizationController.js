@@ -635,7 +635,7 @@ exports.getEmailSettings = async (req, res, next) => {
       }
     ];
 
-    const smtpConfig = org.smtpConfig || org.smtp_config || {
+    const rawSmtpConfig = org.smtpConfig || org.smtp_config || {
       useCustomSmtp: false,
       smtpHost: '',
       smtpPort: 465,
@@ -644,6 +644,13 @@ exports.getEmailSettings = async (req, res, next) => {
       fromEmail: '',
       fromName: org.organization_name || org.organizationName || 'Workspace',
       security: 'SSL'
+    };
+
+    const rawPass = rawSmtpConfig.smtpPass || '';
+    const smtpConfig = {
+      ...rawSmtpConfig,
+      smtpPass: rawPass ? '••••••••' : '',
+      hasConfiguredPassword: Boolean(rawPass)
     };
 
     const emailTemplates = (org.emailTemplates || org.email_templates || []).length > 0
@@ -679,6 +686,14 @@ exports.updateEmailSettings = async (req, res, next) => {
 
     const updateFields = {};
     if (smtpConfig !== undefined) {
+      // If client submitted masked placeholder or empty password when existing password exists, preserve existing password
+      if (smtpConfig.smtpPass === '••••••••' || !smtpConfig.smtpPass) {
+        const existingOrg = await Organization.findOne(orgQuery).lean().exec();
+        const existingPass = existingOrg?.smtp_config?.smtpPass || existingOrg?.smtpConfig?.smtpPass || '';
+        if (existingPass) {
+          smtpConfig.smtpPass = existingPass;
+        }
+      }
       updateFields.smtp_config = smtpConfig;
       updateFields.smtpConfig = smtpConfig;
     }
@@ -693,11 +708,19 @@ exports.updateEmailSettings = async (req, res, next) => {
       { new: true }
     ).exec();
 
+    const returnedSmtp = updated.smtp_config || updated.smtpConfig || {};
+    const returnedPass = returnedSmtp.smtpPass || '';
+    const safeReturnedSmtp = {
+      ...returnedSmtp,
+      smtpPass: returnedPass ? '••••••••' : '',
+      hasConfiguredPassword: Boolean(returnedPass)
+    };
+
     res.json({
       success: true,
       message: 'Workspace email settings updated successfully!',
       organizationId: String(updated._id),
-      smtpConfig: updated.smtp_config || updated.smtpConfig,
+      smtpConfig: safeReturnedSmtp,
       emailTemplates: updated.email_templates || updated.emailTemplates
     });
   } catch (err) {

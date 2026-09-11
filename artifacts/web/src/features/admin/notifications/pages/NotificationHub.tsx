@@ -33,6 +33,15 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import BoltIcon from '@mui/icons-material/Bolt';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import SpeedIcon from '@mui/icons-material/Speed';
+import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
+import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SendIcon from '@mui/icons-material/Send';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -574,6 +583,65 @@ export default function NotificationHubPage() {
     }
   };
 
+  // 1-Click High-Level Presets for Client Admins
+  const handleApplyPreset = (type: 'recommended' | 'high_velocity' | 'essential') => {
+    setMatrixRules((prev) =>
+      prev.map((r) => {
+        const ev = r.event_key || r.eventKey;
+        if (type === 'recommended') {
+          return {
+            ...r,
+            is_enabled: true,
+            routing: {
+              assigned_agent: { enabled: true, channels: { whatsapp: true, email: false, push: true, in_app: true } },
+              team_lead: { enabled: true, channels: { whatsapp: false, email: true, push: false, in_app: true } },
+              org_admin: { enabled: true, channels: { whatsapp: false, email: true, push: false, in_app: true } },
+              customer: { enabled: ev === 'lead.created', channels: { whatsapp: ev === 'lead.created', email: false, push: false, in_app: false } }
+            }
+          };
+        } else if (type === 'high_velocity') {
+          return {
+            ...r,
+            is_enabled: true,
+            routing: {
+              assigned_agent: { enabled: true, channels: { whatsapp: true, email: true, push: true, in_app: true } },
+              team_lead: { enabled: true, channels: { whatsapp: true, email: true, push: true, in_app: true } },
+              org_admin: { enabled: true, channels: { whatsapp: true, email: true, push: true, in_app: true } },
+              customer: { enabled: ev === 'lead.created', channels: { whatsapp: ev === 'lead.created', email: false, push: false, in_app: false } }
+            }
+          };
+        } else {
+          // essential
+          return {
+            ...r,
+            is_enabled: true,
+            routing: {
+              assigned_agent: { enabled: true, channels: { whatsapp: false, email: false, push: false, in_app: true } },
+              team_lead: { enabled: true, channels: { whatsapp: false, email: true, push: false, in_app: true } },
+              org_admin: { enabled: true, channels: { whatsapp: false, email: true, push: false, in_app: true } },
+              customer: { enabled: false, channels: { whatsapp: false, email: false, push: false, in_app: false } }
+            }
+          };
+        }
+      })
+    );
+    setSnackbar({
+      open: true,
+      message: `Applied ${type === 'recommended' ? 'Recommended Standard' : type === 'high_velocity' ? 'High Velocity' : 'Essential Only'} preset! Click "Save Routing Matrix" below to commit changes.`,
+      severity: 'info'
+    });
+  };
+
+  // Direct Template Customization Navigation Shortcut
+  const handleNavigateToTemplate = (eventKey: string, channel: 'whatsapp' | 'email' | 'push' | 'in_app') => {
+    setSelectedEventKey(eventKey);
+    setSelectedChannel(channel);
+    const templateTabIndex = roleTabs.findIndex((t) => t.key === 'templates');
+    if (templateTabIndex >= 0) {
+      setActiveTab(templateTabIndex);
+    }
+  };
+
   // Save WhatsApp Gateway settings
   const handleSaveWaGateway = async () => {
     setSavingGateway(true);
@@ -682,7 +750,20 @@ export default function NotificationHubPage() {
   }, [activeTemplateBody]);
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 3 }, maxWidth: 1600, mx: 'auto' }}>
+    <Box
+      sx={{
+        flex: 1,
+        height: '100%',
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        p: { xs: 1.5, sm: 3 },
+        maxWidth: 1600,
+        mx: 'auto',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
         <Box>
@@ -1108,15 +1189,380 @@ export default function NotificationHubPage() {
               <strong>Team Supervisory Operational View:</strong> Workspace-wide routing rules are configured by your Workspace Administrator. Displayed below so team leaders have complete operational transparency into which team members and customers receive automatic CRM notifications.
             </Alert>
           )}
+
+          {/* Platform Assurance Banner for Client Admin */}
           {isAdmin && (
-            <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-              <strong>Intelligent Multi-Recipient Broadcasting:</strong> When a CRM event occurs, notifications are delivered simultaneously to the assigned sales agent, their reporting team lead, workspace admin, and the customer based on these active toggles.
-            </Alert>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                mb: 3,
+                borderRadius: 2.5,
+                background: 'linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(124,58,237,0.06) 100%)',
+                border: '1px solid rgba(37,99,235,0.2)',
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                justifyContent: 'space-between',
+                gap: 2
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(37,99,235,0.25)' }}>
+                  <BoltIcon fontSize="medium" />
+                </Box>
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      Universal Platform Engine Active
+                    </Typography>
+                    <Chip label="Zero Setup Required" size="small" color="success" sx={{ fontWeight: 700, fontSize: '0.72rem', height: 22 }} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                    Pre-connected to Leads Rubix cloud infrastructure. Omnichannel alerts across WhatsApp, Email, Push, and Bell notifications are active out of the box with recommended industry routing.
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
           )}
 
-          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-            <TableContainer>
-              <Table size="medium">
+          {/* 1-Click High-Level Presets Toolbar */}
+          {isAdmin && (
+            <Paper elevation={0} sx={{ p: 2.5, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    1-Click Omnichannel Presets
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Select a ready-to-run operational profile or fine-tune below.
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AutoFixHighIcon />}
+                    onClick={() => handleApplyPreset('recommended')}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, py: 0.75, px: 2 }}
+                  >
+                    🌟 Recommended Standard
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<SpeedIcon />}
+                    onClick={() => handleApplyPreset('high_velocity')}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, py: 0.75, px: 2 }}
+                  >
+                    🚀 High Velocity
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<NotificationsOffIcon />}
+                    onClick={() => handleApplyPreset('essential')}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, py: 0.75, px: 2 }}
+                  >
+                    🔕 Essential Only
+                  </Button>
+                </Stack>
+              </Box>
+            </Paper>
+          )}
+
+          {/* 5 Layman Smart Workflow Cards */}
+          {isAdmin && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Key Automation Workflows
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Core event workflows configured for your sales team. Toggle active status or customize messaging with one click.
+              </Typography>
+
+              <Grid container spacing={2}>
+                {/* Workflow Card 1: New Lead Arrival */}
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(37,99,235,0.1)', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <PersonIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            New Lead Arrival Alert
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            lead.created
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Switch
+                        checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'lead.created')?.is_enabled !== false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setMatrixRules(prev => prev.map(r => (r.event_key || r.eventKey) === 'lead.created' ? { ...r, is_enabled: checked } : r));
+                        }}
+                        color="primary"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
+                      Alerts assigned reps instantly when a new lead is captured via website, Facebook, Google ads, or CSV import.
+                    </Typography>
+                    <Divider sx={{ my: 1.5 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Stack direction="row" spacing={0.5}>
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '13px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                      </Stack>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        onClick={() => handleNavigateToTemplate('lead.created', 'whatsapp')}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                      >
+                        Customize ✏️
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+
+                {/* Workflow Card 2: Callback & Task Due */}
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(234,179,8,0.1)', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <AssignmentIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Follow-Up & Task Due
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            task.reminder
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Switch
+                        checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'task.reminder')?.is_enabled !== false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setMatrixRules(prev => prev.map(r => (r.event_key || r.eventKey) === 'task.reminder' ? { ...r, is_enabled: checked } : r));
+                        }}
+                        color="warning"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
+                      Sends timely reminders to reps before a scheduled callback, site inspection, or customer commitment deadline.
+                    </Typography>
+                    <Divider sx={{ my: 1.5 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Stack direction="row" spacing={0.5}>
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '13px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                      </Stack>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        onClick={() => handleNavigateToTemplate('task.reminder', 'whatsapp')}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                      >
+                        Customize ✏️
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+
+                {/* Workflow Card 3: Instant Customer Welcome */}
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(34,197,94,0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <WhatsAppIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Customer WhatsApp Greeting
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Direct to Lead
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Switch
+                        checked={(() => {
+                          const r = matrixRules.find(x => (x.event_key || x.eventKey) === 'lead.created');
+                          return r ? getChannelActive(r, 'customer', 'whatsapp') : false;
+                        })()}
+                        onChange={() => handleMatrixToggle('lead.created', 'customer', 'whatsapp')}
+                        color="success"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
+                      Sends a warm, professional WhatsApp welcome greeting directly to the prospect immediately upon lead creation.
+                    </Typography>
+                    <Divider sx={{ my: 1.5 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Stack direction="row" spacing={0.5}>
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip label="Customer Direct" size="small" variant="filled" sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'rgba(34,197,94,0.15)', color: '#15803d', fontWeight: 600 }} />
+                      </Stack>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        onClick={() => handleNavigateToTemplate('lead.created', 'whatsapp')}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                      >
+                        Customize ✏️
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+
+                {/* Workflow Card 4: Deal Won Milestone */}
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(168,85,247,0.1)', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <TrendingUpIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Deal Won Celebration
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            deal.won
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Switch
+                        checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'deal.won')?.is_enabled !== false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setMatrixRules(prev => prev.map(r => (r.event_key || r.eventKey) === 'deal.won' ? { ...r, is_enabled: checked } : r));
+                        }}
+                        color="primary"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
+                      Broadcasts victory alerts to managers and executives when an opportunity is successfully closed and won.
+                    </Typography>
+                    <Divider sx={{ my: 1.5 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Stack direction="row" spacing={0.5}>
+                        <Chip icon={<EmailIcon sx={{ fontSize: '13px !important' }} />} label="Email" size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                      </Stack>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        onClick={() => handleNavigateToTemplate('deal.won', 'email')}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                      >
+                        Customize ✏️
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+
+                {/* Workflow Card 5: Uncontacted SLA Escalation */}
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: 'rgba(239,68,68,0.1)', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <ErrorOutlineIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Uncontacted SLA Escalation
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            lead.uncontacted_sla
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Switch
+                        checked={matrixRules.find(r => (r.event_key || r.eventKey) === 'lead.uncontacted_sla')?.is_enabled !== false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setMatrixRules(prev => prev.map(r => (r.event_key || r.eventKey) === 'lead.uncontacted_sla' ? { ...r, is_enabled: checked } : r));
+                        }}
+                        color="error"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, fontSize: '0.85rem' }}>
+                      Escalates to Team Leads and Admins when a new lead remains without contact past the response SLA window.
+                    </Typography>
+                    <Divider sx={{ my: 1.5 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Stack direction="row" spacing={0.5}>
+                        <Chip icon={<WhatsAppIcon sx={{ fontSize: '13px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '13px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                        <Chip icon={<NotificationsIcon sx={{ fontSize: '13px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
+                      </Stack>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon sx={{ fontSize: '14px !important' }} />}
+                        onClick={() => handleNavigateToTemplate('lead.uncontacted_sla', 'whatsapp')}
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1, minWidth: 'auto' }}
+                      >
+                        Customize ✏️
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Advanced Channel Matrix Accordion */}
+          <Accordion
+            defaultExpanded={isSuperAdmin}
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: '12px !important',
+              overflow: 'hidden',
+              boxShadow: 'none',
+              '&:before': { display: 'none' },
+              mb: 3
+            }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'action.hover', minHeight: 56 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <TuneIcon color="primary" fontSize="small" />
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Advanced Granular Channel Matrix (144-Switch Grid)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Fine-tune specific delivery channels (WhatsApp, Email, Push, Bell) per recipient role and CRM lifecycle event.
+                  </Typography>
+                </Box>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <TableContainer
+                sx={{
+                  overflowX: 'auto',
+                  '&::-webkit-scrollbar': { height: 6 },
+                  '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 3 }
+                }}
+              >
+                <Table size="medium" sx={{ minWidth: 960 }}>
                 <TableHead sx={{ bgcolor: 'action.hover' }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700, width: '22%' }}>CRM Lifecycle Event</TableCell>
@@ -1332,36 +1778,38 @@ export default function NotificationHubPage() {
                 </TableBody>
               </Table>
             </TableContainer>
+          </AccordionDetails>
+        </Accordion>
 
-            {/* Bottom Actions Bar */}
-            <Box sx={{ p: 2, bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Typography variant="caption" color="text.secondary">
-                  Channel Key:
-                </Typography>
-                <Chip icon={<WhatsAppIcon sx={{ fontSize: '14px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" />
-                <Chip icon={<EmailIcon sx={{ fontSize: '14px !important' }} />} label="Email" size="small" color="primary" variant="outlined" />
-                <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '14px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" />
-                <Chip icon={<NotificationsIcon sx={{ fontSize: '14px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" />
-              </Stack>
-              {isAdmin ? (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<SaveIcon />}
-                  onClick={handleSaveMatrix}
-                  disabled={savingMatrix}
-                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}
-                >
-                  {savingMatrix ? 'Saving Changes...' : 'Save Routing Matrix'}
-                </Button>
-              ) : (
-                <Chip icon={<LockIcon sx={{ fontSize: '15px !important' }} />} label="Supervisory Read-Only Mode" color="default" variant="outlined" sx={{ fontWeight: 600 }} />
-              )}
-            </Box>
-          </Paper>
-        </Box>
-      )}
+        {/* Bottom Save Routing Matrix Bar */}
+        <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+              Channel Key:
+            </Typography>
+            <Chip icon={<WhatsAppIcon sx={{ fontSize: '14px !important' }} />} label="WhatsApp" size="small" color="success" variant="outlined" />
+            <Chip icon={<EmailIcon sx={{ fontSize: '14px !important' }} />} label="Email" size="small" color="primary" variant="outlined" />
+            <Chip icon={<PhoneIphoneIcon sx={{ fontSize: '14px !important' }} />} label="Push" size="small" color="secondary" variant="outlined" />
+            <Chip icon={<NotificationsIcon sx={{ fontSize: '14px !important' }} />} label="Bell" size="small" color="warning" variant="outlined" />
+          </Stack>
+          {isAdmin ? (
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveMatrix}
+              disabled={savingMatrix}
+              sx={{ textTransform: 'none', fontWeight: 700, px: 3.5, borderRadius: 2 }}
+            >
+              {savingMatrix ? 'Saving Changes...' : 'Save Routing Matrix'}
+            </Button>
+          ) : (
+            <Chip icon={<LockIcon sx={{ fontSize: '15px !important' }} />} label="Supervisory Read-Only Mode" color="default" variant="outlined" sx={{ fontWeight: 600 }} />
+          )}
+        </Paper>
+      </Box>
+    )}
 
       {/* TAB 1: DYNAMIC TEMPLATE STUDIO */}
       {!loading && currentTabKey === 'templates' && (
@@ -1496,16 +1944,16 @@ export default function NotificationHubPage() {
                   />
                 </Box>
 
-                {selectedChannel === 'email' && (
+                {selectedChannel !== 'whatsapp' && (
                   <TextField
                     fullWidth
-                    label="Email Subject Line"
+                    label={selectedChannel === 'email' ? 'Email Subject Line' : (selectedChannel === 'push' ? 'Push Notification Title' : 'Bell Alert Title')}
                     value={activeTemplateSubject}
                     onChange={(e) => setActiveTemplateSubject(e.target.value)}
                     size="small"
                     InputProps={{ readOnly: !isAdmin }}
                     sx={{ mb: 2 }}
-                    placeholder="e.g. 🎯 New Lead Alert: {{customer_name}} ({{project_name}})"
+                    placeholder={selectedChannel === 'email' ? 'e.g. 🎯 New Lead Alert: {{customer_name}} ({{project_name}})' : 'e.g. 🎯 New Lead Assigned: {{customer_name}}'}
                   />
                 )}
 
@@ -1545,7 +1993,7 @@ export default function NotificationHubPage() {
                         disabled={savingTemplate}
                         sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
                       >
-                        {savingTemplate ? 'Saving...' : 'Save Template'}
+                        {savingTemplate ? 'Saving...' : 'Save Template for Workspace'}
                       </Button>
                     ) : (
                       <Chip icon={<LockIcon sx={{ fontSize: '15px !important' }} />} label="Supervisory Preview Only" color="default" variant="outlined" size="small" />
@@ -2020,8 +2468,14 @@ export default function NotificationHubPage() {
 
           {/* Logs Table */}
           <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-            <TableContainer>
-              <Table size="small">
+            <TableContainer
+              sx={{
+                overflowX: 'auto',
+                '&::-webkit-scrollbar': { height: 6 },
+                '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 3 }
+              }}
+            >
+              <Table size="small" sx={{ minWidth: 960 }}>
                 <TableHead sx={{ bgcolor: 'action.hover' }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700 }}>Timestamp</TableCell>

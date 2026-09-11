@@ -55,6 +55,24 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
   const adminPhoneOverride = plain.admin_phone_override || plain.adminPhoneOverride || '';
   const notifyCustomerWelcome = plain.notify_customer_welcome !== undefined ? Boolean(plain.notify_customer_welcome) : (plain.notifyCustomerWelcome !== undefined ? Boolean(plain.notifyCustomerWelcome) : false);
 
+  // Provider Credentials Sanitization (Anti-Leakage Protection)
+  const isTenantRequest = Boolean(targetOrgId);
+  let safeSimplyToken = simply.access_token || simply.accessToken || '';
+  let safeWapiToken = wapi.wapi_token || wapi.wapiToken || '';
+  let safeCsApiKey = cs.api_key || cs.apiKey || '';
+
+  if (isTenantRequest && isUniversalMaster) {
+    // Platform fallback: Do not leak platform master token to tenant
+    safeSimplyToken = '';
+    safeWapiToken = '';
+    safeCsApiKey = '';
+  } else if (isTenantRequest && !isUniversalMaster) {
+    // Tenant's custom token: Mask token leaving only last 4 characters
+    if (safeSimplyToken) safeSimplyToken = '••••••••' + (safeSimplyToken.length > 4 ? safeSimplyToken.slice(-4) : '');
+    if (safeWapiToken) safeWapiToken = '••••••••' + (safeWapiToken.length > 4 ? safeWapiToken.slice(-4) : '');
+    if (safeCsApiKey) safeCsApiKey = '••••••••' + (safeCsApiKey.length > 4 ? safeCsApiKey.slice(-4) : '');
+  }
+
   return {
     _id: plain._id || null,
     organization_id: orgId,
@@ -99,8 +117,8 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
       url: simply.url || 'https://app.simplywhatsapp.com/api/send',
       instance_id: simply.instance_id || simply.instanceId || '',
       instanceId: simply.instance_id || simply.instanceId || '',
-      access_token: simply.access_token || simply.accessToken || '',
-      accessToken: simply.access_token || simply.accessToken || '',
+      access_token: safeSimplyToken,
+      accessToken: safeSimplyToken,
       incoming_json: simply.incoming_json || simply.incomingJson || '',
       incomingJson: simply.incoming_json || simply.incomingJson || '',
       transfer_json: simply.transfer_json || simply.transferJson || '',
@@ -110,8 +128,8 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
       active: Boolean(wapi.active),
       wapi_url: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
       wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
-      wapi_token: wapi.wapi_token || wapi.wapiToken || '',
-      wapiToken: wapi.wapi_token || wapi.wapiToken || '',
+      wapi_token: safeWapiToken,
+      wapiToken: safeWapiToken,
       incoming_json: wapi.incoming_json || wapi.incomingJson || '',
       incomingJson: wapi.incoming_json || wapi.incomingJson || '',
       transfer_json: wapi.transfer_json || wapi.transferJson || '',
@@ -120,8 +138,8 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
     chatSimplified: {
       active: Boolean(cs.active),
       url: cs.url || 'https://www.chatsimplified.co/api/v1/',
-      api_key: cs.api_key || cs.apiKey || '',
-      apiKey: cs.api_key || cs.apiKey || '',
+      api_key: safeCsApiKey,
+      apiKey: safeCsApiKey,
       incoming_json: cs.incoming_json || cs.incomingJson || '',
       incomingJson: cs.incoming_json || cs.incomingJson || '',
       transfer_json: cs.transfer_json || cs.transferJson || '',
@@ -130,13 +148,15 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
     chat_simplified: {
       active: Boolean(cs.active),
       url: cs.url || 'https://www.chatsimplified.co/api/v1/',
-      api_key: cs.api_key || cs.apiKey || '',
-      apiKey: cs.api_key || cs.apiKey || '',
+      api_key: safeCsApiKey,
+      apiKey: safeCsApiKey,
       incoming_json: cs.incoming_json || cs.incomingJson || '',
       incomingJson: cs.incoming_json || cs.incomingJson || '',
       transfer_json: cs.transfer_json || cs.transferJson || '',
       transferJson: cs.transfer_json || cs.transferJson || '',
-    }
+    },
+    hasUniversalFallback: Boolean(universalConfig || isUniversalMaster),
+    isPlatformManaged: isTenantRequest && isUniversalMaster
   };
 }
 
@@ -263,15 +283,20 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
-    // 1. Update Providers with Deep Merge
+    // 1. Update Providers with Deep Merge & Mask Preservation
     if (req.body.simply) {
       const existingSimply = config.simply ? (config.simply.toObject ? config.simply.toObject() : config.simply) : {};
       const inSimply = req.body.simply;
+      let inAccessToken = (inSimply.access_token !== undefined ? inSimply.access_token : (inSimply.accessToken !== undefined ? inSimply.accessToken : '')).trim();
+      const existingToken = existingSimply.access_token || existingSimply.accessToken || '';
+      if (inAccessToken.includes('••••••••') || !inAccessToken) {
+        inAccessToken = existingToken;
+      }
       config.simply = {
         active: inSimply.active !== undefined ? Boolean(inSimply.active) : Boolean(existingSimply.active),
         url: (inSimply.url || existingSimply.url || 'https://app.simplywhatsapp.com/api/send').trim(),
         instance_id: (inSimply.instance_id !== undefined ? inSimply.instance_id : (inSimply.instanceId !== undefined ? inSimply.instanceId : (existingSimply.instance_id || existingSimply.instanceId || ''))).trim(),
-        access_token: (inSimply.access_token !== undefined ? inSimply.access_token : (inSimply.accessToken !== undefined ? inSimply.accessToken : (existingSimply.access_token || existingSimply.accessToken || ''))).trim(),
+        access_token: inAccessToken,
         incoming_json: inSimply.incoming_json !== undefined ? inSimply.incoming_json : (inSimply.incomingJson !== undefined ? inSimply.incomingJson : (existingSimply.incoming_json || '')),
         transfer_json: inSimply.transfer_json !== undefined ? inSimply.transfer_json : (inSimply.transferJson !== undefined ? inSimply.transferJson : (existingSimply.transfer_json || ''))
       };
@@ -280,10 +305,15 @@ router.post('/', authenticate, async (req, res, next) => {
     if (req.body.wapi) {
       const existingWapi = config.wapi ? (config.wapi.toObject ? config.wapi.toObject() : config.wapi) : {};
       const inWapi = req.body.wapi;
+      let inWapiToken = (inWapi.wapi_token !== undefined ? inWapi.wapi_token : (inWapi.wapiToken !== undefined ? inWapi.wapiToken : '')).trim();
+      const existingToken = existingWapi.wapi_token || existingWapi.wapiToken || '';
+      if (inWapiToken.includes('••••••••') || !inWapiToken) {
+        inWapiToken = existingToken;
+      }
       config.wapi = {
         active: inWapi.active !== undefined ? Boolean(inWapi.active) : Boolean(existingWapi.active),
         wapi_url: (inWapi.wapi_url || inWapi.wapiUrl || existingWapi.wapi_url || existingWapi.wapiUrl || 'https://gate.whapi.cloud').trim(),
-        wapi_token: (inWapi.wapi_token !== undefined ? inWapi.wapi_token : (inWapi.wapiToken !== undefined ? inWapi.wapiToken : (existingWapi.wapi_token || existingWapi.wapiToken || ''))).trim(),
+        wapi_token: inWapiToken,
         incoming_json: inWapi.incoming_json !== undefined ? inWapi.incoming_json : (inWapi.incomingJson !== undefined ? inWapi.incomingJson : (existingWapi.incoming_json || '')),
         transfer_json: inWapi.transfer_json !== undefined ? inWapi.transfer_json : (inWapi.transferJson !== undefined ? inWapi.transferJson : (existingWapi.transfer_json || ''))
       };
@@ -294,10 +324,15 @@ router.post('/', authenticate, async (req, res, next) => {
       const existingCS = (config.chat_simplified || config.chatSimplified)
         ? ((config.chat_simplified || config.chatSimplified).toObject ? (config.chat_simplified || config.chatSimplified).toObject() : (config.chat_simplified || config.chatSimplified))
         : {};
+      let inApiKey = (inCS.api_key !== undefined ? inCS.api_key : (inCS.apiKey !== undefined ? inCS.apiKey : '')).trim();
+      const existingApiKey = existingCS.api_key || existingCS.apiKey || '';
+      if (inApiKey.includes('••••••••') || !inApiKey) {
+        inApiKey = existingApiKey;
+      }
       const mergedCS = {
         active: inCS.active !== undefined ? Boolean(inCS.active) : Boolean(existingCS.active),
         url: (inCS.url || existingCS.url || 'https://www.chatsimplified.co/api/v1/').trim(),
-        api_key: (inCS.api_key !== undefined ? inCS.api_key : (inCS.apiKey !== undefined ? inCS.apiKey : (existingCS.api_key || existingCS.apiKey || ''))).trim(),
+        api_key: inApiKey,
         incoming_json: inCS.incoming_json !== undefined ? inCS.incoming_json : (inCS.incomingJson !== undefined ? inCS.incomingJson : (existingCS.incoming_json || '')),
         transfer_json: inCS.transfer_json !== undefined ? inCS.transfer_json : (inCS.transferJson !== undefined ? inCS.transferJson : (existingCS.transfer_json || ''))
       };
