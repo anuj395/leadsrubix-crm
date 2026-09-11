@@ -998,7 +998,7 @@ export default function NotificationHubPage() {
             }}
           >
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={7}>
+              <Grid size={{ xs: 12, md: 7 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Box
                     sx={{
@@ -1036,7 +1036,7 @@ export default function NotificationHubPage() {
                   </Box>
                 </Stack>
               </Grid>
-              <Grid item xs={12} md={5}>
+              <Grid size={{ xs: 12, md: 5 }}>
                 <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} useFlexGap>
                   <Chip
                     icon={<WhatsAppIcon sx={{ fontSize: '15px !important' }} />}
@@ -1142,7 +1142,7 @@ export default function NotificationHubPage() {
               }
 
               return (
-                <Grid item xs={12} md={6} key={categoryKey}>
+                <Grid size={{ xs: 12, md: 6 }} key={categoryKey}>
                   <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%' }}>
                     <CardContent sx={{ p: 2.5 }}>
                       <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 2 }}>
@@ -1394,7 +1394,7 @@ export default function NotificationHubPage() {
 
               <Grid container spacing={1.5}>
                 {/* Workflow Card 1: New Lead Arrival */}
-                <Grid item xs={12} sm={6} lg={4}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                   <Card
                     elevation={0}
                     sx={{
@@ -1450,7 +1450,7 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 2: Callback & Task Due */}
-                <Grid item xs={12} sm={6} lg={4}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                   <Card
                     elevation={0}
                     sx={{
@@ -1506,7 +1506,7 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 3: Instant Customer Welcome */}
-                <Grid item xs={12} sm={6} lg={4}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                   <Card
                     elevation={0}
                     sx={{
@@ -1561,7 +1561,7 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 4: Deal Won Milestone */}
-                <Grid item xs={12} sm={6} lg={4}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                   <Card
                     elevation={0}
                     sx={{
@@ -1616,7 +1616,7 @@ export default function NotificationHubPage() {
                 </Grid>
 
                 {/* Workflow Card 5: Uncontacted SLA Escalation */}
-                <Grid item xs={12} sm={6} lg={4}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                   <Card
                     elevation={0}
                     sx={{
@@ -2163,7 +2163,7 @@ export default function NotificationHubPage() {
           {/* Main Studio Editor: 2-Column Responsive Workspace */}
           <Grid container spacing={2.5}>
             {/* Left Column: Template Editor Form */}
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Tabs
@@ -2262,7 +2262,7 @@ export default function NotificationHubPage() {
             </Grid>
 
             {/* Right Column: Live Device Mockup Preview */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column', position: { md: 'sticky' }, top: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
@@ -2457,7 +2457,7 @@ export default function NotificationHubPage() {
         <Box>
           <Grid container spacing={2.5}>
             {/* WhatsApp Gateway Card */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
@@ -2557,7 +2557,7 @@ export default function NotificationHubPage() {
             </Grid>
 
             {/* Email SMTP Gateway Card */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
@@ -2575,13 +2575,13 @@ export default function NotificationHubPage() {
                 </Alert>
 
                 <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                  <Grid item xs={8}>
+                  <Grid size={{ xs: 8 }}>
                     <TextField fullWidth size="small" label="SMTP Host" value={emailConfig.host} disabled />
                   </Grid>
-                  <Grid item xs={4}>
+                  <Grid size={{ xs: 4 }}>
                     <TextField fullWidth size="small" label="Port" value={emailConfig.port} disabled />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField fullWidth size="small" label="From Email Address" value={emailConfig.fromEmail} disabled />
                   </Grid>
                 </Grid>
@@ -2606,7 +2606,7 @@ export default function NotificationHubPage() {
             </Grid>
 
             {/* Mobile Push Gateway Card */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
@@ -2624,10 +2624,10 @@ export default function NotificationHubPage() {
                 </Alert>
 
                 <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <TextField fullWidth size="small" label="AWS Region" value={pushConfig.region} disabled />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <TextField fullWidth size="small" label="Expo Push Relay" value="Enabled (exp.host)" disabled />
                   </Grid>
                 </Grid>
@@ -2652,7 +2652,7 @@ export default function NotificationHubPage() {
             </Grid>
 
             {/* In-App Bell Center Card */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
@@ -2716,7 +2716,7 @@ export default function NotificationHubPage() {
           {/* Filters Bar */}
           <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={3}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Channel</InputLabel>
                   <Select
@@ -2733,7 +2733,7 @@ export default function NotificationHubPage() {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={3}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Delivery Status</InputLabel>
                   <Select
@@ -2749,7 +2749,7 @@ export default function NotificationHubPage() {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   fullWidth
                   size="small"
@@ -2760,7 +2760,7 @@ export default function NotificationHubPage() {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -2876,7 +2876,7 @@ export default function NotificationHubPage() {
           </Typography>
 
           <Grid container spacing={2}>
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Channel</InputLabel>
                 <Select
@@ -2892,7 +2892,7 @@ export default function NotificationHubPage() {
               </FormControl>
             </Grid>
 
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Event Key</InputLabel>
                 <Select
@@ -2911,7 +2911,7 @@ export default function NotificationHubPage() {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 size="small"
@@ -2922,7 +2922,7 @@ export default function NotificationHubPage() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -2969,23 +2969,23 @@ export default function NotificationHubPage() {
           {selectedLogPayload && (
             <Box>
               <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={4}>
+                <Grid size={{ xs: 4 }}>
                   <Typography variant="caption" color="text.secondary">Event:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedLogPayload.event_key || selectedLogPayload.eventKey}</Typography>
                 </Grid>
-                <Grid item xs={4}>
+                <Grid size={{ xs: 4 }}>
                   <Typography variant="caption" color="text.secondary">Channel:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>{selectedLogPayload.channel}</Typography>
                 </Grid>
-                <Grid item xs={4}>
+                <Grid size={{ xs: 4 }}>
                   <Typography variant="caption" color="text.secondary">Status:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{selectedLogPayload.status}</Typography>
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" color="text.secondary">Recipient Contact:</Typography>
                   <Typography variant="body2">{selectedLogPayload.recipient_contact} ({selectedLogPayload.recipient_name || 'N/A'})</Typography>
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" color="text.secondary">Recipient Role:</Typography>
                   <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{String(selectedLogPayload.recipient_type).replace('_', ' ')}</Typography>
                 </Grid>
@@ -3082,7 +3082,7 @@ export default function NotificationHubPage() {
               </Alert>
 
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
                       <WhatsAppIcon sx={{ color: '#25D366' }} />
@@ -3096,7 +3096,7 @@ export default function NotificationHubPage() {
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
                       <PhoneIphoneIcon sx={{ color: '#0284C7' }} />
@@ -3110,7 +3110,7 @@ export default function NotificationHubPage() {
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
                       <NotificationsIcon sx={{ color: '#F59E0B' }} />
@@ -3124,7 +3124,7 @@ export default function NotificationHubPage() {
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
                       <EmailIcon sx={{ color: '#EA4335' }} />
