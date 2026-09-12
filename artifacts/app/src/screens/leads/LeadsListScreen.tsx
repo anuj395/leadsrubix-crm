@@ -893,6 +893,8 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
     );
   };
 
+  const isAllSelected = filteredAndSortedLeads.length > 0 && selectedIds.length === filteredAndSortedLeads.length;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#272944" />
@@ -1126,60 +1128,82 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
         />
       )}
 
-      {/* ─── Floating Bulk Action Dock (Executive Apple-style Island) ─── */}
+      {/* ─── Floating Bulk Action Dock (Executive Obsidian Glass Island) ─── */}
       {isSelectionMode && (
         <View style={styles.floatingBulkDock}>
-          <TouchableOpacity onPress={toggleSelectAll} style={styles.selectAllBtn} activeOpacity={0.8}>
+          {/* Left: Selection Counter & Toggle Pill */}
+          <TouchableOpacity
+            onPress={toggleSelectAll}
+            style={[
+              styles.dockSelectionPill,
+              isAllSelected && styles.dockSelectionPillAll,
+            ]}
+            activeOpacity={0.75}
+          >
             <Ionicons
-              name={selectedIds.length === filteredAndSortedLeads.length ? 'checkbox' : 'square-outline'}
+              name={
+                isAllSelected
+                  ? 'checkmark-circle'
+                  : selectedIds.length > 0
+                  ? 'checkbox'
+                  : 'square-outline'
+              }
               size={17}
-              color="#93C5FD"
+              color={selectedIds.length > 0 ? '#38BDF8' : '#94A3B8'}
             />
-            <Text style={styles.selectAllText}>
-              {selectedIds.length === filteredAndSortedLeads.length ? 'Deselect' : 'Select All'}
+            <Text style={styles.dockSelectionText}>
+              {isAllSelected
+                ? `All (${selectedIds.length})`
+                : `${selectedIds.length} Selected`}
             </Text>
           </TouchableOpacity>
 
+          {/* Right: Unified Action Buttons */}
           <View style={styles.bulkDockActionButtons}>
+            {/* Copy / Share Button */}
             <TouchableOpacity
               style={[styles.dockActionBtn, selectedIds.length === 0 && styles.btnDisabled]}
               onPress={handleBulkCopy}
               disabled={selectedIds.length === 0}
-              activeOpacity={0.8}
+              activeOpacity={0.75}
             >
-              <Ionicons name="copy-outline" size={13} color="#FFFFFF" />
-              <Text style={styles.dockActionText}>Copy ({selectedIds.length})</Text>
+              <Ionicons name="copy-outline" size={13} color="#E2E8F0" />
+              <Text style={styles.dockActionText}>Copy</Text>
             </TouchableOpacity>
 
+            {/* Reassign Button (Primary Action) */}
             <TouchableOpacity
               style={[styles.dockActionBtnReassign, selectedIds.length === 0 && styles.btnDisabled]}
               onPress={() => setBulkReassignVisible(true)}
               disabled={selectedIds.length === 0}
               activeOpacity={0.8}
             >
-              <Ionicons name="people-outline" size={13} color="#FFFFFF" />
-              <Text style={styles.dockActionText}>Reassign</Text>
+              <Ionicons name="people" size={14} color="#FFFFFF" />
+              <Text style={styles.dockActionTextReassign}>Reassign</Text>
             </TouchableOpacity>
 
+            {/* Delete Button (Safe Destructive Tint) */}
             <TouchableOpacity
               style={[styles.dockActionBtnDelete, selectedIds.length === 0 && styles.btnDisabled]}
               onPress={handleBulkDelete}
               disabled={selectedIds.length === 0}
-              activeOpacity={0.8}
+              activeOpacity={0.75}
             >
-              <Ionicons name="trash-outline" size={14} color="#FFFFFF" />
+              <Ionicons name="trash-outline" size={15} color="#F87171" />
+            </TouchableOpacity>
+
+            {/* Dismiss Button */}
+            <TouchableOpacity
+              style={styles.closeDockBtn}
+              onPress={() => {
+                setIsSelectionMode(false);
+                setSelectedIds([]);
+              }}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="close" size={15} color="#94A3B8" />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.closeDockBtn}
-            onPress={() => {
-              setIsSelectionMode(false);
-              setSelectedIds([]);
-            }}
-          >
-            <Ionicons name="close" size={18} color="#94A3B8" />
-          </TouchableOpacity>
         </View>
       )}
 
@@ -1931,36 +1955,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ─── Floating Bulk Action Dock (Executive Apple Island) ───
+  // ─── Floating Bulk Action Dock (Executive Obsidian Glass Island) ───
   floatingBulkDock: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 84 : 70,
-    left: 14,
-    right: 14,
+    bottom: Platform.OS === 'ios' ? 88 : 74,
+    left: 12,
+    right: 12,
     backgroundColor: '#0F172A',
-    borderRadius: 18,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    borderRadius: 22,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    elevation: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
   },
-  selectAllBtn: {
+  dockSelectionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    height: 35,
+    borderRadius: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  selectAllText: {
-    color: '#CBD5E1',
-    fontSize: 11.5,
+  dockSelectionPillAll: {
+    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  dockSelectionText: {
+    color: '#F8FAFC',
+    fontSize: 12,
     fontWeight: '700',
+    letterSpacing: -0.1,
   },
   bulkDockActionButtons: {
     flexDirection: 'row',
@@ -1970,37 +2005,64 @@ const styles = StyleSheet.create({
   dockActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#272944',
-    paddingHorizontal: 10,
-    paddingVertical: 5.5,
-    borderRadius: 9,
-    gap: 4,
+    justifyContent: 'center',
+    height: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 11,
+    borderRadius: 11,
+    gap: 4.5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  dockActionText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   dockActionBtnReassign: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 10,
-    paddingVertical: 5.5,
-    borderRadius: 9,
-    gap: 4,
+    justifyContent: 'center',
+    height: 35,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.4)',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  dockActionTextReassign: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   dockActionBtnDelete: {
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 8,
-    paddingVertical: 5.5,
-    borderRadius: 9,
-  },
-  dockActionText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  btnDisabled: {
-    opacity: 0.4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 35,
+    height: 35,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.32)',
   },
   closeDockBtn: {
-    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  btnDisabled: {
+    opacity: 0.35,
   },
 
   // ─── Sort Modal Bottom Sheet ───
