@@ -22,8 +22,8 @@ import { theme } from '../../theme/theme';
 
 export const LoginScreen = ({ navigation }: any) => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(__DEV__ ? 'dev@digitalrubix.com' : '');
+  const [password, setPassword] = useState(__DEV__ ? 'dev@1221' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 

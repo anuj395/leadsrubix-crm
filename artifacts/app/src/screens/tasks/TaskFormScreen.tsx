@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { CalendarDatePickerModal } from '../../components/ui/CalendarDatePickerModal';
+import { theme } from '../../theme/theme';
 
 const CALLBACK_REASONS = [
   'Customer Busy / Call Later',
@@ -32,6 +33,17 @@ const CALLBACK_REASONS = [
   'Other',
 ];
 
+const ENTERPRISE_TASK_TYPES = [
+  'Call Back',
+  'Site Visit',
+  'Meeting',
+  'Online Demo',
+  'Follow-up',
+  'Document Collection / KYC',
+];
+
+const PRIORITY_OPTIONS = ['Urgent', 'High', 'Medium', 'Low'] as const;
+
 interface OrgUser {
   id?: string;
   email: string;
@@ -42,54 +54,11 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
   const semantics = getIndustrySemantics(user?.industryId);
 
-  // Determine if editing existing task or creating
   const existingTask: TaskItem | undefined = route?.params?.task;
   const initialLead: any = route?.params?.lead;
   const isEditMode = Boolean(existingTask?.id);
 
-  // Dynamic industry task types (Always includes the 6 enterprise standard follow-up types)
-  const taskTypes = useMemo(() => {
-    const ind = (user?.industryId || '').toLowerCase();
-    if (ind.includes('health') || ind.includes('clinic') || ind.includes('doctor')) {
-      return ['Call Back', 'Consultation', 'Site Visit', 'Meeting', 'Online Demo', 'Follow-up', 'Document Collection / KYC'];
-    }
-    if (ind.includes('auto')) {
-      return ['Call Back', 'Test Drive', 'Showroom Visit', 'Meeting', 'Online Demo', 'Follow-up', 'Document Collection / KYC'];
-    }
-    return [
-      'Call Back',
-      'Site Visit',
-      'Meeting',
-      'Online Demo',
-      'Follow-up',
-      'Document Collection / KYC',
-    ];
-  }, [user?.industryId]);
-
-  // Form states
-  const [taskType, setTaskType] = useState<string>(
-    existingTask?.type || existingTask?.taskType || taskTypes[0]
-  );
-  const [dueDate, setDueDate] = useState<string>(
-    existingTask?.rawDueDate || existingTask?.dueDate || ''
-  );
-  const [priority, setPriority] = useState<'Urgent' | 'High' | 'Medium' | 'Low'>(
-    existingTask?.priority || 'Medium'
-  );
-  const [callbackReason, setCallbackReason] = useState<string>(
-    existingTask?.callbackReason || existingTask?.call_back_reason || CALLBACK_REASONS[0]
-  );
-  const [notes, setNotes] = useState<string>(existingTask?.notes || '');
-
-  // Dynamic conditional fields matching Web CRM 1:1
-  const [meetingLocation, setMeetingLocation] = useState<string>(
-    existingTask?.meetingLocation || existingTask?.location || initialLead?.location || initialLead?.projectName || initialLead?.project || ''
-  );
-  const [demoLink, setDemoLink] = useState<string>(
-    existingTask?.demoLink || existingTask?.meetingLink || ''
-  );
-
-  // Contact Attachment State
+  // 1. Customer / Contact Selection
   const [selectedContact, setSelectedContact] = useState<{
     id?: string;
     name?: string;
@@ -119,29 +88,22 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       : null
   );
 
-  // Manual fallback inputs (if no contact attached)
-  const [manualClientName, setManualClientName] = useState(
-    existingTask?.leadName || existingTask?.customerName || ''
-  );
-  const [manualPhone, setManualPhone] = useState(
-    existingTask?.phone || existingTask?.contactNumber || ''
-  );
-  const [manualProject, setManualProject] = useState(
-    existingTask?.project || existingTask?.projectName || ''
+  // 2. Task Type
+  const [taskType, setTaskType] = useState<string>(
+    existingTask?.type || existingTask?.taskType || 'Call Back'
   );
 
-  // Smart Title state (auto-derives type + client name without mandatory user effort)
-  const clientDisplayName = selectedContact?.name || manualClientName.trim() || 'Client';
-  const [title, setTitle] = useState(
-    existingTask?.title || `${taskType} - ${clientDisplayName}`
+  // 3. Priority
+  const [priority, setPriority] = useState<'Urgent' | 'High' | 'Medium' | 'Low'>(
+    existingTask?.priority || 'Medium'
   );
 
-  // Existing task status auto-resolution state (Closed-loop CRM logic)
-  const [existingTaskStatus, setExistingTaskStatus] = useState<boolean>(false);
-  const [existingTaskSelected, setExistingTaskSelected] = useState<'Completed' | 'Cancelled' | ''>('');
-  const [allContactTasks, setAllContactTasks] = useState<any[]>([]);
+  // 4. Due Date & Time
+  const [dueDate, setDueDate] = useState<string>(
+    existingTask?.rawDueDate || existingTask?.dueDate || ''
+  );
 
-  // Assignee selection (organization users)
+  // 5. Assigned To
   const [orgUsers, setOrgUsers] = useState<OrgUser[]>([]);
   const [assignedTo, setAssignedTo] = useState<string>(existingTask?.assignedTo || user?.email || '');
   const [assignedToName, setAssignedToName] = useState<string>(
@@ -149,20 +111,48 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       ? existingTask.assignedTo === user?.email ? 'You' : existingTask.assignedTo
       : user?.name || 'You'
   );
-  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
-  const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
 
-  // Contact Picker Modal State
+  // 6. Conditional Fields: Callback Reason, Meeting Venue/Location, Online Demo Link
+  const [callbackReason, setCallbackReason] = useState<string>(
+    existingTask?.callbackReason || existingTask?.call_back_reason || CALLBACK_REASONS[0]
+  );
+  const [meetingLocation, setMeetingLocation] = useState<string>(
+    existingTask?.meetingLocation || existingTask?.location || initialLead?.location || initialLead?.projectName || initialLead?.project || ''
+  );
+  const [demoLink, setDemoLink] = useState<string>(
+    existingTask?.demoLink || existingTask?.meetingLink || ''
+  );
+
+  // 7. Notes / Agenda
+  const [notes, setNotes] = useState<string>(existingTask?.notes || '');
+  const scrollRef = React.useRef<ScrollView>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
+
+  // Existing task status auto-resolution (Closed-loop CRM logic)
+  const [existingTaskStatus, setExistingTaskStatus] = useState<boolean>(false);
+  const [existingTaskSelected, setExistingTaskSelected] = useState<'Completed' | 'Cancelled' | ''>('');
+  const [allContactTasks, setAllContactTasks] = useState<any[]>([]);
+
+  // Pickers / Modals State
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactSearchQuery, setContactSearchQuery] = useState('');
   const [contactSearchResults, setContactSearchResults] = useState<LeadItem[]>([]);
   const [searchingContacts, setSearchingContacts] = useState(false);
 
-  // Date Picker State
+  const [showTaskTypePicker, setShowTaskTypePicker] = useState(false);
+  const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
+  const [showReasonPicker, setShowReasonPicker] = useState(false);
+  const [showExistingStatusPicker, setShowExistingStatusPicker] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
-  // Set default due date (tomorrow 10:00 AM) if new task
+  // Initialize default due date (tomorrow 10:00 AM) if new task
   useEffect(() => {
     if (!isEditMode && !dueDate) {
       const tomorrow = new Date();
@@ -174,7 +164,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     }
   }, [isEditMode, dueDate]);
 
-  // Load Organization Users for Assignment
+  // Load Organization Users for Assignee dropdown
   useEffect(() => {
     let isMounted = true;
     apiClient
@@ -240,18 +230,11 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     }
   }, [selectedContact?.id, isEditMode, checkContactPendingTasks]);
 
-  // Update title automatically when type changes
-  const handleSelectTaskType = (type: string) => {
-    setTaskType(type);
-    const client = selectedContact?.name || manualClientName.trim();
-    setTitle(client ? `${type} - ${client}` : `${type} Follow-up`);
-  };
-
-  // Search Contacts for Picker
+  // Search Contacts for Contact dropdown
   const searchContacts = useCallback(async (query: string) => {
     try {
       setSearchingContacts(true);
-      const results = await leadService.getLeads({ q: query, limit: 25 });
+      const results = await leadService.getLeads({ q: query, limit: 30 });
       setContactSearchResults(results);
     } catch (err) {
       console.warn('Failed to search contacts:', err);
@@ -276,17 +259,12 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       email: item.email || '',
     };
     setSelectedContact(contactData);
-    setManualClientName(contactData.name);
-    setManualPhone(contactData.phone);
-    setManualProject(contactData.project);
 
     if (!meetingLocation) {
       setMeetingLocation(contactData.project || contactData.location || '');
     }
 
-    setTitle(`${taskType} - ${contactData.name}`);
     setShowContactPicker(false);
-
     if (contactData.id) {
       checkContactPendingTasks(contactData.id);
     }
@@ -298,7 +276,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     setExistingTaskSelected('');
   };
 
-  // Parse due date to ISO string safely
+  // Safe Date parsing
   const parseDueDate = (dateStr: string): string => {
     if (!dateStr) return new Date().toISOString();
     let d = new Date(dateStr.replace(',', ''));
@@ -318,7 +296,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       const dp = datePart.split('/');
       day = parseInt(dp[0], 10);
       m = parseInt(dp[1], 10) - 1;
-      y = parseInt(dp[2], 10);
+      day = parseInt(dp[2], 10);
     }
     if (y && !isNaN(m) && day) {
       d = new Date(y, m, day);
@@ -336,12 +314,23 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     return new Date().toISOString();
   };
 
+  const getPriorityColor = (p: string) => {
+    const s = p.toLowerCase();
+    if (s === 'urgent') return '#9333EA';
+    if (s === 'high') return '#E11D48';
+    if (s === 'medium') return '#D97706';
+    return '#059669';
+  };
+
+  // Form Submission
   const handleSubmit = async () => {
-    const clientName = selectedContact?.name || manualClientName.trim() || 'Client';
-    const finalTitle = title.trim() || `${taskType} - ${clientName}`;
+    if (!selectedContact?.id && !isEditMode) {
+      Alert.alert('Required Field', 'Please select Customer / Contact.');
+      return;
+    }
 
     if (!dueDate) {
-      Alert.alert('Required Field', 'Please select a scheduled due date & time.');
+      Alert.alert('Required Field', 'Please select Due Date & Time.');
       return;
     }
 
@@ -352,13 +341,11 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       return;
     }
 
-    // Validation: Existing task status must be selected if a pending task exists
     if (existingTaskStatus && !existingTaskSelected) {
       Alert.alert('Required Field', 'Please select existing task status (Completed or Cancelled).');
       return;
     }
 
-    // Validation: Dynamic location requirement for Site Visit and Meeting matching Web CRM 1:1
     if (taskType === 'Site Visit' && !meetingLocation.trim()) {
       Alert.alert('Required Field', 'Please enter Site / Project Location.');
       return;
@@ -368,22 +355,16 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       return;
     }
 
-    if (!selectedContact && manualPhone.trim()) {
-      const rawDigits = manualPhone.replace(/\D/g, '');
-      if (rawDigits.length < 7 || rawDigits.length > 15) {
-        Alert.alert('Invalid Contact Number', 'Contact Number must be between 7 and 15 digits.');
-        return;
-      }
-    }
-
-    const contactPhone = selectedContact?.phone || manualPhone.trim() || '';
-    const projectName = selectedContact?.project || manualProject.trim() || '';
+    const clientName = selectedContact?.name || 'Contact';
+    const contactPhone = selectedContact?.phone || '';
+    const projectName = selectedContact?.project || '';
     const contactId = selectedContact?.id || undefined;
+    const finalTitle = `${taskType} - ${clientName}`;
 
     try {
       setSubmitting(true);
 
-      // Geolocation capture matching Web CRM standard
+      // Capture Geolocation matching Web CRM standard
       let lat: number | null = null;
       let lng: number | null = null;
       try {
@@ -414,7 +395,6 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
             if (priorId) {
               await taskService.resolvePreviousTask(priorId, nextStatus);
 
-              // Closed-loop analytics updates for unique Meeting or Site Visit
               if (existingTaskSelected === 'Completed') {
                 let unSiteVisit = false;
                 let unMeeting = false;
@@ -498,8 +478,8 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
         location: meetingLocation.trim() || undefined,
         meetingLocation: meetingLocation.trim() || undefined,
         meeting_location: meetingLocation.trim() || undefined,
-        meetingLink: demoLink.trim() || undefined,
-        demoLink: demoLink.trim() || undefined,
+        demoLink: taskType === 'Online Demo' && demoLink.trim() ? demoLink.trim() : undefined,
+        meetingLink: taskType === 'Online Demo' && demoLink.trim() ? demoLink.trim() : undefined,
         latitude: lat,
         longitude: lng,
       };
@@ -517,7 +497,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
         await taskService.createTask(payload);
       }
 
-      // 5. Synchronize Contact with latest follow-up information matching Web CRM 1:1
+      // 5. Synchronize Contact with latest follow-up information
       if (contactId) {
         try {
           await leadService.updateLead(contactId, {
@@ -537,7 +517,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
         isEditMode ? 'Task Updated' : 'Task Scheduled',
         isEditMode
           ? 'Changes have been saved successfully.'
-          : `New ${taskType} scheduled successfully.`,
+          : 'Task scheduled successfully.',
         [
           {
             text: 'OK',
@@ -571,7 +551,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#151728" />
 
-      {/* ─── Luxury #151728 Midnight Header ─── */}
+      {/* ── Header ── */}
       <View style={styles.luxuryHeader}>
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
@@ -589,15 +569,13 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
           <View style={styles.headerTitleGroup}>
             <View style={styles.headerIconCircle}>
               <Ionicons
-                name={isEditMode ? 'create-outline' : 'calendar-sharp'}
-                size={16}
+                name={isEditMode ? 'create-outline' : 'add'}
+                size={18}
                 color="#0284C7"
               />
             </View>
             <Text style={styles.headerTitleText}>
-              {isEditMode
-                ? `Edit ${semantics.taskEntitySingular}`
-                : `Schedule New ${semantics.taskEntitySingular}`}
+              {isEditMode ? 'Edit Task' : 'Schedule New Task'}
             </Text>
           </View>
           <View style={styles.headerStatusPill}>
@@ -610,357 +588,259 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.cardContainer}>
-          {/* ── 1. Contact Association / CRM Contact Picker ── */}
-          <View style={styles.fieldGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>ASSOCIATED CONTACT / CLIENT</Text>
-            </View>
-
-            {selectedContact ? (
-              <View style={styles.attachedContactCard}>
-                <View style={styles.attachedContactLeft}>
-                  <View style={styles.contactAvatarCircle}>
-                    <Ionicons name="person" size={14} color="#272944" />
-                  </View>
-                  <View style={styles.attachedContactDetails}>
-                    <Text style={styles.attachedContactName} numberOfLines={1}>
-                      {selectedContact.name}
-                    </Text>
-                    <Text style={styles.attachedContactMeta} numberOfLines={1}>
-                      {selectedContact.phone ? `📞 ${selectedContact.phone}` : ''}
-                      {selectedContact.project ? `  •  🏢 ${selectedContact.project}` : ''}
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={handleClearContact}
-                  style={styles.detachContactBtn}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close-circle" size={18} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.unattachedContactContainer}>
-                <TouchableOpacity
-                  style={styles.attachContactCTA}
-                  onPress={() => setShowContactPicker(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="person-add-outline" size={16} color="#0284C7" />
-                  <Text style={styles.attachContactCTAText}>
-                    Select Contact from CRM ({semantics.leadEntityPlural})
-                  </Text>
-                </TouchableOpacity>
-
-                <View style={styles.orDividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerOrText}>OR ENTER MANUALLY</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <TextInput
-                  style={[styles.input, { marginBottom: 8 }]}
-                  placeholder="Client / Lead Name"
-                  placeholderTextColor="#94A3B8"
-                  value={manualClientName}
-                  onChangeText={(text) => {
-                    setManualClientName(text);
-                    setTitle(`${taskType} - ${text.trim() || 'Client'}`);
-                  }}
-                />
-                <TextInput
-                  style={[styles.input, { marginBottom: 8 }]}
-                  placeholder="Contact Phone Number"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="phone-pad"
-                  value={manualPhone}
-                  onChangeText={setManualPhone}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Project / Requirement / Area"
-                  placeholderTextColor="#94A3B8"
-                  value={manualProject}
-                  onChangeText={setManualProject}
-                />
-              </View>
-            )}
-          </View>
-
-          {/* ── 2. Closed-Loop Existing Task Status (Visible if Contact Has Pending Task) ── */}
+          {/* ── Existing Task Status (Visible only if prior pending task exists) ── */}
           {existingTaskStatus && (
-            <View style={styles.existingTaskNoticeCard}>
-              <View style={styles.existingTaskHeaderRow}>
-                <Ionicons name="alert-circle" size={16} color="#D97706" />
-                <Text style={styles.existingTaskTitle}>Pending Prior Task Detected</Text>
-              </View>
-              <Text style={styles.existingTaskSubtitle}>
-                This contact has an active pending task. Select how to resolve the prior task:
-              </Text>
-              <View style={styles.existingTaskPillRow}>
-                {(['Completed', 'Cancelled'] as const).map((statusChoice) => {
-                  const isChoice = existingTaskSelected === statusChoice;
-                  return (
-                    <TouchableOpacity
-                      key={statusChoice}
-                      style={[
-                        styles.existingStatusChoicePill,
-                        isChoice && styles.existingStatusChoicePillSelected,
-                      ]}
-                      onPress={() => setExistingTaskSelected(statusChoice)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons
-                        name={statusChoice === 'Completed' ? 'checkmark-circle' : 'close-circle'}
-                        size={15}
-                        color={isChoice ? '#FFFFFF' : '#64748B'}
-                      />
-                      <Text
-                        style={[
-                          styles.existingStatusChoiceText,
-                          isChoice && styles.existingStatusChoiceTextSelected,
-                        ]}
-                      >
-                        Mark Prior {statusChoice}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* ── 3. Next Follow Up / Task Type Selector ── */}
-          <View style={styles.fieldGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>NEXT FOLLOW UP TYPE</Text>
-              <Text style={styles.requiredStar}>*</Text>
-            </View>
-            <View style={styles.taskTypeRow}>
-              {taskTypes.map((type) => {
-                const isSelected = taskType === type;
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.taskTypeChip, isSelected && styles.taskTypeChipSelected]}
-                    onPress={() => handleSelectTaskType(type)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.taskTypeChipText,
-                        isSelected && styles.taskTypeChipTextSelected,
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* ── 4. Dynamic Conditional Fields Matching Web CRM ── */}
-
-          {/* Call Back Reason (Shown when Call Back) */}
-          {taskType === 'Call Back' && (
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>CALLBACK REASON</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.horizontalScrollPills}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Existing Task Status</Text>
+                <Text style={styles.requiredStar}>*</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.dropdownTrigger, styles.existingTaskWarningBorder]}
+                onPress={() => setShowExistingStatusPicker(true)}
+                activeOpacity={0.8}
               >
-                {CALLBACK_REASONS.map((reason) => {
-                  const isSelected = callbackReason === reason;
-                  return (
-                    <TouchableOpacity
-                      key={reason}
-                      style={[styles.reasonChip, isSelected && styles.reasonChipSelected]}
-                      onPress={() => setCallbackReason(reason)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.reasonChipText,
-                          isSelected && styles.reasonChipTextSelected,
-                        ]}
-                      >
-                        {reason}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                <View style={styles.dropdownLeft}>
+                  <Ionicons name="alert-circle-outline" size={18} color="#D97706" />
+                  <Text
+                    style={[
+                      styles.dropdownTriggerText,
+                      !existingTaskSelected && styles.placeholderText,
+                    ]}
+                  >
+                    {existingTaskSelected || 'Select Existing Task Status *'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-down" size={18} color="#64748B" />
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* Site / Project Location (Shown when Site Visit) */}
-          {taskType === 'Site Visit' && (
-            <View style={styles.fieldGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>SITE / PROJECT LOCATION</Text>
-                <Text style={styles.requiredStar}>*</Text>
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Site Office / Project Location"
-                placeholderTextColor="#94A3B8"
-                value={meetingLocation}
-                onChangeText={setMeetingLocation}
-              />
-            </View>
-          )}
-
-          {/* Meeting Venue / Location (Shown when Meeting) */}
-          {taskType === 'Meeting' && (
-            <View style={styles.fieldGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>MEETING VENUE / LOCATION</Text>
-                <Text style={styles.requiredStar}>*</Text>
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Head Office / Client Conference Room / Cafe"
-                placeholderTextColor="#94A3B8"
-                value={meetingLocation}
-                onChangeText={setMeetingLocation}
-              />
-            </View>
-          )}
-
-          {/* Meeting Link / Platform (Shown when Online Demo) */}
-          {taskType === 'Online Demo' && (
-            <View style={styles.fieldGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>MEETING LINK / PLATFORM</Text>
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. https://meet.google.com/... or Zoom URL"
-                placeholderTextColor="#94A3B8"
-                value={demoLink}
-                onChangeText={setDemoLink}
-                autoCapitalize="none"
-              />
-            </View>
-          )}
-
-          {/* ── 5. Scheduled Due Date & Time ── */}
+          {/* ── 1. Customer / Contact * ── */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>NEXT FOLLOW UP DATE & TIME</Text>
+              <Text style={styles.fieldLabel}>Customer / Contact</Text>
               <Text style={styles.requiredStar}>*</Text>
             </View>
             <TouchableOpacity
-              style={[styles.input, styles.dateTriggerBox]}
+              style={styles.dropdownTrigger}
+              onPress={() => setShowContactPicker(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.dropdownLeft}>
+                <Ionicons name="person-circle-outline" size={19} color="#64748B" />
+                <Text
+                  style={[
+                    styles.dropdownTriggerText,
+                    !selectedContact && styles.placeholderText,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {selectedContact
+                    ? `${selectedContact.name} ${selectedContact.phone ? `(${selectedContact.phone})` : ''}`
+                    : 'Select Customer / Contact *'}
+                </Text>
+              </View>
+              {selectedContact ? (
+                <TouchableOpacity
+                  onPress={handleClearContact}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              ) : (
+                <Ionicons name="chevron-down" size={18} color="#64748B" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* ── 2. Task Type * ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Task Type</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.dropdownTrigger}
+              onPress={() => setShowTaskTypePicker(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.dropdownLeft}>
+                <Ionicons name="briefcase-outline" size={18} color="#64748B" />
+                <Text style={styles.dropdownTriggerText}>{taskType}</Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* ── 3. Priority * ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Priority</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.dropdownTrigger}
+              onPress={() => setShowPriorityPicker(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.dropdownLeft}>
+                <View
+                  style={[
+                    styles.priorityDot,
+                    { backgroundColor: getPriorityColor(priority) },
+                  ]}
+                />
+                <Text style={styles.dropdownTriggerText}>{priority}</Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* ── 4. Due Date & Time * ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Due Date & Time</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.dropdownTrigger}
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.8}
             >
-              <View style={styles.datePickerLeft}>
-                <Ionicons name="calendar-outline" size={17} color="#0284C7" />
-                <Text style={[styles.dateTriggerText, !dueDate && styles.datePlaceholderText]}>
-                  {dueDate || 'Select date & time...'}
+              <View style={styles.dropdownLeft}>
+                <Ionicons name="calendar-outline" size={18} color="#64748B" />
+                <Text
+                  style={[
+                    styles.dropdownTriggerText,
+                    !dueDate && styles.placeholderText,
+                  ]}
+                >
+                  {dueDate || 'Select Due Date & Time *'}
                 </Text>
               </View>
-              <Ionicons name="chevron-down" size={15} color="#64748B" />
+              <Ionicons name="calendar" size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          {/* ── 6. Assignee Selector (Assigned To) ── */}
+          {/* ── 5. Assigned To * ── */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>ASSIGNED TO</Text>
+              <Text style={styles.fieldLabel}>Assigned To</Text>
+              <Text style={styles.requiredStar}>*</Text>
             </View>
             <TouchableOpacity
-              style={[styles.input, styles.dateTriggerBox]}
+              style={styles.dropdownTrigger}
               onPress={() => setShowAssigneePicker(true)}
               activeOpacity={0.8}
             >
-              <View style={styles.datePickerLeft}>
-                <Ionicons name="person-circle-outline" size={18} color="#475569" />
-                <Text style={styles.dateTriggerText} numberOfLines={1}>
+              <View style={styles.dropdownLeft}>
+                <Ionicons name="person-outline" size={18} color="#64748B" />
+                <Text style={styles.dropdownTriggerText} numberOfLines={1}>
                   {assignedToName} {assignedTo ? `(${assignedTo})` : ''}
                 </Text>
               </View>
-              <Ionicons name="chevron-down" size={15} color="#64748B" />
+              <Ionicons name="chevron-down" size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          {/* ── 7. Priority Picker (4 Tiers matching Web & Backend) ── */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>TASK PRIORITY</Text>
-            <View style={styles.priorityRow}>
-              {(['Urgent', 'High', 'Medium', 'Low'] as const).map((p) => {
-                const isSelected = priority === p;
-                const pColor =
-                  p === 'Urgent'
-                    ? '#9333EA'
-                    : p === 'High'
-                    ? '#E11D48'
-                    : p === 'Medium'
-                    ? '#D97706'
-                    : '#059669';
-
-                return (
-                  <TouchableOpacity
-                    key={p}
-                    style={[
-                      styles.priorityPill,
-                      isSelected && {
-                        borderColor: pColor,
-                        backgroundColor: `${pColor}15`,
-                      },
-                    ]}
-                    onPress={() => setPriority(p)}
-                    activeOpacity={0.8}
-                  >
-                    <View
-                      style={[
-                        styles.priorityDot,
-                        { backgroundColor: isSelected ? pColor : '#CBD5E1' },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.priorityText,
-                        isSelected && { color: pColor, fontWeight: '700' },
-                      ]}
-                    >
-                      {p}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+          {/* ── 6a. Callback Reason (Shown ONLY when taskType === 'Call Back') ── */}
+          {taskType === 'Call Back' && (
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Callback Reason</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dropdownTrigger}
+                onPress={() => setShowReasonPicker(true)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.dropdownLeft}>
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={18}
+                    color="#64748B"
+                  />
+                  <Text style={styles.dropdownTriggerText}>{callbackReason}</Text>
+                </View>
+                <Ionicons name="chevron-down" size={18} color="#64748B" />
+              </TouchableOpacity>
             </View>
-          </View>
+          )}
 
-          {/* ── 8. Task Title (Smart Auto-Generated / Editable) ── */}
+          {/* ── 6b. Site Visit / Meeting Venue Location (Shown when Site Visit or Meeting) ── */}
+          {(taskType === 'Site Visit' || taskType === 'Meeting') && (
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>
+                  {taskType === 'Site Visit'
+                    ? 'Site / Project Location'
+                    : 'Meeting Venue / Location'}
+                </Text>
+                <Text style={styles.requiredStar}>*</Text>
+              </View>
+              <View style={styles.inputBoxWithIcon}>
+                <Ionicons
+                  name={taskType === 'Site Visit' ? 'business-outline' : 'location-outline'}
+                  size={18}
+                  color="#64748B"
+                  style={styles.fieldLeadingIcon}
+                />
+                <TextInput
+                  style={styles.textInputWithIcon}
+                  placeholder={
+                    taskType === 'Site Visit'
+                      ? 'e.g. Site Office / Project Location'
+                      : 'e.g. Head Office / Client Conference Room / Cafe'
+                  }
+                  placeholderTextColor="#94A3B8"
+                  value={meetingLocation}
+                  onChangeText={setMeetingLocation}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ── 6c. Meeting Link / Platform (Shown when Online Demo) ── */}
+          {taskType === 'Online Demo' && (
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Meeting Link / Platform</Text>
+              </View>
+              <View style={styles.inputBoxWithIcon}>
+                <Ionicons
+                  name="videocam-outline"
+                  size={18}
+                  color="#64748B"
+                  style={styles.fieldLeadingIcon}
+                />
+                <TextInput
+                  style={styles.textInputWithIcon}
+                  placeholder="e.g. https://meet.google.com/... or Zoom URL"
+                  placeholderTextColor="#94A3B8"
+                  value={demoLink}
+                  onChangeText={setDemoLink}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ── 7. Notes / Agenda ── */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>TASK TITLE</Text>
+              <Text style={styles.fieldLabel}>Notes / Agenda</Text>
             </View>
             <TextInput
-              style={styles.input}
-              placeholder="e.g. Call Back - Client Name"
-              placeholderTextColor="#94A3B8"
-              value={title}
-              onChangeText={setTitle}
-            />
-          </View>
-
-          {/* ── 9. Notes & Instructions ── */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>NOTE (OPTIONAL)</Text>
-            <TextInput
-              style={[styles.input, styles.textAreaInput]}
-              placeholder="Enter task details, client requests, agenda..."
+              style={[styles.dropdownTrigger, styles.textAreaInput]}
+              placeholder="Enter task details or agenda..."
               placeholderTextColor="#94A3B8"
               value={notes}
               onChangeText={setNotes}
@@ -970,223 +850,410 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
             />
           </View>
 
-          {/* ── 10. Submit Action Button ── */}
-          <TouchableOpacity
-            style={styles.submitBtn}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.88}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <View style={styles.submitBtnContent}>
-                <Ionicons
-                  name={isEditMode ? 'save-outline' : 'checkmark-circle-sharp'}
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.submitBtnText}>
-                  {isEditMode ? 'Save Changes' : 'Schedule Task'}
+          {/* ── Action Buttons Matching Web CRM 1:1 ── */}
+          <View style={styles.formActionRow}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.scheduleTaskBtn}
+              onPress={handleSubmit}
+              disabled={submitting}
+              activeOpacity={0.88}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.scheduleTaskBtnText}>
+                  {isEditMode ? 'Update Task' : 'Schedule Task'}
                 </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
-      {/* ── Calendar Date & Time Picker Modal ── */}
-      <CalendarDatePickerModal
-        visible={showDatePicker}
-        title="Select Follow Up Date & Time"
-        currentValue={dueDate}
-        includeTime={true}
-        minDate={new Date()}
-        onClose={() => setShowDatePicker(false)}
-        onSelectDate={(formatted) => setDueDate(formatted)}
-      />
-
-      {/* ── Contact Picker Sub-Modal ── */}
+      {/* ─── Contact Picker Modal ─── */}
       <Modal
         visible={showContactPicker}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowContactPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.backdropTouch}
-            activeOpacity={1}
-            onPress={() => setShowContactPicker(false)}
-          />
-          <View style={styles.pickerSheetCard}>
-            <View style={styles.dragHandleBox}>
-              <View style={styles.dragHandle} />
-            </View>
-
-            <View style={styles.pickerHeaderRow}>
+          <View style={styles.modalSheetContainer}>
+            <View style={styles.modalSheetHeader}>
               <View>
-                <Text style={styles.pickerTitle}>Select CRM Contact</Text>
-                <Text style={styles.pickerSubtitle}>
-                  Attach task to an existing {semantics.leadEntitySingular.toLowerCase()}
+                <Text style={styles.modalSheetTitle}>SELECT CUSTOMER / CONTACT</Text>
+                <Text style={styles.modalSheetSubtitle}>
+                  Choose from active {semantics.leadEntityPlural}
                 </Text>
               </View>
               <TouchableOpacity
-                style={styles.closePickerBtn}
                 onPress={() => setShowContactPicker(false)}
-                activeOpacity={0.7}
+                style={styles.modalCloseCircle}
               >
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={18} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            {/* Search Input */}
-            <View style={styles.pickerSearchBox}>
-              <Ionicons name="search" size={17} color="#94A3B8" />
+            <View style={styles.searchBarBox}>
+              <Ionicons name="search" size={16} color="#64748B" />
               <TextInput
-                style={styles.pickerSearchInput}
-                placeholder="Search by name, phone, or project..."
+                style={styles.searchBarInput}
+                placeholder="Search by name, phone, project..."
                 placeholderTextColor="#94A3B8"
                 value={contactSearchQuery}
                 onChangeText={setContactSearchQuery}
                 autoFocus
               />
-              {contactSearchQuery ? (
+              {Boolean(contactSearchQuery) && (
                 <TouchableOpacity onPress={() => setContactSearchQuery('')}>
                   <Ionicons name="close-circle" size={16} color="#94A3B8" />
                 </TouchableOpacity>
-              ) : null}
+              )}
             </View>
 
             {searchingContacts ? (
-              <View style={styles.pickerLoadingBox}>
-                <ActivityIndicator size="small" color="#272944" />
-                <Text style={styles.pickerLoadingText}>Searching contacts...</Text>
+              <View style={styles.modalLoadingBox}>
+                <ActivityIndicator size="small" color="#0284C7" />
+                <Text style={styles.modalLoadingText}>Searching contacts...</Text>
               </View>
             ) : contactSearchResults.length === 0 ? (
-              <View style={styles.pickerEmptyBox}>
-                <Ionicons name="people-outline" size={32} color="#CBD5E1" />
-                <Text style={styles.pickerEmptyText}>
-                  {contactSearchQuery
-                    ? `No contacts found for "${contactSearchQuery}"`
-                    : 'Type a name or number to find contacts.'}
-                </Text>
+              <View style={styles.modalEmptyBox}>
+                <Ionicons name="person-outline" size={32} color="#CBD5E1" />
+                <Text style={styles.modalEmptyText}>No matching contacts found</Text>
               </View>
             ) : (
               <FlatList
                 data={contactSearchResults}
                 keyExtractor={(item) => item.id || item._id || String(Math.random())}
-                contentContainerStyle={styles.pickerListContent}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.contactResultItem}
-                    onPress={() => handleSelectContact(item)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={styles.contactResultAvatar}>
-                      <Ionicons name="person" size={16} color="#272944" />
-                    </View>
-                    <View style={styles.contactResultInfo}>
-                      <Text style={styles.contactResultName} numberOfLines={1}>
-                        {item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Client'}
-                      </Text>
-                      <Text style={styles.contactResultSub} numberOfLines={1}>
-                        {item.phone || item.contactNo || 'No phone'}
-                        {item.project || item.projectName ? `  •  🏢 ${item.project || item.projectName}` : ''}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                  </TouchableOpacity>
-                )}
+                renderItem={({ item }) => {
+                  const isSelected = selectedContact?.id === (item.id || item._id);
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.contactListItem,
+                        isSelected && styles.contactListItemSelected,
+                      ]}
+                      onPress={() => handleSelectContact(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.contactItemAvatar}>
+                        <Ionicons name="person" size={15} color="#272944" />
+                      </View>
+                      <View style={styles.contactItemBody}>
+                        <Text style={styles.contactItemName} numberOfLines={1}>
+                          {item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Client'}
+                        </Text>
+                        <Text style={styles.contactItemPhone} numberOfLines={1}>
+                          {item.phone || item.contactNo || 'No phone'}
+                          {item.project || item.projectName ? `  •  ${item.project || item.projectName}` : ''}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={20} color="#0284C7" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
               />
             )}
           </View>
         </View>
       </Modal>
 
-      {/* ── Assignee Picker Sub-Modal ── */}
+      {/* ─── Task Type Picker Modal ─── */}
       <Modal
-        visible={showAssigneePicker}
+        visible={showTaskTypePicker}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowAssigneePicker(false)}
+        transparent
+        onRequestClose={() => setShowTaskTypePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.backdropTouch}
-            activeOpacity={1}
-            onPress={() => setShowAssigneePicker(false)}
-          />
-          <View style={styles.pickerSheetCard}>
-            <View style={styles.dragHandleBox}>
-              <View style={styles.dragHandle} />
-            </View>
-
-            <View style={styles.pickerHeaderRow}>
+          <View style={styles.modalSheetContainer}>
+            <View style={styles.modalSheetHeader}>
               <View>
-                <Text style={styles.pickerTitle}>Assign Task To</Text>
-                <Text style={styles.pickerSubtitle}>Delegate schedule to yourself or a teammate</Text>
+                <Text style={styles.modalSheetTitle}>SELECT TASK TYPE</Text>
+                <Text style={styles.modalSheetSubtitle}>
+                  {ENTERPRISE_TASK_TYPES.length} options available
+                </Text>
               </View>
               <TouchableOpacity
-                style={styles.closePickerBtn}
-                onPress={() => setShowAssigneePicker(false)}
-                activeOpacity={0.7}
+                onPress={() => setShowTaskTypePicker(false)}
+                style={styles.modalCloseCircle}
               >
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={18} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.pickerSearchBox}>
-              <Ionicons name="search" size={17} color="#94A3B8" />
+            <ScrollView style={{ maxHeight: 380 }}>
+              {ENTERPRISE_TASK_TYPES.map((t) => {
+                const isSelected = taskType === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowSelected]}
+                    onPress={() => {
+                      setTaskType(t);
+                      setShowTaskTypePicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.sheetOptionText, isSelected && styles.sheetOptionTextSelected]}>
+                      {t}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={theme.colors.brand700 || '#0EA5E9'} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Priority Picker Modal ─── */}
+      <Modal
+        visible={showPriorityPicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowPriorityPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheetContainer}>
+            <View style={styles.modalSheetHeader}>
+              <View>
+                <Text style={styles.modalSheetTitle}>SELECT PRIORITY</Text>
+                <Text style={styles.modalSheetSubtitle}>4 priority tiers available</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowPriorityPicker(false)}
+                style={styles.modalCloseCircle}
+              >
+                <Ionicons name="close" size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 300 }}>
+              {PRIORITY_OPTIONS.map((p) => {
+                const isSelected = priority === p;
+                const pColor = getPriorityColor(p);
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowSelected]}
+                    onPress={() => {
+                      setPriority(p);
+                      setShowPriorityPicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={[styles.priorityDot, { backgroundColor: pColor }]} />
+                      <Text style={[styles.sheetOptionText, isSelected && styles.sheetOptionTextSelected]}>
+                        {p}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={pColor} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Assignee Picker Modal ─── */}
+      <Modal
+        visible={showAssigneePicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowAssigneePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheetContainer}>
+            <View style={styles.modalSheetHeader}>
+              <View>
+                <Text style={styles.modalSheetTitle}>SELECT ASSIGNEE</Text>
+                <Text style={styles.modalSheetSubtitle}>
+                  Team members responsible for this task
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowAssigneePicker(false)}
+                style={styles.modalCloseCircle}
+              >
+                <Ionicons name="close" size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchBarBox}>
+              <Ionicons name="search" size={16} color="#64748B" />
               <TextInput
-                style={styles.pickerSearchInput}
-                placeholder="Search teammates by name or email..."
+                style={styles.searchBarInput}
+                placeholder="Search team member..."
                 placeholderTextColor="#94A3B8"
                 value={assigneeSearchQuery}
                 onChangeText={setAssigneeSearchQuery}
               />
-              {assigneeSearchQuery ? (
-                <TouchableOpacity onPress={() => setAssigneeSearchQuery('')}>
-                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
-                </TouchableOpacity>
-              ) : null}
             </View>
 
-            <FlatList
-              data={filteredAssignees.length > 0 ? filteredAssignees : [{ email: user?.email || '', name: user?.name || 'You' }]}
-              keyExtractor={(item) => item.email}
-              contentContainerStyle={styles.pickerListContent}
-              renderItem={({ item }) => {
-                const isSelected = assignedTo === item.email;
+            <ScrollView style={{ maxHeight: 340 }}>
+              {filteredAssignees.map((u) => {
+                const isSelected = assignedTo === u.email;
                 return (
                   <TouchableOpacity
-                    style={[styles.contactResultItem, isSelected && { backgroundColor: '#F0F9FF' }]}
+                    key={u.email}
+                    style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowSelected]}
                     onPress={() => {
-                      setAssignedTo(item.email);
-                      setAssignedToName(item.name || item.email);
+                      setAssignedTo(u.email);
+                      setAssignedToName(u.name);
                       setShowAssigneePicker(false);
+                      setAssigneeSearchQuery('');
                     }}
-                    activeOpacity={0.75}
+                    activeOpacity={0.7}
                   >
-                    <View style={styles.contactResultAvatar}>
-                      <Ionicons name="person" size={16} color="#0284C7" />
-                    </View>
-                    <View style={styles.contactResultInfo}>
-                      <Text style={styles.contactResultName} numberOfLines={1}>
-                        {item.name} {item.email === user?.email ? '(You)' : ''}
+                    <View>
+                      <Text style={[styles.sheetOptionText, isSelected && styles.sheetOptionTextSelected]}>
+                        {u.name}
                       </Text>
-                      <Text style={styles.contactResultSub} numberOfLines={1}>
-                        {item.email}
-                      </Text>
+                      <Text style={styles.assigneeEmailSubtext}>{u.email}</Text>
                     </View>
-                    {isSelected && <Ionicons name="checkmark-circle" size={18} color="#0284C7" />}
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={theme.colors.brand700 || '#0EA5E9'} />
+                    )}
                   </TouchableOpacity>
                 );
-              }}
-            />
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
+
+      {/* ─── Callback Reason Picker Modal ─── */}
+      <Modal
+        visible={showReasonPicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowReasonPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheetContainer}>
+            <View style={styles.modalSheetHeader}>
+              <View>
+                <Text style={styles.modalSheetTitle}>SELECT CALLBACK REASON</Text>
+                <Text style={styles.modalSheetSubtitle}>
+                  {CALLBACK_REASONS.length} reasons available
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowReasonPicker(false)}
+                style={styles.modalCloseCircle}
+              >
+                <Ionicons name="close" size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }}>
+              {CALLBACK_REASONS.map((r) => {
+                const isSelected = callbackReason === r;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowSelected]}
+                    onPress={() => {
+                      setCallbackReason(r);
+                      setShowReasonPicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.sheetOptionText, isSelected && styles.sheetOptionTextSelected]}>
+                      {r}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={theme.colors.brand700 || '#0EA5E9'} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Existing Task Status Picker Modal ─── */}
+      <Modal
+        visible={showExistingStatusPicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowExistingStatusPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheetContainer}>
+            <View style={styles.modalSheetHeader}>
+              <View>
+                <Text style={styles.modalSheetTitle}>SELECT EXISTING TASK STATUS</Text>
+                <Text style={styles.modalSheetSubtitle}>
+                  Resolve active prior task for this contact
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowExistingStatusPicker(false)}
+                style={styles.modalCloseCircle}
+              >
+                <Ionicons name="close" size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 200 }}>
+              {(['Completed', 'Cancelled'] as const).map((opt) => {
+                const isSelected = existingTaskSelected === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowSelected]}
+                    onPress={() => {
+                      setExistingTaskSelected(opt);
+                      setShowExistingStatusPicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.sheetOptionText, isSelected && styles.sheetOptionTextSelected]}>
+                      {opt}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={theme.colors.brand700 || '#0EA5E9'} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Date Picker Overlay ─── */}
+      <CalendarDatePickerModal
+        visible={showDatePicker}
+        title="Due Date & Time"
+        currentValue={dueDate}
+        includeTime
+        minDate={new Date()}
+        onClose={() => setShowDatePicker(false)}
+        onSelectDate={(formatted) => {
+          setDueDate(formatted);
+          setShowDatePicker(false);
+        }}
+      />
     </View>
   );
 };
@@ -1198,52 +1265,45 @@ const styles = StyleSheet.create({
   },
   luxuryHeader: {
     backgroundColor: '#151728',
-    paddingTop: Platform.OS === 'ios' ? 56 : 42,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingTop: Platform.OS === 'ios' ? 44 : 18,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   headerBackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    gap: 2,
   },
   headerBackBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   headerBannerBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 9,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
   },
   headerTitleGroup: {
     flexDirection: 'row',
@@ -1254,24 +1314,23 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: 'rgba(2, 132, 199, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitleText: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '700',
     color: '#0F172A',
-    letterSpacing: -0.2,
   },
   headerStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 5,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
   },
   headerGreenPulseDot: {
     width: 6,
@@ -1280,448 +1339,279 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   headerStatusPillText: {
-    color: '#059669',
+    color: '#047857',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: 12,
+    paddingBottom: 32,
   },
   cardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
   },
   fieldGroup: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
-    gap: 2,
+    marginBottom: 4,
+    gap: 3,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#475569',
-    letterSpacing: 0.3,
-    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   requiredStar: {
-    fontSize: 12,
     color: '#EF4444',
-    fontWeight: '900',
-  },
-  taskTypeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  taskTypeChip: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  taskTypeChipSelected: {
-    backgroundColor: '#272944',
-    borderColor: '#272944',
-  },
-  taskTypeChipText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  taskTypeChipTextSelected: {
-    color: '#FFFFFF',
     fontWeight: '700',
   },
-  horizontalScrollPills: {
+  dropdownTrigger: {
     flexDirection: 'row',
-    marginTop: 2,
-  },
-  reasonChip: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  reasonChipSelected: {
-    backgroundColor: '#D97706',
-    borderColor: '#D97706',
-  },
-  reasonChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#B45309',
-  },
-  reasonChipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  input: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
-    fontSize: 13.5,
-    color: '#0F172A',
-    fontWeight: '600',
-    justifyContent: 'center',
-  },
-  textAreaInput: {
-    height: 80,
-    paddingTop: 10,
-  },
-  attachedContactCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 12,
-    padding: 10,
-  },
-  attachedContactLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  contactAvatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#DBEAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  attachedContactDetails: {
-    flex: 1,
-  },
-  attachedContactName: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  attachedContactMeta: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  detachContactBtn: {
-    padding: 4,
-  },
-  unattachedContactContainer: {
-    gap: 6,
-  },
-  attachContactCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F9FF',
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 11,
-    gap: 6,
-  },
-  attachContactCTAText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-  orDividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-    gap: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  dividerOrText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.5,
-  },
-  existingTaskNoticeCard: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  existingTaskHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  existingTaskTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#B45309',
-  },
-  existingTaskSubtitle: {
-    fontSize: 11.5,
-    color: '#92400E',
-    marginBottom: 10,
-  },
-  existingTaskPillRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  existingStatusChoicePill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#CBD5E1',
     borderRadius: 10,
-    paddingVertical: 8,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  existingStatusChoicePillSelected: {
-    backgroundColor: '#D97706',
-    borderColor: '#D97706',
+  existingTaskWarningBorder: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFBEB',
   },
-  existingStatusChoiceText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#78350F',
-  },
-  existingStatusChoiceTextSelected: {
-    color: '#FFFFFF',
-  },
-  dateTriggerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  datePickerLeft: {
+  dropdownLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flex: 1,
   },
-  dateTriggerText: {
-    fontSize: 13.5,
-    fontWeight: '600',
+  dropdownTriggerText: {
+    fontSize: 13,
     color: '#0F172A',
+    fontWeight: '500',
+    flex: 1,
   },
-  datePlaceholderText: {
+  placeholderText: {
     color: '#94A3B8',
     fontWeight: '400',
   },
-  priorityRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 2,
-  },
-  priorityPill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    gap: 5,
-  },
   priorityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  priorityText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  submitBtn: {
-    backgroundColor: '#272944',
-    borderRadius: 14,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    shadowColor: '#272944',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitBtnContent: {
+  inputBoxWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
   },
-  submitBtnText: {
+  fieldLeadingIcon: {
+    marginRight: 8,
+  },
+  textInputWithIcon: {
+    flex: 1,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  textAreaInput: {
+    height: 76,
+    paddingTop: 8,
+    fontSize: 13,
+  },
+  formActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  cancelBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  cancelBtnText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  scheduleTaskBtn: {
+    backgroundColor: '#1E2238',
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 12,
+    shadowColor: '#1E2238',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  scheduleTaskBtnText: {
     color: '#FFFFFF',
-    fontSize: 14.5,
+    fontSize: 13.5,
     fontWeight: '700',
-    letterSpacing: -0.2,
   },
 
-  // Contact Picker Modal Styles
+  /* ── Modal Overlay & Sheets ── */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'flex-end',
   },
-  backdropTouch: {
-    flex: 1,
-  },
-  pickerSheetCard: {
+  modalSheetContainer: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: '75%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
+    maxHeight: '85%',
   },
-  dragHandleBox: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
-  },
-  dragHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#CBD5E1',
-  },
-  pickerHeaderRow: {
+  modalSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    marginBottom: 12,
   },
-  pickerTitle: {
-    fontSize: 16,
+  modalSheetTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#0F172A',
   },
-  pickerSubtitle: {
-    fontSize: 12,
+  modalSheetSubtitle: {
+    fontSize: 11.5,
+    fontWeight: '500',
     color: '#64748B',
     marginTop: 2,
   },
-  closePickerBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  modalCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pickerSearchBox: {
+  searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginVertical: 12,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
     paddingHorizontal: 12,
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    height: 42,
+    marginBottom: 12,
     gap: 8,
   },
-  pickerSearchInput: {
+  searchBarInput: {
     flex: 1,
     fontSize: 13.5,
     color: '#0F172A',
-    padding: 0,
   },
-  pickerLoadingBox: {
+  modalLoadingBox: {
+    paddingVertical: 32,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
     gap: 8,
   },
-  pickerLoadingText: {
+  modalLoadingText: {
     fontSize: 12,
     color: '#64748B',
   },
-  pickerEmptyBox: {
+  modalEmptyBox: {
+    paddingVertical: 36,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-    gap: 10,
-    paddingHorizontal: 20,
+    gap: 8,
   },
-  pickerEmptyText: {
+  modalEmptyText: {
     fontSize: 13,
     color: '#94A3B8',
-    textAlign: 'center',
   },
-  pickerListContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  contactResultItem: {
+  contactListItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 12,
+    borderBottomColor: '#F8FAFC',
+    gap: 10,
   },
-  contactResultAvatar: {
+  contactListItemSelected: {
+    backgroundColor: '#F0F9FF',
+  },
+  contactItemAvatar: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(39, 41, 68, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  contactResultInfo: {
+  contactItemBody: {
     flex: 1,
   },
-  contactResultName: {
-    fontSize: 14,
-    fontWeight: '700',
+  contactItemName: {
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#0F172A',
   },
-  contactResultSub: {
-    fontSize: 12,
+  contactItemPhone: {
+    fontSize: 11.5,
     color: '#64748B',
+    marginTop: 2,
+  },
+  sheetOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  sheetOptionRowSelected: {
+    backgroundColor: '#EFF6FF',
+  },
+  sheetOptionText: {
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#334155',
+  },
+  sheetOptionTextSelected: {
+    fontWeight: '700',
+    color: theme.colors.brand700 || '#0EA5E9',
+  },
+  assigneeEmailSubtext: {
+    fontSize: 11,
+    color: '#94A3B8',
     marginTop: 2,
   },
 });
