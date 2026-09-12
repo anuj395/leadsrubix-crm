@@ -658,11 +658,12 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
               style={styles.inlineCheckbox}
               onPress={() => toggleLeadSelection(lead.id)}
               activeOpacity={0.8}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons
                 name={isSelected ? 'checkbox' : 'square-outline'}
                 size={22}
-                color={isSelected ? '#272944' : '#94A3B8'}
+                color={isSelected ? '#0284C7' : '#94A3B8'}
               />
             </TouchableOpacity>
           )}
@@ -1557,17 +1558,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     marginBottom: 9,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
   leadCardSelected: {
-    borderColor: '#272944',
-    backgroundColor: 'rgba(39, 41, 68, 0.03)',
+    borderColor: '#0284C7',
+    borderWidth: 1.5,
+    backgroundColor: '#F0F7FF',
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardInnerLayout: {
     flexDirection: 'row',
@@ -1575,7 +1582,9 @@ const styles = StyleSheet.create({
   },
   inlineCheckbox: {
     paddingRight: 10,
-    paddingTop: 4,
+    alignSelf: 'flex-start',
+    paddingTop: 5,
+    justifyContent: 'center',
   },
   cardContentBody: {
     flex: 1,
@@ -1633,10 +1642,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   sourceChip: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   sourceChipText: {
     fontSize: 9,
@@ -1680,13 +1691,15 @@ const styles = StyleSheet.create({
   contactDetailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     marginTop: 7,
+    flexWrap: 'wrap',
   },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   phoneText: {
     fontSize: 11.5,
@@ -1697,6 +1710,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     maxWidth: 160,
+    flexShrink: 1,
   },
 
   // Requirement row
@@ -1725,7 +1739,7 @@ const styles = StyleSheet.create({
     color: '#0369A1',
   },
   budgetChip: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,
@@ -1782,7 +1796,8 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: '#475569',
     fontWeight: '600',
-    maxWidth: 130,
+    maxWidth: 120,
+    flexShrink: 1,
   },
 
   // 1-Tap Uniform 32x32 Circular Cockpit
@@ -1934,7 +1949,8 @@ const styles = StyleSheet.create({
   headerSelectionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 6,
+    flexShrink: 0,
   },
   headerCloseBtn: {
     width: 32,
@@ -1948,10 +1964,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     height: 32,
-    borderRadius: 10,
-    gap: 5,
+    borderRadius: 8,
+    gap: 4,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
@@ -1961,14 +1977,15 @@ const styles = StyleSheet.create({
   },
   headerSelectionCountText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     letterSpacing: -0.1,
   },
   headerSelectionActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    flexShrink: 0,
   },
   headerActionBtn: {
     flexDirection: 'row',
@@ -1976,15 +1993,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 32,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 9,
-    borderRadius: 9,
-    gap: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    gap: 3.5,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   headerActionBtnText: {
     color: '#E2E8F0',
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600',
   },
   headerActionBtnReassign: {
@@ -1992,19 +2009,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 32,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 10,
-    borderRadius: 9,
-    gap: 4,
-    shadowColor: '#2563EB',
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 9,
+    borderRadius: 8,
+    gap: 3.5,
+    shadowColor: '#0284C7',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
   },
   headerActionBtnTextReassign: {
     color: '#FFFFFF',
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
   },
   headerActionBtnDelete: {
@@ -2013,7 +2030,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     backgroundColor: 'rgba(239, 68, 68, 0.18)',
-    borderRadius: 9,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.35)',
   },
