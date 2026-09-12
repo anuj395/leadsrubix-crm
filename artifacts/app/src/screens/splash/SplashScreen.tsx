@@ -20,46 +20,46 @@ const { width } = Dimensions.get('window');
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onFinish,
-  minDurationMs = 2000,
+  minDurationMs = 1200,
 }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const fadeAnim = useRef(new Animated.Value(0.35)).current;
+  const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const badgeAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // 1. Entrance animation: Smooth Fade-in, gentle Spring Scale, and Badge reveal
+    // 1. Seamless entrance: Smooth micro-scale and badge reveal with 0 flicker
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 650,
+        duration: 350,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 7,
-        tension: 45,
+        friction: 8,
+        tension: 50,
         useNativeDriver: true,
       }),
       Animated.timing(badgeAnim, {
         toValue: 1,
-        duration: 800,
-        delay: 200,
+        duration: 450,
+        delay: 100,
         useNativeDriver: true,
       }),
       Animated.timing(progressAnim, {
         toValue: 1,
-        duration: minDurationMs - 400,
+        duration: Math.max(minDurationMs - 250, 400),
         useNativeDriver: false,
       }),
     ]).start();
 
-    // 2. Auto-dismiss after minDurationMs with smooth fade out
+    // 2. Auto-dismiss after minDurationMs with crisp cross-fade out
     const timer = setTimeout(() => {
       if (onFinish) {
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 350,
+          duration: 250,
           useNativeDriver: true,
         }).start(() => {
           onFinish();
