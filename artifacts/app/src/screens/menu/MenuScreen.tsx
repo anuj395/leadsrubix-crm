@@ -216,8 +216,8 @@ export const MenuScreen = ({ navigation }: any) => {
               onPress={() => navigation.navigate('Profile')}
               activeOpacity={0.7}
             >
-              <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="person-circle-sharp" size={20} color="#1D4ED8" />
+              <View style={[styles.iconBox, { backgroundColor: 'rgba(39, 41, 68, 0.08)' }]}>
+                <Ionicons name="person-circle-sharp" size={20} color="#272944" />
               </View>
               <View style={styles.actionTextGroup}>
                 <Text style={styles.actionTitle}>Profile & Organization</Text>

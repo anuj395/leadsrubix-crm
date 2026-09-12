@@ -27,55 +27,10 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
   const fetchNotifs = async () => {
     try {
       const data = await notificationService.getNotifications();
-      if (data && data.length > 0) {
-        setNotifications(data);
-      } else {
-        // Fallback realistic notification items
-        setNotifications([
-          {
-            id: '1',
-            title: 'New Lead Created',
-            body: 'A new lead "dkankda" has been added to your workspace.',
-            timestamp: '2 Sep at 3:29 PM',
-            type: 'lead_assigned',
-            isRead: false,
-          },
-          {
-            id: '2',
-            title: 'New Lead Created',
-            body: 'A new lead "Test two" has been added to your workspace.',
-            timestamp: '2 Sep at 3:23 PM',
-            type: 'lead_assigned',
-            isRead: false,
-          },
-          {
-            id: '3',
-            title: 'New Lead Created',
-            body: 'A new lead "Test One" has been added to your workspace.',
-            timestamp: '2 Sep at 3:22 PM',
-            type: 'lead_assigned',
-            isRead: true,
-          },
-          {
-            id: '4',
-            title: 'Site Visit Follow-up Due',
-            body: 'Scheduled follow-up for client "Test One" is due today.',
-            timestamp: '2 Sep at 1:42 PM',
-            type: 'task_due',
-            isRead: true,
-          },
-          {
-            id: '5',
-            title: 'Workspace Synchronized',
-            body: 'Telemetry and call telephony channels are active and syncing.',
-            timestamp: '26 Aug at 3:59 PM',
-            type: 'system_alert',
-            isRead: true,
-          },
-        ]);
-      }
+      setNotifications(Array.isArray(data) ? data : []);
     } catch (e) {
       console.warn('Failed to load notifications:', e);
+      setNotifications([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -139,7 +94,7 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
     const ttl = (title || '').toLowerCase();
 
     if (t === 'lead_assigned' || ttl.includes('lead')) {
-      return { name: 'person-add' as const, color: '#2563EB', bg: '#EFF6FF', label: 'LEAD' };
+      return { name: 'person-add' as const, color: '#272944', bg: 'rgba(39, 41, 68, 0.08)', label: 'LEAD' };
     }
     if (t === 'task_due' || ttl.includes('task') || ttl.includes('visit') || ttl.includes('due')) {
       return { name: 'calendar' as const, color: '#D97706', bg: '#FFFBEB', label: 'TASK' };
@@ -231,7 +186,7 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#151728"
+            tintColor="#272944"
           />
         }
         ListHeaderComponent={
@@ -267,7 +222,7 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
         ListEmptyComponent={
           loading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="small" color="#151728" />
+              <ActivityIndicator size="small" color="#272944" />
               <Text style={styles.loadingText}>Loading notification updates...</Text>
             </View>
           ) : (
@@ -387,9 +342,9 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   statusChipSelected: {
-    backgroundColor: '#1E2238',
-    borderColor: '#1E2238',
-    shadowColor: '#1E2238',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
+    shadowColor: '#272944',
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
@@ -445,7 +400,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderColor: '#CBD5E1',
     borderLeftWidth: 4,
-    borderLeftColor: '#2563EB',
+    borderLeftColor: '#272944',
     shadowOpacity: 0.08,
   },
   iconBox: {
@@ -478,12 +433,12 @@ const styles = StyleSheet.create({
   newBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: 'rgba(39, 41, 68, 0.15)',
     gap: 4,
     marginLeft: 6,
   },
@@ -491,12 +446,12 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#272944',
   },
   newBadgeText: {
     fontSize: 9.5,
     fontWeight: '800',
-    color: '#2563EB',
+    color: '#272944',
     letterSpacing: 0.4,
   },
   timeText: {

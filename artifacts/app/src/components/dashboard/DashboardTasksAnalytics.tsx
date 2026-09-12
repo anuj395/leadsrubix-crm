@@ -91,9 +91,9 @@ export const DashboardTasksAnalytics: React.FC<Props> = ({
                     </Text>
                   </View>
 
-                  <View style={[styles.pill, { backgroundColor: 'rgba(37, 99, 235, 0.10)' }]}>
-                    <Ionicons name="call" size={11} color="#2563EB" />
-                    <Text style={[styles.pillText, { color: '#2563EB' }]}>
+                  <View style={[styles.pill, { backgroundColor: 'rgba(39, 41, 68, 0.10)' }]}>
+                    <Ionicons name="call" size={11} color="#272944" />
+                    <Text style={[styles.pillText, { color: '#272944' }]}>
                       Call Back: {row.callBack}
                     </Text>
                   </View>
@@ -138,7 +138,7 @@ export const DashboardTasksAnalytics: React.FC<Props> = ({
             <View
               style={[
                 styles.distBarSegment,
-                { width: `${callbackPct}%`, backgroundColor: '#2563EB' },
+                { width: `${callbackPct}%`, backgroundColor: '#272944' },
               ]}
             />
           )}
@@ -168,7 +168,7 @@ export const DashboardTasksAnalytics: React.FC<Props> = ({
           </View>
 
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#2563EB' }]} />
+            <View style={[styles.legendDot, { backgroundColor: '#272944' }]} />
             <Text style={styles.legendLabel}>Call ({totalCallBack})</Text>
           </View>
 

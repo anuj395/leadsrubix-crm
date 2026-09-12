@@ -173,9 +173,7 @@ export default function IntegrationsPage() {
   }
 
   const handleConfigure = (key: string) => {
-    if (key === 'whatsapp') {
-      navigate('/configuration/whatsapp')
-    } else if (key === 'notifications') {
+    if (key === 'whatsapp' || key === 'notifications') {
       navigate('/configuration/notifications')
     } else if (key === 'facebook') {
       navigate('/integrations/facebook')

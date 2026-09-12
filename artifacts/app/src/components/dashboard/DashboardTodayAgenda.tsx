@@ -9,17 +9,21 @@ import { openWhatsApp } from '../../utils/whatsappHelper';
 interface Props {
   tasks: TaskItem[];
   industryId?: string;
+  organizationName?: string;
   onViewAll: () => void;
   onTaskPress: (task: TaskItem) => void;
   onCallTask?: (task: TaskItem) => void;
+  onToggleTask?: (task: TaskItem) => void;
 }
 
 export const DashboardTodayAgenda: React.FC<Props> = ({
   tasks,
   industryId,
+  organizationName,
   onViewAll,
   onTaskPress,
   onCallTask,
+  onToggleTask,
 }) => {
   const semantics = getIndustrySemantics(industryId);
   const pendingTasks = React.useMemo(() => {
@@ -46,8 +50,43 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
   };
 
   const handleWhatsApp = (phone?: string, name?: string) => {
-    const text = `Hi ${name || 'Sir/Madam'}, connecting regarding your scheduled appointment / follow-up from Leads Rubix.`;
+    const orgSuffix = organizationName ? ` from ${organizationName}` : '';
+    const text = `Hi ${name || 'Sir/Madam'}, connecting regarding your scheduled ${semantics.taskEntitySingular.toLowerCase()} / follow-up${orgSuffix}.`;
     openWhatsApp(phone, text);
+  };
+
+  const getSmartTime = (task: TaskItem): { text: string; isOverdue: boolean } => {
+    const raw = task.rawDueDate;
+    if (raw) {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        const now = new Date();
+        const isPast = d.getTime() < now.getTime();
+        const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isToday = d.toDateString() === now.toDateString();
+
+        const tomorrow = new Date();
+        tomorrow.setDate(now.getDate() + 1);
+        const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+        if (isToday) {
+          return { text: `Today at ${timeStr}`, isOverdue: isPast };
+        }
+        if (isTomorrow) {
+          return { text: `Tomorrow at ${timeStr}`, isOverdue: false };
+        }
+        if (isPast) {
+          const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          return { text: `${dateStr} at ${timeStr}`, isOverdue: true };
+        }
+        const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return { text: `${dateStr} at ${timeStr}`, isOverdue: false };
+      }
+    }
+
+    const str = task.dueDate || 'Today';
+    const isOverdue = str.toLowerCase().includes('yesterday') || str.toLowerCase().includes('ago');
+    return { text: str, isOverdue };
   };
 
   return (
@@ -78,33 +117,54 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
           </View>
           <Text style={styles.emptyTitle}>All Caught Up For Today</Text>
           <Text style={styles.emptyText}>
-            No pending {semantics.visitsDesc.toLowerCase()} or follow-ups requiring immediate attention.
+            No pending {semantics.siteVisit ? `${semantics.siteVisit.toLowerCase()}s` : 'tasks'} or follow-ups requiring immediate attention.
           </Text>
           <TouchableOpacity
             style={styles.emptyActionBtn}
             onPress={onViewAll}
             activeOpacity={0.8}
           >
-            <Ionicons name="add-circle-outline" size={15} color="#272944" />
+            <Ionicons name="calendar-outline" size={14} color="#334155" />
             <Text style={styles.emptyActionBtnText}>Manage Schedule</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.list}>
-          {pendingTasks.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={styles.taskItem}
-              onPress={() => onTaskPress(t)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.taskLeft}>
+          {pendingTasks.map((t) => {
+            const smartTime = getSmartTime(t);
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[
+                  styles.taskItem,
+                  smartTime.isOverdue && styles.taskItemOverdue,
+                ]}
+                onPress={() => onTaskPress(t)}
+                activeOpacity={0.85}
+              >
+                {/* 1-Tap Circular Completion Toggle */}
+                <TouchableOpacity
+                  style={styles.checkboxTouch}
+                  onPress={() => onToggleTask?.(t)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={t.isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={22}
+                    color={t.isCompleted ? '#10B981' : smartTime.isOverdue ? '#F43F5E' : '#94A3B8'}
+                  />
+                </TouchableOpacity>
+
+                {/* Priority Left Accent */}
                 <View
                   style={[
                     styles.priorityBar,
                     {
                       backgroundColor:
-                        t.priority === 'High'
+                        smartTime.isOverdue
+                          ? '#E11D48'
+                          : t.priority === 'High'
                           ? '#E11D48'
                           : t.priority === 'Medium'
                           ? '#D97706'
@@ -112,41 +172,82 @@ export const DashboardTodayAgenda: React.FC<Props> = ({
                     },
                   ]}
                 />
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.taskTitle} numberOfLines={1}>
-                    {t.title}
-                  </Text>
+
+                {/* Center Content: Title, Lead Name, Project, Time */}
+                <View style={styles.taskBody}>
+                  <View style={styles.titleRow}>
+                    <Text
+                      style={[
+                        styles.taskTitle,
+                        t.isCompleted && styles.taskTitleCompleted,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t.title}
+                    </Text>
+                    {smartTime.isOverdue && !t.isCompleted && (
+                      <View style={styles.overdueBadge}>
+                        <Text style={styles.overdueBadgeText}>OVERDUE</Text>
+                      </View>
+                    )}
+                  </View>
+
                   <View style={styles.taskMetaRow}>
-                    <Text style={styles.leadName}>{t.leadName || 'Client'}</Text>
-                    <Text style={styles.dot}>•</Text>
-                    <Text style={styles.timeText}>{t.dueDate}</Text>
+                    <Text style={styles.leadName} numberOfLines={1}>
+                      {t.leadName || 'Client'}
+                    </Text>
+                    {t.project ? (
+                      <>
+                        <Text style={styles.dot}>•</Text>
+                        <Text style={styles.projectText} numberOfLines={1}>
+                          {t.project}
+                        </Text>
+                      </>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.timeRow}>
+                    <Ionicons
+                      name="time-outline"
+                      size={11}
+                      color={smartTime.isOverdue ? '#E11D48' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.timeText,
+                        smartTime.isOverdue && styles.timeTextOverdue,
+                      ]}
+                    >
+                      {smartTime.text}
+                    </Text>
                   </View>
                 </View>
-              </View>
 
-              {t.phone ? (
-                <View style={styles.actionsGroup}>
-                  <TouchableOpacity
-                    style={styles.whatsappBtn}
-                    onPress={() => handleWhatsApp(t.phone, t.leadName)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                  </TouchableOpacity>
+                {/* Right Action Buttons */}
+                {t.phone ? (
+                  <View style={styles.actionsGroup}>
+                    <TouchableOpacity
+                      style={styles.whatsappBtn}
+                      onPress={() => handleWhatsApp(t.phone, t.leadName)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.callBtn}
-                    onPress={() => handleCall(t)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="call" size={13} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <Ionicons name="chevron-forward-sharp" size={14} color="#94A3B8" />
-              )}
-            </TouchableOpacity>
-          ))}
+                    <TouchableOpacity
+                      style={styles.callBtn}
+                      onPress={() => handleCall(t)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="call" size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Ionicons name="chevron-forward-sharp" size={14} color="#94A3B8" />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
     </View>
@@ -223,49 +324,98 @@ const styles = StyleSheet.create({
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  taskLeft: {
-    flexDirection: 'row',
+  taskItemOverdue: {
+    backgroundColor: '#FFF5F5',
+    borderColor: '#FED7D7',
+  },
+  checkboxTouch: {
+    paddingRight: 8,
+    justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
   },
   priorityBar: {
-    width: 4,
-    height: 32,
+    width: 3.5,
+    height: 36,
     borderRadius: 2,
     marginRight: 10,
   },
+  taskBody: {
+    flex: 1,
+    marginRight: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   taskTitle: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
+  taskTitleCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#94A3B8',
+  },
+  overdueBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#F87171',
+  },
+  overdueBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#DC2626',
+    letterSpacing: 0.4,
+  },
   taskMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 3,
+    gap: 4,
+    marginTop: 2,
   },
   leadName: {
     fontSize: 11.5,
     color: '#0284C7',
     fontWeight: '600',
+    maxWidth: 120,
+  },
+  projectText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    flex: 1,
   },
   dot: {
     fontSize: 10,
     color: '#94A3B8',
   },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
   timeText: {
     fontSize: 11,
     color: '#64748B',
     fontWeight: '500',
+  },
+  timeTextOverdue: {
+    color: '#E11D48',
+    fontWeight: '700',
   },
   actionsGroup: {
     flexDirection: 'row',
@@ -325,22 +475,17 @@ const styles = StyleSheet.create({
   emptyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: '#CBD5E1',
   },
   emptyActionBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#272944',
+    color: '#334155',
   },
 });

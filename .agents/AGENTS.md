@@ -26,3 +26,6 @@ All code changes and additions must strictly adhere to the project's naming conv
    - Proactively elevate and refactor flawed code into clean, scalable, layman-friendly, and enterprise-grade implementations.
 7. **Mission Goal**:
    - Every change must move the product closer to being the industry's best, most reliable, multi-tenant enterprise CRM.
+8. **Continuous Live Deployment & Provisioning (Never Hold Back Protocol)**:
+   - Always push verified code live with proper checks, provisioning, and automatic restore/rollback checkpoints. Never hold back or pause on deploying verified production-ready code unless explicitly instructed by the user with the authorization pass "lucifer".
+   - Maintain clear rollback restore points (git commit hashes & restore instructions) for every live deployment so any version can be restored in seconds.

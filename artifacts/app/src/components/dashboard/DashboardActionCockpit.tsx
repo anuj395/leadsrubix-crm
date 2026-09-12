@@ -18,13 +18,14 @@ export const DashboardActionCockpit: React.FC<Props> = ({
   const semantics = getIndustrySemantics(industryId);
 
   // Dynamic short visit title based on industry
-  const getShortVisitTitle = () => {
+  const getVisitTitle = () => {
     if (semantics.siteVisit === 'Delivery') return 'Deliveries';
     if (semantics.siteVisit === 'Consultation') return 'Consults';
-    if (semantics.siteVisit === 'Campus Tour') return 'Interviews';
+    if (semantics.siteVisit === 'Campus Tour') return 'Campus Tours';
     if (semantics.siteVisit === 'Client Meetup') return 'Demos';
-    if (semantics.siteVisit === 'Plant Visit') return 'Shipments';
-    return 'Site Visits';
+    if (semantics.siteVisit === 'Plant Visit') return 'Plant Visits';
+    if (semantics.siteVisit === 'Office Visit') return 'Meetings';
+    return semantics.siteVisit ? `${semantics.siteVisit}s` : 'Site Visits';
   };
 
   const actions = [
@@ -42,7 +43,7 @@ export const DashboardActionCockpit: React.FC<Props> = ({
     },
     {
       id: 'scheduled',
-      title: getShortVisitTitle(),
+      title: getVisitTitle(),
       count: metrics.scheduledVisits,
       subtitle: 'Scheduled',
       icon: 'calendar-sharp' as const,

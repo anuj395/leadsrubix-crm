@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   filterChipActive: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   filterChipText: {
     fontSize: 11,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#272944',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -241,8 +241,8 @@ const styles = StyleSheet.create({
   timelineStatusBadge: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#2563EB',
-    backgroundColor: '#EFF6FF',
+    color: '#272944',
+    backgroundColor: 'rgba(39, 41, 68, 0.08)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,

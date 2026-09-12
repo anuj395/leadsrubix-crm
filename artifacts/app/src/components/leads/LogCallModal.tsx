@@ -481,8 +481,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   chipItemSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   chipItemText: {
     fontSize: 11.5,
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modalSubmitBtn: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#272944',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,

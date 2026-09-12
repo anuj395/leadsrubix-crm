@@ -125,7 +125,7 @@ export const DashboardFeedbackSummary: React.FC<Props> = ({
                       <Ionicons
                         name={getIconForGroup(row.associate) as any}
                         size={16}
-                        color="#1D4ED8"
+                        color="#272944"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -243,8 +243,8 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   switcherBtnActive: {
-    backgroundColor: '#1E2238',
-    shadowColor: '#1E2238',
+    backgroundColor: '#272944',
+    shadowColor: '#272944',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 4,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 11,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   totalBadge: {
-    backgroundColor: '#1E2238',
+    backgroundColor: '#272944',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,

@@ -4,19 +4,23 @@ import {
   Text,
   Modal,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Platform,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface CalendarDatePickerModalProps {
+export interface CalendarDatePickerModalProps {
   visible: boolean;
   onClose: () => void;
   onSelectDate: (dateStr: string) => void;
   currentValue?: string;
   title?: string;
   includeTime?: boolean;
+  asInModalOverlay?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
 const MONTHS = [
@@ -53,6 +57,9 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   currentValue,
   title = 'Select Date',
   includeTime = false,
+  asInModalOverlay = false,
+  minDate,
+  maxDate,
 }) => {
   const { parsedInitialDate, parsedInitialTime } = useMemo(() => {
     if (currentValue) {
@@ -75,8 +82,22 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   const [currentMonth, setCurrentMonth] = useState<number>(parsedInitialDate.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date>(parsedInitialDate);
   const [selectedTime, setSelectedTime] = useState<string>(parsedInitialTime);
+  const [showYearPicker, setShowYearPicker] = useState<boolean>(false);
+  const [customTimeInput, setCustomTimeInput] = useState<string>('');
 
-  // Days in month calculation
+  // Available Years for Quick Selection (e.g. 1960 to 2035)
+  const yearsList = useMemo(() => {
+    const list: number[] = [];
+    const current = new Date().getFullYear();
+    const start = Math.min(current - 40, currentYear - 10);
+    const end = Math.max(current + 10, currentYear + 10);
+    for (let y = start; y <= end; y++) {
+      list.push(y);
+    }
+    return list;
+  }, [currentYear]);
+
+  // Days in month calculation with minDate & maxDate bounds
   const calendarDays = useMemo(() => {
     const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
     const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -89,9 +110,22 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
       isCurrentMonth: boolean;
       isToday: boolean;
       isSelected: boolean;
+      isDisabled: boolean;
     }> = [];
 
     const today = new Date();
+
+    const checkDisabled = (y: number, m: number, d: number) => {
+      if (minDate) {
+        const dayEnd = new Date(y, m, d, 23, 59, 59, 999);
+        if (dayEnd.getTime() < minDate.getTime()) return true;
+      }
+      if (maxDate) {
+        const dayStart = new Date(y, m, d, 0, 0, 0, 0);
+        if (dayStart.getTime() > maxDate.getTime()) return true;
+      }
+      return false;
+    };
 
     // Previous month padding
     for (let i = firstDayIndex - 1; i >= 0; i--) {
@@ -111,28 +145,34 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
           selectedDate.getDate() === d &&
           selectedDate.getMonth() === m &&
           selectedDate.getFullYear() === y,
+        isDisabled: true,
       });
     }
 
     // Current month days
     for (let i = 1; i <= totalDays; i++) {
+      const isToday =
+        today.getDate() === i &&
+        today.getMonth() === currentMonth &&
+        today.getFullYear() === currentYear;
+      const isSelected =
+        selectedDate.getDate() === i &&
+        selectedDate.getMonth() === currentMonth &&
+        selectedDate.getFullYear() === currentYear;
+      const isDisabled = checkDisabled(currentYear, currentMonth, i);
+
       days.push({
         day: i,
         month: currentMonth,
         year: currentYear,
         isCurrentMonth: true,
-        isToday:
-          today.getDate() === i &&
-          today.getMonth() === currentMonth &&
-          today.getFullYear() === currentYear,
-        isSelected:
-          selectedDate.getDate() === i &&
-          selectedDate.getMonth() === currentMonth &&
-          selectedDate.getFullYear() === currentYear,
+        isToday,
+        isSelected,
+        isDisabled,
       });
     }
 
-    // Next month padding (total cells to 35 or 42)
+    // Next month padding (total cells to multiple of 7)
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const m = currentMonth === 11 ? 0 : currentMonth + 1;
@@ -150,11 +190,12 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
           selectedDate.getDate() === i &&
           selectedDate.getMonth() === m &&
           selectedDate.getFullYear() === y,
+        isDisabled: true,
       });
     }
 
     return days;
-  }, [currentYear, currentMonth, selectedDate]);
+  }, [currentYear, currentMonth, selectedDate, minDate, maxDate]);
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -175,6 +216,7 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   };
 
   const handleSelectDay = (dayObj: (typeof calendarDays)[0]) => {
+    if (dayObj.isDisabled) return;
     const newDate = new Date(dayObj.year, dayObj.month, dayObj.day);
     setSelectedDate(newDate);
     if (dayObj.month !== currentMonth) {
@@ -191,14 +233,25 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
     setCurrentYear(target.getFullYear());
   };
 
+  const handleCustomTimeBlur = () => {
+    if (!customTimeInput.trim()) return;
+    let t = customTimeInput.trim().toUpperCase();
+    if (!t.includes('AM') && !t.includes('PM')) {
+      t += ' AM';
+    }
+    setSelectedTime(t);
+  };
+
   const handleConfirm = () => {
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const formattedDate = `${year}-${month}-${day}`;
 
+    const finalTime = customTimeInput.trim() ? customTimeInput.trim() : selectedTime;
+
     if (includeTime) {
-      onSelectDate(`${formattedDate}, ${selectedTime}`);
+      onSelectDate(`${formattedDate}, ${finalTime}`);
     } else {
       onSelectDate(formattedDate);
     }
@@ -223,98 +276,115 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
     return `${selectedDate.getDate()} ${monthsShort[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
   }, [selectedDate]);
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
+  if (!visible) return null;
+
+  const content = (
+    <View style={asInModalOverlay ? styles.inModalBottomSheet : styles.modalBottomSheet}>
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <Text style={styles.selectedDateBadge}>
+            {formattedSelectedHeader} {includeTime ? `• ${customTimeInput || selectedTime}` : ''}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
+          <Ionicons name="close" size={20} color="#64748B" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick Shortcuts */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.presetsRow}
+      >
+        <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset(0)}>
+          <Text style={styles.presetChipText}>Today</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset(1)}>
+          <Text style={styles.presetChipText}>Tomorrow</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset(3)}>
+          <Text style={styles.presetChipText}>In 3 Days</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset(7)}>
+          <Text style={styles.presetChipText}>Next Week</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset(15)}>
+          <Text style={styles.presetChipText}>In 15 Days</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset(30)}>
+          <Text style={styles.presetChipText}>In 1 Month</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Month & Year Bar */}
+      <View style={styles.monthNavRow}>
         <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        <View style={styles.modalBottomSheet}>
-          {/* Header */}
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.modalTitle}>{title}</Text>
-              <Text style={styles.selectedDateBadge}>
-                {formattedSelectedHeader} {includeTime ? `• ${selectedTime}` : ''}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={20} color="#64748B" />
-            </TouchableOpacity>
-          </View>
+          style={styles.monthNavBtn}
+          onPress={handlePrevMonth}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={18} color="#1E293B" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.monthYearBtn}
+          onPress={() => setShowYearPicker((p) => !p)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.monthYearText}>
+            {MONTHS[currentMonth]} {currentYear}
+          </Text>
+          <Ionicons
+            name={showYearPicker ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color="#64748B"
+            style={{ marginLeft: 4 }}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.monthNavBtn}
+          onPress={handleNextMonth}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-forward" size={18} color="#1E293B" />
+        </TouchableOpacity>
+      </View>
 
-          {/* Quick Shortcuts */}
+      {/* Year Picker Dropdown Grid */}
+      {showYearPicker ? (
+        <View style={styles.yearPickerContainer}>
+          <Text style={styles.yearPickerTitle}>SELECT YEAR</Text>
           <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.presetsRow}
+            style={styles.yearPickerScroll}
+            contentContainerStyle={styles.yearPickerGrid}
+            showsVerticalScrollIndicator={true}
           >
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => applyPreset(0)}
-            >
-              <Text style={styles.presetChipText}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => applyPreset(1)}
-            >
-              <Text style={styles.presetChipText}>Tomorrow</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => applyPreset(3)}
-            >
-              <Text style={styles.presetChipText}>In 3 Days</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => applyPreset(7)}
-            >
-              <Text style={styles.presetChipText}>Next Week</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => applyPreset(15)}
-            >
-              <Text style={styles.presetChipText}>In 15 Days</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => applyPreset(30)}
-            >
-              <Text style={styles.presetChipText}>In 1 Month</Text>
-            </TouchableOpacity>
+            {yearsList.map((y) => {
+              const isYearSelected = y === currentYear;
+              return (
+                <TouchableOpacity
+                  key={y}
+                  style={[styles.yearCell, isYearSelected && styles.yearCellSelected]}
+                  onPress={() => {
+                    setCurrentYear(y);
+                    setShowYearPicker(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[styles.yearCellText, isYearSelected && styles.yearCellTextSelected]}
+                  >
+                    {y}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
-
-          {/* Month & Year Bar */}
-          <View style={styles.monthNavRow}>
-            <TouchableOpacity
-              style={styles.monthNavBtn}
-              onPress={handlePrevMonth}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chevron-back" size={18} color="#1E293B" />
-            </TouchableOpacity>
-            <Text style={styles.monthYearText}>
-              {MONTHS[currentMonth]} {currentYear}
-            </Text>
-            <TouchableOpacity
-              style={styles.monthNavBtn}
-              onPress={handleNextMonth}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chevron-forward" size={18} color="#1E293B" />
-            </TouchableOpacity>
-          </View>
-
+        </View>
+      ) : (
+        <>
           {/* Day of Week Headers */}
           <View style={styles.daysOfWeekRow}>
             {DAYS_OF_WEEK.map((d, idx) => (
@@ -340,9 +410,11 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
                     styles.dayCell,
                     item.isSelected && styles.dayCellSelected,
                     item.isToday && !item.isSelected && styles.dayCellToday,
+                    item.isDisabled && styles.dayCellDisabled,
                   ]}
                   onPress={() => handleSelectDay(item)}
-                  activeOpacity={0.7}
+                  activeOpacity={item.isDisabled ? 1 : 0.7}
+                  disabled={item.isDisabled}
                 >
                   <Text
                     style={[
@@ -350,6 +422,7 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
                       !item.isCurrentMonth && styles.dayCellTextDim,
                       item.isSelected && styles.dayCellTextSelected,
                       item.isToday && !item.isSelected && styles.dayCellTextToday,
+                      item.isDisabled && styles.dayCellTextDisabled,
                     ]}
                   >
                     {item.day}
@@ -358,66 +431,114 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
               );
             })}
           </View>
+        </>
+      )}
 
-          {/* Time Picker Bar (if includeTime is true) */}
-          {includeTime && (
-            <View style={styles.timeSection}>
-              <Text style={styles.timeSectionLabel}>SELECT TIME</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.timeChipsRow}
-              >
-                {QUICK_TIMES.map((t) => {
-                  const isTimeSelected = selectedTime === t;
-                  return (
-                    <TouchableOpacity
-                      key={t}
-                      style={[
-                        styles.timeChip,
-                        isTimeSelected && styles.timeChipSelected,
-                      ]}
-                      onPress={() => setSelectedTime(t)}
-                    >
-                      <Text
-                        style={[
-                          styles.timeChipText,
-                          isTimeSelected && styles.timeChipTextSelected,
-                        ]}
-                      >
-                        {t}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
+      {/* Time Picker Bar (if includeTime is true) */}
+      {includeTime && (
+        <View style={styles.timeSection}>
+          <Text style={styles.timeSectionLabel}>SELECT OR ENTER TIME</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.timeChipsRow}
+          >
+            {QUICK_TIMES.map((t) => {
+              const isTimeSelected = selectedTime === t && !customTimeInput;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.timeChip,
+                    isTimeSelected && styles.timeChipSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedTime(t);
+                    setCustomTimeInput('');
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.timeChipText,
+                      isTimeSelected && styles.timeChipTextSelected,
+                    ]}
+                  >
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
-          {/* Bottom Action Buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.confirmBtn}
-              onPress={handleConfirm}
-              activeOpacity={0.88}
-            >
-              <Ionicons
-                name="checkmark-circle-sharp"
-                size={18}
-                color="#FFFFFF"
-              />
-              <Text style={styles.confirmBtnText}>Apply Date</Text>
-            </TouchableOpacity>
+          {/* Custom Time Row */}
+          <View style={styles.customTimeRow}>
+            <Ionicons name="time-outline" size={15} color="#64748B" style={{ marginRight: 6 }} />
+            <Text style={styles.customTimeLabel}>Custom:</Text>
+            <TextInput
+              style={styles.customTimeInput}
+              placeholder="e.g. 11:45 AM"
+              placeholderTextColor="#94A3B8"
+              value={customTimeInput}
+              onChangeText={setCustomTimeInput}
+              onBlur={handleCustomTimeBlur}
+            />
           </View>
         </View>
+      )}
+
+      {/* Bottom Action Buttons */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={onClose}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.confirmBtn}
+          onPress={handleConfirm}
+          activeOpacity={0.88}
+        >
+          <Ionicons
+            name="checkmark-circle-sharp"
+            size={18}
+            color="#FFFFFF"
+          />
+          <Text style={styles.confirmBtnText}>Apply Date</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (asInModalOverlay) {
+    return (
+      <View style={styles.inModalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        {content}
       </View>
     </Modal>
   );
@@ -513,6 +634,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 2,
     elevation: 1,
+  },
+  monthYearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   monthYearText: {
     fontSize: 15,
@@ -651,5 +779,108 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  yearPickerContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  yearPickerTitle: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748B',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  yearPickerScroll: {
+    maxHeight: 180,
+  },
+  yearPickerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  yearCell: {
+    width: '22%',
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yearCellSelected: {
+    backgroundColor: '#272944',
+    borderColor: '#272944',
+  },
+  yearCellText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  yearCellTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  dayCellDisabled: {
+    opacity: 0.35,
+  },
+  dayCellTextDisabled: {
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  customTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+  },
+  customTimeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginRight: 8,
+  },
+  customTimeInput: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#0F172A',
+    padding: 0,
+  },
+  inModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+    zIndex: 99999,
+    elevation: 30,
+  },
+  inModalBottomSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    elevation: 16,
+    maxHeight: '90%',
   },
 });

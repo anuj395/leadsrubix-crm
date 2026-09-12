@@ -103,7 +103,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             <View style={styles.userInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.userName}>{user?.name || user?.email || ''}</Text>
-                <Ionicons name="checkmark-circle" size={18} color="#2563EB" />
+                <Ionicons name="checkmark-circle" size={18} color="#272944" />
               </View>
               <Text style={styles.userEmail}>{user?.email || ''}</Text>
 
@@ -145,7 +145,7 @@ export const ProfileScreen = ({ navigation }: any) => {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionIconBox}>
-              <Ionicons name="business" size={18} color="#2563EB" />
+              <Ionicons name="business" size={18} color="#272944" />
             </View>
             <Text style={styles.sectionTitle}>ORGANIZATION DETAILS</Text>
           </View>
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#1E2238',
+    backgroundColor: '#272944',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,

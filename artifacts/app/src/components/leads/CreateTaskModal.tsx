@@ -16,6 +16,7 @@ import { apiClient } from '../../api/apiClient';
 import { LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
+import { CalendarDatePickerModal } from '../ui/CalendarDatePickerModal';
 
 interface Props {
   visible: boolean;
@@ -24,11 +25,6 @@ interface Props {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
 
 export const CreateTaskModal: React.FC<Props> = ({
   visible,
@@ -59,25 +55,6 @@ export const CreateTaskModal: React.FC<Props> = ({
 
   // Calendar Overlay Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
-  const [calTime, setCalTime] = useState('10:00 AM');
-  const [customTimeInput, setCustomTimeInput] = useState('');
-
-  // Helper: Format date for display (DD/MM/YYYY, HH:mm AM/PM)
-  const formatIsoToDisplay = (dateObj: Date) => {
-    const yyyy = dateObj.getFullYear();
-    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const dd = String(dateObj.getDate()).padStart(2, '0');
-    let hours = dateObj.getHours();
-    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const strHours = String(hours).padStart(2, '0');
-    return `${dd}/${mm}/${yyyy}, ${strHours}:${minutes} ${ampm}`;
-  };
 
   // 1. Initialize Form Values & Existing Task Detection on Open
   useEffect(() => {
@@ -86,13 +63,10 @@ export const CreateTaskModal: React.FC<Props> = ({
     // Reset default date (Tomorrow 10:00 AM)
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 1);
-    defaultDate.setHours(10, 0, 0, 0);
-    setNextFollowUpDate(formatIsoToDisplay(defaultDate));
-    setCalMonth(defaultDate.getMonth());
-    setCalYear(defaultDate.getFullYear());
-    setSelectedDay(defaultDate.getDate());
-    setCalTime('10:00 AM');
-    setCustomTimeInput('');
+    const yyyy = defaultDate.getFullYear();
+    const mm = String(defaultDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(defaultDate.getDate()).padStart(2, '0');
+    setNextFollowUpDate(`${yyyy}-${mm}-${dd}, 10:00 AM`);
     setNextFollowUpType('Call Back');
     setNoteText('');
     setExistingTaskSelected('');
@@ -125,42 +99,6 @@ export const CreateTaskModal: React.FC<Props> = ({
     }
   }, [visible, lead]);
 
-  // Calendar calculation
-  const daysInMonth = useMemo(() => {
-    return new Date(calYear, calMonth + 1, 0).getDate();
-  }, [calYear, calMonth]);
-
-  const firstDayOffset = useMemo(() => {
-    return new Date(calYear, calMonth, 1).getDay();
-  }, [calYear, calMonth]);
-
-  // Quick Date Presets
-  const applyPreset = (preset: 'today' | 'tomorrow' | 'in2days' | 'nextweek') => {
-    const d = new Date();
-    if (preset === 'tomorrow') d.setDate(d.getDate() + 1);
-    if (preset === 'in2days') d.setDate(d.getDate() + 2);
-    if (preset === 'nextweek') d.setDate(d.getDate() + 7);
-
-    setCalYear(d.getFullYear());
-    setCalMonth(d.getMonth());
-    setSelectedDay(d.getDate());
-  };
-
-  // Time preset selection
-  const handleTimeSelect = (t: string) => {
-    setCalTime(t);
-    setCustomTimeInput('');
-  };
-
-  const handleCustomTimeSubmit = () => {
-    if (!customTimeInput.trim()) return;
-    let text = customTimeInput.trim().toUpperCase();
-    if (!text.includes('AM') && !text.includes('PM')) {
-      text += ' AM';
-    }
-    setCalTime(text);
-  };
-
   // Submit Handler (Matches Web CRM 1:1)
   const handleSubmit = async () => {
     const leadId = lead.id || lead._id;
@@ -179,16 +117,25 @@ export const CreateTaskModal: React.FC<Props> = ({
       return;
     }
 
-    // Parse date safely for DD/MM/YYYY, HH:mm AM/PM format
+    // Parse date safely for YYYY-MM-DD, HH:mm AM/PM or DD/MM/YYYY
     let parsedDate = new Date(nextFollowUpDate.replace(',', ''));
-    if (isNaN(parsedDate.getTime()) && nextFollowUpDate.includes('/')) {
+    if (isNaN(parsedDate.getTime())) {
       const parts = nextFollowUpDate.split(',');
-      const dateParts = parts[0].trim().split('/');
-      if (dateParts.length === 3) {
-        const day = parseInt(dateParts[0], 10);
-        const month = parseInt(dateParts[1], 10) - 1;
-        const year = parseInt(dateParts[2], 10);
-        const timeStr = parts[1] ? parts[1].trim() : '10:00 AM';
+      const datePart = parts[0].trim();
+      const timeStr = parts[1] ? parts[1].trim() : '10:00 AM';
+      let year = 0, month = 0, day = 0;
+      if (datePart.includes('/')) {
+        const dp = datePart.split('/');
+        day = parseInt(dp[0], 10);
+        month = parseInt(dp[1], 10) - 1;
+        year = parseInt(dp[2], 10);
+      } else if (datePart.includes('-')) {
+        const dp = datePart.split('-');
+        year = parseInt(dp[0], 10);
+        month = parseInt(dp[1], 10) - 1;
+        day = parseInt(dp[2], 10);
+      }
+      if (year && !isNaN(month) && day) {
         parsedDate = new Date(year, month, day);
         const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
         if (timeMatch) {
@@ -450,147 +397,20 @@ export const CreateTaskModal: React.FC<Props> = ({
           </View>
         </View>
 
-        {/* CALENDAR OVERLAY PICKER */}
-        {showDatePicker && (
-          <View style={styles.calendarOverlay}>
-            <View style={styles.calendarSheet}>
-              {/* Calendar Header */}
-              <View style={styles.calHeaderRow}>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (calMonth === 0) {
-                      setCalMonth(11);
-                      setCalYear((y) => y - 1);
-                    } else {
-                      setCalMonth((m) => m - 1);
-                    }
-                  }}
-                  style={styles.calNavBtn}
-                >
-                  <Ionicons name="chevron-back" size={20} color="#0F172A" />
-                </TouchableOpacity>
-
-                <Text style={styles.calMonthTitle}>
-                  {MONTH_NAMES[calMonth]} {calYear}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => {
-                    if (calMonth === 11) {
-                      setCalMonth(0);
-                      setCalYear((y) => y + 1);
-                    } else {
-                      setCalMonth((m) => m + 1);
-                    }
-                  }}
-                  style={styles.calNavBtn}
-                >
-                  <Ionicons name="chevron-forward" size={20} color="#0F172A" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Quick Preset Chips */}
-              <View style={styles.presetRow}>
-                <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset('today')}>
-                  <Text style={styles.presetChipText}>Today</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset('tomorrow')}>
-                  <Text style={styles.presetChipText}>Tomorrow</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset('in2days')}>
-                  <Text style={styles.presetChipText}>In 2 Days</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetChip} onPress={() => applyPreset('nextweek')}>
-                  <Text style={styles.presetChipText}>Next Week</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Weekday Labels */}
-              <View style={styles.weekDaysRow}>
-                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-                  <Text key={d} style={styles.weekDayText}>
-                    {d}
-                  </Text>
-                ))}
-              </View>
-
-              {/* Days Grid */}
-              <View style={styles.daysGrid}>
-                {Array.from({ length: firstDayOffset }).map((_, idx) => (
-                  <View key={`blank-${idx}`} style={styles.dayCell} />
-                ))}
-                {Array.from({ length: daysInMonth }).map((_, idx) => {
-                  const dayNum = idx + 1;
-                  const isSelected = dayNum === selectedDay;
-                  return (
-                    <TouchableOpacity
-                      key={`day-${dayNum}`}
-                      style={[styles.dayCell, isSelected && styles.dayCellSelected]}
-                      onPress={() => setSelectedDay(dayNum)}
-                    >
-                      <Text style={[styles.dayCellText, isSelected && styles.dayCellTextSelected]}>
-                        {dayNum}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Time Selector Chips */}
-              <Text style={styles.timeSectionTitle}>Select Time</Text>
-              <View style={styles.timeChipsRow}>
-                {['10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM', '06:00 PM'].map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.timeChip, calTime === t && !customTimeInput && styles.timeChipSelected]}
-                    onPress={() => handleTimeSelect(t)}
-                  >
-                    <Text style={[styles.timeChipText, calTime === t && !customTimeInput && styles.timeChipTextSelected]}>
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Custom Time Input Box */}
-              <View style={styles.customTimeRow}>
-                <TextInput
-                  style={styles.customTimeInput}
-                  placeholder="Or enter custom time (e.g. 11:30 AM)"
-                  placeholderTextColor="#94A3B8"
-                  value={customTimeInput}
-                  onChangeText={setCustomTimeInput}
-                  onSubmitEditing={handleCustomTimeSubmit}
-                />
-                {customTimeInput.length > 0 && (
-                  <TouchableOpacity style={styles.applyCustomTimeBtn} onPress={handleCustomTimeSubmit}>
-                    <Text style={styles.applyCustomTimeBtnText}>Set</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Calendar Overlay Action Buttons */}
-              <View style={styles.calActionsRow}>
-                <TouchableOpacity style={styles.calCancelBtn} onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.calCancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.confirmBtn}
-                  onPress={() => {
-                    const mm = String(calMonth + 1).padStart(2, '0');
-                    const dd = String(selectedDay).padStart(2, '0');
-                    const formattedDate = `${dd}/${mm}/${calYear}, ${calTime}`;
-                    setNextFollowUpDate(formattedDate);
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.confirmBtnText}>Apply Date</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* IN-MODAL OVERLAY: UNIFIED CALENDAR DATE & TIME PICKER */}
+        <CalendarDatePickerModal
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          onSelectDate={(formatted) => {
+            setNextFollowUpDate(formatted);
+            setShowDatePicker(false);
+          }}
+          currentValue={nextFollowUpDate}
+          title="Select Next Follow Up Date & Time"
+          includeTime={true}
+          asInModalOverlay={true}
+          minDate={new Date()}
+        />
 
         {/* IN-MODAL OVERLAY: NEXT FOLLOW UP TYPE */}
         {showTypePicker && (
@@ -836,7 +656,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#272944',
   },
   modalSubmitBtnText: {
     fontSize: 13,

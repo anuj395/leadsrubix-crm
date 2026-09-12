@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modalSubmitBtn: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#272944',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
