@@ -7,6 +7,7 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -19,38 +20,43 @@ const { width } = Dimensions.get('window');
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onFinish,
-  minDurationMs = 1800,
+  minDurationMs = 2000,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.88)).current;
+  const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const badgeAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // 1. Smooth Fade-in and gentle Scale-up
+    // 1. Entrance animation: Smooth Fade-in, gentle Spring Scale, and Badge reveal
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 750,
+        duration: 650,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 6,
-        tension: 40,
+        friction: 7,
+        tension: 45,
         useNativeDriver: true,
       }),
       Animated.timing(badgeAnim, {
         toValue: 1,
-        duration: 900,
-        delay: 300,
+        duration: 800,
+        delay: 200,
         useNativeDriver: true,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: minDurationMs - 400,
+        useNativeDriver: false,
       }),
     ]).start();
 
-    // 2. Minimum display duration before auto-navigating
+    // 2. Auto-dismiss after minDurationMs with smooth fade out
     const timer = setTimeout(() => {
       if (onFinish) {
-        // Subtle exit fade out
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 350,
@@ -62,17 +68,22 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     }, minDurationMs);
 
     return () => clearTimeout(timer);
-  }, [fadeAnim, scaleAnim, badgeAnim, onFinish, minDurationMs]);
+  }, [fadeAnim, scaleAnim, badgeAnim, progressAnim, onFinish, minDurationMs]);
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#272944" translucent={false} />
+      <StatusBar barStyle="light-content" backgroundColor="#151728" translucent={false} />
 
-      {/* Decorative ambient background rings */}
-      <View style={styles.ambientGlowRing1} />
-      <View style={styles.ambientGlowRing2} />
+      {/* Atmospheric Executive Radial Glows (Subtle, no sharp circular ridges) */}
+      <View style={styles.ambientGlowTop} />
+      <View style={styles.ambientGlowBottom} />
 
-      {/* Center Branding Block */}
+      {/* Center Branding Hero */}
       <Animated.View
         style={[
           styles.brandBlock,
@@ -82,33 +93,38 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           },
         ]}
       >
-        {/* Modern Brand Logo Icon Emblem */}
-        <View style={styles.logoBadgeContainer}>
-          <View style={styles.logoBadgeInner}>
-            <Ionicons name="cube" size={44} color="#FFFFFF" />
+        {/* Authentic Leads Rubix Brand Emblem Card */}
+        <View style={styles.logoCardOuter}>
+          <View style={styles.logoCardInner}>
+            <Image
+              source={require('../../../assets/android-icon-foreground.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
-          <View style={styles.badgePulseGlow} />
+          <View style={styles.logoGlowHalo} />
         </View>
 
         {/* Brand Title */}
         <Text style={styles.brandTitle}>LEADS RUBIX</Text>
 
-        {/* Accent Divider */}
-        <View style={styles.accentDividerRow}>
-          <View style={styles.accentLine} />
-          <View style={styles.accentDiamond} />
-          <View style={styles.accentLine} />
+        {/* Executive Sector Status Pill */}
+        <View style={styles.statusBadgePill}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.statusBadgeText}>ENTERPRISE MULTI-TENANT CRM</Text>
         </View>
 
-        {/* Tagline */}
-        <Text style={styles.tagline}>ENTERPRISE MULTI-TENANT CRM</Text>
+        {/* Sync / Boot Progress Bar */}
+        <View style={styles.progressBarTrack}>
+          <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
+        </View>
       </Animated.View>
 
-      {/* Bottom Footer Trust & Version Badges */}
+      {/* Bottom Footer: Trust & Version */}
       <Animated.View style={[styles.footerBlock, { opacity: badgeAnim }]}>
         <View style={styles.securityPill}>
-          <Ionicons name="shield-checkmark" size={13} color="#38BDF8" />
-          <Text style={styles.securityPillText}>256-Bit Encrypted • Real-time Cloud Sync</Text>
+          <Ionicons name="shield-checkmark" size={13} color="#10B981" />
+          <Text style={styles.securityPillText}>256-Bit SSL Encrypted • Real-time Cloud Sync</Text>
         </View>
         <Text style={styles.versionText}>v1.0.0 • Enterprise Edition</Text>
       </Animated.View>
@@ -119,116 +135,136 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#272944',
+    backgroundColor: '#151728',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
-  ambientGlowRing1: {
+  ambientGlowTop: {
     position: 'absolute',
-    width: width * 1.3,
-    height: width * 1.3,
-    borderRadius: (width * 1.3) / 2,
-    backgroundColor: 'rgba(56, 189, 248, 0.04)',
+    top: -100,
+    right: -60,
+    width: width * 0.85,
+    height: width * 0.85,
+    borderRadius: (width * 0.85) / 2,
+    backgroundColor: 'rgba(56, 189, 248, 0.06)',
   },
-  ambientGlowRing2: {
+  ambientGlowBottom: {
     position: 'absolute',
+    bottom: -100,
+    left: -60,
     width: width * 0.9,
     height: width * 0.9,
     borderRadius: (width * 0.9) / 2,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    backgroundColor: 'rgba(99, 102, 241, 0.06)',
   },
   brandBlock: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoBadgeContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  logoCardOuter: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(56, 189, 248, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 22,
     shadowColor: '#38BDF8',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  logoBadgeInner: {
-    width: 68,
-    height: 68,
-    borderRadius: 18,
-    backgroundColor: '#1E1B4B',
+  logoCardInner: {
+    width: 78,
+    height: 78,
+    borderRadius: 22,
+    backgroundColor: '#1E1F38',
     borderWidth: 1,
-    borderColor: '#38BDF8',
+    borderColor: 'rgba(56, 189, 248, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  badgePulseGlow: {
+  logoImage: {
+    width: 66,
+    height: 66,
+  },
+  logoGlowHalo: {
     position: 'absolute',
-    width: 104,
-    height: 104,
-    borderRadius: 32,
+    width: 116,
+    height: 116,
+    borderRadius: 36,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.2)',
+    borderColor: 'rgba(56, 189, 248, 0.12)',
   },
   brandTitle: {
-    fontSize: 26,
+    fontSize: 27,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 3.5,
+    letterSpacing: 3.8,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  accentDividerRow: {
+  statusBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginVertical: 6,
+    gap: 7,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 13,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 20,
   },
-  accentLine: {
-    width: 32,
-    height: 1.5,
-    backgroundColor: 'rgba(56, 189, 248, 0.4)',
+  greenPulseDot: {
+    width: 6.5,
+    height: 6.5,
+    borderRadius: 3.5,
+    backgroundColor: '#10B981',
   },
-  accentDiamond: {
-    width: 6,
-    height: 6,
-    transform: [{ rotate: '45deg' }],
-    backgroundColor: '#38BDF8',
-  },
-  tagline: {
-    fontSize: 11,
+  statusBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 2,
-    marginTop: 4,
-    textAlign: 'center',
+    color: '#34D399',
+    letterSpacing: 1.5,
+  },
+  progressBarTrack: {
+    width: 120,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#38BDF8',
+    borderRadius: 2,
   },
   footerBlock: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 44 : 28,
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
   },
   securityPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   securityPillText: {
     fontSize: 10.5,
-    color: '#E2E8F0',
+    color: '#CBD5E1',
     fontWeight: '600',
     letterSpacing: 0.3,
   },
