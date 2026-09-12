@@ -3,3 +3,5 @@ capture_all.sh
 capture_all_screens.sh
 .DS_Store
 *.log
+*.apk
+*.aab
