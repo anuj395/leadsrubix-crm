@@ -112,6 +112,8 @@ export default function NotificationHubPage() {
   const [resettingTemplates, setResettingTemplates] = useState<boolean>(false);
   const [matrixSearchQuery, setMatrixSearchQuery] = useState<string>('');
   const [showWaToken, setShowWaToken] = useState<boolean>(false);
+  const [showEmailPass, setShowEmailPass] = useState<boolean>(false);
+  const [savingEmailGateway, setSavingEmailGateway] = useState<boolean>(false);
   const contentContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Auto reset scroll to top on tab change so user never lands halfway down a page
@@ -202,7 +204,7 @@ export default function NotificationHubPage() {
   const roleBadgeConfig = useMemo(() => {
     if (isSuperAdmin) {
       return {
-        label: 'Super Admin Universal Platform Engine',
+        label: 'Platform Master Hub',
         bg: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
         chipBg: '#f3e8ff',
         chipColor: '#7c3aed'
@@ -210,7 +212,7 @@ export default function NotificationHubPage() {
     }
     if (userRole === 'admin') {
       return {
-        label: 'Workspace Administrator Control Center',
+        label: 'Workspace Administration',
         bg: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
         chipBg: '#eff6ff',
         chipColor: '#1d4ed8'
@@ -253,15 +255,20 @@ export default function NotificationHubPage() {
     wapiUrl: 'https://gate.whapi.cloud',
     wapiToken: '',
     isActive: false,
+    isInherited: false,
+    hasUniversalFallback: true,
   });
   const [emailConfig, setEmailConfig] = useState<any>({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: { user: '', pass: '' },
+    useCustomSmtp: false,
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 465,
+    smtpUser: '',
+    smtpPass: '',
     fromEmail: 'noreply@crm.leadsrubix.com',
     fromName: 'LeadsRubix CRM',
+    security: 'SSL',
     isActive: true,
+    hasConfiguredPassword: false,
   });
   const [pushConfig, setPushConfig] = useState<any>({
     region: 'ap-south-1',
@@ -410,14 +417,37 @@ export default function NotificationHubPage() {
 
   const loadGateways = async () => {
     try {
-      const resWa = await api.get('/whatsapp-config').catch(() => null);
-      if (resWa?.data) {
-        const d = resWa.data;
+      const [resWa, resEmail] = await Promise.allSettled([
+        api.get('/whatsapp-config'),
+        api.get('/organizations/email-settings')
+      ]);
+
+      if (resWa.status === 'fulfilled' && resWa.value?.data) {
+        const d = resWa.value.data;
         setWaConfig({
           type: d.type || 'WHAPI',
-          wapiUrl: d.fields?.wapiUrl || 'https://gate.whapi.cloud',
-          wapiToken: d.fields?.wapiToken || '',
-          isActive: !!d.isActive,
+          wapiUrl: d.wapiUrl || d.fields?.wapiUrl || d.url || 'https://gate.whapi.cloud',
+          wapiToken: d.wapiToken || d.fields?.wapiToken || '',
+          isActive: d.isActive !== undefined ? !!d.isActive : false,
+          isInherited: !!d.isInherited,
+          hasUniversalFallback: !!d.hasUniversalFallback,
+        });
+      }
+
+      if (resEmail.status === 'fulfilled' && resEmail.value?.data) {
+        const d = resEmail.value.data;
+        const s = d.smtpConfig || {};
+        setEmailConfig({
+          useCustomSmtp: Boolean(s.useCustomSmtp),
+          smtpHost: s.smtpHost || 'smtp.gmail.com',
+          smtpPort: s.smtpPort || 465,
+          smtpUser: s.smtpUser || '',
+          smtpPass: s.smtpPass || '',
+          fromEmail: s.fromEmail || 'noreply@crm.leadsrubix.com',
+          fromName: s.fromName || 'LeadsRubix CRM',
+          security: s.security || 'SSL',
+          isActive: s.useCustomSmtp !== false,
+          hasConfiguredPassword: Boolean(s.hasConfiguredPassword || s.smtpPass),
         });
       }
     } catch (err) {
@@ -691,25 +721,90 @@ export default function NotificationHubPage() {
         type: waConfig.type,
         url: waConfig.wapiUrl,
         isActive: waConfig.isActive,
+        useCustomApi: waConfig.isActive,
         fields: {
           wapiUrl: waConfig.wapiUrl,
           wapiToken: waConfig.wapiToken,
         },
+        wapi: {
+          active: waConfig.isActive,
+          wapi_url: waConfig.wapiUrl,
+          wapi_token: waConfig.wapiToken,
+        }
       };
-      await api.post('/whatsapp-config', payload);
+      const res = await api.post('/whatsapp-config', payload);
+      if (res.data) {
+        const d = res.data;
+        setWaConfig({
+          type: d.type || waConfig.type,
+          wapiUrl: d.wapiUrl || d.fields?.wapiUrl || waConfig.wapiUrl,
+          wapiToken: d.wapiToken !== undefined ? d.wapiToken : (d.fields?.wapiToken !== undefined ? d.fields.wapiToken : waConfig.wapiToken),
+          isActive: d.isActive !== undefined ? !!d.isActive : waConfig.isActive,
+          isInherited: !!d.isInherited,
+          hasUniversalFallback: !!d.hasUniversalFallback,
+        });
+      }
       setSnackbar({
         open: true,
-        message: 'WhatsApp gateway configuration saved successfully!',
+        message: 'WhatsApp gateway configuration saved and operational!',
         severity: 'success'
       });
     } catch (err: any) {
       setSnackbar({
         open: true,
-        message: 'Failed to update WhatsApp gateway',
+        message: err.response?.data?.message || 'Failed to update WhatsApp gateway',
         severity: 'error'
       });
     } finally {
       setSavingGateway(false);
+    }
+  };
+
+  // Save Email Gateway settings
+  const handleSaveEmailGateway = async () => {
+    setSavingEmailGateway(true);
+    try {
+      const payload = {
+        smtpConfig: {
+          useCustomSmtp: Boolean(emailConfig.isActive),
+          smtpHost: emailConfig.smtpHost?.trim() || '',
+          smtpPort: Number(emailConfig.smtpPort) || 465,
+          smtpUser: emailConfig.smtpUser?.trim() || '',
+          smtpPass: emailConfig.smtpPass || '',
+          fromEmail: emailConfig.fromEmail?.trim() || '',
+          fromName: emailConfig.fromName?.trim() || '',
+          security: emailConfig.security || 'SSL'
+        }
+      };
+      const res = await api.post('/organizations/email-settings', payload);
+      if (res.data?.smtpConfig) {
+        const s = res.data.smtpConfig;
+        setEmailConfig((prev: any) => ({
+          ...prev,
+          useCustomSmtp: Boolean(s.useCustomSmtp),
+          smtpHost: s.smtpHost || prev.smtpHost,
+          smtpPort: s.smtpPort || prev.smtpPort,
+          smtpUser: s.smtpUser || prev.smtpUser,
+          fromEmail: s.fromEmail || prev.fromEmail,
+          fromName: s.fromName || prev.fromName,
+          security: s.security || prev.security,
+          hasConfiguredPassword: Boolean(s.hasConfiguredPassword || prev.smtpPass),
+          isActive: s.useCustomSmtp !== false,
+        }));
+      }
+      setSnackbar({
+        open: true,
+        message: 'Email gateway configuration saved successfully!',
+        severity: 'success'
+      });
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Failed to save email gateway settings',
+        severity: 'error'
+      });
+    } finally {
+      setSavingEmailGateway(false);
     }
   };
 
@@ -1771,7 +1866,7 @@ export default function NotificationHubPage() {
                     <TableCell sx={{ fontWeight: 700, textAlign: 'center', width: '19.5%' }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <span>Workspace Admin</span>
-                        <Typography variant="caption" color="text.secondary">Org Admin / SuperAdmin</Typography>
+                        <Typography variant="caption" color="text.secondary">Workspace Control</Typography>
                       </Box>
                     </TableCell>
                     <TableCell sx={{ fontWeight: 700, textAlign: 'center', width: '19.5%' }}>
@@ -2486,7 +2581,7 @@ export default function NotificationHubPage() {
                 </Stack>
 
                 <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                  <strong>Universal Platform Fallback:</strong> If tenant API credentials are not set, outgoing alerts fallback to the SuperAdmin gateway with zero downtime.
+                  <strong>Universal Cloud Delivery Active:</strong> Outbound alerts are routed through the configured cloud gateway with automatic fallback to ensure 99.9% uptime.
                 </Alert>
 
                 <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
@@ -2571,26 +2666,109 @@ export default function NotificationHubPage() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Email (SMTP / Amazon SES)</Typography>
                     <Typography variant="caption" color="text.secondary">Transactional & Lead Alert Emails</Typography>
                   </Box>
-                  <Chip label="Active - Cloud Managed" color="success" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }} />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={emailConfig.isActive}
+                        onChange={(e) => setEmailConfig({ ...emailConfig, isActive: e.target.checked })}
+                        color="primary"
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="caption" sx={{ fontWeight: 700 }}>{emailConfig.isActive ? 'Active' : 'Disabled'}</Typography>}
+                    sx={{ m: 0 }}
+                  />
                 </Stack>
 
                 <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                  Standard SMTP server connection configured via environment (Amazon SES / Nodemailer).
+                  <strong>Universal Cloud Delivery Active:</strong> Custom SMTP routes outbound emails directly through your mail server. If disabled or unspecified, managed cloud delivery is used.
                 </Alert>
 
                 <Grid container spacing={1.5} sx={{ mb: 2 }}>
                   <Grid size={{ xs: 8 }}>
-                    <TextField fullWidth size="small" label="SMTP Host" value={emailConfig.host} disabled />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="SMTP Host"
+                      value={emailConfig.smtpHost}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, smtpHost: e.target.value })}
+                      placeholder="e.g. smtp.gmail.com or mail.domain.com"
+                    />
                   </Grid>
                   <Grid size={{ xs: 4 }}>
-                    <TextField fullWidth size="small" label="Port" value={emailConfig.port} disabled />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Port"
+                      type="number"
+                      value={emailConfig.smtpPort}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, smtpPort: e.target.value })}
+                      placeholder="465 or 587"
+                    />
                   </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField fullWidth size="small" label="From Email Address" value={emailConfig.fromEmail} disabled />
+                  <Grid size={{ xs: 6 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="SMTP Username / Account"
+                      value={emailConfig.smtpUser}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, smtpUser: e.target.value })}
+                      placeholder="user@domain.com"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type={showEmailPass ? 'text' : 'password'}
+                      label="SMTP Password"
+                      value={emailConfig.smtpPass}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, smtpPass: e.target.value })}
+                      placeholder={emailConfig.hasConfiguredPassword ? '•••••••• (Saved)' : 'Enter SMTP password'}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowEmailPass(!showEmailPass)}>
+                              {showEmailPass ? <VisibilityOff fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="From Email Address"
+                      value={emailConfig.fromEmail}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, fromEmail: e.target.value })}
+                      placeholder="notifications@yourdomain.com"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Sender Name"
+                      value={emailConfig.fromName}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, fromName: e.target.value })}
+                      placeholder="e.g. LeadsRubix CRM"
+                    />
                   </Grid>
                 </Grid>
 
-                <Box sx={{ mt: 'auto' }}>
+                <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    onClick={handleSaveEmailGateway}
+                    disabled={savingEmailGateway}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36, px: 2 }}
+                  >
+                    {savingEmailGateway ? 'Saving...' : 'Save Configuration'}
+                  </Button>
                   <Button
                     variant="outlined"
                     color="primary"
@@ -2598,7 +2776,7 @@ export default function NotificationHubPage() {
                     startIcon={<EmailIcon />}
                     onClick={() => {
                       setTestChannel('email');
-                      setTestRecipient(emailConfig.fromEmail);
+                      setTestRecipient(emailConfig.fromEmail || (user as any)?.email || '');
                       setTestModalOpen(true);
                     }}
                     sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, height: 36 }}
