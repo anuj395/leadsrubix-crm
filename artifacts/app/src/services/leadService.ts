@@ -30,6 +30,7 @@ export interface LeadItem {
   createdAtFull?: string;
   rawCreatedAt?: string;
   nextFollowUpDateTime?: string;
+  nextFollowUpType?: string;
   rawFollowUpDate?: string;
   isConverted?: boolean;
   is_converted?: boolean;
@@ -40,6 +41,7 @@ export interface LeadItem {
   inquiries?: any[];
   stageHistory?: any[];
   stage_history?: any[];
+  [k: string]: any;
 }
 
 export interface TransferOptions {

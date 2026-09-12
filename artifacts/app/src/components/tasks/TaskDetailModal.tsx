@@ -47,25 +47,37 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const getPriorityMeta = (priority?: string) => {
     const p = (priority || '').toLowerCase();
+    if (p === 'urgent') {
+      return { bg: '#FAF5FF', border: '#E9D5FF', text: '#9333EA' };
+    }
     if (p === 'high') {
       return { bg: '#FFF1F2', border: '#FECDD3', text: '#BE123C' };
     }
     if (p === 'medium') {
       return { bg: '#FFFBEB', border: '#FDE68A', text: '#B45309' };
     }
-    return { bg: '#F1F5F9', border: '#CBD5E1', text: '#475569' };
+    return { bg: '#F0FDF4', border: '#BBF7D0', text: '#15803D' };
   };
 
   const getTaskIcon = (type?: string, title?: string) => {
     const s = `${type || ''} ${title || ''}`.toLowerCase();
     if (s.includes('visit') || s.includes('site')) {
-      return { name: 'location' as const, color: '#7C3AED', bg: '#F5F3FF' };
+      return { name: 'business' as const, color: '#1D4ED8', bg: '#EFF6FF' };
     }
     if (s.includes('call') || s.includes('phone')) {
-      return { name: 'call' as const, color: '#0284C7', bg: '#EFF6FF' };
+      return { name: 'call' as const, color: '#272944', bg: 'rgba(39, 41, 68, 0.08)' };
     }
-    if (s.includes('meet') || s.includes('demo') || s.includes('consult')) {
-      return { name: 'calendar' as const, color: '#D97706', bg: '#FFFBEB' };
+    if (s.includes('demo') || s.includes('online')) {
+      return { name: 'videocam' as const, color: '#4F46E5', bg: '#EEF2FF' };
+    }
+    if (s.includes('doc') || s.includes('kyc')) {
+      return { name: 'document-text' as const, color: '#0D9488', bg: '#F0FDFA' };
+    }
+    if (s.includes('follow')) {
+      return { name: 'repeat' as const, color: '#EA580C', bg: '#FFF7ED' };
+    }
+    if (s.includes('meet') || s.includes('consult')) {
+      return { name: 'people' as const, color: '#7C3AED', bg: '#F5F3FF' };
     }
     return { name: 'checkmark-circle' as const, color: '#059669', bg: '#ECFDF5' };
   };
@@ -369,11 +381,45 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </View>
               ) : null}
 
-              {task.location ? (
+              {(task.meetingLocation || task.location) ? (
                 <View style={styles.locationBox}>
-                  <Ionicons name="location-outline" size={14} color="#64748B" />
+                  <Ionicons name="location-outline" size={14} color="#15803D" />
                   <Text style={styles.locationBoxText} numberOfLines={2}>
-                    Location: {task.location}
+                    Venue / Location: {task.meetingLocation || task.location}
+                  </Text>
+                </View>
+              ) : null}
+
+              {(task.demoLink || task.meetingLink) ? (
+                <View style={styles.demoLinkBox}>
+                  <View style={styles.demoLinkLeftGroup}>
+                    <Ionicons name="videocam-outline" size={15} color="#4F46E5" />
+                    <Text style={styles.demoLinkBoxText} numberOfLines={1}>
+                      {task.demoLink || task.meetingLink}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.joinMeetingBtn}
+                    onPress={() => {
+                      const url = task.demoLink || task.meetingLink || '';
+                      if (url) {
+                        const target = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+                        Linking.openURL(target).catch(() => Alert.alert('Error', 'Unable to open meeting link'));
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="open-outline" size={12} color="#FFFFFF" />
+                    <Text style={styles.joinMeetingBtnText}>Join Meeting</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {task.assignedTo ? (
+                <View style={styles.assigneeBox}>
+                  <Ionicons name="person-outline" size={13} color="#475569" />
+                  <Text style={styles.assigneeBoxText}>
+                    Assigned: <Text style={{ fontWeight: '700', color: '#1E293B' }}>{task.assignedTo}</Text>
                   </Text>
                 </View>
               ) : null}
@@ -752,6 +798,58 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   locationBoxText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  demoLinkBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 8,
+    gap: 8,
+  },
+  demoLinkLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  demoLinkBoxText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#4338CA',
+    flex: 1,
+  },
+  joinMeetingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 4,
+  },
+  joinMeetingBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  assigneeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  assigneeBoxText: {
     fontSize: 11.5,
     fontWeight: '500',
     color: '#475569',
