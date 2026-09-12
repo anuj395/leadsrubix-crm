@@ -596,7 +596,13 @@ exports.getEmailSettings = async (req, res, next) => {
     const mongoose = require('mongoose');
     const Organization = mongoose.model('Organization');
 
-    const targetOrgId = req.params.id || req.user?.organizationId || req.user?.organization_id;
+    let targetOrgId = req.params.id || req.user?.organizationId || req.user?.organization_id;
+    if (!targetOrgId && req.user?.role === 'superAdmin') {
+      const firstOrg = await Organization.findOne().lean().exec();
+      if (firstOrg) {
+        targetOrgId = String(firstOrg._id);
+      }
+    }
     if (!targetOrgId) {
       return res.status(400).json({ message: 'Organization ID is required' });
     }
@@ -672,7 +678,13 @@ exports.updateEmailSettings = async (req, res, next) => {
     const mongoose = require('mongoose');
     const Organization = mongoose.model('Organization');
 
-    const targetOrgId = req.params.id || req.user?.organizationId || req.user?.organization_id;
+    let targetOrgId = req.params.id || req.user?.organizationId || req.user?.organization_id;
+    if (!targetOrgId && req.user?.role === 'superAdmin') {
+      const firstOrg = await Organization.findOne().lean().exec();
+      if (firstOrg) {
+        targetOrgId = String(firstOrg._id);
+      }
+    }
     if (!targetOrgId) {
       return res.status(400).json({ message: 'Organization ID is required' });
     }
@@ -735,6 +747,28 @@ exports.testSmtpConnectionHandler = async (req, res, next) => {
 
     const { smtpConfig, recipientEmail } = req.body || {};
     const testEmail = recipientEmail || req.user?.email || req.user?.email_id || req.user?.username;
+
+    // Defensive check: if client sent masked password or empty password, restore from stored configuration
+    if (smtpConfig && (smtpConfig.smtpPass === '••••••••' || !smtpConfig.smtpPass)) {
+      const mongoose = require('mongoose');
+      const Organization = mongoose.model('Organization');
+      let targetOrgId = req.params?.id || req.user?.organizationId || req.user?.organization_id;
+      if (!targetOrgId && req.user?.role === 'superAdmin') {
+        const firstOrg = await Organization.findOne().lean().exec();
+        if (firstOrg) targetOrgId = String(firstOrg._id);
+      }
+      if (targetOrgId) {
+        const isObjectId = mongoose.Types.ObjectId.isValid(targetOrgId);
+        const orgQuery = isObjectId
+          ? { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }, { _id: targetOrgId }] }
+          : { $or: [{ organization_id: targetOrgId }, { organizationId: targetOrgId }] };
+        const existingOrg = await Organization.findOne(orgQuery).lean().exec();
+        const existingPass = existingOrg?.smtp_config?.smtpPass || existingOrg?.smtpConfig?.smtpPass;
+        if (existingPass) {
+          smtpConfig.smtpPass = existingPass;
+        }
+      }
+    }
 
     const result = await testSmtpConnection(smtpConfig, testEmail);
     res.json(result);

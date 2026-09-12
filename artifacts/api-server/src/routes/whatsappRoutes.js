@@ -9,7 +9,7 @@ const router = express.Router();
  * Normalizes a WhatsAppConfig document into a dual-cased, frontend-friendly payload
  * with full 2-tier gateway resolution ('universal' vs 'custom')
  */
-function normalizeConfigPayload(config, targetOrgId = null, universalConfig = null) {
+function normalizeConfigPayload(config, targetOrgId = null, universalConfig = null, isSuperAdmin = false) {
   const plain = config ? (config.toObject ? config.toObject({ virtuals: true, getters: true }) : config) : {};
   const simply = plain.simply || {};
   const wapi = plain.wapi || {};
@@ -61,17 +61,19 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
   let safeWapiToken = wapi.wapi_token || wapi.wapiToken || '';
   let safeCsApiKey = cs.api_key || cs.apiKey || '';
 
-  if (isTenantRequest && isUniversalMaster) {
-    // Platform fallback: Do not leak platform master token to tenant
-    safeSimplyToken = '';
-    safeWapiToken = '';
-    safeCsApiKey = '';
-  } else if (isTenantRequest && !isUniversalMaster) {
-    // Tenant's custom token: Mask token leaving only last 4 characters
-    if (safeSimplyToken) safeSimplyToken = '••••••••' + (safeSimplyToken.length > 4 ? safeSimplyToken.slice(-4) : '');
-    if (safeWapiToken) safeWapiToken = '••••••••' + (safeWapiToken.length > 4 ? safeWapiToken.slice(-4) : '');
-    if (safeCsApiKey) safeCsApiKey = '••••••••' + (safeCsApiKey.length > 4 ? safeCsApiKey.slice(-4) : '');
+  if (!isSuperAdmin) {
+    if (isTenantRequest && isUniversalMaster) {
+      // Platform fallback: Do not leak platform master token to tenant
+      safeSimplyToken = '';
+      safeWapiToken = '';
+      safeCsApiKey = '';
+    }
+    // Tenant custom credentials remain readable by workspace admin with UI eye toggle
   }
+
+  // Convenience flat fields for NotificationHub and direct UI forms
+  const providerType = activeProvider === 'simply' ? 'Simply WhatsApp' : (activeProvider === 'chatsimplified' ? 'ChatSimplified' : 'WHAPI');
+  const activeUrl = activeProvider === 'simply' ? simply.url : (activeProvider === 'chatsimplified' ? cs.url : (wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud'));
 
   return {
     _id: plain._id || null,
@@ -79,6 +81,22 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
     organizationId: orgId,
     industry_id: indId,
     industryId: indId,
+
+    // Flat UI Convenience State
+    type: providerType,
+    url: activeUrl,
+    wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
+    wapiToken: safeWapiToken,
+    isActive: Boolean(wapi.active || simply.active || cs.active || useCustomApi),
+    fields: {
+      wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
+      wapiToken: safeWapiToken,
+      simplyUrl: simply.url || 'https://app.simplywhatsapp.com/api/send',
+      instanceId: simply.instance_id || simply.instanceId || '',
+      accessToken: safeSimplyToken,
+      csUrl: cs.url || 'https://www.chatsimplified.co/api/v1/',
+      apiKey: safeCsApiKey,
+    },
 
     // 2-Tier Gateway State
     is_universal: isUniversalMaster,
@@ -204,12 +222,14 @@ router.get('/', authenticate, async (req, res, next) => {
       ]
     }).exec();
 
+    const isSuperAdmin = req.user.role === 'superAdmin';
+
     // If client config doesn't exist yet, return universal default representation for tenant
     if (!config && orgId) {
-      return res.json(normalizeConfigPayload(universalConfig, orgId, universalConfig));
+      return res.json(normalizeConfigPayload(universalConfig, orgId, universalConfig, isSuperAdmin));
     }
 
-    res.json(normalizeConfigPayload(config || universalConfig, orgId, universalConfig));
+    res.json(normalizeConfigPayload(config || universalConfig, orgId, universalConfig, isSuperAdmin));
   } catch (err) {
     next(err);
   }
@@ -281,6 +301,35 @@ router.post('/', authenticate, async (req, res, next) => {
         wapi: globalConfig?.wapi || undefined,
         chat_simplified: globalConfig?.chat_simplified || undefined,
       });
+    }
+
+    // Seamlessly map flat NotificationHub payload to provider objects
+    if (!req.body.wapi && (req.body.fields?.wapiToken !== undefined || req.body.wapiToken !== undefined || req.body.fields?.wapiUrl || req.body.wapiUrl || req.body.type === 'WHAPI')) {
+      const activeState = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.active !== undefined ? Boolean(req.body.active) : true);
+      const url = req.body.fields?.wapiUrl || req.body.wapiUrl || req.body.url || 'https://gate.whapi.cloud';
+      const token = req.body.fields?.wapiToken !== undefined ? req.body.fields?.wapiToken : (req.body.wapiToken !== undefined ? req.body.wapiToken : '');
+      req.body.wapi = {
+        active: activeState,
+        wapi_url: url,
+        wapi_token: token,
+      };
+    }
+    if (!req.body.simply && req.body.type === 'Simply WhatsApp') {
+      const activeState = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.active !== undefined ? Boolean(req.body.active) : true);
+      req.body.simply = {
+        active: activeState,
+        url: req.body.fields?.simplyUrl || req.body.url || 'https://app.simplywhatsapp.com/api/send',
+        instance_id: req.body.fields?.instanceId || req.body.instanceId || '',
+        access_token: req.body.fields?.accessToken || req.body.accessToken || req.body.fields?.wapiToken || req.body.wapiToken || '',
+      };
+    }
+    if (!req.body.chatSimplified && req.body.type === 'ChatSimplified') {
+      const activeState = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.active !== undefined ? Boolean(req.body.active) : true);
+      req.body.chatSimplified = {
+        active: activeState,
+        url: req.body.fields?.csUrl || req.body.url || 'https://www.chatsimplified.co/api/v1/',
+        api_key: req.body.fields?.apiKey || req.body.apiKey || req.body.fields?.wapiToken || req.body.wapiToken || '',
+      };
     }
 
     // 1. Update Providers with Deep Merge & Mask Preservation
@@ -383,7 +432,14 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     await config.save();
-    res.json(normalizeConfigPayload(config, orgId));
+    const isSuperAdmin = req.user.role === 'superAdmin';
+    const universalConfig = await WhatsAppConfig.findOne({
+      $or: [
+        { organization_id: null },
+        { organizationId: null }
+      ]
+    }).exec();
+    res.json(normalizeConfigPayload(config, orgId, universalConfig, isSuperAdmin));
   } catch (err) {
     next(err);
   }
