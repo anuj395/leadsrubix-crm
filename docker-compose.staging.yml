@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: leadsrubix-postgres-staging
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword2026
+      POSTGRES_DB: leadsrubix_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./scripts/leadsrubix_production_seed.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: leadsrubix-redis-staging
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api-server:
+    build:
+      context: .
+      dockerfile: ./artifacts/api-server/Dockerfile
+    container_name: leadsrubix-api-staging
+    restart: always
+    environment:
+      PORT: 8080
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://postgres:postgrespassword2026@postgres:5432/leadsrubix_crm
+      FRONTEND_URL: http://staging.leadsrubix.com
+      FRONTEND_ORIGINS: http://staging.leadsrubix.com,http://localhost:3000
+      JWT_SECRET: leadsrubix_enterprise_jwt_secret_key_2026
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 465
+      SMTP_USER: info@leadsrubix.com
+      SMTP_PASS: jucupgkwmniheujp
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: ./artifacts/web/Dockerfile
+    container_name: leadsrubix-web-staging
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-server
+
+volumes:
+  postgres_staging_data:
