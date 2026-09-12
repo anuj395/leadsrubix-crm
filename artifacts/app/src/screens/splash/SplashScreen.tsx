@@ -93,16 +93,13 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           },
         ]}
       >
-        {/* Authentic Leads Rubix Brand Emblem Card */}
-        <View style={styles.logoCardOuter}>
-          <View style={styles.logoCardInner}>
-            <Image
-              source={require('../../../assets/android-icon-foreground.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.logoGlowHalo} />
+        {/* Authentic Leads Rubix Brand Emblem Card - Prominent Golden Ratio */}
+        <View style={styles.emblemTile}>
+          <Image
+            source={require('../../../assets/emblem_hero.png')}
+            style={styles.emblemImage}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Brand Title */}
@@ -162,82 +159,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoCardOuter: {
-    width: 96,
-    height: 96,
+  emblemTile: {
+    width: 104,
+    height: 104,
     borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#1C1E36',
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 22,
+    marginBottom: 20,
     shadowColor: '#38BDF8',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.35,
+    shadowRadius: 22,
+    elevation: 12,
   },
-  logoCardInner: {
-    width: 78,
-    height: 78,
-    borderRadius: 22,
-    backgroundColor: '#1E1F38',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: 66,
-    height: 66,
-  },
-  logoGlowHalo: {
-    position: 'absolute',
-    width: 116,
-    height: 116,
-    borderRadius: 36,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.12)',
+  emblemImage: {
+    width: 72,
+    height: 72,
   },
   brandTitle: {
     fontSize: 27,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 3.8,
+    letterSpacing: 4.2,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   statusBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    gap: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-    paddingHorizontal: 13,
-    paddingVertical: 5,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 15,
+    paddingVertical: 6,
     borderRadius: 20,
-    marginBottom: 20,
+    marginBottom: 22,
   },
   greenPulseDot: {
-    width: 6.5,
-    height: 6.5,
+    width: 7,
+    height: 7,
     borderRadius: 3.5,
     backgroundColor: '#10B981',
   },
   statusBadgeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#34D399',
-    letterSpacing: 1.5,
+    letterSpacing: 1.8,
   },
   progressBarTrack: {
-    width: 120,
-    height: 3,
+    width: 140,
+    height: 3.5,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
   },
   progressBarFill: {

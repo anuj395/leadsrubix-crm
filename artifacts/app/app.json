@@ -8,13 +8,23 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/android-icon-foreground.png",
+      "image": "./assets/emblem_hero.png",
       "resizeMode": "contain",
       "backgroundColor": "#151728"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.leadsrubix.crm",
+      "userInterfaceStyle": "dark",
+      "splash": {
+        "image": "./assets/emblem_hero.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#151728",
+        "dark": {
+          "image": "./assets/emblem_hero.png",
+          "backgroundColor": "#151728"
+        }
+      },
       "infoPlist": {
         "CFBundleDisplayName": "Leads Rubix CRM",
         "NSCameraUsageDescription": "Leads Rubix uses the camera for uploading deal documents and lead attachments.",
