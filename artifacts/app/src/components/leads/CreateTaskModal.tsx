@@ -18,6 +18,25 @@ import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
 import { CalendarDatePickerModal } from '../ui/CalendarDatePickerModal';
 
+const ENTERPRISE_TASK_TYPES = [
+  'Call Back',
+  'Site Visit',
+  'Meeting',
+  'Online Demo',
+  'Follow-up',
+  'Document Collection / KYC',
+];
+
+const CALLBACK_REASONS = [
+  'Customer Busy / Call Later',
+  'Price / Budget Discussion',
+  'Location / Layout Clarification',
+  'Site Visit Booking',
+  'Decision Maker Unavailable',
+  'Ringing / Not Picked',
+  'Other',
+];
+
 interface Props {
   visible: boolean;
   lead: LeadItem;
@@ -38,6 +57,9 @@ export const CreateTaskModal: React.FC<Props> = ({
   // Form states
   const [nextFollowUpType, setNextFollowUpType] = useState('Call Back');
   const [nextFollowUpDate, setNextFollowUpDate] = useState('');
+  const [callbackReason, setCallbackReason] = useState('Customer Busy / Call Later');
+  const [meetingLocation, setMeetingLocation] = useState('');
+  const [demoLink, setDemoLink] = useState('');
   const [noteText, setNoteText] = useState('');
 
   // Existing task status state
@@ -51,7 +73,9 @@ export const CreateTaskModal: React.FC<Props> = ({
   // Dropdown Pickers State
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showReasonPicker, setShowReasonPicker] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
+  const [reasonSearch, setReasonSearch] = useState('');
 
   // Calendar Overlay Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -68,6 +92,9 @@ export const CreateTaskModal: React.FC<Props> = ({
     const dd = String(defaultDate.getDate()).padStart(2, '0');
     setNextFollowUpDate(`${yyyy}-${mm}-${dd}, 10:00 AM`);
     setNextFollowUpType('Call Back');
+    setCallbackReason('Customer Busy / Call Later');
+    setMeetingLocation(lead.projectName || (lead as any).project_name || lead.location || '');
+    setDemoLink('');
     setNoteText('');
     setExistingTaskSelected('');
 
@@ -156,6 +183,14 @@ export const CreateTaskModal: React.FC<Props> = ({
 
     if (existingTaskStatus && (!existingTaskSelected || existingTaskSelected === 'Select')) {
       Alert.alert('Required Field', 'Select Existing Task Status!!');
+      return;
+    }
+
+    if ((nextFollowUpType === 'Site Visit' || nextFollowUpType === 'Meeting') && !meetingLocation.trim()) {
+      Alert.alert(
+        'Required Field',
+        nextFollowUpType === 'Site Visit' ? 'Please enter Site / Project Location!' : 'Please enter Meeting Venue / Location!'
+      );
       return;
     }
 
@@ -248,6 +283,14 @@ export const CreateTaskModal: React.FC<Props> = ({
         console.warn('Prior task status update warning:', e);
       }
 
+      const combinedNotes = [
+        noteText.trim(),
+        demoLink.trim() ? `Online Demo Link: ${demoLink.trim()}` : '',
+        (nextFollowUpType === 'Site Visit' || nextFollowUpType === 'Meeting') && meetingLocation.trim()
+          ? `Venue / Location: ${meetingLocation.trim()}`
+          : '',
+      ].filter(Boolean).join('\n');
+
       // 3. Create new follow-up task (Matching Web 1:1)
       const taskPayload = {
         contactId: leadId,
@@ -258,6 +301,11 @@ export const CreateTaskModal: React.FC<Props> = ({
         dueDate: parsedDate,
         due_date: parsedDate,
         status: 'PENDING',
+        priority: 'Medium',
+        callbackReason: nextFollowUpType === 'Call Back' ? callbackReason : undefined,
+        meetingLocation: (nextFollowUpType === 'Site Visit' || nextFollowUpType === 'Meeting') && meetingLocation.trim() ? meetingLocation.trim() : undefined,
+        demoLink: nextFollowUpType === 'Online Demo' && demoLink.trim() ? demoLink.trim() : undefined,
+        meetingLink: nextFollowUpType === 'Online Demo' && demoLink.trim() ? demoLink.trim() : undefined,
         customerName: lead.name || (lead as any).customerName || (lead as any).customer_name || 'Contact',
         contactNumber: lead.phone || (lead as any).contactNumber || (lead as any).contact_number || '',
         contact_number: lead.phone || (lead as any).contactNumber || (lead as any).contact_number || '',
@@ -265,10 +313,10 @@ export const CreateTaskModal: React.FC<Props> = ({
         stage: lead.stage || '',
         contactOwnerEmail: (lead as any).contactOwnerEmail || (lead as any).contact_owner_email || user?.email || '',
         projectName: lead.projectName || (lead as any).project_name || '',
-        location: lead.location || '',
+        location: meetingLocation.trim() || lead.location || '',
         budget: lead.budget || '',
         source: lead.source || (lead as any).lead_source || '',
-        notes: noteText.trim(),
+        notes: combinedNotes,
         latitude: lat,
         longitude: lng,
       };
@@ -282,6 +330,7 @@ export const CreateTaskModal: React.FC<Props> = ({
           next_follow_up_type: nextFollowUpType,
           nextFollowUpDateTime: parsedDate,
           next_follow_up_date_time: parsedDate,
+          location: meetingLocation.trim() || lead.location || undefined,
           modifiedAt: new Date(),
         }).catch(() => null);
       } catch (cErr) {
@@ -351,6 +400,55 @@ export const CreateTaskModal: React.FC<Props> = ({
               </TouchableOpacity>
             </View>
 
+            {/* Callback Reason (Visible when Call Back) */}
+            {nextFollowUpType === 'Call Back' && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.modalInputLabel}>Callback Reason</Text>
+                <TouchableOpacity
+                  style={styles.dropdownTrigger}
+                  onPress={() => setShowReasonPicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.dropdownTriggerText}>
+                    {callbackReason || 'Select Callback Reason'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Site / Project Location (Visible when Site Visit or Meeting) */}
+            {(nextFollowUpType === 'Site Visit' || nextFollowUpType === 'Meeting') && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.modalInputLabel}>
+                  {nextFollowUpType === 'Site Visit' ? 'Site / Project Location' : 'Meeting Venue / Location'} <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.modalTextInput}
+                  value={meetingLocation}
+                  onChangeText={setMeetingLocation}
+                  placeholder={nextFollowUpType === 'Site Visit' ? 'e.g. Site Office / Project Location' : 'e.g. Head Office / Client Conference Room / Cafe'}
+                  placeholderTextColor="#94A3B8"
+                />
+              </View>
+            )}
+
+            {/* Meeting Link / Platform (Visible when Online Demo) */}
+            {nextFollowUpType === 'Online Demo' && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.modalInputLabel}>Meeting Link / Platform</Text>
+                <TextInput
+                  style={styles.modalTextInput}
+                  value={demoLink}
+                  onChangeText={setDemoLink}
+                  placeholder="e.g. https://meet.google.com/... or Zoom URL"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+            )}
+
             {/* Next Follow Up Date & Time */}
             <View style={styles.fieldContainer}>
               <Text style={styles.modalInputLabel}>
@@ -419,7 +517,7 @@ export const CreateTaskModal: React.FC<Props> = ({
               <View style={styles.modalHeaderRow}>
                 <View style={styles.modalTitleGroup}>
                   <Text style={styles.modalTitle}>SELECT NEXT FOLLOW UP TYPE</Text>
-                  <Text style={styles.modalSubtitle}>3 options available</Text>
+                  <Text style={styles.modalSubtitle}>{ENTERPRISE_TASK_TYPES.length} options available</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowTypePicker(false)}
@@ -439,7 +537,7 @@ export const CreateTaskModal: React.FC<Props> = ({
                 autoCorrect={false}
               />
 
-              {['Call Back', 'Meeting', 'Site Visit']
+              {ENTERPRISE_TASK_TYPES
                 .filter((opt) => opt.toLowerCase().includes(typeSearch.toLowerCase()))
                 .map((item) => {
                   const isSelected = nextFollowUpType === item;
@@ -451,6 +549,59 @@ export const CreateTaskModal: React.FC<Props> = ({
                         setNextFollowUpType(item);
                         setShowTypePicker(false);
                         setTypeSearch('');
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                        {item}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={theme.colors.brand700 || '#0EA5E9'} />}
+                    </TouchableOpacity>
+                  );
+                })}
+            </View>
+          </View>
+        )}
+
+        {/* IN-MODAL OVERLAY: CALLBACK REASON */}
+        {showReasonPicker && (
+          <View style={styles.inModalOverlay}>
+            <View style={styles.inModalSheet}>
+              <View style={styles.modalHeaderRow}>
+                <View style={styles.modalTitleGroup}>
+                  <Text style={styles.modalTitle}>SELECT CALLBACK REASON</Text>
+                  <Text style={styles.modalSubtitle}>{CALLBACK_REASONS.length} options available</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowReasonPicker(false)}
+                  style={styles.modalCloseBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={20} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search callback reason..."
+                placeholderTextColor="#94A3B8"
+                value={reasonSearch}
+                onChangeText={setReasonSearch}
+                autoCorrect={false}
+              />
+
+              {CALLBACK_REASONS
+                .filter((r) => r.toLowerCase().includes(reasonSearch.toLowerCase()))
+                .map((item) => {
+                  const isSelected = callbackReason === item;
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.optionRow, isSelected && styles.optionRowSelected]}
+                      onPress={() => {
+                        setCallbackReason(item);
+                        setShowReasonPicker(false);
+                        setReasonSearch('');
                       }}
                       activeOpacity={0.7}
                     >

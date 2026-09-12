@@ -205,6 +205,15 @@ export const TasksScreen = ({ navigation, route }: any) => {
     if (t.includes('call')) {
       return { icon: 'call' as const, bg: 'rgba(39, 41, 68, 0.08)', color: '#272944', label: 'CALL' };
     }
+    if (t.includes('demo') || t.includes('online')) {
+      return { icon: 'videocam' as const, bg: '#EEF2FF', color: '#4F46E5', label: 'ONLINE DEMO' };
+    }
+    if (t.includes('doc') || t.includes('kyc')) {
+      return { icon: 'document-text' as const, bg: '#F0FDFA', color: '#0D9488', label: 'KYC / DOCS' };
+    }
+    if (t.includes('follow')) {
+      return { icon: 'repeat' as const, bg: '#FFF7ED', color: '#EA580C', label: 'FOLLOW-UP' };
+    }
     if (t.includes('meet')) {
       return { icon: 'people' as const, bg: '#F5F3FF', color: '#7C3AED', label: 'MEETING' };
     }
@@ -324,6 +333,24 @@ export const TasksScreen = ({ navigation, route }: any) => {
                     <Ionicons name="business-outline" size={11} color="#0369A1" />
                     <Text style={styles.projectChipText} numberOfLines={1}>
                       {item.project}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {(item.meetingLocation || item.location) ? (
+                  <View style={styles.locationChip}>
+                    <Ionicons name="location-outline" size={11} color="#15803D" />
+                    <Text style={styles.locationChipText} numberOfLines={1}>
+                      {item.meetingLocation || item.location}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {(item.demoLink || item.meetingLink) ? (
+                  <View style={styles.demoLinkChip}>
+                    <Ionicons name="videocam-outline" size={11} color="#4338CA" />
+                    <Text style={styles.demoLinkChipText} numberOfLines={1}>
+                      Demo Link
                     </Text>
                   </View>
                 ) : null}
@@ -472,17 +499,6 @@ export const TasksScreen = ({ navigation, route }: any) => {
       <View style={styles.luxuryHeader}>
         <View style={styles.headerTopRow}>
           <CompanyLogo variant="white" height={28} />
-
-          <View style={styles.headerRightControls}>
-            <TouchableOpacity
-              style={styles.newTaskCTA}
-              onPress={() => navigation.navigate('TaskForm')}
-              activeOpacity={0.88}
-            >
-              <Ionicons name="add" size={16} color="#272944" />
-              <Text style={styles.newTaskCTAText}>Add {semantics.taskEntitySingular}</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Search Bar (High-Contrast White Card) */}
@@ -1054,6 +1070,40 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '600',
     color: '#0369A1',
+  },
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    gap: 3,
+    maxWidth: 140,
+  },
+  locationChipText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#15803D',
+  },
+  demoLinkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    gap: 3,
+    maxWidth: 140,
+  },
+  demoLinkChipText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#4338CA',
   },
 
   // Card Footer Row & Action Cockpit

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { taskService, TaskItem } from '../../services/taskService';
 import { leadService, LeadItem } from '../../services/leadService';
+import { apiClient } from '../../api/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
@@ -23,11 +24,19 @@ import { CalendarDatePickerModal } from '../../components/ui/CalendarDatePickerM
 
 const CALLBACK_REASONS = [
   'Customer Busy / Call Later',
-  'Not Reachable / Switched Off',
-  'Requested Info / Pricing',
-  'Follow-up on Proposal',
+  'Price / Budget Discussion',
+  'Location / Layout Clarification',
+  'Site Visit Booking',
+  'Decision Maker Unavailable',
+  'Ringing / Not Picked',
   'Other',
 ];
+
+interface OrgUser {
+  id?: string;
+  email: string;
+  name: string;
+}
 
 export const TaskFormScreen = ({ navigation, route }: any) => {
   const { user } = useAuth();
@@ -38,44 +47,47 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
   const initialLead: any = route?.params?.lead;
   const isEditMode = Boolean(existingTask?.id);
 
-  // Dynamic industry task types
-  const taskTypes = React.useMemo(() => {
+  // Dynamic industry task types (Always includes the 6 enterprise standard follow-up types)
+  const taskTypes = useMemo(() => {
     const ind = (user?.industryId || '').toLowerCase();
-    if (ind.includes('real') || ind.includes('property')) {
-      return ['Call Back', 'Site Visit', 'Meeting', 'General Task'];
-    }
     if (ind.includes('health') || ind.includes('clinic') || ind.includes('doctor')) {
-      return ['Consultation', 'Call Back', 'Patient Follow-up', 'General Task'];
+      return ['Call Back', 'Consultation', 'Site Visit', 'Meeting', 'Online Demo', 'Follow-up', 'Document Collection / KYC'];
     }
     if (ind.includes('auto')) {
-      return ['Test Drive', 'Showroom Visit', 'Follow-up Call', 'General Task'];
+      return ['Call Back', 'Test Drive', 'Showroom Visit', 'Meeting', 'Online Demo', 'Follow-up', 'Document Collection / KYC'];
     }
-    if (ind.includes('finance') || ind.includes('bank') || ind.includes('invest')) {
-      return ['Portfolio Review', 'Call Back', 'Client Meeting', 'General Task'];
-    }
-    if (ind.includes('edu')) {
-      return ['Campus Visit', 'Admission Counseling', 'Call Back', 'General Task'];
-    }
-    return ['Call Back', 'Meeting', 'Site Visit', 'General Task'];
+    return [
+      'Call Back',
+      'Site Visit',
+      'Meeting',
+      'Online Demo',
+      'Follow-up',
+      'Document Collection / KYC',
+    ];
   }, [user?.industryId]);
 
   // Form states
   const [taskType, setTaskType] = useState<string>(
     existingTask?.type || existingTask?.taskType || taskTypes[0]
   );
-  const [title, setTitle] = useState(
-    existingTask?.title || (existingTask?.type ? `${existingTask.type} Follow-up` : '')
-  );
-  const [dueDate, setDueDate] = useState(
+  const [dueDate, setDueDate] = useState<string>(
     existingTask?.rawDueDate || existingTask?.dueDate || ''
   );
-  const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>(
-    existingTask?.priority || 'High'
+  const [priority, setPriority] = useState<'Urgent' | 'High' | 'Medium' | 'Low'>(
+    existingTask?.priority || 'Medium'
   );
   const [callbackReason, setCallbackReason] = useState<string>(
     existingTask?.callbackReason || existingTask?.call_back_reason || CALLBACK_REASONS[0]
   );
-  const [notes, setNotes] = useState(existingTask?.notes || '');
+  const [notes, setNotes] = useState<string>(existingTask?.notes || '');
+
+  // Dynamic conditional fields matching Web CRM 1:1
+  const [meetingLocation, setMeetingLocation] = useState<string>(
+    existingTask?.meetingLocation || existingTask?.location || initialLead?.location || initialLead?.projectName || initialLead?.project || ''
+  );
+  const [demoLink, setDemoLink] = useState<string>(
+    existingTask?.demoLink || existingTask?.meetingLink || ''
+  );
 
   // Contact Attachment State
   const [selectedContact, setSelectedContact] = useState<{
@@ -83,6 +95,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     name?: string;
     phone?: string;
     project?: string;
+    location?: string;
     email?: string;
   } | null>(
     existingTask?.contactId || existingTask?.leadId
@@ -91,6 +104,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
           name: existingTask.leadName || existingTask.customerName,
           phone: existingTask.phone || existingTask.contactNumber,
           project: existingTask.project || existingTask.projectName,
+          location: existingTask.location,
           email: existingTask.email,
         }
       : initialLead
@@ -99,6 +113,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
           name: initialLead.name || initialLead.customerName,
           phone: initialLead.phone || initialLead.contactNumber,
           project: initialLead.project || initialLead.projectName,
+          location: initialLead.location,
           email: initialLead.email,
         }
       : null
@@ -114,6 +129,28 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
   const [manualProject, setManualProject] = useState(
     existingTask?.project || existingTask?.projectName || ''
   );
+
+  // Smart Title state (auto-derives type + client name without mandatory user effort)
+  const clientDisplayName = selectedContact?.name || manualClientName.trim() || 'Client';
+  const [title, setTitle] = useState(
+    existingTask?.title || `${taskType} - ${clientDisplayName}`
+  );
+
+  // Existing task status auto-resolution state (Closed-loop CRM logic)
+  const [existingTaskStatus, setExistingTaskStatus] = useState<boolean>(false);
+  const [existingTaskSelected, setExistingTaskSelected] = useState<'Completed' | 'Cancelled' | ''>('');
+  const [allContactTasks, setAllContactTasks] = useState<any[]>([]);
+
+  // Assignee selection (organization users)
+  const [orgUsers, setOrgUsers] = useState<OrgUser[]>([]);
+  const [assignedTo, setAssignedTo] = useState<string>(existingTask?.assignedTo || user?.email || '');
+  const [assignedToName, setAssignedToName] = useState<string>(
+    existingTask?.assignedTo
+      ? existingTask.assignedTo === user?.email ? 'You' : existingTask.assignedTo
+      : user?.name || 'You'
+  );
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
 
   // Contact Picker Modal State
   const [showContactPicker, setShowContactPicker] = useState(false);
@@ -137,13 +174,77 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     }
   }, [isEditMode, dueDate]);
 
-  // Update title automatically if user hasn't explicitly customized it
+  // Load Organization Users for Assignment
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .get('/options/organizationUsers')
+      .then((res) => {
+        if (!isMounted) return;
+        const users = res?.data?.options || res?.data?.items || res?.data || [];
+        if (Array.isArray(users) && users.length > 0) {
+          const mapped: OrgUser[] = users
+            .map((u: any) => ({
+              id: u.id || u._id || u.uid,
+              email: u.email || u.value || '',
+              name: u.name || u.label || u.email || 'User',
+            }))
+            .filter((u) => Boolean(u.email));
+          setOrgUsers(mapped);
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Check contact for existing pending tasks to enable Closed-Loop Resolution
+  const checkContactPendingTasks = useCallback(async (contactId: string) => {
+    if (!contactId) {
+      setExistingTaskStatus(false);
+      setExistingTaskSelected('');
+      return;
+    }
+    try {
+      const res = await apiClient.get('/tasks', { params: { contactId, contact_id: contactId } });
+      const items = res?.data?.items || res?.data || [];
+      if (Array.isArray(items)) {
+        setAllContactTasks(items);
+        const sorted = [...items].sort((a, b) => {
+          const dA = new Date(a.createdAt || a.created_at || a.dueDate || a.due_date || 0).getTime();
+          const dB = new Date(b.createdAt || b.created_at || b.dueDate || b.due_date || 0).getTime();
+          return dB - dA;
+        });
+        const latestTask = sorted[0];
+        if (
+          latestTask &&
+          String(latestTask.status || '').toUpperCase() === 'PENDING' &&
+          latestTask.type !== 'Call Back'
+        ) {
+          setExistingTaskStatus(true);
+        } else {
+          setExistingTaskStatus(false);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to check contact pending tasks:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const cid = selectedContact?.id;
+    if (cid && !isEditMode) {
+      checkContactPendingTasks(cid);
+    }
+  }, [selectedContact?.id, isEditMode, checkContactPendingTasks]);
+
+  // Update title automatically when type changes
   const handleSelectTaskType = (type: string) => {
     setTaskType(type);
-    if (!title || taskTypes.some((t) => title.toLowerCase().includes(t.toLowerCase()))) {
-      const client = selectedContact?.name || manualClientName;
-      setTitle(client ? `${type} - ${client}` : `${type} Follow-up`);
-    }
+    const client = selectedContact?.name || manualClientName.trim();
+    setTitle(client ? `${type} - ${client}` : `${type} Follow-up`);
   };
 
   // Search Contacts for Picker
@@ -171,6 +272,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       name: item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Client',
       phone: item.phone || item.contactNo || '',
       project: item.project || item.projectName || '',
+      location: item.location || '',
       email: item.email || '',
     };
     setSelectedContact(contactData);
@@ -178,17 +280,25 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
     setManualPhone(contactData.phone);
     setManualProject(contactData.project);
 
-    if (!title || title.endsWith('Follow-up')) {
-      setTitle(`${taskType} - ${contactData.name}`);
+    if (!meetingLocation) {
+      setMeetingLocation(contactData.project || contactData.location || '');
     }
+
+    setTitle(`${taskType} - ${contactData.name}`);
     setShowContactPicker(false);
+
+    if (contactData.id) {
+      checkContactPendingTasks(contactData.id);
+    }
   };
 
   const handleClearContact = () => {
     setSelectedContact(null);
+    setExistingTaskStatus(false);
+    setExistingTaskSelected('');
   };
 
-  // Safe parse due date to ISO string
+  // Parse due date to ISO string safely
   const parseDueDate = (dateStr: string): string => {
     if (!dateStr) return new Date().toISOString();
     let d = new Date(dateStr.replace(',', ''));
@@ -227,21 +337,34 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
   };
 
   const handleSubmit = async () => {
-    const finalTitle = title.trim();
-    if (!finalTitle) {
-      Alert.alert('Required Field', 'Please enter a task title.');
-      return;
-    }
+    const clientName = selectedContact?.name || manualClientName.trim() || 'Client';
+    const finalTitle = title.trim() || `${taskType} - ${clientName}`;
 
     if (!dueDate) {
-      Alert.alert('Required Field', 'Please select a due date and time.');
+      Alert.alert('Required Field', 'Please select a scheduled due date & time.');
       return;
     }
 
     const isoDate = parseDueDate(dueDate);
     const selectedTime = new Date(isoDate).getTime();
     if (!isEditMode && selectedTime < Date.now() - 60 * 1000) {
-      Alert.alert('Invalid Date & Time', 'Tasks and follow-ups cannot be scheduled for a past date and time.');
+      Alert.alert('Invalid Date & Time', 'Scheduled follow-up date and time must be in the future.');
+      return;
+    }
+
+    // Validation: Existing task status must be selected if a pending task exists
+    if (existingTaskStatus && !existingTaskSelected) {
+      Alert.alert('Required Field', 'Please select existing task status (Completed or Cancelled).');
+      return;
+    }
+
+    // Validation: Dynamic location requirement for Site Visit and Meeting matching Web CRM 1:1
+    if (taskType === 'Site Visit' && !meetingLocation.trim()) {
+      Alert.alert('Required Field', 'Please enter Site / Project Location.');
+      return;
+    }
+    if (taskType === 'Meeting' && !meetingLocation.trim()) {
+      Alert.alert('Required Field', 'Please enter Meeting Venue / Location.');
       return;
     }
 
@@ -253,61 +376,196 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
       }
     }
 
-    const clientName = selectedContact?.name || manualClientName.trim() || 'Client';
     const contactPhone = selectedContact?.phone || manualPhone.trim() || '';
     const projectName = selectedContact?.project || manualProject.trim() || '';
     const contactId = selectedContact?.id || undefined;
 
-    const payload: Record<string, any> = {
-      type: taskType,
-      taskType: taskType,
-      task_type: taskType,
-      title: finalTitle,
-      dueDate: isoDate,
-      due_date: isoDate,
-      nextFollowUp: isoDate,
-      next_follow_up_date_time: isoDate,
-      priority,
-      status: existingTask?.status || 'PENDING',
-      customerName: clientName,
-      customer_name: clientName,
-      contactNumber: contactPhone,
-      contact_number: contactPhone,
-      projectName: projectName,
-      project_name: projectName,
-      email: selectedContact?.email || '',
-      notes: notes.trim(),
-      callbackReason: taskType.toLowerCase().includes('call') ? callbackReason : undefined,
-      call_back_reason: taskType.toLowerCase().includes('call') ? callbackReason : undefined,
-      assignedTo: user?.email || '',
-    };
-
-    if (contactId) {
-      payload.contactId = contactId;
-      payload.contact_id = contactId;
-      payload.leadId = contactId;
-    }
-
     try {
       setSubmitting(true);
+
+      // Geolocation capture matching Web CRM standard
+      let lat: number | null = null;
+      let lng: number | null = null;
+      try {
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 6000 });
+          });
+          lat = position.coords.latitude;
+          lng = position.coords.longitude;
+        }
+      } catch (e) {
+        console.warn('Geolocation capture skipped:', e);
+      }
+
+      // 1. Resolve prior pending task if applicable (Matching Web CRM 1:1)
+      if (existingTaskStatus && allContactTasks.length > 0) {
+        try {
+          const pendingPrior = allContactTasks.filter(
+            (t: any) =>
+              String(t.status || '').toUpperCase() === 'PENDING' &&
+              t._id !== existingTask?.id &&
+              t.id !== existingTask?.id
+          );
+          if (pendingPrior.length > 0) {
+            const latestPrior = pendingPrior[0];
+            const priorId = latestPrior._id || latestPrior.id;
+            const nextStatus = existingTaskSelected === 'Completed' ? 'COMPLETED' : 'CANCELLED';
+            if (priorId) {
+              await taskService.resolvePreviousTask(priorId, nextStatus);
+
+              // Closed-loop analytics updates for unique Meeting or Site Visit
+              if (existingTaskSelected === 'Completed') {
+                let unSiteVisit = false;
+                let unMeeting = false;
+                allContactTasks
+                  .filter((item: any) => item.type === 'Meeting')
+                  .forEach((list: any) => {
+                    if (list.uniqueMeeting === true || list.unique_meeting === true) unMeeting = true;
+                  });
+                allContactTasks
+                  .filter((item: any) => item.type === 'Site Visit')
+                  .forEach((list: any) => {
+                    if (list.uniqueSiteVisit === true || list.unique_site_visit === true) unSiteVisit = true;
+                  });
+
+                if (!unSiteVisit && latestPrior.type === 'Site Visit') {
+                  await taskService.updateUniqueTaskType(priorId, false, true);
+                }
+                if (!unMeeting && latestPrior.type === 'Meeting') {
+                  await taskService.updateUniqueTaskType(priorId, true, false);
+                }
+              }
+            }
+          }
+        } catch (rErr) {
+          console.warn('Prior task resolution warning:', rErr);
+        }
+      }
+
+      // 2. Log Resource Note to Client Timeline if entered
+      if (notes.trim() && contactId) {
+        try {
+          await apiClient.post('/resources/resourceNotes', {
+            contactId,
+            contact_id: contactId,
+            note: notes.trim(),
+            notes: notes.trim(),
+            text: notes.trim(),
+            customerName: clientName,
+            userEmail: user?.email || '',
+            userName: user?.name || user?.email || 'User',
+          });
+        } catch (nErr) {
+          console.warn('Resource notes push warning:', nErr);
+        }
+      }
+
+      // 3. Assemble combined notes matching Web CRM standard
+      const combinedNotes = [
+        notes.trim(),
+        demoLink.trim() ? `Online Demo Link: ${demoLink.trim()}` : '',
+        (taskType === 'Site Visit' || taskType === 'Meeting') && meetingLocation.trim()
+          ? `Venue / Location: ${meetingLocation.trim()}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const payload: Record<string, any> = {
+        type: taskType,
+        taskType: taskType,
+        task_type: taskType,
+        title: finalTitle,
+        dueDate: isoDate,
+        due_date: isoDate,
+        nextFollowUp: isoDate,
+        next_follow_up_date_time: isoDate,
+        priority,
+        status: existingTask?.status || 'PENDING',
+        customerName: clientName,
+        customer_name: clientName,
+        contactNumber: contactPhone,
+        contact_number: contactPhone,
+        projectName: projectName,
+        project_name: projectName,
+        email: selectedContact?.email || '',
+        notes: combinedNotes,
+        callbackReason: taskType === 'Call Back' ? callbackReason : undefined,
+        call_back_reason: taskType === 'Call Back' ? callbackReason : undefined,
+        assignedTo: assignedTo || user?.email || '',
+        contactOwnerEmail: assignedTo || user?.email || '',
+        location: meetingLocation.trim() || undefined,
+        meetingLocation: meetingLocation.trim() || undefined,
+        meeting_location: meetingLocation.trim() || undefined,
+        meetingLink: demoLink.trim() || undefined,
+        demoLink: demoLink.trim() || undefined,
+        latitude: lat,
+        longitude: lng,
+      };
+
+      if (contactId) {
+        payload.contactId = contactId;
+        payload.contact_id = contactId;
+        payload.leadId = contactId;
+      }
+
+      // 4. Save Task
       if (isEditMode && existingTask?.id) {
         await taskService.updateTask(existingTask.id, payload);
-        Alert.alert('Task Updated', 'Changes have been saved successfully.', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
       } else {
         await taskService.createTask(payload);
-        Alert.alert('Task Scheduled', `New ${semantics.taskEntitySingular.toLowerCase()} added to your schedule.`, [
-          { text: 'View Schedule', onPress: () => navigation.navigate('Tasks') },
-        ]);
       }
+
+      // 5. Synchronize Contact with latest follow-up information matching Web CRM 1:1
+      if (contactId) {
+        try {
+          await leadService.updateLead(contactId, {
+            nextFollowUpType: taskType,
+            next_follow_up_type: taskType,
+            nextFollowUpDateTime: isoDate,
+            next_follow_up_date_time: isoDate,
+            location: meetingLocation.trim() || undefined,
+            modifiedAt: new Date().toISOString(),
+          });
+        } catch (cErr) {
+          console.warn('Contact follow-up sync warning:', cErr);
+        }
+      }
+
+      Alert.alert(
+        isEditMode ? 'Task Updated' : 'Task Scheduled',
+        isEditMode
+          ? 'Changes have been saved successfully.'
+          : `New ${taskType} scheduled successfully.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (isEditMode) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('Tasks');
+              }
+            },
+          },
+        ]
+      );
     } catch (err) {
       console.error('Failed to submit task:', err);
-      Alert.alert('Error', 'Failed to save task. Please try again.');
+      Alert.alert('Error', 'Failed to save task. Please check details and try again.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const filteredAssignees = useMemo(() => {
+    if (!assigneeSearchQuery.trim()) return orgUsers;
+    const q = assigneeSearchQuery.toLowerCase().trim();
+    return orgUsers.filter(
+      (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    );
+  }, [orgUsers, assigneeSearchQuery]);
 
   return (
     <View style={styles.container}>
@@ -357,78 +615,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.cardContainer}>
-          {/* ── Task Type Selector ── */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>TASK TYPE</Text>
-            <View style={styles.taskTypeRow}>
-              {taskTypes.map((type) => {
-                const isSelected = taskType === type;
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.taskTypeChip, isSelected && styles.taskTypeChipSelected]}
-                    onPress={() => handleSelectTaskType(type)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.taskTypeChipText,
-                        isSelected && styles.taskTypeChipTextSelected,
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* ── Contextual Callback Reason ── */}
-          {taskType.toLowerCase().includes('call') ? (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>CALLBACK REASON</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollPills}>
-                {CALLBACK_REASONS.map((reason) => {
-                  const isSelected = callbackReason === reason;
-                  return (
-                    <TouchableOpacity
-                      key={reason}
-                      style={[styles.reasonChip, isSelected && styles.reasonChipSelected]}
-                      onPress={() => setCallbackReason(reason)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.reasonChipText,
-                          isSelected && styles.reasonChipTextSelected,
-                        ]}
-                      >
-                        {reason}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          ) : null}
-
-          {/* ── Task Title Input ── */}
-          <View style={styles.fieldGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>TASK TITLE</Text>
-              <Text style={styles.requiredStar}>*</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Follow-up Call / Site Visit"
-              placeholderTextColor="#94A3B8"
-              value={title}
-              onChangeText={setTitle}
-            />
-          </View>
-
-          {/* ── Contact Association / CRM Contact Picker ── */}
+          {/* ── 1. Contact Association / CRM Contact Picker ── */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>ASSOCIATED CONTACT / CLIENT</Text>
@@ -482,7 +669,10 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
                   placeholder="Client / Lead Name"
                   placeholderTextColor="#94A3B8"
                   value={manualClientName}
-                  onChangeText={setManualClientName}
+                  onChangeText={(text) => {
+                    setManualClientName(text);
+                    setTitle(`${taskType} - ${text.trim() || 'Client'}`);
+                  }}
                 />
                 <TextInput
                   style={[styles.input, { marginBottom: 8 }]}
@@ -494,7 +684,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder={`Project / Requirement / Area`}
+                  placeholder="Project / Requirement / Area"
                   placeholderTextColor="#94A3B8"
                   value={manualProject}
                   onChangeText={setManualProject}
@@ -503,10 +693,169 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
             )}
           </View>
 
-          {/* ── Due Date & Time ── */}
+          {/* ── 2. Closed-Loop Existing Task Status (Visible if Contact Has Pending Task) ── */}
+          {existingTaskStatus && (
+            <View style={styles.existingTaskNoticeCard}>
+              <View style={styles.existingTaskHeaderRow}>
+                <Ionicons name="alert-circle" size={16} color="#D97706" />
+                <Text style={styles.existingTaskTitle}>Pending Prior Task Detected</Text>
+              </View>
+              <Text style={styles.existingTaskSubtitle}>
+                This contact has an active pending task. Select how to resolve the prior task:
+              </Text>
+              <View style={styles.existingTaskPillRow}>
+                {(['Completed', 'Cancelled'] as const).map((statusChoice) => {
+                  const isChoice = existingTaskSelected === statusChoice;
+                  return (
+                    <TouchableOpacity
+                      key={statusChoice}
+                      style={[
+                        styles.existingStatusChoicePill,
+                        isChoice && styles.existingStatusChoicePillSelected,
+                      ]}
+                      onPress={() => setExistingTaskSelected(statusChoice)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={statusChoice === 'Completed' ? 'checkmark-circle' : 'close-circle'}
+                        size={15}
+                        color={isChoice ? '#FFFFFF' : '#64748B'}
+                      />
+                      <Text
+                        style={[
+                          styles.existingStatusChoiceText,
+                          isChoice && styles.existingStatusChoiceTextSelected,
+                        ]}
+                      >
+                        Mark Prior {statusChoice}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* ── 3. Next Follow Up / Task Type Selector ── */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>SCHEDULE DUE DATE & TIME</Text>
+              <Text style={styles.fieldLabel}>NEXT FOLLOW UP TYPE</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
+            <View style={styles.taskTypeRow}>
+              {taskTypes.map((type) => {
+                const isSelected = taskType === type;
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.taskTypeChip, isSelected && styles.taskTypeChipSelected]}
+                    onPress={() => handleSelectTaskType(type)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.taskTypeChipText,
+                        isSelected && styles.taskTypeChipTextSelected,
+                      ]}
+                    >
+                      {type}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* ── 4. Dynamic Conditional Fields Matching Web CRM ── */}
+
+          {/* Call Back Reason (Shown when Call Back) */}
+          {taskType === 'Call Back' && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>CALLBACK REASON</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.horizontalScrollPills}
+              >
+                {CALLBACK_REASONS.map((reason) => {
+                  const isSelected = callbackReason === reason;
+                  return (
+                    <TouchableOpacity
+                      key={reason}
+                      style={[styles.reasonChip, isSelected && styles.reasonChipSelected]}
+                      onPress={() => setCallbackReason(reason)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.reasonChipText,
+                          isSelected && styles.reasonChipTextSelected,
+                        ]}
+                      >
+                        {reason}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Site / Project Location (Shown when Site Visit) */}
+          {taskType === 'Site Visit' && (
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>SITE / PROJECT LOCATION</Text>
+                <Text style={styles.requiredStar}>*</Text>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Site Office / Project Location"
+                placeholderTextColor="#94A3B8"
+                value={meetingLocation}
+                onChangeText={setMeetingLocation}
+              />
+            </View>
+          )}
+
+          {/* Meeting Venue / Location (Shown when Meeting) */}
+          {taskType === 'Meeting' && (
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>MEETING VENUE / LOCATION</Text>
+                <Text style={styles.requiredStar}>*</Text>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Head Office / Client Conference Room / Cafe"
+                placeholderTextColor="#94A3B8"
+                value={meetingLocation}
+                onChangeText={setMeetingLocation}
+              />
+            </View>
+          )}
+
+          {/* Meeting Link / Platform (Shown when Online Demo) */}
+          {taskType === 'Online Demo' && (
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>MEETING LINK / PLATFORM</Text>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. https://meet.google.com/... or Zoom URL"
+                placeholderTextColor="#94A3B8"
+                value={demoLink}
+                onChangeText={setDemoLink}
+                autoCapitalize="none"
+              />
+            </View>
+          )}
+
+          {/* ── 5. Scheduled Due Date & Time ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>NEXT FOLLOW UP DATE & TIME</Text>
               <Text style={styles.requiredStar}>*</Text>
             </View>
             <TouchableOpacity
@@ -524,14 +873,40 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
             </TouchableOpacity>
           </View>
 
-          {/* ── Priority Picker ── */}
+          {/* ── 6. Assignee Selector (Assigned To) ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>ASSIGNED TO</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.input, styles.dateTriggerBox]}
+              onPress={() => setShowAssigneePicker(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.datePickerLeft}>
+                <Ionicons name="person-circle-outline" size={18} color="#475569" />
+                <Text style={styles.dateTriggerText} numberOfLines={1}>
+                  {assignedToName} {assignedTo ? `(${assignedTo})` : ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={15} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* ── 7. Priority Picker (4 Tiers matching Web & Backend) ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>TASK PRIORITY</Text>
             <View style={styles.priorityRow}>
-              {(['High', 'Medium', 'Low'] as const).map((p) => {
+              {(['Urgent', 'High', 'Medium', 'Low'] as const).map((p) => {
                 const isSelected = priority === p;
                 const pColor =
-                  p === 'High' ? '#E11D48' : p === 'Medium' ? '#D97706' : '#059669';
+                  p === 'Urgent'
+                    ? '#9333EA'
+                    : p === 'High'
+                    ? '#E11D48'
+                    : p === 'Medium'
+                    ? '#D97706'
+                    : '#059669';
 
                 return (
                   <TouchableOpacity
@@ -566,12 +941,26 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
             </View>
           </View>
 
-          {/* ── Notes / Agenda ── */}
+          {/* ── 8. Task Title (Smart Auto-Generated / Editable) ── */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>NOTES & INSTRUCTIONS (OPTIONAL)</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>TASK TITLE</Text>
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Call Back - Client Name"
+              placeholderTextColor="#94A3B8"
+              value={title}
+              onChangeText={setTitle}
+            />
+          </View>
+
+          {/* ── 9. Notes & Instructions ── */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>NOTE (OPTIONAL)</Text>
             <TextInput
               style={[styles.input, styles.textAreaInput]}
-              placeholder="Add details, client requests, agenda points..."
+              placeholder="Enter task details, client requests, agenda..."
               placeholderTextColor="#94A3B8"
               value={notes}
               onChangeText={setNotes}
@@ -581,7 +970,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
             />
           </View>
 
-          {/* ── Submit Action Button ── */}
+          {/* ── 10. Submit Action Button ── */}
           <TouchableOpacity
             style={styles.submitBtn}
             onPress={handleSubmit}
@@ -598,9 +987,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
                   color="#FFFFFF"
                 />
                 <Text style={styles.submitBtnText}>
-                  {isEditMode
-                    ? `Save Changes`
-                    : `Schedule ${semantics.taskEntitySingular}`}
+                  {isEditMode ? 'Save Changes' : 'Schedule Task'}
                 </Text>
               </View>
             )}
@@ -608,10 +995,10 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
         </View>
       </ScrollView>
 
-      {/* ── Calendar Date Picker Modal ── */}
+      {/* ── Calendar Date & Time Picker Modal ── */}
       <CalendarDatePickerModal
         visible={showDatePicker}
-        title="Schedule Due Date"
+        title="Select Follow Up Date & Time"
         currentValue={dueDate}
         includeTime={true}
         minDate={new Date()}
@@ -658,7 +1045,7 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
               <Ionicons name="search" size={17} color="#94A3B8" />
               <TextInput
                 style={styles.pickerSearchInput}
-                placeholder={`Search by name, phone, or project...`}
+                placeholder="Search by name, phone, or project..."
                 placeholderTextColor="#94A3B8"
                 value={contactSearchQuery}
                 onChangeText={setContactSearchQuery}
@@ -713,6 +1100,90 @@ export const TaskFormScreen = ({ navigation, route }: any) => {
                 )}
               />
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Assignee Picker Sub-Modal ── */}
+      <Modal
+        visible={showAssigneePicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAssigneePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.backdropTouch}
+            activeOpacity={1}
+            onPress={() => setShowAssigneePicker(false)}
+          />
+          <View style={styles.pickerSheetCard}>
+            <View style={styles.dragHandleBox}>
+              <View style={styles.dragHandle} />
+            </View>
+
+            <View style={styles.pickerHeaderRow}>
+              <View>
+                <Text style={styles.pickerTitle}>Assign Task To</Text>
+                <Text style={styles.pickerSubtitle}>Delegate schedule to yourself or a teammate</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closePickerBtn}
+                onPress={() => setShowAssigneePicker(false)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pickerSearchBox}>
+              <Ionicons name="search" size={17} color="#94A3B8" />
+              <TextInput
+                style={styles.pickerSearchInput}
+                placeholder="Search teammates by name or email..."
+                placeholderTextColor="#94A3B8"
+                value={assigneeSearchQuery}
+                onChangeText={setAssigneeSearchQuery}
+              />
+              {assigneeSearchQuery ? (
+                <TouchableOpacity onPress={() => setAssigneeSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <FlatList
+              data={filteredAssignees.length > 0 ? filteredAssignees : [{ email: user?.email || '', name: user?.name || 'You' }]}
+              keyExtractor={(item) => item.email}
+              contentContainerStyle={styles.pickerListContent}
+              renderItem={({ item }) => {
+                const isSelected = assignedTo === item.email;
+                return (
+                  <TouchableOpacity
+                    style={[styles.contactResultItem, isSelected && { backgroundColor: '#F0F9FF' }]}
+                    onPress={() => {
+                      setAssignedTo(item.email);
+                      setAssignedToName(item.name || item.email);
+                      setShowAssigneePicker(false);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.contactResultAvatar}>
+                      <Ionicons name="person" size={16} color="#0284C7" />
+                    </View>
+                    <View style={styles.contactResultInfo}>
+                      <Text style={styles.contactResultName} numberOfLines={1}>
+                        {item.name} {item.email === user?.email ? '(You)' : ''}
+                      </Text>
+                      <Text style={styles.contactResultSub} numberOfLines={1}>
+                        {item.email}
+                      </Text>
+                    </View>
+                    {isSelected && <Ionicons name="checkmark-circle" size={18} color="#0284C7" />}
+                  </TouchableOpacity>
+                );
+              }}
+            />
           </View>
         </View>
       </Modal>
@@ -996,6 +1467,58 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     letterSpacing: 0.5,
   },
+  existingTaskNoticeCard: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  existingTaskHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  existingTaskTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  existingTaskSubtitle: {
+    fontSize: 11.5,
+    color: '#92400E',
+    marginBottom: 10,
+  },
+  existingTaskPillRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  existingStatusChoicePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  existingStatusChoicePillSelected: {
+    backgroundColor: '#D97706',
+    borderColor: '#D97706',
+  },
+  existingStatusChoiceText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#78350F',
+  },
+  existingStatusChoiceTextSelected: {
+    color: '#FFFFFF',
+  },
   dateTriggerBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1018,7 +1541,7 @@ const styles = StyleSheet.create({
   },
   priorityRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     marginTop: 2,
   },
   priorityPill: {
@@ -1026,12 +1549,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFC',
-    gap: 6,
+    gap: 5,
   },
   priorityDot: {
     width: 6,
@@ -1039,7 +1562,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   priorityText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#475569',
   },

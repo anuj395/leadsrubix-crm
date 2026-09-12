@@ -7,7 +7,7 @@ export interface TaskItem {
   title: string;
   dueDate: string;
   rawDueDate?: string;
-  priority: 'High' | 'Medium' | 'Low';
+  priority: 'Urgent' | 'High' | 'Medium' | 'Low';
   isCompleted: boolean;
   completed?: boolean;
   leadId?: string;
@@ -32,7 +32,11 @@ export interface TaskItem {
   assignedTo?: string;
   contactOwnerEmail?: string;
   location?: string;
+  meetingLocation?: string;
   meetingLink?: string;
+  demoLink?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export function formatTaskItem(t: any): TaskItem {
@@ -83,8 +87,14 @@ export function formatTaskItem(t: any): TaskItem {
   }
 
   const priorityVal = String(t.priority || 'Medium').toLowerCase();
-  const priority: 'High' | 'Medium' | 'Low' =
-    priorityVal === 'high' ? 'High' : priorityVal === 'low' ? 'Low' : 'Medium';
+  const priority: 'Urgent' | 'High' | 'Medium' | 'Low' =
+    priorityVal === 'urgent'
+      ? 'Urgent'
+      : priorityVal === 'high'
+      ? 'High'
+      : priorityVal === 'low'
+      ? 'Low'
+      : 'Medium';
 
   return {
     id: t._id || t.id,
@@ -115,8 +125,12 @@ export function formatTaskItem(t: any): TaskItem {
     overdueDays,
     assignedTo: t.assignedTo || t.assigned_to || t.contactOwnerEmail || t.contact_owner_email || '',
     contactOwnerEmail: t.contactOwnerEmail || t.contact_owner_email || t.assignedTo || t.assigned_to || '',
-    location: t.location || '',
-    meetingLink: t.meetingLink || t.meeting_link || '',
+    location: t.location || t.meetingLocation || t.meeting_location || '',
+    meetingLocation: t.meetingLocation || t.meeting_location || t.location || '',
+    meetingLink: t.meetingLink || t.meeting_link || t.demoLink || t.demo_link || '',
+    demoLink: t.demoLink || t.demo_link || t.meetingLink || t.meeting_link || '',
+    latitude: t.latitude !== undefined ? Number(t.latitude) : undefined,
+    longitude: t.longitude !== undefined ? Number(t.longitude) : undefined,
   };
 }
 
@@ -241,6 +255,34 @@ export const taskService = {
       return true;
     } catch (err) {
       console.error('[taskService] Failed to toggle task completion:', err);
+      return false;
+    }
+  },
+
+  async resolvePreviousTask(taskId: string, status: 'COMPLETED' | 'CANCELLED'): Promise<boolean> {
+    try {
+      await taskRepository.updateRawTask(taskId, {
+        status,
+        isCompleted: status === 'COMPLETED',
+        completedAt: status === 'COMPLETED' ? new Date().toISOString() : undefined,
+      });
+      return true;
+    } catch (err) {
+      console.warn('[taskService] Failed to resolve previous task:', err);
+      return false;
+    }
+  },
+
+  async updateUniqueTaskType(id: string, uniqueMeeting: boolean, uniqueSiteVisit: boolean): Promise<boolean> {
+    try {
+      await apiClient.post('/tasks/uniqueTaskTypeUpdate', {
+        id,
+        unique_meeting: uniqueMeeting,
+        unique_site_visit: uniqueSiteVisit,
+      });
+      return true;
+    } catch (err) {
+      console.warn('[taskService] Failed to update unique task type:', err);
       return false;
     }
   },

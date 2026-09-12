@@ -901,48 +901,99 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
 
       {/* ─── Hero Luxury Header (Executive #272944 Navy) ─── */}
       <View style={styles.luxuryHeader}>
-        <View style={styles.headerTopRow}>
-          <CompanyLogo variant="white" height={28} />
-
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              style={[
-                styles.selectLeadsBtn,
-                isSelectionMode && { backgroundColor: '#334155' },
-              ]}
-              onPress={() => {
-                if (isSelectionMode) {
+        {isSelectionMode ? (
+          <View style={styles.headerSelectionRow}>
+            {/* Left: Close button + Selection Count Pill */}
+            <View style={styles.headerSelectionLeft}>
+              <TouchableOpacity
+                style={styles.headerCloseBtn}
+                onPress={() => {
                   setIsSelectionMode(false);
                   setSelectedIds([]);
-                } else {
-                  setIsSelectionMode(true);
-                  if (filteredAndSortedLeads.length > 0 && selectedIds.length === 0) {
-                    setSelectedIds([filteredAndSortedLeads[0].id]);
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="close" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={toggleSelectAll}
+                style={[
+                  styles.headerSelectionCountPill,
+                  isAllSelected && styles.headerSelectionCountPillAll,
+                ]}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={
+                    isAllSelected
+                      ? 'checkmark-circle'
+                      : selectedIds.length > 0
+                      ? 'checkbox'
+                      : 'square-outline'
                   }
+                  size={15}
+                  color={selectedIds.length > 0 ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.headerSelectionCountText}>
+                  {isAllSelected
+                    ? `All (${selectedIds.length})`
+                    : `${selectedIds.length} Selected`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Right: Unified Action Buttons */}
+            <View style={styles.headerSelectionActions}>
+              <TouchableOpacity
+                style={[styles.headerActionBtn, selectedIds.length === 0 && styles.headerBtnDisabled]}
+                onPress={handleBulkCopy}
+                disabled={selectedIds.length === 0}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="copy-outline" size={13} color="#E2E8F0" />
+                <Text style={styles.headerActionBtnText}>Copy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.headerActionBtnReassign, selectedIds.length === 0 && styles.headerBtnDisabled]}
+                onPress={() => setBulkReassignVisible(true)}
+                disabled={selectedIds.length === 0}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="people" size={13} color="#FFFFFF" />
+                <Text style={styles.headerActionBtnTextReassign}>Reassign</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.headerActionBtnDelete, selectedIds.length === 0 && styles.headerBtnDisabled]}
+                onPress={handleBulkDelete}
+                disabled={selectedIds.length === 0}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="trash-outline" size={14} color="#F87171" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.headerTopRow}>
+            <CompanyLogo variant="white" height={28} />
+
+            <TouchableOpacity
+              style={styles.selectLeadsBtn}
+              onPress={() => {
+                setIsSelectionMode(true);
+                if (filteredAndSortedLeads.length > 0 && selectedIds.length === 0) {
+                  setSelectedIds([filteredAndSortedLeads[0].id]);
                 }
               }}
               activeOpacity={0.85}
             >
-              <Ionicons
-                name={isSelectionMode ? 'close-circle-outline' : 'checkbox-outline'}
-                size={15}
-                color="#FFFFFF"
-              />
-              <Text style={styles.selectLeadsBtnText}>
-                {isSelectionMode ? 'Cancel' : 'Select'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.addLeadBtn}
-              onPress={() => navigation.navigate('LeadForm')}
-              activeOpacity={0.88}
-            >
-              <Ionicons name="add" size={16} color="#272944" />
-              <Text style={styles.addLeadBtnText}>Add {semantics.leadEntitySingular}</Text>
+              <Ionicons name="checkbox-outline" size={15} color="#FFFFFF" />
+              <Text style={styles.selectLeadsBtnText}>Select</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         {/* Search Bar (High-Contrast White Card) */}
         <View style={styles.searchBarBox}>
@@ -1108,10 +1159,7 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
           data={filteredAndSortedLeads}
           keyExtractor={(item) => item.id}
           renderItem={renderLeadCard}
-          contentContainerStyle={[
-            styles.listContentContainer,
-            isSelectionMode && { paddingBottom: 160 },
-          ]}
+          contentContainerStyle={styles.listContentContainer}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmptyState}
           initialNumToRender={10}
@@ -1126,85 +1174,6 @@ export const LeadsListScreen = ({ navigation, route }: any) => {
             />
           }
         />
-      )}
-
-      {/* ─── Floating Bulk Action Dock (Executive Obsidian Glass Island) ─── */}
-      {isSelectionMode && (
-        <View style={styles.floatingBulkDock}>
-          {/* Left: Selection Counter & Toggle Pill */}
-          <TouchableOpacity
-            onPress={toggleSelectAll}
-            style={[
-              styles.dockSelectionPill,
-              isAllSelected && styles.dockSelectionPillAll,
-            ]}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name={
-                isAllSelected
-                  ? 'checkmark-circle'
-                  : selectedIds.length > 0
-                  ? 'checkbox'
-                  : 'square-outline'
-              }
-              size={17}
-              color={selectedIds.length > 0 ? '#38BDF8' : '#94A3B8'}
-            />
-            <Text style={styles.dockSelectionText}>
-              {isAllSelected
-                ? `All (${selectedIds.length})`
-                : `${selectedIds.length} Selected`}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Right: Unified Action Buttons */}
-          <View style={styles.bulkDockActionButtons}>
-            {/* Copy / Share Button */}
-            <TouchableOpacity
-              style={[styles.dockActionBtn, selectedIds.length === 0 && styles.btnDisabled]}
-              onPress={handleBulkCopy}
-              disabled={selectedIds.length === 0}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="copy-outline" size={13} color="#E2E8F0" />
-              <Text style={styles.dockActionText}>Copy</Text>
-            </TouchableOpacity>
-
-            {/* Reassign Button (Primary Action) */}
-            <TouchableOpacity
-              style={[styles.dockActionBtnReassign, selectedIds.length === 0 && styles.btnDisabled]}
-              onPress={() => setBulkReassignVisible(true)}
-              disabled={selectedIds.length === 0}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="people" size={14} color="#FFFFFF" />
-              <Text style={styles.dockActionTextReassign}>Reassign</Text>
-            </TouchableOpacity>
-
-            {/* Delete Button (Safe Destructive Tint) */}
-            <TouchableOpacity
-              style={[styles.dockActionBtnDelete, selectedIds.length === 0 && styles.btnDisabled]}
-              onPress={handleBulkDelete}
-              disabled={selectedIds.length === 0}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="trash-outline" size={15} color="#F87171" />
-            </TouchableOpacity>
-
-            {/* Dismiss Button */}
-            <TouchableOpacity
-              style={styles.closeDockBtn}
-              onPress={() => {
-                setIsSelectionMode(false);
-                setSelectedIds([]);
-              }}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="close" size={15} color="#94A3B8" />
-            </TouchableOpacity>
-          </View>
-        </View>
       )}
 
       {/* ─── Sort Selector Modal ─── */}
@@ -1955,113 +1924,100 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ─── Floating Bulk Action Dock (Executive Obsidian Glass Island) ───
-  floatingBulkDock: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 88 : 74,
-    left: 12,
-    right: 12,
-    backgroundColor: '#0F172A',
-    borderRadius: 22,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+  // ─── Contextual Top Selection Header (Gmail / HubSpot Standard) ───
+  headerSelectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginBottom: 12,
   },
-  dockSelectionPill: {
+  headerSelectionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 10,
-    height: 35,
-    borderRadius: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 7,
   },
-  dockSelectionPillAll: {
-    backgroundColor: 'rgba(56, 189, 248, 0.14)',
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-  },
-  dockSelectionText: {
-    color: '#F8FAFC',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: -0.1,
-  },
-  bulkDockActionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dockActionBtn: {
-    flexDirection: 'row',
+  headerCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 11,
-    borderRadius: 11,
-    gap: 4.5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
-  dockActionText: {
-    color: '#E2E8F0',
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: -0.1,
-  },
-  dockActionBtnReassign: {
+  headerSelectionCountPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 35,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 12,
-    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 9,
+    height: 32,
+    borderRadius: 10,
     gap: 5,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.4)',
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 4,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  dockActionTextReassign: {
+  headerSelectionCountPillAll: {
+    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+  },
+  headerSelectionCountText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: -0.1,
   },
-  dockActionBtnDelete: {
+  headerSelectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerActionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 35,
-    height: 35,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderRadius: 11,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 9,
+    borderRadius: 9,
+    gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.32)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
-  closeDockBtn: {
+  headerActionBtnText: {
+    color: '#E2E8F0',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  headerActionBtnReassign: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    height: 32,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    gap: 4,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  btnDisabled: {
+  headerActionBtnTextReassign: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  headerActionBtnDelete: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  headerBtnDisabled: {
     opacity: 0.35,
   },
 
