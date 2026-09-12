@@ -735,10 +735,7 @@ callLogController.MasterFilterValues = async (req, res) => {
 
     const filters = await CallLog.aggregate([
       {
-        $match: {
-          ...translateFilterKeys(finalFilters),
-          stage: { $nin: ["LOST", "NOT INTERESTED"] },
-        },
+        $match: translateFilterKeys(finalFilters),
       },
       group,
     ]);

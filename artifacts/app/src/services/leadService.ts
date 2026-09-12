@@ -37,6 +37,9 @@ export interface LeadItem {
   inquiryCount?: number;
   dealAmount?: number | string;
   lastContactedAt?: string;
+  inquiries?: any[];
+  stageHistory?: any[];
+  stage_history?: any[];
 }
 
 export interface TransferOptions {
@@ -153,6 +156,9 @@ export const leadService = {
           inquiryCount: inqCount,
           dealAmount: item.dealAmount || item.deal_amount || item.amount || item.budget || '',
           lastContactedAt: item.lastContactedAt || item.last_contacted_at || item.callResponseTime || item.call_response_time || '',
+          inquiries: Array.isArray(item.inquiries) ? item.inquiries : [],
+          stageHistory: Array.isArray(item.stageHistory) ? item.stageHistory : Array.isArray(item.stage_history) ? item.stage_history : [],
+          stage_history: Array.isArray(item.stage_history) ? item.stage_history : Array.isArray(item.stageHistory) ? item.stageHistory : [],
         };
       });
 

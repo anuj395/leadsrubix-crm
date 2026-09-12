@@ -45,7 +45,7 @@ import { TaskDetailModal } from '../../components/tasks/TaskDetailModal';
 import { taskService, formatTaskItem, TaskItem } from '../../services/taskService';
 
 type DetailTabType = 'timeline' | 'profile' | 'deals' | 'notes';
-type TimelineFilterType = 'all' | 'calls' | 'tasks';
+type TimelineFilterType = 'all' | 'calls' | 'tasks' | 'notes' | 'deals' | 'stage';
 
 export const LeadDetailScreen = ({ route, navigation }: any) => {
   const { user } = useAuth();
@@ -68,6 +68,11 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [notesList, setNotesList] = useState<any[]>([]);
   const [dealsList, setDealsList] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
+
+  const stageHistCount = useMemo(() => {
+    const s = Array.isArray(lead?.stageHistory) ? lead.stageHistory : Array.isArray(lead?.stage_history) ? lead.stage_history : [];
+    return s.length;
+  }, [lead?.stageHistory, lead?.stage_history]);
 
   // Modal States
   const [callBackModalVisible, setCallBackModalVisible] = useState(false);
@@ -955,16 +960,105 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         author: c.createdBy || c.created_by || c.userName || user?.name || user?.email || '',
         timestamp: formatDateTimeStr(c.createdAt || c.created_at) || '',
         note: c.remark || c.notes,
+        rawTimestamp: c.createdAt || c.created_at || 0,
       });
     });
 
+    // 3. Notes
+    notesList.forEach((n, idx) => {
+      const content = typeof n === 'string' ? n : (n.content || n.note || n.notes || n.text || n.description || n.remark || '');
+      if (!content.trim()) return;
+      list.push({
+        id: n.id || n._id || `note-${idx}`,
+        type: 'note',
+        title: 'Note Added',
+        status: 'Saved',
+        dueDate: '',
+        author: n.author || n.userName || n.createdBy || user?.name || user?.email || 'User',
+        timestamp: formatDateTimeStr(n.createdAt || n.created_at || n.date) || '',
+        note: content,
+        rawTimestamp: n.createdAt || n.created_at || n.date || 0,
+        rawNote: n,
+      });
+    });
+
+    // 4. Deals
+    dealsList.forEach((d, idx) => {
+      const amtStr = d.amount != null ? `₹${Number(d.amount).toLocaleString('en-IN')}` : '₹0';
+      list.push({
+        id: d.id || d._id || `deal-${idx}`,
+        type: 'deal',
+        title: `Deal: ${d.title || d.name || 'Sales Opportunity'}`,
+        status: d.stage || 'New Enquiry',
+        dueDate: amtStr,
+        author: d.ownerName || d.ownerEmail || user?.name || user?.email || 'Sales Rep',
+        timestamp: formatDateTimeStr(d.createdAt || d.created_at || d.updatedAt) || '',
+        note: d.notes ? `Strategy Notes: ${d.notes}` : undefined,
+        rawTimestamp: d.createdAt || d.created_at || d.updatedAt || 0,
+        rawDeal: d,
+      });
+    });
+
+    // 5. Inquiries / Requirements
+    const inqs = Array.isArray(lead?.inquiries) ? lead.inquiries : [];
+    inqs.forEach((inq: any, idx: number) => {
+      const proj = inq.project_name || inq.projectName || inq.subject || inq.property_type || inq.propertyType;
+      const src = inq.source || 'Inbound';
+      const camp = inq.campaign;
+      const bud = inq.budget;
+      const notesTxt = inq.notes || inq.description || '';
+      list.push({
+        id: inq.id || inq._id || inq.inquiry_id || `inquiry-${idx}`,
+        type: 'inquiry',
+        title: proj ? `Inbound Inquiry: ${proj}` : `Inbound Lead (${src})`,
+        status: inq.status || 'INBOUND',
+        dueDate: bud || '',
+        author: src ? `Inbound (${src})` : 'Marketing System',
+        timestamp: formatDateTimeStr(inq.created_at || inq.createdAt || inq.date) || '',
+        note: notesTxt ? (bud ? `Budget: ${bud}\nNotes: ${notesTxt}` : notesTxt) : (bud ? `Budget: ${bud}` : undefined),
+        rawTimestamp: inq.created_at || inq.createdAt || inq.date || 0,
+        rawInquiry: inq,
+      });
+    });
+
+    // 6. Stage History Transitions
+    const sHist = Array.isArray(lead?.stageHistory) ? lead.stageHistory : Array.isArray(lead?.stage_history) ? lead.stage_history : [];
+    sHist.forEach((s: any, idx: number) => {
+      const isInitial = (!s.fromStage && !s.from_stage) || s.reason === 'Initial Lead Registration';
+      const titleStr = isInitial ? `Lead Registered (${s.stage || s.toStage || 'FRESH'})` : `Stage Changed to ${s.stage || s.toStage}`;
+      const otherR = s.otherReason || s.other_reason;
+      const reasonStr = s.reason ? (otherR ? `Reason: ${s.reason} (${otherR})` : `Reason: ${s.reason}`) : '';
+      list.push({
+        id: s.id || s._id || `stage-${idx}`,
+        type: 'stage',
+        title: titleStr,
+        status: s.stage || s.toStage || 'Updated',
+        dueDate: '',
+        author: s.changedBy || s.changed_by || s.createdBy || 'System',
+        timestamp: formatDateTimeStr(s.timestamp || s.createdAt || s.created_at) || '',
+        note: reasonStr,
+        rawTimestamp: s.timestamp || s.createdAt || s.created_at || 0,
+        rawStage: s,
+      });
+    });
+
+    // Sort descending by raw timestamp
+    list.sort((a, b) => {
+      const timeA = new Date(a.rawTimestamp || a.timestamp || 0).getTime();
+      const timeB = new Date(b.rawTimestamp || b.timestamp || 0).getTime();
+      return timeB - timeA;
+    });
+
     return list;
-  }, [tasks, calls, user]);
+  }, [tasks, calls, notesList, dealsList, lead?.inquiries, lead?.stageHistory, lead?.stage_history, user]);
 
   // Filtered Activities based on Sub-pills
   const filteredActivities = useMemo(() => {
     if (timelineFilter === 'calls') return unifiedActivities.filter((a) => a.type === 'call');
     if (timelineFilter === 'tasks') return unifiedActivities.filter((a) => a.type === 'task');
+    if (timelineFilter === 'notes') return unifiedActivities.filter((a) => a.type === 'note');
+    if (timelineFilter === 'deals') return unifiedActivities.filter((a) => a.type === 'deal');
+    if (timelineFilter === 'stage') return unifiedActivities.filter((a) => a.type === 'stage');
     return unifiedActivities;
   }, [unifiedActivities, timelineFilter]);
 
@@ -1311,60 +1405,122 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           <View style={styles.tabContentContainer}>
             {/* Filter Pills & Add Quick Action Bar */}
             <View style={styles.timelineFilterBar}>
-              <TouchableOpacity
-                style={[styles.subFilterPill, timelineFilter === 'all' && styles.subFilterPillActive]}
-                onPress={() => setTimelineFilter('all')}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.subFilterPillText,
-                    timelineFilter === 'all' && styles.subFilterPillTextActive,
-                  ]}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                <TouchableOpacity
+                  style={[styles.subFilterPill, timelineFilter === 'all' && styles.subFilterPillActive]}
+                  onPress={() => setTimelineFilter('all')}
+                  activeOpacity={0.8}
                 >
-                  All ({unifiedActivities.length})
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.subFilterPillText,
+                      timelineFilter === 'all' && styles.subFilterPillTextActive,
+                    ]}
+                  >
+                    All ({unifiedActivities.length})
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.subFilterPill, timelineFilter === 'calls' && styles.subFilterPillActive]}
-                onPress={() => setTimelineFilter('calls')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="call-outline"
-                  size={12}
-                  color={timelineFilter === 'calls' ? '#272944' : '#64748B'}
-                />
-                <Text
-                  style={[
-                    styles.subFilterPillText,
-                    timelineFilter === 'calls' && styles.subFilterPillTextActive,
-                  ]}
+                <TouchableOpacity
+                  style={[styles.subFilterPill, timelineFilter === 'calls' && styles.subFilterPillActive]}
+                  onPress={() => setTimelineFilter('calls')}
+                  activeOpacity={0.8}
                 >
-                  Calls ({calls.length})
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons
+                    name="call-outline"
+                    size={12}
+                    color={timelineFilter === 'calls' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.subFilterPillText,
+                      timelineFilter === 'calls' && styles.subFilterPillTextActive,
+                    ]}
+                  >
+                    Calls ({calls.length})
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.subFilterPill, timelineFilter === 'tasks' && styles.subFilterPillActive]}
-                onPress={() => setTimelineFilter('tasks')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={12}
-                  color={timelineFilter === 'tasks' ? '#272944' : '#64748B'}
-                />
-                <Text
-                  style={[
-                    styles.subFilterPillText,
-                    timelineFilter === 'tasks' && styles.subFilterPillTextActive,
-                  ]}
+                <TouchableOpacity
+                  style={[styles.subFilterPill, timelineFilter === 'tasks' && styles.subFilterPillActive]}
+                  onPress={() => setTimelineFilter('tasks')}
+                  activeOpacity={0.8}
                 >
-                  Tasks ({tasks.length})
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={12}
+                    color={timelineFilter === 'tasks' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.subFilterPillText,
+                      timelineFilter === 'tasks' && styles.subFilterPillTextActive,
+                    ]}
+                  >
+                    Tasks ({tasks.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.subFilterPill, timelineFilter === 'notes' && styles.subFilterPillActive]}
+                  onPress={() => setTimelineFilter('notes')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={12}
+                    color={timelineFilter === 'notes' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.subFilterPillText,
+                      timelineFilter === 'notes' && styles.subFilterPillTextActive,
+                    ]}
+                  >
+                    Notes ({notesList.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.subFilterPill, timelineFilter === 'deals' && styles.subFilterPillActive]}
+                  onPress={() => setTimelineFilter('deals')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={12}
+                    color={timelineFilter === 'deals' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.subFilterPillText,
+                      timelineFilter === 'deals' && styles.subFilterPillTextActive,
+                    ]}
+                  >
+                    Deals ({dealsList.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.subFilterPill, timelineFilter === 'stage' && styles.subFilterPillActive]}
+                  onPress={() => setTimelineFilter('stage')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={12}
+                    color={timelineFilter === 'stage' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.subFilterPillText,
+                      timelineFilter === 'stage' && styles.subFilterPillTextActive,
+                    ]}
+                  >
+                    Stage ({stageHistCount})
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
 
             {/* Activities List */}
@@ -1401,6 +1557,9 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                             act.type === 'call' && { backgroundColor: 'rgba(39, 41, 68, 0.08)' },
                             act.type === 'task' && { backgroundColor: act.status === 'Cancelled' ? '#FEF2F2' : '#FFFBEB' },
                             act.type === 'note' && { backgroundColor: '#ECFDF5' },
+                            act.type === 'deal' && { backgroundColor: '#EEF2FF' },
+                            act.type === 'inquiry' && { backgroundColor: '#F0FDF4' },
+                            act.type === 'stage' && { backgroundColor: '#FDF2F8' },
                           ]}
                         >
                           <Ionicons
@@ -1409,7 +1568,13 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                                 ? 'call'
                                 : act.type === 'task'
                                 ? 'calendar'
-                                : 'document-text'
+                                : act.type === 'note'
+                                ? 'document-text'
+                                : act.type === 'deal'
+                                ? 'briefcase'
+                                : act.type === 'inquiry'
+                                ? 'mail'
+                                : 'swap-horizontal'
                             }
                             size={18}
                             color={
@@ -1419,7 +1584,13 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                                 ? '#DC2626'
                                 : act.type === 'task'
                                 ? '#D97706'
-                                : '#059669'
+                                : act.type === 'note'
+                                ? '#059669'
+                                : act.type === 'deal'
+                                ? '#4F46E5'
+                                : act.type === 'inquiry'
+                                ? '#16A34A'
+                                : '#DB2777'
                             }
                           />
                         </View>
@@ -1443,6 +1614,12 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                                   ? styles.statusBadgeCompleted
                                   : act.status === 'Cancelled'
                                   ? { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }
+                                  : act.type === 'deal'
+                                  ? { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }
+                                  : act.type === 'inquiry'
+                                  ? { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }
+                                  : act.type === 'stage'
+                                  ? { backgroundColor: '#FDF2F8', borderColor: '#FBCFE8' }
                                   : styles.statusBadgePending,
                               ]}
                             >
@@ -1453,6 +1630,12 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                                     ? styles.statusBadgeTextCompleted
                                     : act.status === 'Cancelled'
                                     ? { color: '#DC2626' }
+                                    : act.type === 'deal'
+                                    ? { color: '#4338CA' }
+                                    : act.type === 'inquiry'
+                                    ? { color: '#047857' }
+                                    : act.type === 'stage'
+                                    ? { color: '#DB2777' }
                                     : styles.statusBadgeTextPending,
                                 ]}
                               >

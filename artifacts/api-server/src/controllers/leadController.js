@@ -209,17 +209,56 @@ exports.transition = async (req, res, next) => {
     }
 
     const now = new Date();
+    const existingContact = await contactModel.findById(id).catch(() => null);
+    const oldStage = existingContact?.stage || existingContact?.property_stage || 'FRESH';
+
     const updateObj = {
       stage: targetStage,
       property_stage: targetStage,
       lead_status: targetStage,
       stage_change_at: now,
       modified_at: now,
-      ...(remarks ? { notes: remarks } : {})
     };
 
+    // Only set notes if contact currently has no notes and remarks was provided
+    if (remarks && !existingContact?.notes) {
+      updateObj.notes = remarks;
+    }
+
+    const changer = req.user?.name || req.user?.email || 'User';
+    const historyEntry = {
+      stage: targetStage,
+      from_stage: oldStage,
+      fromStage: oldStage,
+      reason: remarks || '',
+      changed_by: changer,
+      changedBy: changer,
+      timestamp: now,
+      created_at: now
+    };
+
+    const contactUpdateOps = { $set: updateObj };
+    const existingHistory = existingContact?.stage_history || existingContact?.stageHistory;
+    if (!Array.isArray(existingHistory) || existingHistory.length === 0) {
+      contactUpdateOps.$set.stage_history = [
+        {
+          stage: oldStage || 'FRESH',
+          from_stage: null,
+          fromStage: null,
+          reason: 'Initial Lead Registration',
+          changed_by: existingContact?.createdBy || 'System',
+          changedBy: existingContact?.createdBy || 'System',
+          timestamp: existingContact?.createdAt || now,
+          created_at: existingContact?.createdAt || now
+        },
+        historyEntry
+      ];
+    } else {
+      contactUpdateOps.$push = { stage_history: historyEntry };
+    }
+
     const [updatedContact, updatedLead] = await Promise.all([
-      contactModel.findByIdAndUpdate(id, { $set: updateObj }, { new: true }).catch(() => null),
+      contactModel.findByIdAndUpdate(id, contactUpdateOps, { new: true }).catch(() => null),
       leadModel.findByIdAndUpdate(id, { $set: { lead_status: targetStage, stage: targetStage } }, { new: true }).catch(() => null)
     ]);
 

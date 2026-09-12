@@ -270,11 +270,6 @@ exports.masterSortSearch = async (req, res, next) => {
       filter["customer_name"] = { $in: customer_name_list };
     }
 
-    // --- Exclude unwanted stages if not filtered ---
-    if (!filter?.stage) {
-      filter["stage"] = { $nin: ["LOST", "NOT INTERESTED"] };
-    }
-
     // --- Multi-Tenant Scope Filtering ---
     if (req.user?.role === 'superAdmin') {
       if (requestedOrganization && requestedOrganization !== 'all') {

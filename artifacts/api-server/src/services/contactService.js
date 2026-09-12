@@ -104,6 +104,20 @@ function fillExtraFields(aligned, user) {
   aligned.otherLostReason = aligned.otherLostReason || '';
   aligned.otherNotIntReason = aligned.otherNotIntReason || '';
   aligned.callBackReason = aligned.callBackReason || '';
+
+  if (!Array.isArray(aligned.stage_history) && !Array.isArray(aligned.stageHistory)) {
+    const creatorName = (user ? (user.name || user.email) : null) || 'System';
+    aligned.stage_history = [{
+      stage: aligned.stage || 'FRESH',
+      from_stage: null,
+      fromStage: null,
+      reason: 'Initial Lead Registration',
+      changed_by: creatorName,
+      changedBy: creatorName,
+      timestamp: now,
+      created_at: now
+    }];
+  }
   
   aligned.previousOwner = aligned.previousOwner || '';
   aligned.previousOwner1 = aligned.previousOwner1 || '';
@@ -748,15 +762,55 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
   delete cleaned.field_four;
   delete cleaned.field_five;
   delete cleaned.field_six;
+  const oldStage = existing.stage || existing.property_stage || existing.propertyStage;
+  const newStage = cleaned.stage || cleaned.property_stage || cleaned.propertyStage;
+  const stageChanged = Boolean(newStage && oldStage && String(newStage).trim().toUpperCase() !== String(oldStage).trim().toUpperCase());
 
-  const updated = await contactModel.findByIdAndUpdate(id, { $set: cleaned }, { new: true });
+  const updateOps = { $set: cleaned };
+
+  if (stageChanged) {
+    const reasonText = cleaned.notIntReason || cleaned.not_int_reason || cleaned.lostReason || cleaned.lost_reason || cleaned.callBackReason || cleaned.callback_reason || cleaned.callbackReason || cleaned.stageReason || cleaned.reason || '';
+    const otherReasonText = cleaned.otherNotIntReason || cleaned.other_not_int_reason || cleaned.otherLostReason || cleaned.other_lost_reason || '';
+    const changer = user?.name || user?.email || authedUser?.email || 'User';
+    const historyEntry = {
+      stage: newStage,
+      from_stage: oldStage,
+      fromStage: oldStage,
+      reason: reasonText,
+      other_reason: otherReasonText,
+      otherReason: otherReasonText,
+      changed_by: changer,
+      changedBy: changer,
+      timestamp: new Date(),
+      created_at: new Date()
+    };
+
+    const existingHistory = existing.stage_history || existing.stageHistory;
+    if (!Array.isArray(existingHistory) || existingHistory.length === 0) {
+      updateOps.$set.stage_history = [
+        {
+          stage: oldStage || 'FRESH',
+          from_stage: null,
+          fromStage: null,
+          reason: 'Initial Lead Registration',
+          changed_by: existing.createdBy || 'System',
+          changedBy: existing.createdBy || 'System',
+          timestamp: existing.createdAt || new Date(),
+          created_at: existing.createdAt || new Date()
+        },
+        historyEntry
+      ];
+    } else {
+      updateOps.$push = { stage_history: historyEntry };
+    }
+  }
+
+  const updated = await contactModel.findByIdAndUpdate(id, updateOps, { new: true });
   if (updated) {
     await enrichOrganizationNames([updated]);
 
     // 1. Dispatch lead.stage_changed if stage transition occurred
-    const oldStage = existing.stage || existing.property_stage || existing.propertyStage;
-    const newStage = cleaned.stage || cleaned.property_stage || cleaned.propertyStage;
-    if (newStage && oldStage && String(newStage).trim().toUpperCase() !== String(oldStage).trim().toUpperCase()) {
+    if (stageChanged) {
       try {
         const { dispatchCrmEvent } = require('./notificationDispatcherService');
         dispatchCrmEvent({

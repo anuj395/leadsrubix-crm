@@ -620,6 +620,8 @@ function buildController({
           const cId = updated.contact_id || updated.contactId;
           try {
             const Contact = mongoose.model('Contact');
+            const existingContact = await Contact.findById(cId).lean().exec();
+            const oldStage = existingContact?.stage || 'QUALIFIED';
             if (stLower.includes('won')) {
               await Contact.findByIdAndUpdate(cId, {
                 $set: {
@@ -627,17 +629,42 @@ function buildController({
                   status: 'WON',
                   modifiedAt: new Date(),
                   stageChangeAt: new Date()
+                },
+                $push: {
+                  stage_history: {
+                    stage: 'WON',
+                    from_stage: oldStage,
+                    fromStage: oldStage,
+                    reason: 'Deal Closed Won',
+                    changed_by: authedUser?.name || authedUser?.email || 'System',
+                    changedBy: authedUser?.name || authedUser?.email || 'System',
+                    timestamp: new Date(),
+                    created_at: new Date()
+                  }
                 }
               });
             } else if (stLower.includes('lost')) {
+              const lReason = patch.lostReason || patch.lost_reason || 'Closed Lost';
               await Contact.findByIdAndUpdate(cId, {
                 $set: {
                   stage: 'LOST',
                   status: 'LOST',
-                  lostReason: patch.lostReason || patch.lost_reason || 'Closed Lost',
-                  lost_reason: patch.lostReason || patch.lost_reason || 'Closed Lost',
+                  lostReason: lReason,
+                  lost_reason: lReason,
                   modifiedAt: new Date(),
                   stageChangeAt: new Date()
+                },
+                $push: {
+                  stage_history: {
+                    stage: 'LOST',
+                    from_stage: oldStage,
+                    fromStage: oldStage,
+                    reason: lReason,
+                    changed_by: authedUser?.name || authedUser?.email || 'System',
+                    changedBy: authedUser?.name || authedUser?.email || 'System',
+                    timestamp: new Date(),
+                    created_at: new Date()
+                  }
                 }
               });
             }
