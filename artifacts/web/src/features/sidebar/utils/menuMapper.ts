@@ -22,11 +22,13 @@ export function toIconKey(icon?: string): MenuIconKey {
   return (icon && ICON_MAP[icon.toLowerCase()]) ? ICON_MAP[icon.toLowerCase()] : 'data'
 }
 
-function formatMenuName(key: string, route?: string, rawName?: string): string {
+function formatMenuName(key: string, route?: string, rawName?: string, industryId?: string): string {
   const k = (key || '').toLowerCase();
   const r = (route || '').toLowerCase();
   const n = (rawName || '').trim();
+  const indCode = String(industryId || '').toLowerCase().trim();
 
+  // Root Dashboard formatting
   if (k === 'analytics' || r === '/analytics' || r === '/dashboard') {
     if (!n || n.toLowerCase() === 'analytics') {
       return 'Dashboard';
@@ -34,6 +36,7 @@ function formatMenuName(key: string, route?: string, rawName?: string): string {
     return n;
   }
 
+  // Dashboard layout builder
   if (k === 'uinavigation.analyticsconfig' || k === 'configuration.analyticsconfig' || r === '/ui-navigation/analytics-config' || r === '/configuration/analytics-config') {
     if (!n || n.toLowerCase() === 'analytics layout builder') {
       return 'Dashboard Layout Builder';
@@ -41,8 +44,41 @@ function formatMenuName(key: string, route?: string, rawName?: string): string {
     return n;
   }
 
+  // Notifications & Automation
   if (k === 'integrations.whatsapp' || k === 'configuration.whatsapp' || r === '/integrations/whatsapp' || r === '/configuration/whatsapp' || r === '/configuration/notifications' || r === '/integrations/notifications') {
     return 'Notifications & Automation';
+  }
+
+  // Sector-Aware Lead / Inquiries Root Section Header
+  if (k === 'leads') {
+    if (indCode === 'temp0003') return 'Patients & Inquiries';
+    if (indCode === 'temp0002') return 'Customers & Inquiries';
+    if (indCode === 'temp0004') return 'Students & Admissions';
+    if (indCode === 'temp0005') return 'Clients & Portfolios';
+    if (indCode === 'temp0006') return 'Accounts & Inquiries';
+    if (indCode === 'temp0007') return 'Dealers & Orders';
+    // Real Estate (temp0001), Super Admin, or General
+    return 'Leads & Inquiries';
+  }
+
+  // Sector-Aware Child Items Sanitation (Prevent "Students" from contaminating non-education tenants)
+  if (k === 'leads.contact' || r === '/leads/contacts') {
+    if (indCode === 'temp0004') return 'Students & Applicants';
+    if (indCode === 'temp0003') return 'Patients List';
+    if (indCode === 'temp0002') return 'Customer Directory';
+    return 'Leads & Contacts';
+  }
+
+  if (k === 'leads.inquiries' || r === '/leads/inquiries') {
+    return 'Inbound Inquiries';
+  }
+
+  if (k === 'leads.tasks' || r === '/leads/tasks') {
+    return 'Tasks & Follow-ups';
+  }
+
+  if (k === 'leads.call' || r === '/leads/call-logs') {
+    return 'Call Logs';
   }
 
   return n;
@@ -63,7 +99,7 @@ function resolveIconKey(key: string, route?: string, icon?: string): MenuIconKey
  * - The parent-child relationships, display names, modules, routes, and sort order
  *   are completely driven by the database config.
  */
-export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], _roleKey?: string): SidebarNavItem[] {
+export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], _roleKey?: string, industryId?: string): SidebarNavItem[] {
   if (!raw?.length) return []
 
   // Create a map of ID -> raw item for quick lookup
@@ -110,14 +146,14 @@ export function mapApiMenusToNavItems(raw: RawSidebarMenuItem[], _roleKey?: stri
 
     const mappedChildren: SidebarChildItem[] = children.map(child => ({
       id: child.key,
-      name: formatMenuName(child.key, child.route, child.name),
+      name: formatMenuName(child.key, child.route, child.name, industryId),
       route: child.route ?? '#',
       icon: resolveIconKey(child.key, child.route, child.icon),
     }))
 
     result.push({
       id: root.key,
-      name: formatMenuName(root.key, root.route, root.name),
+      name: formatMenuName(root.key, root.route, root.name, industryId),
       route: root.route,
       icon: resolveIconKey(root.key, root.route, root.icon),
       module: root.module ?? root.key,
