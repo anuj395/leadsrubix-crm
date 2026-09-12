@@ -185,13 +185,17 @@ export default function UnifiedActivityTimeline({
 
     // 6. Stage Transitions
     stageHistory.forEach((s, idx) => {
+      const isInitial = (!s.fromStage && !s.from_stage) || s.reason === 'Initial Lead Registration'
+      const titleStr = isInitial ? `Lead Registered (${s.stage || s.toStage || 'FRESH'})` : `Stage Changed to ${s.stage || s.toStage}`
+      const otherR = s.otherReason || s.other_reason
+      const reasonStr = s.reason ? (otherR ? `Reason: ${s.reason} (${otherR})` : `Reason: ${s.reason}`) : ''
       list.push({
         id: s._id || `stage-${idx}`,
         type: 'stage',
-        title: `Stage Changed to ${s.stage || s.toStage}`,
-        description: s.reason ? `Reason: ${s.reason}` : '',
+        title: titleStr,
+        description: reasonStr,
         timestamp: s.createdAt || s.created_at || s.timestamp || new Date(),
-        author: s.changedBy || s.createdBy || 'System',
+        author: s.changedBy || s.changed_by || s.createdBy || 'System',
         meta: s
       })
     })

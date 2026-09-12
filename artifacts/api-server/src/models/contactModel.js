@@ -40,6 +40,7 @@ const contactSchema = new mongoose.Schema(
     next_follow_up_type: { type: String, default: '', alias: 'nextFollowUpType' },
     call_back_reason: { type: String, default: '', alias: 'callBackReason' },
     lost_reason: { type: String, default: '', alias: 'lostReason' },
+    stage_history: { type: Array, default: [], alias: 'stageHistory' },
   },
   { 
     timestamps: true, 

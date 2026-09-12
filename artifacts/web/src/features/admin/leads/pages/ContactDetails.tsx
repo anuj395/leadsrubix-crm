@@ -308,7 +308,7 @@ export default function ContactDetailsPage() {
       property_type: (contact as any)?.propertyType || (contact as any)?.property_type || '',
       budget: contact.budget || '',
       notes: 'Initial Lead Registration',
-      status: (contact as any)?.stage || 'ACTIVE',
+      status: 'INBOUND',
       assigned_to: contact.contactOwnerEmail || contact.contactOwnerName || ''
     }]
   }, [contact])
