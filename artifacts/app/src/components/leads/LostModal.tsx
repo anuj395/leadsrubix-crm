@@ -309,11 +309,12 @@ export const LostModal: React.FC<Props> = ({
           for (const t of allTasks) {
             const taskId = t._id || t.id;
             if (taskId) {
-              const nextStatus = String(t.status || '').toUpperCase() === 'PENDING' ? 'INACTIVE' : t.status;
+              const nextStatus = String(t.status || '').toUpperCase() === 'PENDING' ? 'CANCELLED' : t.status;
               await apiClient.put(`/tasks/${taskId}`, {
                 ...t,
                 status: nextStatus,
                 stage: 'LOST',
+                notes: (t.notes ? `${t.notes}\n` : '') + `[Lead Status: Lost - ${lostReasonVal}]`,
               }).catch(() => null);
             }
           }
@@ -322,21 +323,24 @@ export const LostModal: React.FC<Props> = ({
         console.warn('Failed to update tasks:', e);
       }
 
-      // 3. Save Resource Note if provided (Matching Web 1:1)
-      if (noteText) {
-        await apiClient
-          .post('/resources/resourceNotes', {
-            contactId: leadId,
-            contact_id: leadId,
-            note: noteText,
-            notes: noteText,
-            text: noteText,
-            userName: user?.name || user?.email || 'Admin',
-            userEmail: user?.email || '',
-            createdBy: user?.name || user?.email || 'Admin',
-          })
-          .catch(() => null);
-      }
+      // 3. Save comprehensive audit note to timeline (Matching Web 1:1)
+      const reasonLabel = lostReasonVal === 'Other' && otherReasonVal ? otherReasonVal : lostReasonVal;
+      const auditNote = `[Status: Lost - ${reasonLabel || 'Closed Lost'}]${noteText ? ` Details: ${noteText}` : ''}`;
+      await apiClient
+        .post('/resources/resourceNotes', {
+          contactId: leadId,
+          contact_id: leadId,
+          note: auditNote,
+          notes: auditNote,
+          text: auditNote,
+          stage: 'LOST',
+          reason: reasonLabel || '',
+          customerName: lead.name || (lead as any).firstName || '',
+          userName: user?.name || user?.email || 'Admin',
+          userEmail: user?.email || '',
+          createdBy: user?.name || user?.email || 'Admin',
+        })
+        .catch(() => null);
 
       Alert.alert('Success', 'Lead Status Updated!!');
       onSuccess();

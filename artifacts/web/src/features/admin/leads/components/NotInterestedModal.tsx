@@ -112,32 +112,40 @@ export default function NotInterestedModal({ open, onClose, contactId, onSuccess
       // 1. Update Contact stage
       await updateContact(contactId, contactFields)
 
-      // 2. Update tasks associated with this contact
-      const tasksRes = await api.get('tasks', { params: { contactId } })
+      // 2. Update tasks associated with this contact - preserve data integrity, never wipe
+      const tasksRes = await api.get('tasks', { params: { contactId } }).catch(() => ({ data: { items: [] } }))
       const allTasks = tasksRes.data?.items ?? []
       await Promise.all(allTasks.map((t: any) => {
-        const nextStatus = t.status === 'PENDING' ? 'INACTIVE' : t.status
-        return api.put(`tasks/${t._id}`, { ...t, status: nextStatus, stage: 'NOT INTERESTED' })
+        const nextStatus = t.status === 'PENDING' ? 'CANCELLED' : t.status
+        return api.put(`tasks/${t._id}`, {
+          ...t,
+          status: nextStatus,
+          stage: 'NOT INTERESTED',
+          notes: (t.notes ? `${t.notes}\n` : '') + `[Lead Status: Not Interested - ${values.notIntReason || 'Disqualified'}]`
+        }).catch(() => null)
       }))
 
-      // 3. Save Note if exists
+      // 3. Save comprehensive audit note to contact timeline
       const noteContent = String(taskFields.notes || '').trim()
-      if (noteContent) {
-        await api.post('resources/resourceNotes', {
-          contactId,
-          note: noteContent,
-          notes: noteContent,
-          userName: user?.name || user?.email || 'Admin',
-          userEmail: user?.email || '',
-          createdBy: user?.name || user?.email || 'Admin'
-        })
-      }
+      const reasonLabel = values.notIntReason === 'Other' && values.otherNotIntReason ? values.otherNotIntReason : values.notIntReason
+      const auditNote = `[Status: Not Interested - ${reasonLabel || 'Disqualified'}]${noteContent ? ` Details: ${noteContent}` : ''}`
+      
+      await api.post('resources/resourceNotes', {
+        contactId,
+        note: auditNote,
+        notes: auditNote,
+        stage: 'NOT INTERESTED',
+        reason: reasonLabel || '',
+        userName: user?.name || user?.email || 'Admin',
+        userEmail: user?.email || '',
+        createdBy: user?.name || user?.email || 'Admin'
+      }).catch(err => console.warn('Failed to save audit note:', err))
 
-      setToast({ open: true, msg: 'Lead Status Updated!!', sev: 'success' })
+      setToast({ open: true, msg: 'Lead marked as Not Interested with activity preserved!', sev: 'success' })
       setTimeout(() => {
         onSuccess()
         onClose()
-      }, 1000)
+      }, 800)
     } catch (err) {
       setToast({ open: true, msg: 'Failed to save details', sev: 'error' })
     } finally {

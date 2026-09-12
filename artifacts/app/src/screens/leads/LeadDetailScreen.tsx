@@ -1037,6 +1037,32 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        {/* ─── 1-Tap Quick Convert to Deal Banner ─── */}
+        {!isClosedLost && (
+          <TouchableOpacity
+            style={styles.quickConvertBanner}
+            onPress={handleOpenAddDeal}
+            activeOpacity={0.85}
+          >
+            <View style={styles.quickConvertLeft}>
+              <View style={styles.quickConvertIconBox}>
+                <Ionicons name="briefcase" size={18} color="#FFFFFF" />
+              </View>
+              <View style={styles.quickConvertTextBox}>
+                <Text style={styles.quickConvertTitle}>
+                  {dealsList.length > 0 ? 'Create Additional Deal' : 'Convert Lead to Deal'}
+                </Text>
+                <Text style={styles.quickConvertSubtitle} numberOfLines={1}>
+                  {dealsList.length > 0 ? `${dealsList.length} active deal(s) linked • Tap to add another` : '1-tap promote into sales pipeline & revenue track'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.quickConvertArrowBox}>
+              <Ionicons name="arrow-forward" size={15} color="#4F46E5" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* ─── Status Filter Chips (Matching Leads & Tasks Screens) ─── */}
         <View style={styles.filterSectionHeader}>
           <Text style={styles.filterSectionTitle}>SECTION TABS</Text>
@@ -1051,6 +1077,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
             {[
               { key: 'timeline', label: 'ACTIVITY', count: unifiedActivities.length },
               { key: 'profile', label: 'OVERVIEW', count: undefined },
+              { key: 'deals', label: 'DEALS', count: dealsList.length },
               { key: 'notes', label: 'NOTES', count: notesList.length },
             ].map((tab) => {
               const isSelected = activeTab === tab.key;
@@ -1165,6 +1192,24 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               <>
                 <TouchableOpacity
                   style={styles.actionItem}
+                  onPress={handleOpenAddDeal}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.actionCircle, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+                    <Ionicons name="briefcase" size={20} color="#4F46E5" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#4338CA' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Convert Deal
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.actionItem}
                   onPress={() => setCreateTaskModalVisible(true)}
                   activeOpacity={0.75}
                 >
@@ -1183,19 +1228,59 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
                 <TouchableOpacity
                   style={styles.actionItem}
-                  onPress={() => setRescheduleModalVisible(true)}
+                  onPress={() => setLostModalVisible(true)}
                   activeOpacity={0.75}
                 >
-                  <View style={[styles.actionCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-                    <Ionicons name="calendar-outline" size={20} color="#EA580C" />
+                  <View style={[styles.actionCircle, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}>
+                    <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
                   </View>
                   <Text
-                    style={[styles.actionItemLabel, { color: '#C2410C' }]}
+                    style={[styles.actionItemLabel, { color: '#B91C1C' }]}
                     numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.75}
                   >
-                    Re-Schedule
+                    Lost
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {!isFresh && !isCallback && !isInterested && (
+              <>
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={handleOpenAddDeal}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.actionCircle, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+                    <Ionicons name="briefcase" size={20} color="#4F46E5" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#4338CA' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Add Deal
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => setCreateTaskModalVisible(true)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.actionCircle, { backgroundColor: '#EEF0F8', borderColor: '#C8CDDC' }]}>
+                    <Ionicons name="add-circle-outline" size={20} color="#272944" />
+                  </View>
+                  <Text
+                    style={[styles.actionItemLabel, { color: '#272944' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Create Task
                   </Text>
                 </TouchableOpacity>
 
@@ -2311,6 +2396,65 @@ const styles = StyleSheet.create({
   },
   chipBadgeTextSelected: {
     color: '#FFFFFF',
+  },
+
+  // ─── 1-Tap Quick Convert to Deal Banner ───
+  quickConvertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 12,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickConvertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  quickConvertIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickConvertTextBox: {
+    flex: 1,
+  },
+  quickConvertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#312E81',
+    lineHeight: 16,
+  },
+  quickConvertSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6366F1',
+    lineHeight: 14,
+  },
+  quickConvertArrowBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
 
   // ─── Modern 5-Column Executive Quick Action Cockpit ───

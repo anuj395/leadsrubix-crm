@@ -63,17 +63,17 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
   useEffect(() => {
     if (!open || !contact) return
     setError(null)
-    const customerName = contact.customerName || contact.customer_name || 'Qualified Lead'
+    const customerName = contact.customerName || contact.customer_name || (contact.firstName ? `${contact.firstName} ${contact.lastName || ''}`.trim() : '') || 'Qualified Lead'
     const indId = String(contact.industry_id || contact.industryId || '').toLowerCase()
     
     // IT Services (temp0006) and Manufacturing (temp0007) default to B2B Corporate
-    const isB2BVertical = indId === 'temp0006' || indId === 'temp0007'
+    const isB2BVertical = indId === 'temp0006' || indId === 'temp0007' || Boolean(contact.companyName)
     const defaultType = isB2BVertical ? 'B2B' : 'B2C'
     setCustomerType(defaultType)
 
     if (isB2BVertical) {
-      setAccountName(`${customerName} Co.`)
-      setDealTitle(`${customerName} Co. - Enterprise Opportunity`)
+      setAccountName(contact.companyName || `${customerName} Co.`)
+      setDealTitle(contact.companyName ? `${contact.companyName} - Opportunity` : `${customerName} Co. - Enterprise Opportunity`)
     } else {
       setAccountName('')
       const projectName = contact.projectName || (contact as any).project_name || 'Opportunity'
@@ -137,12 +137,8 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
     }
 
     if (createDeal) {
-      if (!dealTitle.trim()) {
-        setError('Deal title is required')
-        return
-      }
-      if (Number(dealAmount) <= 0) {
-        setError('Deal amount must be greater than 0')
+      if (Number(dealAmount) < 0) {
+        setError('Deal amount cannot be negative')
         return
       }
       if (expectedCloseDate) {
@@ -157,28 +153,33 @@ export default function ConvertLeadModal({ open, onClose, contact, onSuccess }: 
     try {
       setLoading(true)
       setError(null)
-      const selectedStageObj = stages.find(s => (s.stageId || s.stage_id || s.name) === stageId)
+      const activeStageId = stageId || (stages[0]?.stageId || stages[0]?.stage_id || stages[0]?.name || 'QUALIFICATION')
+      const selectedStageObj = stages.find(s => (s.stageId || s.stage_id || s.name) === activeStageId) || stages[0]
+
+      const customerName = contact.customerName || (contact as any).customer_name || 'Customer'
+      const fallbackTitle = `${customerName} - Opportunity`
 
       const payload = {
         customerType,
         accountName: customerType === 'B2B' ? accountName.trim() : undefined,
         createDeal,
-        dealTitle: dealTitle.trim(),
+        dealTitle: (dealTitle.trim()) || fallbackTitle,
         dealAmount: Number(dealAmount || 0),
-        pipelineId: selectedPipelineId,
-        stageId,
-        stageName: selectedStageObj?.name || stageId,
+        pipelineId: selectedPipelineId || undefined,
+        stageId: activeStageId,
+        stageName: selectedStageObj?.name || activeStageId,
         probability: selectedStageObj?.probability ?? 25,
         expectedCloseDate,
         dealNotes
       }
 
-      const res = await api.post(`/contacts/${contact._id}/convert`, payload)
+      const targetContactId = contact._id || (contact as any).id
+      const res = await api.post(`/contacts/${targetContactId}/convert`, payload)
       onSuccess(res.data)
       onClose()
     } catch (err: any) {
       console.error(err)
-      setError(err?.response?.data?.message || 'Failed to convert lead')
+      setError(err?.response?.data?.message || 'Failed to convert lead to deal')
     } finally {
       setLoading(false)
     }

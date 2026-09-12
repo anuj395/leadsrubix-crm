@@ -1573,16 +1573,22 @@ exports.deleteForUser = async ({ id, authedUser }) => {
   await contactModel.remove(id);
 };
 
-exports.convertContact = async ({ contactId, payload, authedUser }) => {
+exports.convertContact = async ({ contactId, payload = {}, authedUser }) => {
   if (!authedUser?.id) {
     const err = new Error('Authentication required'); err.status = 401; throw err;
   }
-  const contact = await contactModel.Contact.findById(contactId).lean().exec();
+  
+  const leadModel = require('../models/leadModel');
+  let contact = await contactModel.Contact.findById(contactId).lean().exec();
+  if (!contact && leadModel.Lead) {
+    contact = await leadModel.Lead.findById(contactId).lean().exec();
+  }
   if (!contact) {
-    const err = new Error('Contact not found'); err.status = 404; throw err;
+    const err = new Error('Contact or Lead not found'); err.status = 404; throw err;
   }
 
-  const orgId = authedUser.organization_id || authedUser.organizationId || contact.organization_id || contact.organizationId;
+  const rawOrgId = authedUser.organization_id || authedUser.organizationId || contact.organization_id || contact.organizationId;
+  const orgId = (rawOrgId && rawOrgId !== 'all') ? String(rawOrgId) : 'default';
   const wsId = authedUser.workspace_id || authedUser.workspaceId || contact.workspace_id || contact.workspaceId || null;
   const indId = authedUser.industry_id || authedUser.industryId || contact.industry_id || contact.industryId || 'temp0001';
 
@@ -1595,6 +1601,10 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
   const customerType = payload.customerType || (payload.accountName ? 'B2B' : 'B2C');
   let accountId = payload.accountId || contact.account_id || contact.accountId || null;
 
+  const contactPhone = contact.contact_number || contact.contactNumber || contact.phone || '';
+  const contactName = contact.customer_name || contact.customerName || `${contact.first_name || contact.firstName || ''} ${contact.last_name || contact.lastName || ''}`.trim() || 'Qualified Customer';
+  const contactEmail = contact.email_id || contact.emailId || contact.email || '';
+
   // Account is ONLY created if explicitly in B2B mode or accountName was passed
   if (customerType === 'B2B' || payload.accountName) {
     if (!accountId && payload.accountName) {
@@ -1603,27 +1613,41 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
         organization_id: orgId,
         workspace_id: wsId,
         industry_id: indId,
-        phone: contact.contact_number || contact.contactNumber || '',
+        phone: contactPhone,
         created_by: authedUser.id
       });
       accountId = newAccount._id;
     }
   }
 
-  // 2. Create Deal if requested
+  // 2. Create Deal if requested (defaults to true for pipeline velocity)
   let createdDeal = null;
   if (payload.createDeal !== false) {
-    const dealTitle = payload.dealTitle || `${contact.customer_name || contact.customerName || 'Customer'} - Opportunity`;
+    const dealTitle = (payload.dealTitle && payload.dealTitle.trim())
+      ? payload.dealTitle.trim()
+      : `${contactName} - Opportunity`;
+
     let resolvedPipelineId = payload.pipelineId;
-    if (orgId && (!resolvedPipelineId || resolvedPipelineId === 'default')) {
-      const pipelineModel = require('../models/pipelineModel');
-      const orgPipe = await pipelineModel.Pipeline.findOne({
-        $or: [{ organization_id: orgId }, { organizationId: orgId }],
-        is_default: true
-      }).lean().exec() || await pipelineModel.Pipeline.findOne({
-        $or: [{ organization_id: orgId }, { organizationId: orgId }]
-      }).lean().exec();
-      if (orgPipe) resolvedPipelineId = String(orgPipe._id || orgPipe.id);
+    const pipelineModel = require('../models/pipelineModel');
+    if (!resolvedPipelineId || resolvedPipelineId === 'default' || resolvedPipelineId === '') {
+      const orgPipe = (orgId && orgId !== 'default')
+        ? (await pipelineModel.Pipeline.findOne({ $or: [{ organization_id: orgId }, { organizationId: orgId }], is_default: true }).lean().exec()
+          || await pipelineModel.Pipeline.findOne({ $or: [{ organization_id: orgId }, { organizationId: orgId }] }).lean().exec())
+        : null;
+      const fallbackPipe = orgPipe
+        || await pipelineModel.Pipeline.findOne({ is_default: true }).lean().exec()
+        || await pipelineModel.Pipeline.findOne({}).lean().exec();
+      if (fallbackPipe) resolvedPipelineId = String(fallbackPipe._id || fallbackPipe.id);
+    }
+
+    let resolvedStageId = payload.stageId || 'QUALIFICATION';
+    let resolvedStageName = payload.stageName || payload.stageId || 'Qualification';
+    if (!payload.stageId && resolvedPipelineId) {
+      const pipeDoc = await pipelineModel.Pipeline.findById(resolvedPipelineId).lean().exec();
+      if (pipeDoc?.stages?.length > 0) {
+        resolvedStageId = pipeDoc.stages[0].stageId || pipeDoc.stages[0].stage_id || pipeDoc.stages[0].name;
+        resolvedStageName = pipeDoc.stages[0].name || resolvedStageId;
+      }
     }
 
     createdDeal = await Deal.create({
@@ -1632,17 +1656,17 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
       amount: Number(payload.dealAmount || 0),
       currency: payload.currency || 'INR',
       pipeline_id: resolvedPipelineId || undefined,
-      stage_id: payload.stageId || 'QUALIFICATION',
-      stage: payload.stageName || payload.stageId || 'Qualification',
-      probability: Number(payload.probability || 10),
-      expected_close_date: payload.expectedCloseDate ? new Date(payload.expectedCloseDate) : undefined,
+      stage_id: resolvedStageId,
+      stage: resolvedStageName,
+      probability: Number(payload.probability || 25),
+      expected_close_date: payload.expectedCloseDate ? new Date(payload.expectedCloseDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       customer_type: customerType,
       account_id: accountId || null,
       account_name: payload.accountName || '',
       contact_id: contact._id,
-      contact_name: contact.customer_name || contact.customerName || '',
-      contact_phone: contact.contact_number || contact.contactNumber || '',
-      contact_email: contact.email_id || contact.emailId || '',
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      contact_email: contactEmail,
       organization_id: orgId,
       workspace_id: wsId,
       industry_id: indId,
@@ -1654,7 +1678,7 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
     });
   }
 
-  // 3. Mark contact as converted
+  // 3. Mark contact and lead records as converted with complete audit trail
   const updateFields = {
     account_id: accountId || null,
     accountId: accountId || null,
@@ -1663,6 +1687,7 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
     is_converted: true,
     isConverted: true,
     stage: 'CONVERTED',
+    lead_status: 'CONVERTED',
     converted_at: new Date(),
     convertedAt: new Date()
   };
@@ -1671,7 +1696,10 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
     updateFields.convertedDealId = createdDeal._id;
   }
 
-  await contactModel.Contact.findByIdAndUpdate(contactId, { $set: updateFields }).exec();
+  await Promise.all([
+    contactModel.Contact.findByIdAndUpdate(contactId, { $set: updateFields }).exec().catch(() => null),
+    leadModel.Lead.findByIdAndUpdate(contactId, { $set: updateFields }).exec().catch(() => null)
+  ]);
 
   return {
     success: true,
@@ -1679,7 +1707,7 @@ exports.convertContact = async ({ contactId, payload, authedUser }) => {
     accountId,
     dealId: createdDeal ? createdDeal._id : null,
     deal: createdDeal,
-    message: 'Lead converted successfully!'
+    message: 'Lead converted to Deal successfully!'
   };
 };
 
