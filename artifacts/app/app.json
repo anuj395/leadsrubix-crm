@@ -6,11 +6,11 @@
     "scheme": "leadsrubixcrm",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/android-icon-foreground.png",
       "resizeMode": "contain",
-      "backgroundColor": "#272944"
+      "backgroundColor": "#151728"
     },
     "ios": {
       "supportsTablet": true,
@@ -28,7 +28,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#272944",
+        "backgroundColor": "#151728",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

@@ -146,7 +146,7 @@ export const AppNavigator = () => {
   if (isSplashVisible || isLoading || hasSeenOnboarding === null) {
     return (
       <SplashScreen
-        minDurationMs={1800}
+        minDurationMs={1200}
         onFinish={() => setSplashTimerDone(true)}
       />
     );
