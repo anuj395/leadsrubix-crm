@@ -291,9 +291,13 @@ exports.list = async ({ organizationId, industryId, workspaceId, resource_key, a
   // Deduplicate items by identifier while prioritizing org-specific items
   const seen = new Set();
   const uniqueItems = [];
+  const isNotesResource = primaryFieldName === 'notes' || primaryFieldName === 'resourceNotes';
   for (const item of items) {
-    const keyVal = (item.value || item.locationName || item.location || item.propertyType || item.propertySubType || item.property_sub_type || item.stage || item.reason || item.leadSource || item.budget || item.name || item.id || item._id || '').toString().trim().toLowerCase();
-    const uniqueKey = keyVal ? `${primaryFieldName}:${keyVal}` : String(item.id || item._id);
+    let uniqueKey = String(item.id || item._id || Math.random());
+    if (!isNotesResource) {
+      const keyVal = (item.value || item.locationName || item.location || item.propertyType || item.propertySubType || item.property_sub_type || item.stage || item.reason || item.leadSource || item.budget || item.name || item.id || item._id || '').toString().trim().toLowerCase();
+      uniqueKey = keyVal ? `${primaryFieldName}:${keyVal}` : String(item.id || item._id);
+    }
     if (!seen.has(uniqueKey)) {
       seen.add(uniqueKey);
       uniqueItems.push(item);

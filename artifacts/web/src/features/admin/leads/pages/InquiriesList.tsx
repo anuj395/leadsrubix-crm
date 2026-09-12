@@ -40,7 +40,7 @@ export default function InquiriesListPage() {
   const { user } = useAppSelector(selectAuth)
   const [loading, setLoading] = useState(false)
   const [inquiries, setInquiries] = useState<any[]>([])
-  const [filterStage, setFilterStage] = useState<'FRESH' | 'CALLBACK' | 'CONTACTED' | 'UNASSIGNED' | 'ALL'>('FRESH')
+  const [filterStage, setFilterStage] = useState<'FRESH' | 'CALLBACK' | 'CONTACTED' | 'UNASSIGNED' | 'LOST' | 'ALL'>('FRESH')
 
   // Modals state
   const [convertModalOpen, setConvertModalOpen] = useState(false)
@@ -114,6 +114,7 @@ export default function InquiriesListPage() {
     let freshCount = 0
     let callbackCount = 0
     let contactedCount = 0
+    let lostCount = 0
 
     inquiries.forEach((item) => {
       const stage = normalizeStage(item.stage || item.lifecycle_stage)
@@ -123,6 +124,7 @@ export default function InquiriesListPage() {
       if (stage === 'FRESH') freshCount++
       else if (stage === 'CALLBACK') callbackCount++
       else if (stage === 'INTERESTED' || stage === 'QUALIFIED') contactedCount++
+      else if (stage === 'LOST' || stage === 'NOT INTERESTED' || stage === 'DISQUALIFIED') lostCount++
 
       const cDate = item.last_contacted_at || item.lastContactedAt || item.call_response_time
       if (cDate && new Date(cDate).toISOString().split('T')[0] === todayStr) {
@@ -146,6 +148,7 @@ export default function InquiriesListPage() {
         fresh: freshCount,
         callback: callbackCount,
         contacted: contactedCount,
+        lost: lostCount,
         unassigned,
         all: inquiries.length,
       }
@@ -165,6 +168,9 @@ export default function InquiriesListPage() {
       }
       if (filterStage === 'CONTACTED') {
         return stage === 'INTERESTED' || stage === 'QUALIFIED'
+      }
+      if (filterStage === 'LOST') {
+        return stage === 'LOST' || stage === 'NOT INTERESTED' || stage === 'DISQUALIFIED'
       }
       if (filterStage === 'UNASSIGNED') {
         return !hasOwner
@@ -625,6 +631,23 @@ export default function InquiriesListPage() {
               fontWeight: 600,
               borderRadius: '16px',
               border: filterStage === 'ALL' ? 'none' : '1px solid',
+              borderColor: 'divider',
+              flexShrink: 0,
+            }}
+          />
+          <Chip
+            label={`🚫 Disqualified / Lost (${triageCounts.lost})`}
+            clickable
+            color={filterStage === 'LOST' ? 'error' : 'default'}
+            variant={filterStage === 'LOST' ? 'filled' : 'outlined'}
+            onClick={() => setFilterStage('LOST')}
+            sx={{
+              height: 32,
+              px: 1.5,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              borderRadius: '16px',
+              border: filterStage === 'LOST' ? 'none' : '1px solid',
               borderColor: 'divider',
               flexShrink: 0,
             }}

@@ -174,9 +174,9 @@ export const ConvertLeadModal: React.FC<Props> = ({
         return;
       }
 
-      amt = Number(dealAmount);
-      if (isNaN(amt) || amt <= 0) {
-        setErrorMessage('Deal value must be greater than 0.');
+      amt = Number(dealAmount) || 0;
+      if (isNaN(amt) || amt < 0) {
+        setErrorMessage('Deal value must be 0 or greater.');
         return;
       }
 
@@ -193,15 +193,18 @@ export const ConvertLeadModal: React.FC<Props> = ({
       setSubmitting(true);
       setErrorMessage(null);
 
+      const finalPipelineId = selectedPipelineId || String(pipelines[0]?._id || pipelines[0]?.id || '');
+      const finalStageId = selectedStageId || String(activeStages[0]?.stageId || activeStages[0]?.stage_id || activeStages[0]?.name || '');
+
       const payload = {
         customerType,
         accountName: customerType === 'B2B' ? accountName.trim() : undefined,
         createDeal,
         dealTitle: createDeal ? dealTitle.trim() : undefined,
         dealAmount: createDeal ? amt : 0,
-        pipelineId: createDeal ? selectedPipelineId : undefined,
-        stageId: createDeal ? selectedStageId : undefined,
-        stageName: createDeal ? (activeStage?.name || selectedStageId) : undefined,
+        pipelineId: createDeal ? finalPipelineId : undefined,
+        stageId: createDeal ? finalStageId : undefined,
+        stageName: createDeal ? (activeStage?.name || finalStageId) : undefined,
         probability: createDeal ? (activeStage?.probability ?? 25) : undefined,
         expectedCloseDate: createDeal ? expectedCloseDate : undefined,
         dealNotes: createDeal ? dealNotes.trim() : undefined,

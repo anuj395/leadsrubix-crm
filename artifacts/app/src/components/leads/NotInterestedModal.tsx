@@ -290,11 +290,12 @@ export const NotInterestedModal: React.FC<Props> = ({
           for (const t of allTasks) {
             const taskId = t._id || t.id;
             if (taskId) {
-              const nextStatus = String(t.status || '').toUpperCase() === 'PENDING' ? 'INACTIVE' : t.status;
+              const nextStatus = String(t.status || '').toUpperCase() === 'PENDING' ? 'CANCELLED' : t.status;
               await apiClient.put(`/tasks/${taskId}`, {
                 ...t,
                 status: nextStatus,
                 stage: 'NOT INTERESTED',
+                notes: (t.notes ? `${t.notes}\n` : '') + `[Lead Status: Not Interested - ${notIntReasonVal}]`,
               }).catch(() => null);
             }
           }
@@ -303,20 +304,24 @@ export const NotInterestedModal: React.FC<Props> = ({
         console.warn('Failed to update tasks:', e);
       }
 
-      // 3. Save Resource Note if provided (Matching Web 1:1)
-      if (noteText) {
-        await apiClient
-          .post('/resources/resourceNotes', {
-            contactId: leadId,
-            contact_id: leadId,
-            note: noteText,
-            notes: noteText,
-            text: noteText,
-            customerName: lead.name || lead.firstName || '',
-            userEmail: user?.email || '',
-          })
-          .catch(() => null);
-      }
+      // 3. Save comprehensive audit note to timeline (Matching Web 1:1)
+      const reasonLabel = notIntReasonVal === 'Other' && otherReasonVal ? otherReasonVal : notIntReasonVal;
+      const auditNote = `[Status: Not Interested - ${reasonLabel || 'Disqualified'}]${noteText ? ` Details: ${noteText}` : ''}`;
+      await apiClient
+        .post('/resources/resourceNotes', {
+          contactId: leadId,
+          contact_id: leadId,
+          note: auditNote,
+          notes: auditNote,
+          text: auditNote,
+          stage: 'NOT INTERESTED',
+          reason: reasonLabel || '',
+          customerName: lead.name || (lead as any).firstName || '',
+          userName: user?.name || user?.email || 'User',
+          userEmail: user?.email || '',
+          createdBy: user?.name || user?.email || 'User',
+        })
+        .catch(() => null);
 
       Alert.alert('Success', 'Lead Status Updated!!');
       onSuccess();

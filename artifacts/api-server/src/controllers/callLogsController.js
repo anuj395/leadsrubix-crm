@@ -439,6 +439,73 @@ callLogController.Search = async (req, res) => {
   }
 };
 
+callLogController.List = async (req, res) => {
+  try {
+    const isSuperAdmin = req.user?.role === 'superAdmin';
+    const orgId = isSuperAdmin
+      ? (req.query.organizationId || req.headers['x-organization-id'])
+      : (req.user?.organizationId || req.user?.organization_id);
+
+    const queryParts = [];
+    if (orgId && orgId !== 'all') {
+      queryParts.push({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      });
+    }
+
+    const contactId = req.query.contactId || req.query.contact_id;
+    const leadId = req.query.leadId || req.query.lead_id;
+    const phone = req.query.phone || req.query.contactNumber || req.query.contact_number;
+
+    const contactClauses = [];
+    if (contactId) {
+      contactClauses.push({ contact_id: contactId });
+      contactClauses.push({ contactId: contactId });
+      contactClauses.push({ lead_id: contactId });
+      contactClauses.push({ leadId: contactId });
+      if (mongoose.Types.ObjectId.isValid(contactId)) {
+        contactClauses.push({ contact_id: new mongoose.Types.ObjectId(contactId) });
+      }
+    }
+    if (leadId && leadId !== contactId) {
+      contactClauses.push({ lead_id: leadId });
+      contactClauses.push({ leadId: leadId });
+      contactClauses.push({ contact_id: leadId });
+    }
+    if (phone) {
+      const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+      if (cleanPhone) {
+        contactClauses.push({ contact_number: new RegExp(cleanPhone, 'i') });
+        contactClauses.push({ contactNumber: new RegExp(cleanPhone, 'i') });
+      }
+    }
+
+    if (contactClauses.length > 0) {
+      queryParts.push({ $or: contactClauses });
+    }
+
+    const finalQuery = queryParts.length === 0 ? {} : (queryParts.length === 1 ? queryParts[0] : { $and: queryParts });
+    const page = Math.max(Number(req.query.page) || 0, 0);
+    const pageSize = Math.min(Math.max(Number(req.query.pageSize || req.query.limit) || 100, 1), 500);
+
+    const [callLogs, total] = await Promise.all([
+      CallLog.find(finalQuery)
+        .sort({ createdAt: -1 })
+        .skip(page * pageSize)
+        .limit(pageSize)
+        .lean()
+        .exec(),
+      CallLog.countDocuments(finalQuery).exec()
+    ]);
+
+    const items = convertKeysToCamelCase(callLogs);
+    return res.json({ items, total, data: items });
+  } catch (error) {
+    console.error("Error in CallLog.List:", error);
+    res.status(500).send({ error: error.message });
+  }
+};
+
 callLogController.MasterSearch = async (req, res) => {
   try {
     let filter = req.body.filter || {};

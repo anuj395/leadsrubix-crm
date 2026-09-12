@@ -279,42 +279,16 @@ exports.convert = async (req, res, next) => {
     const leadId = req.body.leadId || req.body.lead_id;
     if (!leadId) return res.status(400).json({ message: 'leadId is required' });
 
-    const lead = await leadModel.findById(leadId).catch(() => null) || await contactModel.findById(leadId).catch(() => null);
-    if (!lead) return res.status(404).json({ message: 'Lead not found' });
-
-    const orgId = req.user.organization_id || req.user.organizationId;
-    const leadName = lead.customer_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Lead';
-    const phone = lead.phone || lead.contact_number || '';
-
-    // 1. Create Account
-    const account = await accountModel.create({
-      name: `${leadName} Account`,
-      phone: phone,
-      organization_id: orgId,
-      created_by: req.user._id || req.user.id
+    const contactService = require('../services/contactService');
+    const result = await contactService.convertContact({
+      contactId: leadId,
+      payload: req.body,
+      authedUser: req.user
     });
-
-    // 2. Create Contact
-    const contact = await contactModel.create({
-      customer_name: leadName,
-      contact_number: phone,
-      email_id: lead.email || lead.email_id || '',
-      organization_id: orgId,
-      created_by: req.user._id || req.user.id,
-      account_id: account._id,
-      stage: 'CONVERTED'
-    });
-
-    // 3. Mark Lead as converted
-    await Promise.all([
-      leadModel.findByIdAndUpdate(leadId, { $set: { lead_status: 'CONVERTED', stage: 'CONVERTED' } }).catch(() => null),
-      contactModel.findByIdAndUpdate(leadId, { $set: { stage: 'CONVERTED' } }).catch(() => null)
-    ]);
 
     res.json({
-      message: 'Lead converted successfully',
-      account,
-      contact
+      message: 'Lead converted to Deal successfully',
+      ...result
     });
   } catch (err) {
     next(err);

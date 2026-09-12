@@ -13,11 +13,14 @@ import { AppDataGrid } from '@/components/ui/AppDataGrid'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { listLeads, deleteLead, convertLead, type Lead } from '@/services/leadsService'
 import { useConfirm } from '@/components/common/ConfirmContext'
+import ConvertLeadModal from '../components/ConvertLeadModal'
 
 export default function LeadsListPage() {
   const [items, setItems] = useState<Lead[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [convertModalOpen, setConvertModalOpen] = useState(false)
+  const [selectedLeadForConvert, setSelectedLeadForConvert] = useState<Lead | null>(null)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false, msg: '', sev: 'success',
   })
@@ -56,23 +59,9 @@ export default function LeadsListPage() {
     })
   }
 
-  const handleConvert = async (row: Lead) => {
-    confirmDelete({
-      title: 'Convert Lead',
-      message: `Are you sure you want to convert Lead: ${String(row.firstName)} ${String(row.lastName || '')} to Account & Contact?`,
-      onConfirm: async () => {
-        setLoading(true)
-        try {
-          await convertLead({ leadId: row._id })
-          setToast({ open: true, msg: 'Lead converted successfully', sev: 'success' })
-          await refresh()
-        } catch (e: unknown) {
-          setToast({ open: true, msg: 'Failed to convert lead', sev: 'error' })
-        } finally {
-          setLoading(false)
-        }
-      }
-    })
+  const handleConvert = (row: Lead) => {
+    setSelectedLeadForConvert(row)
+    setConvertModalOpen(true)
   }
 
   const columns = useMemo<GridColDef<Lead>[]>(() => [
@@ -103,7 +92,7 @@ export default function LeadsListPage() {
       renderCell: (params) => (
         <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center" sx={{ height: '100%' }}>
           {params.row.leadStatus !== 'CONVERTED' && (
-            <Tooltip title="Convert Lead">
+            <Tooltip title="Convert to Deal / Account">
               <IconButton onClick={() => handleConvert(params.row)} size="small" color="primary">
                 <PlayIcon fontSize="small" />
               </IconButton>
@@ -135,6 +124,21 @@ export default function LeadsListPage() {
           onRowSelectionModelChange={(ids) => setSelectedIds(ids as string[])}
         />
       </AppCard>
+
+      {convertModalOpen && selectedLeadForConvert && (
+        <ConvertLeadModal
+          open={convertModalOpen}
+          onClose={() => {
+            setConvertModalOpen(false)
+            setSelectedLeadForConvert(null)
+          }}
+          contact={selectedLeadForConvert}
+          onSuccess={() => {
+            void refresh()
+            setToast({ open: true, msg: 'Lead converted to Deal successfully!', sev: 'success' })
+          }}
+        />
+      )}
 
       <Snackbar
         open={toast.open}

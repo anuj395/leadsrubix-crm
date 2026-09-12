@@ -14,7 +14,8 @@ const {
   MasterSearch,
   MasterContactCount,
   MasterFilterValues,
-  MaskMasterSearch
+  MaskMasterSearch,
+  List
 } = callLogsController;
 
 const { requireScreenAction } = require('../middlewares/screenAction');
@@ -22,6 +23,7 @@ const { requireScreenAction } = require('../middlewares/screenAction');
 // Apply authenticate middleware to all endpoints
 router.use(authenticate);
 
+router.get('/', requireScreenAction('callback', 'view'), List);
 router.post('/create', requireScreenAction('callback', 'add'), Create);
 router.post('/update', requireScreenAction('callback', 'edit'), Update);
 router.post('/search', requireScreenAction('callback', 'view'), Search);
