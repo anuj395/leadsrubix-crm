@@ -20,6 +20,8 @@ import { CalendarDatePickerModal } from '../../components/ui/CalendarDatePickerM
 import { theme } from '../../theme/theme';
 import { apiClient } from '../../api/apiClient';
 import { leadService, LeadItem } from '../../services/leadService';
+import { dealsService, Pipeline, Deal } from '../../services/dealsService';
+import { DealFormModal } from '../../components/deals/DealFormModal';
 import { useAuth } from '../../context/AuthContext';
 import { getIndustrySemantics } from '../../utils/industryLabels';
 import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
@@ -39,6 +41,8 @@ import {
   UnifiedActivityTimeline,
   CreateTaskModal,
 } from '../../components/leads';
+import { TaskDetailModal } from '../../components/tasks/TaskDetailModal';
+import { taskService, formatTaskItem, TaskItem } from '../../services/taskService';
 
 type DetailTabType = 'timeline' | 'profile' | 'deals' | 'notes';
 type TimelineFilterType = 'all' | 'calls' | 'tasks';
@@ -76,6 +80,56 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
   const [changeOwnerModalVisible, setChangeOwnerModalVisible] = useState(false);
+
+  // Task Lifecycle Bottom Sheet & Inline Toggle State
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
+  const [taskDetailModalVisible, setTaskDetailModalVisible] = useState(false);
+
+  const handleToggleTimelineTask = async (rawTask: any) => {
+    try {
+      const taskId = rawTask._id || rawTask.id;
+      if (!taskId) return;
+      const currentCompleted = rawTask.isCompleted || String(rawTask.status || '').toUpperCase() === 'COMPLETED';
+      await taskService.toggleTaskCompletion(taskId, !currentCompleted);
+      loadLeadDetails();
+    } catch (e) {
+      console.error('Failed to toggle timeline task:', e);
+    }
+  };
+
+  // Two-way Deals Interaction State
+  const [dealFormModalVisible, setDealFormModalVisible] = useState(false);
+  const [selectedDealForEdit, setSelectedDealForEdit] = useState<any | null>(null);
+  const [pipelinesList, setPipelinesList] = useState<Pipeline[]>([]);
+
+  const handleOpenEditDeal = (dealItem: any) => {
+    setSelectedDealForEdit(dealItem);
+    setDealFormModalVisible(true);
+  };
+
+  const handleOpenAddDeal = () => {
+    const isAlreadyConverted = Boolean(
+      lead?.isConverted ||
+      lead?.is_converted ||
+      String(lead?.stage || '').toUpperCase().includes('CONVERT') ||
+      dealsList.length > 0
+    );
+
+    if (isAlreadyConverted) {
+      setSelectedDealForEdit({
+        contactId: leadId,
+        contactName: lead.name || '',
+        contactPhone: lead.phone || '',
+        contactEmail: lead.email || '',
+        accountName: (lead as any).companyName || (lead as any).accountName || '',
+        title: `${lead.name || 'Client'} - Opportunity`,
+        amount: lead.budget ? Number(String(lead.budget).replace(/[^0-9]/g, '')) : undefined,
+      });
+      setDealFormModalVisible(true);
+    } else {
+      setDealModalVisible(true);
+    }
+  };
 
   // Form States for Modals
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -343,11 +397,11 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
   // Fetch Full Contact/Lead Data
   const loadLeadDetails = useCallback(async () => {
-    if (!leadId) return;
     try {
       setLoading(true);
       let contactNotes: any[] = [];
-      const res = await apiClient.get(`/contacts/${leadId}`).catch(() => null);
+      if (leadId) {
+        const res = await apiClient.get(`/contacts/${leadId}`).catch(() => null);
       if (res?.data) {
         const d = res.data?.item || res.data;
         setLead((prev) => ({
@@ -373,6 +427,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         }
         if (Array.isArray(d.attachments)) setAttachments(d.attachments);
       }
+    }
 
       // Fetch Resource Notes (Matching Web CRM 1:1)
       const notesRes = (await apiClient.get('/resources/resourceNotes', { params: { contactId: leadId, contact_id: leadId, pageSize: 200 } }).catch(() => null))
@@ -414,19 +469,32 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
       setNotesList(normalizedNotes);
 
       // Fetch Tasks associated
-      const tasksRes = await apiClient.get('/tasks', { params: { contactId: leadId, contact_id: leadId } }).catch(() => null);
-      if (tasksRes?.data) {
-        const rawTasks = tasksRes.data?.items || tasksRes.data?.tasks || tasksRes.data || [];
-        if (Array.isArray(rawTasks)) {
-          const targetIdStr = String(leadId || '').trim();
-          const targetNameStr = String(lead.name || lead.firstName || '').toLowerCase().trim();
-          const matchedTasks = rawTasks.filter((t: any) => {
-            const tContactId = String(t.contactId || t.contact_id || t.leadId || '').trim();
-            const tCustName = String(t.customerName || t.customer_name || '').toLowerCase().trim();
-            return (tContactId && tContactId === targetIdStr) || (targetNameStr && tCustName && tCustName === targetNameStr);
-          });
-          setTasks(matchedTasks);
-        }
+      const taskParams: any = {};
+      if (leadId) {
+        taskParams.contactId = leadId;
+      }
+      let tasksRes = await apiClient.get('/tasks', { params: taskParams }).catch(() => null);
+      let rawTasks = tasksRes?.data?.items || tasksRes?.data?.tasks || tasksRes?.data || [];
+      if ((!rawTasks || rawTasks.length === 0)) {
+        // Fallback: fetch tasks to match by name or phone
+        const fallbackRes = await apiClient.get('/tasks').catch(() => null);
+        rawTasks = fallbackRes?.data?.items || fallbackRes?.data?.tasks || fallbackRes?.data || [];
+      }
+      if (Array.isArray(rawTasks)) {
+        const targetIdStr = String(leadId || '').trim();
+        const targetNameStr = String(lead.name || lead.firstName || '').toLowerCase().trim();
+        const targetPhoneStr = String(lead.phone || '').trim();
+        const matchedTasks = rawTasks.filter((t: any) => {
+          const tContactId = String(t.contactId || t.contact_id || t.leadId || '').trim();
+          const tCustName = String(t.customerName || t.customer_name || '').toLowerCase().trim();
+          const tPhone = String(t.contactNumber || t.contact_number || t.phone || '').trim();
+          return (
+            (targetIdStr && tContactId === targetIdStr) ||
+            (targetNameStr && tCustName && tCustName === targetNameStr) ||
+            (targetPhoneStr && tPhone && tPhone === targetPhoneStr)
+          );
+        });
+        setTasks(matchedTasks);
       }
 
       // Fetch Calls associated
@@ -442,6 +510,18 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           );
           setCalls(matchedCalls);
         }
+      }
+
+      // Fetch Deals and Pipelines associated with this contact (Matching Web CRM ContactDetails.tsx 1:1)
+      const [dealsRes, pipesRes] = await Promise.all([
+        dealsService.listDeals({ contactId: leadId }).catch(() => []),
+        dealsService.listPipelines().catch(() => []),
+      ]);
+      if (Array.isArray(dealsRes)) {
+        setDealsList(dealsRes);
+      }
+      if (Array.isArray(pipesRes)) {
+        setPipelinesList(pipesRes);
       }
     } catch (e) {
       console.warn('Could not load full contact details:', e);
@@ -860,6 +940,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         author: t.createdBy || t.author || user?.name || user?.email || '',
         timestamp: formatDateTimeStr(t.createdAt || t.created_at) || '',
         note: t.notes || t.description || t.note,
+        rawTask: t,
       });
     });
 
@@ -1087,11 +1168,11 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                   onPress={() => setCreateTaskModalVisible(true)}
                   activeOpacity={0.75}
                 >
-                  <View style={[styles.actionCircle, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                    <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
+                  <View style={[styles.actionCircle, { backgroundColor: '#EEF0F8', borderColor: '#C8CDDC' }]}>
+                    <Ionicons name="add-circle-outline" size={20} color="#272944" />
                   </View>
                   <Text
-                    style={[styles.actionItemLabel, { color: '#1D4ED8' }]}
+                    style={[styles.actionItemLabel, { color: '#272944' }]}
                     numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.75}
@@ -1168,7 +1249,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                 <Ionicons
                   name="call-outline"
                   size={12}
-                  color={timelineFilter === 'calls' ? '#151728' : '#64748B'}
+                  color={timelineFilter === 'calls' ? '#272944' : '#64748B'}
                 />
                 <Text
                   style={[
@@ -1188,7 +1269,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                 <Ionicons
                   name="calendar-outline"
                   size={12}
-                  color={timelineFilter === 'tasks' ? '#151728' : '#64748B'}
+                  color={timelineFilter === 'tasks' ? '#272944' : '#64748B'}
                 />
                 <Text
                   style={[
@@ -1203,109 +1284,154 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
 
             {/* Activities List */}
             <View style={styles.timelineStream}>
-              {filteredActivities.map((act) => (
-                <View
-                  key={act.id}
-                  style={[
-                    styles.activityCard3D,
-                    act.status === 'Cancelled' && { backgroundColor: '#FFF5F5', borderColor: '#FECDD3' },
-                  ]}
-                >
-                  <View style={styles.cardInnerPadding}>
-                    <View style={styles.cardHeaderRow}>
-                      <View
-                        style={[
-                          styles.taskIconBox,
-                          act.type === 'call' && { backgroundColor: '#EFF6FF' },
-                          act.type === 'task' && { backgroundColor: act.status === 'Cancelled' ? '#FEF2F2' : '#FFFBEB' },
-                          act.type === 'note' && { backgroundColor: '#ECFDF5' },
-                        ]}
-                      >
-                        <Ionicons
-                          name={
-                            act.type === 'call'
-                              ? 'call'
-                              : act.type === 'task'
-                              ? 'calendar'
-                              : 'document-text'
-                          }
-                          size={18}
-                          color={
-                            act.type === 'call'
-                              ? '#2563EB'
-                              : act.status === 'Cancelled'
-                              ? '#DC2626'
-                              : act.type === 'task'
-                              ? '#D97706'
-                              : '#059669'
-                          }
-                        />
-                      </View>
+              {filteredActivities.map((act) => {
+                const isTask = act.type === 'task';
+                const isTaskCompleted = act.status === 'Completed' || Boolean(act.rawTask?.isCompleted);
+                const ContainerComp: any = isTask ? TouchableOpacity : View;
 
-                      <View style={styles.taskInfoGroup}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
-                          <Text
-                            style={[
-                              styles.taskTitleText,
-                              act.status === 'Cancelled' && { textDecorationLine: 'line-through', color: '#94A3B8' },
-                            ]}
-                          >
-                            {act.title}
-                          </Text>
-
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              act.status === 'Completed' || act.status === 'Saved'
-                                ? styles.statusBadgeCompleted
+                return (
+                  <ContainerComp
+                    key={act.id}
+                    style={[
+                      styles.activityCard3D,
+                      act.status === 'Cancelled' && { backgroundColor: '#FFF5F5', borderColor: '#FECDD3' },
+                    ]}
+                    {...(isTask
+                      ? {
+                          activeOpacity: 0.82,
+                          onPress: () => {
+                            if (act.rawTask) {
+                              setSelectedTaskForDetail(formatTaskItem(act.rawTask));
+                              setTaskDetailModalVisible(true);
+                            }
+                          },
+                        }
+                      : {})}
+                  >
+                    <View style={styles.cardInnerPadding}>
+                      <View style={styles.cardHeaderRow}>
+                        <View
+                          style={[
+                            styles.taskIconBox,
+                            act.type === 'call' && { backgroundColor: 'rgba(39, 41, 68, 0.08)' },
+                            act.type === 'task' && { backgroundColor: act.status === 'Cancelled' ? '#FEF2F2' : '#FFFBEB' },
+                            act.type === 'note' && { backgroundColor: '#ECFDF5' },
+                          ]}
+                        >
+                          <Ionicons
+                            name={
+                              act.type === 'call'
+                                ? 'call'
+                                : act.type === 'task'
+                                ? 'calendar'
+                                : 'document-text'
+                            }
+                            size={18}
+                            color={
+                              act.type === 'call'
+                                ? '#272944'
                                 : act.status === 'Cancelled'
-                                ? { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }
-                                : styles.statusBadgePending,
-                            ]}
-                          >
+                                ? '#DC2626'
+                                : act.type === 'task'
+                                ? '#D97706'
+                                : '#059669'
+                            }
+                          />
+                        </View>
+
+                        <View style={styles.taskInfoGroup}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
                             <Text
                               style={[
-                                styles.statusBadgeText,
-                                act.status === 'Completed' || act.status === 'Saved'
-                                  ? styles.statusBadgeTextCompleted
-                                  : act.status === 'Cancelled'
-                                  ? { color: '#DC2626' }
-                                  : styles.statusBadgeTextPending,
+                                styles.taskTitleText,
+                                act.status === 'Cancelled' && { textDecorationLine: 'line-through', color: '#94A3B8' },
+                                isTaskCompleted && { color: '#64748B' },
                               ]}
                             >
-                              {act.status}
+                              {act.title}
                             </Text>
+
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                act.status === 'Completed' || act.status === 'Saved'
+                                  ? styles.statusBadgeCompleted
+                                  : act.status === 'Cancelled'
+                                  ? { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }
+                                  : styles.statusBadgePending,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusBadgeText,
+                                  act.status === 'Completed' || act.status === 'Saved'
+                                    ? styles.statusBadgeTextCompleted
+                                    : act.status === 'Cancelled'
+                                    ? { color: '#DC2626' }
+                                    : styles.statusBadgeTextPending,
+                                ]}
+                              >
+                                {act.status}
+                              </Text>
+                            </View>
+
+                            {act.reason ? (
+                              <View style={styles.activityReasonBadge}>
+                                <Text style={styles.activityReasonBadgeText}>Reason: {act.reason}</Text>
+                              </View>
+                            ) : null}
                           </View>
 
-                          {act.reason ? (
-                            <View style={styles.activityReasonBadge}>
-                              <Text style={styles.activityReasonBadgeText}>Reason: {act.reason}</Text>
+                          {act.dueDate ? (
+                            <View style={styles.dueDateRow}>
+                              <Ionicons name="time-outline" size={12} color="#EA580C" />
+                              <Text style={styles.dueDateText}>Due: {act.dueDate}</Text>
                             </View>
                           ) : null}
                         </View>
 
-                        {act.dueDate ? (
-                          <View style={styles.dueDateRow}>
-                            <Ionicons name="time-outline" size={12} color="#EA580C" />
-                            <Text style={styles.dueDateText}>Due: {act.dueDate}</Text>
-                          </View>
+                        {/* 1-Tap Circular Completion Toggle for Tasks */}
+                        {isTask && act.rawTask && act.status !== 'Cancelled' ? (
+                          <TouchableOpacity
+                            style={[
+                              styles.timelineTaskCheckbox,
+                              isTaskCompleted && styles.timelineTaskCheckboxCompleted,
+                            ]}
+                            onPress={() => handleToggleTimelineTask(act.rawTask)}
+                            activeOpacity={0.75}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons
+                              name={isTaskCompleted ? 'checkmark' : 'ellipse-outline'}
+                              size={15}
+                              color={isTaskCompleted ? '#FFFFFF' : '#94A3B8'}
+                            />
+                          </TouchableOpacity>
                         ) : null}
                       </View>
-                    </View>
 
-                    {act.note ? (
-                      <View style={styles.noteBox}>
-                        <Text style={styles.noteBoxText}>{act.note}</Text>
+                      {act.note ? (
+                        <View style={styles.noteBox}>
+                          <Text style={styles.noteBoxText}>{act.note}</Text>
+                        </View>
+                      ) : null}
+
+                      <View style={styles.cardFooterMeta}>
+                        <Text style={styles.cardAuthorText}>By {act.author}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {isTask && (
+                            <View style={styles.timelineManageIndicator}>
+                              <Text style={styles.timelineManageIndicatorText}>Manage</Text>
+                              <Ionicons name="chevron-forward" size={11} color="#64748B" />
+                            </View>
+                          )}
+                          <Text style={styles.cardTimestampText}>{act.timestamp}</Text>
+                        </View>
                       </View>
-                    ) : null}
-
-                    <View style={styles.cardFooterMeta}>
-                      <Text style={styles.cardAuthorText}>By {act.author}</Text>
-                      <Text style={styles.cardTimestampText}>{act.timestamp}</Text>
                     </View>
-                  </View>
-                </View>
-              ))}
+                  </ContainerComp>
+                );
+              })}
             </View>
           </View>
         )}
@@ -1318,7 +1444,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
               <View style={styles.cardInnerPadding}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleGroup}>
-                    <Ionicons name="business-outline" size={16} color="#2563EB" />
+                    <Ionicons name="business-outline" size={16} color="#272944" />
                     <Text style={styles.cardSectionTitle}>{semantics.projectEntity.toUpperCase()} PREFERENCES</Text>
                   </View>
                   <TouchableOpacity
@@ -1326,7 +1452,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                     onPress={() => setInterestedModalVisible(true)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="create-outline" size={13} color="#2563EB" />
+                    <Ionicons name="create-outline" size={13} color="#272944" />
                     <Text style={styles.sectionActionText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1389,8 +1515,8 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                   >
                     <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      {email ? <Ionicons name="mail-outline" size={13} color="#2563EB" /> : null}
-                      <Text style={[styles.fieldValue, email ? { color: '#2563EB', textDecorationLine: 'underline' } : null]}>
+                      {email ? <Ionicons name="mail-outline" size={13} color="#272944" /> : null}
+                      <Text style={[styles.fieldValue, email ? { color: '#272944', textDecorationLine: 'underline' } : null]}>
                         {email || 'Not Provided'}
                       </Text>
                     </View>
@@ -1431,8 +1557,16 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleGroup}>
                     <Ionicons name="briefcase-outline" size={16} color="#059669" />
-                    <Text style={styles.cardSectionTitle}>DEALS & PIPELINE</Text>
+                    <Text style={styles.cardSectionTitle}>DEALS & PIPELINE ({dealsList.length})</Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.quickAddTrigger}
+                    onPress={handleOpenAddDeal}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add" size={14} color="#272944" />
+                    <Text style={styles.quickAddTriggerText}>Add Deal</Text>
+                  </TouchableOpacity>
                 </View>
 
                 {dealsList.length === 0 ? (
@@ -1440,25 +1574,41 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                     <Ionicons name="briefcase-outline" size={36} color="#94A3B8" />
                     <Text style={styles.emptyTitle}>No active deals created yet</Text>
                     <Text style={styles.emptySubtext}>
-                      Convert this lead from the action bar to link a monetary pipeline deal.
+                      Convert this lead from the action bar or tap + Add Deal to link a monetary pipeline opportunity.
                     </Text>
+                    <TouchableOpacity
+                      style={styles.emptyCTA}
+                      onPress={handleOpenAddDeal}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.emptyCTAText}>+ Convert Lead to Deal</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   dealsList.map((d, idx) => (
-                    <View key={idx} style={styles.dealItemCard}>
+                    <TouchableOpacity
+                      key={d._id || d.id || idx}
+                      style={styles.dealItemCard}
+                      onPress={() => handleOpenEditDeal(d)}
+                      activeOpacity={0.75}
+                    >
                       <View style={styles.dealHeaderRow}>
-                        <Text style={styles.dealTitleText}>{d.title}</Text>
+                        <Text style={styles.dealTitleText}>{d.title || d.name || 'Opportunity'}</Text>
                         <Text style={styles.dealAmountText}>
-                          ₹{Number(d.amount).toLocaleString('en-IN')}
+                          ₹{Number(d.amount || 0).toLocaleString('en-IN')}
                         </Text>
                       </View>
                       <View style={styles.dealMetaRow}>
-                        <Text style={styles.dealPipelineText}>{d.pipeline || 'Sales Pipeline'}</Text>
+                        <Text style={styles.dealPipelineText}>{d.pipeline || d.pipelineName || 'Sales Pipeline'}</Text>
                         <View style={styles.dealStagePill}>
-                          <Text style={styles.dealStageText}>{d.stage || 'Negotiation'}</Text>
+                          <Text style={styles.dealStageText}>{d.stage || 'Opportunity'}</Text>
                         </View>
                       </View>
-                    </View>
+                      <View style={styles.dealCardTapHintRow}>
+                        <Text style={styles.dealCardTapHintText}>Tap to view & edit details</Text>
+                        <Ionicons name="chevron-forward" size={12} color="#94A3B8" />
+                      </View>
+                    </TouchableOpacity>
                   ))
                 )}
               </View>
@@ -1498,7 +1648,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.cardInnerPadding}>
                   <View style={styles.sectionHeaderRow}>
                     <View style={styles.sectionTitleGroup}>
-                      <Ionicons name="document-text-outline" size={16} color="#2563EB" />
+                      <Ionicons name="document-text-outline" size={16} color="#272944" />
                       <Text style={styles.cardSectionTitle}>CONTACT NOTES & REMARKS</Text>
                     </View>
                     <TouchableOpacity
@@ -1506,7 +1656,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                       onPress={() => setNoteModalVisible(true)}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="add" size={13} color="#2563EB" />
+                      <Ionicons name="add" size={13} color="#272944" />
                       <Text style={styles.sectionActionText}>Add Note</Text>
                     </TouchableOpacity>
                   </View>
@@ -1574,7 +1724,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                       onPress={() => handleOpenAttachModal('file')}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="document-text-outline" size={13} color="#2563EB" />
+                      <Ionicons name="document-text-outline" size={13} color="#272944" />
                       <Text style={styles.attachTypeBtnText}>Document</Text>
                     </TouchableOpacity>
                   </View>
@@ -1616,7 +1766,7 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
                                 style={styles.viewAttachBtn}
                                 onPress={() => Linking.openURL(a.url).catch(() => Alert.alert('Error', 'Cannot open URL'))}
                               >
-                                <Ionicons name="open-outline" size={14} color="#2563EB" />
+                                <Ionicons name="open-outline" size={14} color="#272944" />
                                 <Text style={styles.viewAttachBtnText}>View</Text>
                               </TouchableOpacity>
                             ) : null}
@@ -1676,6 +1826,21 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
           loadLeadDetails();
         }}
       />
+      <DealFormModal
+        visible={dealFormModalVisible}
+        editingDeal={selectedDealForEdit}
+        pipelines={pipelinesList}
+        industryCode={(lead as any).industryId || (lead as any).industry_id || user?.industryId}
+        onClose={() => {
+          setDealFormModalVisible(false);
+          setSelectedDealForEdit(null);
+        }}
+        onSuccess={() => {
+          setDealFormModalVisible(false);
+          setSelectedDealForEdit(null);
+          loadLeadDetails();
+        }}
+      />
       <LostModal
         visible={lostModalVisible}
         lead={lead}
@@ -1700,6 +1865,24 @@ export const LeadDetailScreen = ({ route, navigation }: any) => {
         tasksData={tasks}
         onClose={() => setCreateTaskModalVisible(false)}
         onSuccess={loadLeadDetails}
+      />
+      <TaskDetailModal
+        visible={taskDetailModalVisible}
+        task={selectedTaskForDetail}
+        onClose={() => {
+          setTaskDetailModalVisible(false);
+          setSelectedTaskForDetail(null);
+        }}
+        onRefresh={loadLeadDetails}
+        onEdit={(t) => {
+          setTaskDetailModalVisible(false);
+          navigation.navigate('TaskForm', { task: t, lead });
+        }}
+        onViewLead={() => {
+          setTaskDetailModalVisible(false);
+        }}
+        organizationName={user?.organizationName}
+        userName={user?.name || user?.email}
       />
       <LogCallModal
         visible={logCallModalVisible}
@@ -1928,14 +2111,14 @@ const styles = StyleSheet.create({
   headerEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#272944',
     paddingHorizontal: 13,
     paddingVertical: 6.5,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     gap: 5,
-    shadowColor: '#2563EB',
+    shadowColor: '#272944',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -2100,8 +2283,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   statusChipSelected: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   statusChipText: {
     fontSize: 11,
@@ -2197,8 +2380,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   subFilterPillActive: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   subFilterPillText: {
     fontSize: 11,
@@ -2213,9 +2396,9 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: 'rgba(39, 41, 68, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 5.5,
     borderRadius: 8,
@@ -2224,7 +2407,7 @@ const styles = StyleSheet.create({
   quickAddTriggerText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#272944',
   },
   timelineStream: {
     gap: 10,
@@ -2293,6 +2476,35 @@ const styles = StyleSheet.create({
   statusBadgeTextCompleted: {
     color: '#059669',
   },
+  timelineTaskCheckbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    marginLeft: 8,
+  },
+  timelineTaskCheckboxCompleted: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  timelineManageIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+  },
+  timelineManageIndicatorText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
   noteBox: {
     backgroundColor: '#F8FAFC',
     borderRadius: 8,
@@ -2360,7 +2572,7 @@ const styles = StyleSheet.create({
   sectionActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
     paddingHorizontal: 9,
     paddingVertical: 4.5,
     borderRadius: 7,
@@ -2369,7 +2581,7 @@ const styles = StyleSheet.create({
   sectionActionText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#272944',
   },
   profileGrid: {
     flexDirection: 'row',
@@ -2440,7 +2652,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   dealStagePill: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -2448,7 +2660,22 @@ const styles = StyleSheet.create({
   dealStageText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#272944',
+  },
+  dealCardTapHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 3,
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  dealCardTapHintText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
   emptyCardBox: {
     alignItems: 'center',
@@ -2470,7 +2697,7 @@ const styles = StyleSheet.create({
   },
   emptyCTA: {
     marginTop: 14,
-    backgroundColor: '#151728',
+    backgroundColor: '#272944',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 9,
@@ -2605,8 +2832,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   pickerChipActive: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   pickerChipText: {
     fontSize: 11,
@@ -2677,7 +2904,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   optionRowSelected: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
   },
   optionText: {
     fontSize: 13.5,
@@ -2686,7 +2913,7 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#272944',
   },
   customOptionRow: {
     flexDirection: 'row',
@@ -2694,14 +2921,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: 'rgba(39, 41, 68, 0.04)',
     borderRadius: 10,
     marginTop: 8,
   },
   customOptionText: {
     fontSize: 13.5,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#272944',
   },
   emptyOptionsText: {
     textAlign: 'center',
@@ -2730,7 +2957,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modalSubmitBtn: {
-    backgroundColor: '#151728',
+    backgroundColor: '#272944',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 10,
@@ -2786,8 +3013,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   subTabPillSelected: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   subTabPillText: {
     fontSize: 12,
@@ -2869,7 +3096,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#9333EA',
   },
   avatarDoc: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#272944',
   },
   attachmentInfoGroup: {
     flex: 1,
@@ -2898,13 +3125,13 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#93C5FD',
-    backgroundColor: '#EFF6FF',
+    borderColor: 'rgba(39, 41, 68, 0.2)',
+    backgroundColor: 'rgba(39, 41, 68, 0.06)',
   },
   viewAttachBtnText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#272944',
   },
   deleteAttachBtn: {
     padding: 6,

@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   pillBtnActive: {
-    backgroundColor: '#1E2238',
-    shadowColor: '#1E2238',
+    backgroundColor: '#272944',
+    shadowColor: '#272944',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 5,

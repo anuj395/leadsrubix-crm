@@ -55,7 +55,7 @@ export const AppNavigator = () => {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, Platform.select({ ios: 16, android: 12, default: 8 }));
 
-  // Navigation stack & route state
+  // Navigation stack & route state (Initial Screen: Dashboard)
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Dashboard');
   const [navStack, setNavStack] = useState<Array<{ screen: ScreenName; params?: any }>>([{ screen: 'Dashboard', params: {} }]);
   const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');

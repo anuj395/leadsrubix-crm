@@ -6,6 +6,11 @@ export const taskRepository = {
     return res.data;
   },
 
+  async getRawTaskById(id: string) {
+    const res = await apiClient.get(`/tasks/${id}`);
+    return res.data;
+  },
+
   async createRawTask(payload: any) {
     const res = await apiClient.post('/tasks', payload);
     return res.data;
@@ -13,6 +18,11 @@ export const taskRepository = {
 
   async updateRawTask(id: string, payload: any) {
     const res = await apiClient.put(`/tasks/${id}`, payload);
+    return res.data;
+  },
+
+  async deleteRawTask(id: string) {
+    const res = await apiClient.delete(`/tasks/${id}`);
     return res.data;
   },
 };

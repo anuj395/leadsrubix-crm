@@ -111,8 +111,8 @@ export function getDynamicDefaultOptions(industryInput?: string): Record<string,
   // Default: Real Estate (temp0001, real_estate, property)
   return {
     leadType: ['Data', 'Leads', 'Direct Buyer', 'Channel Partner Referral'],
-    projectName: ['Test', 'Prestige Highline', 'Skyline Residency', 'Greenwood Park', 'Urban Oasis'],
-    project: ['Test', 'Prestige Highline', 'Skyline Residency', 'Greenwood Park', 'Urban Oasis'],
+    projectName: ['Purvanchal Royal City', 'Prestige Highline', 'Skyline Residency', 'Greenwood Park', 'Urban Oasis'],
+    project: ['Purvanchal Royal City', 'Prestige Highline', 'Skyline Residency', 'Greenwood Park', 'Urban Oasis'],
     propertyType: [
       'Residential Properties',
       'Commercial Properties',
@@ -177,6 +177,59 @@ export function getDynamicDefaultOptions(industryInput?: string): Record<string,
       'Referral',
     ],
   };
+}
+
+export function getPropertySubTypesForType(propertyType?: string): string[] {
+  const norm = String(propertyType || '').toLowerCase();
+  if (norm.includes('residential')) {
+    return [
+      'Apartment',
+      'Villa / Independent House',
+      'Penthouse',
+      'Studio Apartment',
+      'Builder Floor',
+      'Duplex / Triplex',
+      'Residential Plot',
+    ];
+  }
+  if (norm.includes('commercial')) {
+    return [
+      'Commercial Office',
+      'Retail Shop',
+      'Showroom',
+      'Warehouse / Godown',
+      'Co-working Space',
+      'Commercial Land',
+    ];
+  }
+  if (norm.includes('land') || norm.includes('plot')) {
+    return [
+      'Residential Plot',
+      'Commercial Land',
+      'Industrial Plot',
+      'Agricultural Land',
+    ];
+  }
+  if (norm.includes('industrial')) {
+    return [
+      'Industrial Shed',
+      'Factory Unit',
+      'Warehouse / Godown',
+      'Industrial Plot',
+    ];
+  }
+  return [
+    'Apartment',
+    'Villa / Independent House',
+    'Plot / Land',
+    'Penthouse',
+    'Studio Apartment',
+    'Builder Floor',
+    'Commercial Office',
+    'Retail Shop',
+    'Warehouse / Godown',
+    'Industrial Plot',
+  ];
 }
 
 export const LeadFormScreen = ({ navigation, route }: any) => {
@@ -443,14 +496,27 @@ export const LeadFormScreen = ({ navigation, route }: any) => {
   }, [user?.organizationId, dynamicFields]);
 
   const handleValueChange = (key: string, value: string) => {
-    setFormValues((prev) => ({ ...prev, [key]: value }));
+    setFormValues((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'propertyType' || key === 'property_type') {
+        if (prev[key] !== value) {
+          next.propertySubType = '';
+          next.property_sub_type = '';
+        }
+      }
+      return next;
+    });
   };
 
   const getOptionsForField = (field: DynamicFormField): string[] => {
+    const camel = field.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+    if (camel === 'propertySubType') {
+      const selectedType = formValues.propertyType || formValues.property_type;
+      return getPropertySubTypesForType(selectedType);
+    }
     if (apiOptions[field.key] && apiOptions[field.key].length > 0) {
       return apiOptions[field.key];
     }
-    const camel = field.key.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
     if (apiOptions[camel] && apiOptions[camel].length > 0) {
       return apiOptions[camel];
     }
@@ -497,34 +563,60 @@ export const LeadFormScreen = ({ navigation, route }: any) => {
       }
     }
 
-    const name = formValues.customerName || formValues.customer_name || formValues.name || '';
-    const phone = formValues.contactNumber || formValues.contact_number || formValues.phone || '';
-    const email = formValues.emailId || formValues.email_id || formValues.email || '';
-    const project = formValues.projectName || formValues.project_name || formValues.project || '';
-    const source = formValues.leadSource || formValues.lead_source || formValues.source || 'Direct';
+    const name = (formValues.customerName || formValues.customer_name || formValues.name || '').trim();
+    const phone = (formValues.contactNumber || formValues.contact_number || formValues.phone || '').trim();
+    const email = (formValues.emailId || formValues.email_id || formValues.email || '').trim();
+    const project = (formValues.projectName || formValues.project_name || formValues.project || '').trim();
+    const source = (formValues.leadSource || formValues.lead_source || formValues.source || 'Direct').trim();
 
-    if (!name.trim()) {
+    if (!name) {
       Alert.alert('Required Field', `Please enter ${semantics.leadEntitySingular} Name.`);
       return;
     }
-    if (!phone.trim()) {
+    if (!phone) {
       Alert.alert('Required Field', 'Please enter Contact Number.');
       return;
     }
 
+    // Phone digits validation (7-15 digits)
+    const rawPhoneDigits = phone.replace(/\D/g, '');
+    if (rawPhoneDigits.length < 7 || rawPhoneDigits.length > 15) {
+      Alert.alert('Invalid Contact Number', 'Contact Number must be between 7 and 15 digits.');
+      return;
+    }
+
+    // Email format validation (if provided)
+    if (email) {
+      const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRx.test(email)) {
+        Alert.alert('Invalid Email', 'Please enter a valid email address format (e.g. name@example.com).');
+        return;
+      }
+    }
+
+    // Alternate number validation (if provided)
+    const altPhone = (formValues.alternateNumber || formValues.alternateNo || '').trim();
+    if (altPhone) {
+      const rawAltDigits = altPhone.replace(/\D/g, '');
+      if (rawAltDigits.length < 7 || rawAltDigits.length > 15) {
+        Alert.alert('Invalid Alternate Number', 'Alternate Contact Number must be between 7 and 15 digits.');
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
-      const fullPhone = formValues.contactCountryCode ? `${formValues.contactCountryCode} ${phone.trim()}` : phone.trim();
-      const fullAltPhone = formValues.alternateNumber && formValues.alternateCountryCode ? `${formValues.alternateCountryCode} ${formValues.alternateNumber.trim()}` : (formValues.alternateNumber || formValues.alternateNo || '');
+      const fullPhone = formValues.contactCountryCode ? `${formValues.contactCountryCode} ${phone}` : phone;
+      const fullAltPhone = altPhone && formValues.alternateCountryCode ? `${formValues.alternateCountryCode} ${altPhone}` : altPhone;
 
       const payload = {
         ...formValues,
-        name: name.trim(),
+        name,
         phone: fullPhone,
         alternateNo: fullAltPhone,
-        email: email.trim(),
-        project: project.trim(),
-        source: source,
+        email,
+        project,
+        source,
         organizationId: user?.organizationId,
         organization_id: user?.organizationId,
         industryId: user?.industryId,

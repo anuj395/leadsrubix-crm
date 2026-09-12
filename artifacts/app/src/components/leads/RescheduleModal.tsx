@@ -17,6 +17,7 @@ import { apiClient } from '../../api/apiClient';
 import { LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
+import { CalendarDatePickerModal } from '../ui/CalendarDatePickerModal';
 
 export interface RescheduleFormField {
   key: string;
@@ -27,17 +28,6 @@ export interface RescheduleFormField {
   placeholder?: string;
   order?: number;
 }
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-const QUICK_TIMES = [
-  '10:00 AM', '11:30 AM', '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM', '07:00 PM'
-];
 
 const DEFAULT_RESCHEDULE_FIELDS: RescheduleFormField[] = [
   {
@@ -102,38 +92,7 @@ export const RescheduleModal: React.FC<Props> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Interactive Calendar State
-  const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState<number>(new Date().getMonth());
-  const [calSelectedDate, setCalSelectedDate] = useState<number>(new Date().getDate());
-  const [calTime, setCalTime] = useState<string>('11:00 AM');
-
-  // Days in month calculation for interactive calendar grid
-  const calendarDays = useMemo(() => {
-    const firstDayIndex = new Date(calYear, calMonth, 1).getDay();
-    const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
-    const prevMonthDays = new Date(calYear, calMonth, 0).getDate();
-
-    const days: Array<{ day: number; isCurrentMonth: boolean; isToday: boolean; isSelected: boolean }> = [];
-    const today = new Date();
-
-    // Prev month padding
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push({ day: prevMonthDays - i, isCurrentMonth: false, isToday: false, isSelected: false });
-    }
-    // Current month days
-    for (let i = 1; i <= totalDays; i++) {
-      const isToday = today.getDate() === i && today.getMonth() === calMonth && today.getFullYear() === calYear;
-      const isSelected = calSelectedDate === i;
-      days.push({ day: i, isCurrentMonth: true, isToday, isSelected });
-    }
-    // Next month padding
-    const remaining = (7 - (days.length % 7)) % 7;
-    for (let i = 1; i <= remaining; i++) {
-      days.push({ day: i, isCurrentMonth: false, isToday: false, isSelected: false });
-    }
-    return days;
-  }, [calYear, calMonth, calSelectedDate]);
+  const [activeDateFieldKey, setActiveDateFieldKey] = useState<string>('nextFollowUp');
 
   // 1. Initialize Form Values from Lead
   useEffect(() => {
@@ -329,7 +288,10 @@ export const RescheduleModal: React.FC<Props> = ({
         {isDate ? (
           <TouchableOpacity
             style={styles.dropdownSelectBox}
-            onPress={() => setShowDatePicker(true)}
+            onPress={() => {
+              setActiveDateFieldKey(field.key);
+              setShowDatePicker(true);
+            }}
             activeOpacity={0.7}
           >
             <Text style={[styles.dropdownSelectText, !value && styles.dropdownSelectPlaceholder]}>
@@ -404,175 +366,20 @@ export const RescheduleModal: React.FC<Props> = ({
           </View>
         </View>
 
-        {/* IN-MODAL OVERLAY: INTERACTIVE MONTHLY CALENDAR DATE & TIME PICKER */}
-        {showDatePicker && (
-          <View style={styles.inModalOverlay}>
-            <View style={styles.inModalSheet}>
-              {/* Calendar Header */}
-              <View style={styles.modalHeaderRow}>
-                <View style={styles.modalTitleGroup}>
-                  <Text style={styles.modalTitle}>SELECT FOLLOW UP DATE & TIME</Text>
-                  <Text style={styles.selectedDateBadge}>
-                    {calSelectedDate} {MONTHS[calMonth]?.substring(0, 3)} {calYear} • {calTime}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.modalCloseBtn} activeOpacity={0.7}>
-                  <Ionicons name="close" size={20} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-                {/* Quick Shortcuts */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsRow}>
-                  {[
-                    { label: 'Today', days: 0 },
-                    { label: 'Tomorrow', days: 1 },
-                    { label: 'In 3 Days', days: 3 },
-                    { label: 'Next Week', days: 7 },
-                    { label: 'In 15 Days', days: 15 },
-                  ].map((p) => (
-                    <TouchableOpacity
-                      key={p.label}
-                      style={styles.presetChip}
-                      onPress={() => {
-                        const target = new Date();
-                        target.setDate(target.getDate() + p.days);
-                        setCalYear(target.getFullYear());
-                        setCalMonth(target.getMonth());
-                        setCalSelectedDate(target.getDate());
-                      }}
-                    >
-                      <Text style={styles.presetChipText}>{p.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                {/* Month & Year Navigation Bar */}
-                <View style={styles.monthNavRow}>
-                  <TouchableOpacity
-                    style={styles.monthNavBtn}
-                    onPress={() => {
-                      if (calMonth === 0) {
-                        setCalMonth(11);
-                        setCalYear((y) => y - 1);
-                      } else {
-                        setCalMonth((m) => m - 1);
-                      }
-                    }}
-                  >
-                    <Ionicons name="chevron-back" size={18} color="#1E293B" />
-                  </TouchableOpacity>
-                  <Text style={styles.monthYearText}>
-                    {MONTHS[calMonth]} {calYear}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.monthNavBtn}
-                    onPress={() => {
-                      if (calMonth === 11) {
-                        setCalMonth(0);
-                        setCalYear((y) => y + 1);
-                      } else {
-                        setCalMonth((m) => m + 1);
-                      }
-                    }}
-                  >
-                    <Ionicons name="chevron-forward" size={18} color="#1E293B" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Day of Week Headers */}
-                <View style={styles.daysOfWeekRow}>
-                  {DAYS_OF_WEEK.map((d, idx) => (
-                    <Text key={d} style={[styles.dayOfWeekText, idx === 0 && { color: '#EF4444' }]}>
-                      {d}
-                    </Text>
-                  ))}
-                </View>
-
-                {/* Calendar Day Grid */}
-                <View style={styles.calendarGrid}>
-                  {calendarDays.map((item, idx) => (
-                    <TouchableOpacity
-                      key={`${item.day}_${idx}`}
-                      style={[
-                        styles.dayCell,
-                        item.isSelected && styles.dayCellSelected,
-                        item.isToday && !item.isSelected && styles.dayCellToday,
-                      ]}
-                      onPress={() => {
-                        if (item.isCurrentMonth) setCalSelectedDate(item.day);
-                      }}
-                      disabled={!item.isCurrentMonth}
-                    >
-                      <Text
-                        style={[
-                          styles.dayCellText,
-                          !item.isCurrentMonth && styles.dayCellTextDim,
-                          item.isSelected && styles.dayCellTextSelected,
-                          item.isToday && !item.isSelected && styles.dayCellTextToday,
-                        ]}
-                      >
-                        {item.day}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Time Picker Bar */}
-                <View style={styles.timeSection}>
-                  <Text style={styles.timeSectionLabel}>SELECT OR ENTER CUSTOM TIME</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeChipsRow}>
-                    {QUICK_TIMES.map((t) => (
-                      <TouchableOpacity
-                        key={t}
-                        style={[styles.timeChip, calTime === t && styles.timeChipSelected]}
-                        onPress={() => setCalTime(t)}
-                      >
-                        <Text style={[styles.timeChipText, calTime === t && styles.timeChipTextSelected]}>
-                          {t}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-
-                  {/* Custom Time Input Row */}
-                  <View style={styles.customTimeRow}>
-                    <Ionicons name="time-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
-                    <Text style={styles.customTimeLabel}>Custom Time:</Text>
-                    <TextInput
-                      style={styles.customTimeInput}
-                      value={calTime}
-                      onChangeText={setCalTime}
-                      placeholder="e.g. 10:15 AM, 06:45 PM"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="characters"
-                    />
-                  </View>
-                </View>
-              </ScrollView>
-
-              {/* Action Row */}
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.confirmBtn}
-                  onPress={() => {
-                    const mm = String(calMonth + 1).padStart(2, '0');
-                    const dd = String(calSelectedDate).padStart(2, '0');
-                    const formattedDate = `${calYear}-${mm}-${dd}, ${calTime}`;
-                    setFieldValue('nextFollowUp', formattedDate);
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.confirmBtnText}>Apply Date</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* IN-MODAL OVERLAY: UNIFIED CALENDAR DATE & TIME PICKER */}
+        <CalendarDatePickerModal
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          onSelectDate={(formatted) => {
+            setFieldValue(activeDateFieldKey, formatted);
+            setShowDatePicker(false);
+          }}
+          currentValue={formValues[activeDateFieldKey]}
+          title="Select Follow Up Date & Time"
+          includeTime={true}
+          asInModalOverlay={true}
+          minDate={new Date()}
+        />
       </View>
     </Modal>
   );
@@ -718,7 +525,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modalSubmitBtn: {
-    backgroundColor: '#1E2238',
+    backgroundColor: '#272944',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,

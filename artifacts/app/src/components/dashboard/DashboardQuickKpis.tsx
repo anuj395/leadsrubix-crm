@@ -6,12 +6,14 @@ import { getIndustrySemantics } from '../../utils/industryLabels';
 
 interface Props {
   metrics: CardMetrics;
+  callsTodayCount?: number;
   industryId?: string;
   onSelectKpi: (filterKey: string, label: string) => void;
 }
 
 export const DashboardQuickKpis: React.FC<Props> = ({
   metrics,
+  callsTodayCount = 0,
   industryId,
   onSelectKpi,
 }) => {
@@ -19,73 +21,117 @@ export const DashboardQuickKpis: React.FC<Props> = ({
 
   const kpiItems = [
     {
-      key: 'totalLeads',
-      label: `Total ${semantics.leadEntityPlural}`,
-      value: metrics.totalLeads,
-      icon: 'people-sharp' as const,
-      color: '#272944',
-      bg: '#EEF2FF',
-    },
-    {
-      key: 'callBack',
-      label: semantics.inPipelineLabel,
-      value: metrics.callBack + metrics.interested,
-      icon: 'sync-sharp' as const,
-      color: '#D97706',
-      bg: '#FEF3C7',
-    },
-    {
-      key: 'completedVisits',
-      label: semantics.completedVisits,
-      value: metrics.completedVisits + metrics.scheduledVisits,
-      icon: 'calendar-sharp' as const,
-      color: '#7C3AED',
-      bg: '#EDE9FE',
-    },
-    {
-      key: 'closedWon',
-      label: semantics.wonLabel,
+      key: 'won',
+      label: semantics.wonLabel || 'Deals Won',
       value: metrics.closedWon,
       icon: 'trophy-sharp' as const,
       color: '#059669',
       bg: '#D1FAE5',
     },
+    {
+      key: 'pipeline',
+      label: semantics.inPipelineLabel || 'In Pipeline',
+      value: metrics.callBack + metrics.interested + (metrics.fresh || 0),
+      icon: 'funnel-sharp' as const,
+      color: '#D97706',
+      bg: '#FEF3C7',
+    },
+    {
+      key: 'visits',
+      label: semantics.completedVisits || 'Visits Done',
+      value: metrics.completedVisits,
+      icon: 'calendar-sharp' as const,
+      color: '#7C3AED',
+      bg: '#EDE9FE',
+    },
+    {
+      key: 'calls',
+      label: 'Calls Logged',
+      value: callsTodayCount,
+      icon: 'call-sharp' as const,
+      color: '#0284C7',
+      bg: '#E0F2FE',
+    },
   ];
 
   return (
-    <View style={styles.grid}>
-      {kpiItems.map((item) => (
-        <TouchableOpacity
-          key={item.key}
-          style={styles.card}
-          onPress={() => onSelectKpi(item.key, item.label)}
-          activeOpacity={0.85}
-        >
-          {/* Top Accent Strip */}
-          <View style={[styles.topAccentBar, { backgroundColor: item.color }]} />
+    <View style={styles.container}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.headerLeftGroup}>
+          <View style={styles.sectionDot} />
+          <Text style={styles.sectionTitle}>DAILY PERFORMANCE PULSE</Text>
+        </View>
+        <Text style={styles.sectionSubtitle}>Real-time activity</Text>
+      </View>
 
-          <View style={styles.cardInnerPadding}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
-                <Ionicons name={item.icon} size={16} color={item.color} />
+      <View style={styles.grid}>
+        {kpiItems.map((item) => (
+          <TouchableOpacity
+            key={item.key}
+            style={styles.card}
+            onPress={() => onSelectKpi(item.key, item.label)}
+            activeOpacity={0.85}
+          >
+            {/* Top Accent Strip */}
+            <View style={[styles.topAccentBar, { backgroundColor: item.color }]} />
+
+            <View style={styles.cardInnerPadding}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
+                  <Ionicons name={item.icon} size={15} color={item.color} />
+                </View>
+                <View style={styles.arrowCircle}>
+                  <Ionicons name="chevron-forward-sharp" size={11} color="#94A3B8" />
+                </View>
               </View>
-              <View style={styles.arrowCircle}>
-                <Ionicons name="chevron-forward-sharp" size={12} color="#94A3B8" />
-              </View>
+
+              <Text style={styles.kpiValue}>{item.value}</Text>
+              <Text style={styles.kpiLabel} numberOfLines={1}>
+                {item.label}
+              </Text>
             </View>
-
-            <Text style={styles.kpiValue}>{item.value}</Text>
-            <Text style={styles.kpiLabel} numberOfLines={1}>
-              {item.label}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#0EA5E9',
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+    letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  sectionSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

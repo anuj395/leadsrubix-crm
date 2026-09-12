@@ -10,20 +10,41 @@ import { openEmail } from '../../utils/emailHelper';
 interface DashboardRecentLeadsProps {
   leads: LeadItem[];
   industryId?: string;
+  organizationName?: string;
   onViewAll?: () => void;
   onLeadPress: (lead: LeadItem) => void;
   onCallLead?: (lead: LeadItem) => void;
+  onAddLead?: () => void;
 }
 
 export const DashboardRecentLeads: React.FC<DashboardRecentLeadsProps> = ({
   leads,
   industryId,
+  organizationName,
   onViewAll,
   onLeadPress,
   onCallLead,
+  onAddLead,
 }) => {
   const semantics = getIndustrySemantics(industryId);
   const recentList = leads.slice(0, 3);
+
+  const getStageBadgeInfo = (lead: LeadItem) => {
+    const stage = String(lead.stage || lead.status || 'Fresh').toUpperCase();
+    if (stage.includes('WON') || stage.includes('CONVERT')) {
+      return { label: 'Won', bg: '#DCFCE7', text: '#15803D', border: '#BBF7D0' };
+    }
+    if (stage.includes('INTEREST')) {
+      return { label: 'Interested', bg: '#EDE9FE', text: '#6D28D9', border: '#DDD6FE' };
+    }
+    if (stage.includes('CALLBACK') || stage.includes('FOLLOW')) {
+      return { label: 'Callback', bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' };
+    }
+    if (stage.includes('LOST') || stage.includes('NOT')) {
+      return { label: 'Lost', bg: '#FEE2E2', text: '#B91C1C', border: '#FECACA' };
+    }
+    return { label: 'Fresh', bg: '#E0F2FE', text: '#0369A1', border: '#BAE6FD' };
+  };
 
   const handleCall = (lead: LeadItem) => {
     if (onCallLead) {
@@ -36,13 +57,15 @@ export const DashboardRecentLeads: React.FC<DashboardRecentLeadsProps> = ({
 
   const handleWhatsApp = (lead: LeadItem) => {
     const phone = lead.phone || lead.contactNo;
-    const msg = `Hello ${lead.name || 'Sir/Madam'}, connecting from Leads Rubix regarding your ${semantics.leadEntitySingular.toLowerCase()} inquiry.`;
+    const orgSuffix = organizationName ? ` from ${organizationName}` : '';
+    const msg = `Hello ${lead.name || 'Sir/Madam'}, connecting${orgSuffix} regarding your ${semantics.leadEntitySingular.toLowerCase()} inquiry.`;
     openWhatsApp(phone, msg);
   };
 
   const handleEmail = (lead: LeadItem) => {
-    const subject = `Regarding your inquiry with Leads Rubix`;
-    const body = `Hello ${lead.name || 'Sir/Madam'},\n\nThank you for reaching out to Leads Rubix. How can we assist you with your inquiry today?\n\nBest regards,\nSales Team`;
+    const orgTitle = organizationName || 'our team';
+    const subject = `Regarding your ${semantics.leadEntitySingular.toLowerCase()} inquiry with ${orgTitle}`;
+    const body = `Hello ${lead.name || 'Sir/Madam'},\n\nThank you for reaching out to ${orgTitle}. How can we assist you with your inquiry today?\n\nBest regards,\n${organizationName ? `${organizationName} Team` : 'Sales Team'}`;
     openEmail(lead.email, subject, body);
   };
 
@@ -74,39 +97,65 @@ export const DashboardRecentLeads: React.FC<DashboardRecentLeadsProps> = ({
           <Text style={styles.emptyText}>
             Fresh {semantics.leadEntityPlural.toLowerCase()} assigned to your sales queue will appear here in real time.
           </Text>
-          <TouchableOpacity
-            style={styles.emptyActionBtn}
-            onPress={onViewAll}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people-outline" size={15} color="#272944" />
-            <Text style={styles.emptyActionBtnText}>Explore {semantics.leadEntityPlural}</Text>
-          </TouchableOpacity>
+          <View style={styles.emptyActionsRow}>
+            {onAddLead && (
+              <TouchableOpacity
+                style={styles.emptyPrimaryBtn}
+                onPress={onAddLead}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="person-add" size={14} color="#FFFFFF" />
+                <Text style={styles.emptyPrimaryBtnText}>+ Add {semantics.leadEntitySingular}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.emptyActionBtn}
+              onPress={onViewAll}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="people-outline" size={14} color="#334155" />
+              <Text style={styles.emptyActionBtnText}>Explore {semantics.leadEntityPlural}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <View style={styles.list}>
-          {recentList.map((lead) => (
-            <TouchableOpacity
-              key={lead.id}
-              style={styles.leadItem}
-              onPress={() => onLeadPress(lead)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.leadLeft}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>
-                    {(lead.name || 'P').charAt(0).toUpperCase()}
-                  </Text>
+          {recentList.map((lead) => {
+            const badge = getStageBadgeInfo(lead);
+            return (
+              <TouchableOpacity
+                key={lead.id}
+                style={styles.leadItem}
+                onPress={() => onLeadPress(lead)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.leadLeft}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarText}>
+                      {(lead.name || 'P').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.leadName} numberOfLines={1}>
+                        {lead.name}
+                      </Text>
+                      <View
+                        style={[
+                          styles.stageBadge,
+                          { backgroundColor: badge.bg, borderColor: badge.border },
+                        ]}
+                      >
+                        <Text style={[styles.stageBadgeText, { color: badge.text }]}>
+                          {badge.label}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.leadProject} numberOfLines={1}>
+                      {lead.project || lead.propertyType || semantics.leadEntitySingular} • {lead.source || 'Direct'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={styles.leadName} numberOfLines={1}>
-                    {lead.name}
-                  </Text>
-                  <Text style={styles.leadProject} numberOfLines={1}>
-                    {lead.project || lead.propertyType || semantics.leadEntitySingular} • {lead.source || 'Direct'}
-                  </Text>
-                </View>
-              </View>
 
               <View style={styles.actionsGroup}>
                 {lead.email ? (
@@ -136,8 +185,9 @@ export const DashboardRecentLeads: React.FC<DashboardRecentLeadsProps> = ({
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
-          ))}
-        </View>
+          );
+        })}
+      </View>
       )}
     </View>
   );
@@ -239,11 +289,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   leadName: {
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    maxWidth: 125,
+  },
+  stageBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    borderWidth: 0.5,
+  },
+  stageBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   leadProject: {
     fontSize: 11,
@@ -314,25 +381,39 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     marginBottom: 12,
   },
+  emptyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  emptyPrimaryBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   emptyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: '#CBD5E1',
   },
   emptyActionBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#272944',
+    color: '#334155',
   },
 });

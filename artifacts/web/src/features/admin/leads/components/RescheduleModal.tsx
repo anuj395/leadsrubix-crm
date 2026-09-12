@@ -63,14 +63,14 @@ export default function RescheduleModal({ open, onClose, contactId, onSuccess }:
     if (!contactId || !contact) return
 
     if (!values.nextFollowUp) {
-      setToast({ open: true, msg: 'Select A Valid Date!!', sev: 'error' })
+      setToast({ open: true, msg: 'Please select a valid scheduled date & time.', sev: 'error' })
       return
     }
 
     const selectedDate = new Date(values.nextFollowUp)
     const now = new Date()
     if (selectedDate < now) {
-      setToast({ open: true, msg: 'Select A Valid Date!!', sev: 'error' })
+      setToast({ open: true, msg: 'Scheduled follow-up date and time must be in the future.', sev: 'error' })
       return
     }
 

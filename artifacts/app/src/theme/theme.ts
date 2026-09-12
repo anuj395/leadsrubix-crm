@@ -4,6 +4,9 @@ export const theme = {
   colors: {
     // Executive Navy Scale (#272944 base)
     primary: '#272944',
+    primarySubtle: 'rgba(39, 41, 68, 0.08)',
+    primaryBorder: '#272944',
+    primaryLight: '#343759',
     brand900: '#0F101E',
     brand800: '#1A1C30',
     brand700: '#272944',

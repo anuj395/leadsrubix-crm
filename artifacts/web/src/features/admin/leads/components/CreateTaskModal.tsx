@@ -93,22 +93,22 @@ export default function CreateTaskModal({ open, onClose, contact, tasksData, onS
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nextFollowUpType || nextFollowUpType === 'Select') {
-      setToast({ open: true, msg: 'Select Next Follow Up Type!!', sev: 'error' })
+      setToast({ open: true, msg: 'Please select a next follow-up type.', sev: 'error' })
       return
     }
     
     if (!nextFollowUpDate) {
-      setToast({ open: true, msg: 'Enter A Valid Date!!', sev: 'error' })
+      setToast({ open: true, msg: 'Please select a valid scheduled date & time.', sev: 'error' })
       return
     }
     const selectedDate = new Date(nextFollowUpDate)
     if (selectedDate < new Date()) {
-      setToast({ open: true, msg: 'Enter A Valid Date!!', sev: 'error' })
+      setToast({ open: true, msg: 'Scheduled follow-up date and time must be in the future.', sev: 'error' })
       return
     }
 
     if (existingTaskStatus && (!existingTaskSelected || existingTaskSelected === 'Select')) {
-      setToast({ open: true, msg: 'Select Exisiting Task Status!!', sev: 'error' })
+      setToast({ open: true, msg: 'Please select existing task status.', sev: 'error' })
       return
     }
 

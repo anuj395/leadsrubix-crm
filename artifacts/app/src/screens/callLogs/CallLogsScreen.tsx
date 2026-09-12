@@ -211,7 +211,7 @@ export const CallLogsScreen: React.FC<CallLogsScreenProps> = ({ navigation }) =>
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#151728" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#272944" />}
       >
         {/* ─── Zone 2: Filter Chips ─── */}
         <ScrollView
@@ -245,7 +245,7 @@ export const CallLogsScreen: React.FC<CallLogsScreenProps> = ({ navigation }) =>
         {/* ─── Zone 3: Call History Cards (Multi-Tenant Adaptive) ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color="#151728" />
+            <ActivityIndicator size="small" color="#272944" />
             <Text style={styles.loadingText}>Fetching telephony & dialer logs...</Text>
           </View>
         ) : filteredLogs.length === 0 ? (
@@ -275,11 +275,11 @@ export const CallLogsScreen: React.FC<CallLogsScreenProps> = ({ navigation }) =>
               <View key={log.id} style={styles.callCard3D}>
                 <View style={styles.callCardTopRow}>
                   <View style={styles.callCardAvatarGroup}>
-                    <View style={[styles.callTypeIconCircle, { backgroundColor: isOut ? '#EFF6FF' : '#F0FDF4' }]}>
+                    <View style={[styles.callTypeIconCircle, { backgroundColor: isOut ? 'rgba(39, 41, 68, 0.08)' : '#F0FDF4' }]}>
                       <Ionicons
                         name={isOut ? 'call' : 'call-outline'}
                         size={16}
-                        color={isOut ? '#2563EB' : '#16A34A'}
+                        color={isOut ? '#272944' : '#16A34A'}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -508,8 +508,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statusChipSelected: {
-    backgroundColor: '#151728',
-    borderColor: '#151728',
+    backgroundColor: '#272944',
+    borderColor: '#272944',
   },
   statusChipText: {
     fontSize: 11,
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   emptyCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#151728',
+    backgroundColor: '#272944',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 10,
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#151728',
+    backgroundColor: '#272944',
     paddingVertical: 8,
     borderRadius: 8,
     gap: 5,

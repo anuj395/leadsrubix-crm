@@ -202,10 +202,30 @@ export const PostCallDispositionModal: React.FC<PostCallDispositionModalProps> =
       // 3. Create Follow-up Task if Call-Back / Follow-up date chosen
       if (isFollowUpRequired && followUpDate) {
         let taskDueDate = followUpDate;
-        if (followUpDate.includes(',')) {
-          const parts = followUpDate.split(',');
-          taskDueDate = parts[0].trim();
+        try {
+          if (followUpDate.includes(',')) {
+            const [datePart, timePart] = followUpDate.split(',').map((s) => s.trim());
+            if (datePart && timePart) {
+              const [yyyy, mm, dd] = datePart.split('-').map(Number);
+              const [time, modifier] = timePart.split(' ');
+              let [hours, minutes] = time.split(':').map(Number);
+              if (modifier?.toUpperCase() === 'PM' && hours < 12) hours += 12;
+              if (modifier?.toUpperCase() === 'AM' && hours === 12) hours = 0;
+              const d = new Date(yyyy, mm - 1, dd, hours, minutes);
+              if (!isNaN(d.getTime())) {
+                taskDueDate = d.toISOString();
+              }
+            }
+          } else {
+            const d = new Date(followUpDate);
+            if (!isNaN(d.getTime())) {
+              taskDueDate = d.toISOString();
+            }
+          }
+        } catch (e) {
+          taskDueDate = followUpDate;
         }
+
         await taskService
           .createTask({
             contactId: caller.contactId || caller.leadId,

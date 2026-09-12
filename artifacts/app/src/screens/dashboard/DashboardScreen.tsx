@@ -19,13 +19,17 @@ import {
 } from '../../services/analyticsService';
 import { taskService, TaskItem } from '../../services/taskService';
 import { leadService, LeadItem } from '../../services/leadService';
+import { callLogService, CallLogItem } from '../../services/callLogService';
 import { useAuth } from '../../context/AuthContext';
+import { safeStorage } from '../../utils/safeStorage';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { AppVersionFooter } from '../../components/ui/AppVersionFooter';
 import { DashboardActionCockpit } from '../../components/dashboard/DashboardActionCockpit';
 import { DashboardTodayAgenda } from '../../components/dashboard/DashboardTodayAgenda';
 import { DashboardRecentLeads } from '../../components/dashboard/DashboardRecentLeads';
-import { PostCallDispositionModal, PostCallCallerInfo } from '../../components/telephony';
+import { DashboardRecentCalls } from '../../components/dashboard/DashboardRecentCalls';
+import { PostCallDispositionModal, PostCallCallerInfo, CallDialerModal } from '../../components/telephony';
+import { TaskDetailModal } from '../../components/tasks/TaskDetailModal';
 import { theme } from '../../theme/theme';
 
 export const DashboardScreen = ({ navigation }: any) => {
@@ -33,12 +37,15 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [data, setData] = useState<AnalyticsDashboardState | null>(null);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [recentCalls, setRecentCalls] = useState<CallLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Post-Call Telephony Disposition State
+  // Quick Call Dialer & Post-Call Telephony Disposition State
+  const [dialerModalVisible, setDialerModalVisible] = useState(false);
   const [postCallModalVisible, setPostCallModalVisible] = useState(false);
   const [activeCaller, setActiveCaller] = useState<PostCallCallerInfo | null>(null);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<TaskItem | null>(null);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -47,10 +54,31 @@ export const DashboardScreen = ({ navigation }: any) => {
     return 'Good Evening';
   };
 
+  // 1. Instant Boot: Load from AsyncStorage cache for 0ms initial render
+  useEffect(() => {
+    const loadCachedDashboard = async () => {
+      try {
+        const cacheKey = `@dashboard_cache_${user?.organizationId || 'default'}`;
+        const cachedStr = await safeStorage.getItem(cacheKey);
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (cached.data) setData(cached.data);
+          if (Array.isArray(cached.tasks)) setTasks(cached.tasks);
+          if (Array.isArray(cached.leads)) setLeads(cached.leads);
+          if (Array.isArray(cached.recentCalls)) setRecentCalls(cached.recentCalls);
+          setLoading(false);
+        }
+      } catch (e) {
+        // Cache read error ignored
+      }
+    };
+    loadCachedDashboard();
+  }, [user?.organizationId]);
+
   const fetchDashboardData = useCallback(async (isPullRefresh = false) => {
     try {
-      if (!isPullRefresh) setLoading(true);
-      const [analyticsRes, tasksRes, freshLeadsRes, fallbackLeadsRes] = await Promise.all([
+      if (!isPullRefresh && !data) setLoading(true);
+      const [analyticsRes, tasksRes, freshLeadsRes, fallbackLeadsRes, callLogsRes] = await Promise.all([
         analyticsService.getAnalyticsData({
           industryId: user?.industryId,
           organizationId: user?.organizationId,
@@ -58,17 +86,43 @@ export const DashboardScreen = ({ navigation }: any) => {
         taskService.getTasks(),
         leadService.getLeads({ status: 'FRESH', limit: 5 }),
         leadService.getLeads({ limit: 5 }),
+        callLogService.getCallLogs(user?.id, user?.role).catch(() => []),
       ]);
+
+      const chosenLeads = freshLeadsRes && freshLeadsRes.length > 0 ? freshLeadsRes : fallbackLeadsRes;
+      const logs = Array.isArray(callLogsRes) ? callLogsRes : [];
+      const todayCalls = logs.filter((c: any) => {
+        if (!c.timestamp && !c.createdAt) return false;
+        const d = new Date(c.timestamp || c.createdAt);
+        const now = new Date();
+        return (
+          d.getDate() === now.getDate() &&
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear()
+        );
+      });
+      const callsToDisplay = todayCalls.length > 0 ? todayCalls : logs.slice(0, 3);
+
       setData(analyticsRes);
       setTasks(tasksRes);
-      setLeads(freshLeadsRes && freshLeadsRes.length > 0 ? freshLeadsRes : fallbackLeadsRes);
+      setLeads(chosenLeads);
+      setRecentCalls(callsToDisplay);
+
+      // Persist to safeStorage for instant boot
+      const cacheKey = `@dashboard_cache_${user?.organizationId || 'default'}`;
+      safeStorage.setItem(cacheKey, JSON.stringify({
+        data: analyticsRes,
+        tasks: tasksRes,
+        leads: chosenLeads,
+        recentCalls: callsToDisplay,
+      })).catch(() => {});
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, data]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -87,6 +141,39 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   const handleCockpitAction = (screen: 'Leads' | 'Tasks', params?: any) => {
     navigation.navigate(screen, params);
+  };
+
+  const handleToggleTask = async (task: TaskItem) => {
+    const newCompleted = !task.isCompleted;
+    // Optimistic UI update
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, isCompleted: newCompleted } : t))
+    );
+    try {
+      await taskService.toggleTaskCompletion(task.id, newCompleted);
+    } catch (err) {
+      // Revert on failure
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, isCompleted: !newCompleted } : t))
+      );
+    }
+  };
+
+  const handleCallFromLog = (call: CallLogItem) => {
+    if (call.phone) {
+      Linking.openURL(`tel:${call.phone}`).catch(() => {});
+      setActiveCaller({
+        contactId: call.id || call._id,
+        leadId: call.id || call._id,
+        customerName: call.buyerName || 'Contact',
+        phone: call.phone,
+        project: call.project || '',
+        stage: call.stage || call.status || '',
+      });
+      setTimeout(() => {
+        setPostCallModalVisible(true);
+      }, 1000);
+    }
   };
 
   const handleCallLead = (targetLead: LeadItem) => {
@@ -117,7 +204,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         customerName: task.leadName || (task as any).customerName || 'Task Client',
         phone: phone,
         project: task.project || '',
-        stage: 'Answered',
+        stage: task.title || 'Follow-up',
       });
       setTimeout(() => {
         setPostCallModalVisible(true);
@@ -125,6 +212,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     }
   };
 
+  const currentOrgName = (user as any)?.organizationName || data?.organizationName || '';
   const userDisplayName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Executive';
 
   return (
@@ -164,7 +252,7 @@ export const DashboardScreen = ({ navigation }: any) => {
               {getGreeting()}, {userDisplayName}
             </Text>
             <Text style={styles.organizationLabel} numberOfLines={1}>
-              {(user as any)?.organizationName || data?.organizationName || 'Leads Rubix Workspace'}
+              {currentOrgName || 'Enterprise Workspace'}
             </Text>
           </View>
 
@@ -186,7 +274,7 @@ export const DashboardScreen = ({ navigation }: any) => {
           />
         }
       >
-        {/* Zone 3: Today's Action Command Cockpit (Fresh, Visits, Follow-ups) */}
+        {/* Zone 2: Today's Action Command Cockpit (Urgent SLA Triage) */}
         {data && (
           <DashboardActionCockpit
             metrics={data.cards}
@@ -196,7 +284,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         )}
 
         {/* Loading State or Operational Views */}
-        {loading ? (
+        {loading && !data ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={theme.colors.brand700} />
             <Text style={styles.loadingText}>Fetching daily agenda…</Text>
@@ -204,29 +292,24 @@ export const DashboardScreen = ({ navigation }: any) => {
         ) : (
           data && (
             <>
-              {/* Zone 4: Today's Schedule & Actionable Follow-up List */}
+              {/* Zone 3: Today's Schedule & Actionable Agenda */}
               <DashboardTodayAgenda
                 tasks={tasks}
                 industryId={user?.industryId || data.industryId}
+                organizationName={currentOrgName}
                 onViewAll={() => navigation.navigate('Tasks')}
                 onTaskPress={(t) => {
-                  if (t.leadId) {
-                    navigation.navigate('LeadDetail', {
-                      leadId: t.leadId,
-                      id: t.leadId,
-                      lead: { id: t.leadId, name: t.leadName, phone: t.phone, email: t.email, source: t.source },
-                    });
-                  } else {
-                    navigation.navigate('Tasks');
-                  }
+                  setSelectedTaskForDetail(t);
                 }}
                 onCallTask={handleCallTask}
+                onToggleTask={handleToggleTask}
               />
 
-              {/* Zone 5: Fresh Incoming Leads Queue */}
+              {/* Zone 4: Fresh Incoming Leads Queue */}
               <DashboardRecentLeads
                 leads={leads}
                 industryId={user?.industryId || data.industryId}
+                organizationName={currentOrgName}
                 onViewAll={() => navigation.navigate('Leads')}
                 onLeadPress={(l) =>
                   navigation.navigate('LeadDetail', {
@@ -236,6 +319,17 @@ export const DashboardScreen = ({ navigation }: any) => {
                   })
                 }
                 onCallLead={handleCallLead}
+                onAddLead={() => navigation.navigate('LeadForm')}
+              />
+
+              {/* Zone 5: Today's Call Activity Feed */}
+              <DashboardRecentCalls
+                calls={recentCalls}
+                industryId={user?.industryId || data.industryId}
+                organizationName={currentOrgName}
+                onViewAll={() => navigation.navigate('CallLogs')}
+                onRedial={handleCallFromLog}
+                onOpenDialer={() => setDialerModalVisible(true)}
               />
             </>
           )
@@ -244,6 +338,18 @@ export const DashboardScreen = ({ navigation }: any) => {
         {/* Zone 7: Standard App Version Footer */}
         <AppVersionFooter />
       </ScrollView>
+
+      {/* In-App Quick Call Keypad Dialer Modal */}
+      <CallDialerModal
+        visible={dialerModalVisible}
+        onClose={() => setDialerModalVisible(false)}
+        onCallInitiated={(caller) => {
+          setActiveCaller(caller);
+          setTimeout(() => {
+            setPostCallModalVisible(true);
+          }, 1000);
+        }}
+      />
 
       {/* Post-Call Disposition & Logging Modal */}
       <PostCallDispositionModal
@@ -254,8 +360,37 @@ export const DashboardScreen = ({ navigation }: any) => {
         }}
         caller={activeCaller}
         onSuccess={() => {
-          fetchDashboardData();
+          fetchDashboardData(true);
         }}
+      />
+
+      {/* Task Lifecycle Detail Bottom Sheet Modal */}
+      <TaskDetailModal
+        visible={Boolean(selectedTaskForDetail)}
+        task={selectedTaskForDetail}
+        onClose={() => setSelectedTaskForDetail(null)}
+        onRefresh={() => {
+          fetchDashboardData(true);
+        }}
+        onCall={(t) => {
+          handleCallTask(t);
+        }}
+        onEdit={(t) => {
+          setSelectedTaskForDetail(null);
+          navigation.navigate('TaskForm', { task: t });
+        }}
+        onViewLead={(t) => {
+          setSelectedTaskForDetail(null);
+          if (t.leadId) {
+            navigation.navigate('LeadDetail', {
+              leadId: t.leadId,
+              id: t.leadId,
+              lead: { id: t.leadId, name: t.leadName, phone: t.phone, email: t.email, source: t.source },
+            });
+          }
+        }}
+        organizationName={currentOrgName}
+        userName={user?.name || user?.email}
       />
     </View>
   );

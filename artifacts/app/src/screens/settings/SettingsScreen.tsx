@@ -12,12 +12,22 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
 import { subdomainService } from '../../services/subdomainService';
 import { InfoGuideBadge } from '../../components/ui/InfoGuideBadge';
 import { CompanyLogo } from '../../components/ui/CompanyLogo';
 import { theme } from '../../theme/theme';
 
 export const SettingsScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
+  const tenantSlug = React.useMemo(() => {
+    if (user?.organizationName) {
+      const slug = user.organizationName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (slug) return slug;
+    }
+    return user?.organizationId ? `tenant${String(user.organizationId).slice(-4)}` : 'workspace';
+  }, [user]);
+
   const [selectedCurrency, setSelectedCurrency] = useState<'INR' | 'USD' | 'AED' | 'GBP' | 'EUR'>('INR');
   const [customDomainInput, setCustomDomainInput] = useState('');
   const [activeCustomDomain, setActiveCustomDomain] = useState<string | null>(null);
@@ -41,7 +51,7 @@ export const SettingsScreen = ({ navigation }: any) => {
     }
 
     const domain = customDomainInput.trim().toLowerCase();
-    const res = await subdomainService.mapCustomDomain('client1', domain);
+    const res = await subdomainService.mapCustomDomain(tenantSlug, domain);
     setActiveCustomDomain(domain);
 
     Alert.alert(
@@ -96,7 +106,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             <Ionicons name="globe-sharp" size={18} color="#0284C7" />
             <View style={{ flex: 1 }}>
               <Text style={styles.subdomainLabel}>Active Default Subdomain:</Text>
-              <Text style={styles.subdomainUrlText}>https://client1.leadsrubix.com</Text>
+              <Text style={styles.subdomainUrlText}>https://{tenantSlug}.leadsrubix.com</Text>
             </View>
             <View style={styles.activeBadgePill}>
               <Text style={styles.activeBadgeText}>ACTIVE</Text>
@@ -123,7 +133,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             <View style={styles.mappedDomainNotice}>
               <Ionicons name="checkmark-circle-sharp" size={16} color="#059669" />
               <Text style={styles.mappedDomainText}>
-                CNAME target issued for <Text style={{ fontWeight: '700' }}>{activeCustomDomain}</Text>. Point CNAME to <Text style={{ fontWeight: '700' }}>client1.leadsrubix.com</Text>.
+                CNAME target issued for <Text style={{ fontWeight: '700' }}>{activeCustomDomain}</Text>. Point CNAME to <Text style={{ fontWeight: '700' }}>{tenantSlug}.leadsrubix.com</Text>.
               </Text>
             </View>
           )}
