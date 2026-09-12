@@ -209,9 +209,9 @@ export default function InquiriesListPage() {
     },
     {
       field: 'urgency',
-      headerName: 'SLA / URGENCY',
-      width: 115,
-      minWidth: 115,
+      headerName: 'SLA STATUS',
+      width: 135,
+      minWidth: 135,
       renderCell: (params) => {
         const row = params.row
         const created = row.createdAt || row.created_at
@@ -283,8 +283,22 @@ export default function InquiriesListPage() {
       field: 'project_name',
       headerName: 'PROJECT / REQ',
       flex: 1.1,
-      minWidth: 135,
-      valueGetter: (_, row) => row.project_name || row.projectName || row.propertyType || '—',
+      minWidth: 140,
+      renderCell: (params) => {
+        const raw = params.row.project_name || params.row.projectName || params.row.propertyType
+        if (!raw || String(raw).trim().toLowerCase() === 'test') {
+          return (
+            <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.secondary', fontStyle: 'italic' }}>
+              General Inquiry
+            </Typography>
+          )
+        }
+        return (
+          <Typography variant="body2" sx={{ fontSize: '0.8125rem', fontWeight: 500 }} noWrap>
+            {raw}
+          </Typography>
+        )
+      },
     },
     {
       field: 'source',
@@ -338,8 +352,8 @@ export default function InquiriesListPage() {
     {
       field: 'actions',
       headerName: 'FAST ACTIONS',
-      width: 235,
-      minWidth: 235,
+      width: 265,
+      minWidth: 265,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -347,7 +361,7 @@ export default function InquiriesListPage() {
         const row = params.row
         const id = row._id || row.id
         return (
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: '100%' }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ height: '100%' }}>
             <Tooltip title="Log phone conversation outcome">
               <Button
                 size="small"

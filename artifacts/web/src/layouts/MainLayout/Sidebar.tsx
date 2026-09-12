@@ -192,7 +192,9 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   } as const
 
   // ── Descriptions Map ───────────────────────────────────────────────────────
-  const activeIndustry = String(user?.industryId || '').toLowerCase().trim();
+  const activeIndustry = user?.role === 'superAdmin'
+    ? 'temp0001'
+    : (String(user?.industryId || (user as any)?.industry_id || (user as any)?.industryCode || '').toLowerCase().trim() || 'temp0001');
 
   const getMenuDescriptions = (indCode: string): Record<string, string> => {
     // Shared keys across all industries

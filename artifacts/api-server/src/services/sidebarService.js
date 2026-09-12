@@ -9,7 +9,7 @@ const permModel = require('../models/sidebarPermissionModel');
 const INDUSTRY_MENU_OVERRIDES = {
   temp0001: {
     'analytics': 'Dashboard',
-    'leads': 'Leads',
+    'leads': 'Leads & Inquiries',
     'leads.inquiries': 'Inbound Inquiries',
     'leads.contact': 'Leads & Contacts',
     'leads.tasks': 'Tasks & Follow-ups',
@@ -386,15 +386,38 @@ async function resolveSidebar({ industryCode, roleKey, industry_code, role_key, 
         typeof orderOverride === 'number'
           ? orderOverride
           : (typeof m.order === 'number' ? m.order : 999);
-      let translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : m.name;
+      let translatedName = industryOverrides[m.key] || m.name;
       let iconKey = m.icon || '';
+
+      // Sector-Aware Nomenclature for Leads / Inquiries
+      if (m.key === 'leads') {
+        if (indCode === 'temp0004') {
+          translatedName = 'Students & Admissions';
+        } else if (indCode === 'temp0003') {
+          translatedName = 'Patients & Inquiries';
+        } else if (indCode === 'temp0002') {
+          translatedName = 'Customers & Inquiries';
+        } else if (indCode === 'temp0005') {
+          translatedName = 'Clients & Portfolios';
+        } else if (indCode === 'temp0006') {
+          translatedName = 'Accounts & Inquiries';
+        } else if (indCode === 'temp0007') {
+          translatedName = 'Dealers & Orders';
+        } else {
+          translatedName = 'Leads & Inquiries';
+        }
+      } else if (m.key === 'leads.contact') {
+        if (indCode !== 'temp0004' && String(translatedName).toLowerCase().includes('student')) {
+          translatedName = 'Leads & Contacts';
+        }
+      }
 
       // Standard Default Nomenclature across all roles
       if (m.key === 'analytics' || m.route === '/analytics' || m.route === '/dashboard') {
-        translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : 'Dashboard';
+        translatedName = industryOverrides[m.key] || 'Dashboard';
         iconKey = 'dashboard';
       } else if (m.key === 'uiNavigation.analyticsConfig' || m.key === 'configuration.analyticsConfig') {
-        translatedName = (key !== 'superAdmin' && industryOverrides[m.key]) ? industryOverrides[m.key] : 'Dashboard Layout Builder';
+        translatedName = industryOverrides[m.key] || 'Dashboard Layout Builder';
       }
 
       return {

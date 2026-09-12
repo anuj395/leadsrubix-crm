@@ -28,6 +28,7 @@ import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { MenuScreen } from '../screens/menu/MenuScreen';
 import { UpdatePasswordScreen } from '../screens/account/UpdatePasswordScreen';
 import { DealsScreen } from '../screens/deals/DealsScreen';
+import { SplashScreen } from '../screens/splash/SplashScreen';
 import { pushNotificationService } from '../services/pushNotificationService';
 
 type ScreenName =
@@ -55,13 +56,20 @@ export const AppNavigator = () => {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, Platform.select({ ios: 16, android: 12, default: 8 }));
 
-  // Navigation stack & route state (Initial Screen: Dashboard)
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Dashboard');
   const [navStack, setNavStack] = useState<Array<{ screen: ScreenName; params?: any }>>([{ screen: 'Dashboard', params: {} }]);
   const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');
   const [routeParams, setRouteParams] = useState<any>({});
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
+  const [isSplashVisible, setIsSplashVisible] = useState<boolean>(true);
+  const [splashTimerDone, setSplashTimerDone] = useState<boolean>(false);
   const focusListeners = React.useRef<Set<() => void>>(new Set());
+
+  useEffect(() => {
+    if (splashTimerDone && !isLoading && hasSeenOnboarding !== null) {
+      setIsSplashVisible(false);
+    }
+  }, [splashTimerDone, isLoading, hasSeenOnboarding]);
 
   useEffect(() => {
     focusListeners.current.forEach((cb) => {
@@ -135,14 +143,12 @@ export const AppNavigator = () => {
     return () => subscription.remove();
   }, [token, authScreen, navStack, currentScreen]);
 
-  if (isLoading || hasSeenOnboarding === null) {
+  if (isSplashVisible || isLoading || hasSeenOnboarding === null) {
     return (
-      <View style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#1A1C30" />
-        <CompanyLogo variant="white" height={44} />
-        <ActivityIndicator color="#60A5FA" size="small" style={{ marginTop: 24 }} />
-        <Text style={styles.loadingSubtext}>POWERING CRM ENGINE...</Text>
-      </View>
+      <SplashScreen
+        minDurationMs={1800}
+        onFinish={() => setSplashTimerDone(true)}
+      />
     );
   }
 
