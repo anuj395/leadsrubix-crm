@@ -260,13 +260,13 @@ export default function NotificationHubPage() {
   });
   const [emailConfig, setEmailConfig] = useState<any>({
     useCustomSmtp: false,
-    smtpHost: 'smtp.gmail.com',
-    smtpPort: 465,
+    smtpHost: 'email-smtp.ap-south-1.amazonaws.com',
+    smtpPort: 587,
     smtpUser: '',
     smtpPass: '',
-    fromEmail: 'noreply@crm.leadsrubix.com',
-    fromName: 'LeadsRubix CRM',
-    security: 'SSL',
+    fromEmail: 'info@leadsrubix.com',
+    fromName: 'Leads Rubix CRM',
+    security: 'TLS',
     isActive: true,
     hasConfiguredPassword: false,
   });
@@ -437,15 +437,16 @@ export default function NotificationHubPage() {
       if (resEmail.status === 'fulfilled' && resEmail.value?.data) {
         const d = resEmail.value.data;
         const s = d.smtpConfig || {};
+        const portVal = Number(s.smtpPort) || 587;
         setEmailConfig({
           useCustomSmtp: Boolean(s.useCustomSmtp),
-          smtpHost: s.smtpHost || 'smtp.gmail.com',
-          smtpPort: s.smtpPort || 465,
+          smtpHost: s.smtpHost || 'email-smtp.ap-south-1.amazonaws.com',
+          smtpPort: portVal,
           smtpUser: s.smtpUser || '',
           smtpPass: s.smtpPass || '',
-          fromEmail: s.fromEmail || 'noreply@crm.leadsrubix.com',
-          fromName: s.fromName || 'LeadsRubix CRM',
-          security: s.security || 'SSL',
+          fromEmail: s.fromEmail || 'info@leadsrubix.com',
+          fromName: s.fromName || 'Leads Rubix CRM',
+          security: s.security || (portVal === 465 ? 'SSL' : 'TLS'),
           isActive: s.useCustomSmtp !== false,
           hasConfiguredPassword: Boolean(s.hasConfiguredPassword || s.smtpPass),
         });
@@ -767,13 +768,13 @@ export default function NotificationHubPage() {
       const payload = {
         smtpConfig: {
           useCustomSmtp: Boolean(emailConfig.isActive),
-          smtpHost: emailConfig.smtpHost?.trim() || '',
-          smtpPort: Number(emailConfig.smtpPort) || 465,
+          smtpHost: emailConfig.smtpHost?.trim() || 'email-smtp.ap-south-1.amazonaws.com',
+          smtpPort: Number(emailConfig.smtpPort) || 587,
           smtpUser: emailConfig.smtpUser?.trim() || '',
           smtpPass: emailConfig.smtpPass || '',
-          fromEmail: emailConfig.fromEmail?.trim() || '',
-          fromName: emailConfig.fromName?.trim() || '',
-          security: emailConfig.security || 'SSL'
+          fromEmail: emailConfig.fromEmail?.trim() || 'info@leadsrubix.com',
+          fromName: emailConfig.fromName?.trim() || 'Leads Rubix CRM',
+          security: Number(emailConfig.smtpPort) === 465 ? 'SSL' : 'TLS'
         }
       };
       const res = await api.post('/organizations/email-settings', payload);
@@ -825,9 +826,10 @@ export default function NotificationHubPage() {
         eventKey: testEventKey
       });
       setTestResult(res);
+      const provInfo = res?.provider ? ` [Engine: ${res.provider}]` : '';
       setSnackbar({
         open: true,
-        message: `Diagnostic test message sent via ${testChannel.toUpperCase()} successfully!`,
+        message: `Diagnostic test message sent via ${testChannel.toUpperCase()}${provInfo} successfully!`,
         severity: 'success'
       });
       loadLogs();
@@ -2702,7 +2704,14 @@ export default function NotificationHubPage() {
                       label="Port"
                       type="number"
                       value={emailConfig.smtpPort}
-                      onChange={(e) => setEmailConfig({ ...emailConfig, smtpPort: e.target.value })}
+                      onChange={(e) => {
+                        const p = e.target.value;
+                        setEmailConfig({
+                          ...emailConfig,
+                          smtpPort: p,
+                          security: Number(p) === 465 ? 'SSL' : 'TLS'
+                        });
+                      }}
                       placeholder="465 or 587"
                     />
                   </Grid>
