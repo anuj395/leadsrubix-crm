@@ -519,43 +519,50 @@ function replaceTemplateVariables(templateStr, dataMap = {}) {
 
 /**
  * Dynamically resolves the Nodemailer transporter for an organization.
- * If the organization has configured a custom SMTP, uses that; otherwise falls back to system CRM SMTP.
+ * If the organization has configured a custom SMTP, uses that; otherwise falls back to system CRM SMTP (AWS SES).
  */
 async function getTransporterForOrganization(organizationId) {
-  if (!organizationId) {
-    return {
-      transporter,
-      fromAddress: `"Leads Rubix CRM" <${config.smtpUser}>`,
-      fromName: 'Leads Rubix CRM',
-      fromEmail: config.smtpUser
-    };
-  }
-
   try {
     const mongoose = require('mongoose');
     const Organization = mongoose.model('Organization');
-    const org = await Organization.findOne({
-      $or: [
-        { _id: mongoose.Types.ObjectId.isValid(organizationId) ? organizationId : null },
-        { organization_id: organizationId },
-        { organizationId: organizationId }
-      ]
-    }).lean().exec();
+
+    let org = null;
+    if (organizationId) {
+      const isObjectId = mongoose.Types.ObjectId.isValid(organizationId);
+      const orgQuery = isObjectId
+        ? { $or: [{ organization_id: organizationId }, { organizationId: organizationId }, { _id: organizationId }] }
+        : { $or: [{ organization_id: organizationId }, { organizationId: organizationId }] };
+      org = await Organization.findOne(orgQuery).lean().exec();
+    } else {
+      // For Super Admin / Platform Master context, check if an organization has active custom gateway
+      org = await Organization.findOne({
+        $or: [
+          { 'smtpConfig.useCustomSmtp': true },
+          { 'smtp_config.useCustomSmtp': true },
+          { 'smtp_config.use_custom_smtp': true }
+        ]
+      }).lean().exec();
+      if (!org) {
+        org = await Organization.findOne().lean().exec();
+      }
+    }
 
     const smtpConfig = org?.smtpConfig || org?.smtp_config;
     const useCustom = smtpConfig?.useCustomSmtp || smtpConfig?.use_custom_smtp;
     const host = smtpConfig?.smtpHost || smtpConfig?.smtp_host;
-    const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 465;
+    const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 587;
     const user = smtpConfig?.smtpUser || smtpConfig?.smtp_user;
     const pass = smtpConfig?.smtpPass || smtpConfig?.smtp_pass;
-    const fromEmail = smtpConfig?.fromEmail || smtpConfig?.from_email || user || config.smtpUser;
-    const fromName = smtpConfig?.fromName || smtpConfig?.from_name || org?.organization_name || 'Leads Rubix CRM';
+    const fallbackSender = config.defaultSenderEmail || config.smtpUser || 'info@leadsrubix.com';
+    const fromEmail = smtpConfig?.fromEmail || smtpConfig?.from_email || user || fallbackSender;
+    const fromName = smtpConfig?.fromName || smtpConfig?.from_name || org?.organization_name || config.defaultSenderName || 'Leads Rubix CRM';
 
     if (useCustom && host && user && pass) {
+      const isPort465 = port === 465;
       const customTransporter = nodemailer.createTransport({
         host,
         port,
-        secure: port === 465 || smtpConfig?.security === 'SSL',
+        secure: isPort465, // Port 587 strictly uses STARTTLS (secure: false)
         auth: { user, pass },
         tls: { rejectUnauthorized: false }
       });
@@ -565,18 +572,22 @@ async function getTransporterForOrganization(organizationId) {
         fromAddress: `"${fromName}" <${fromEmail}>`,
         fromName,
         fromEmail,
+        isCustom: true,
         templates: org?.emailTemplates || org?.email_templates || []
       };
     }
   } catch (err) {
-    console.error(`[mailer] Failed to load custom SMTP for org ${organizationId}:`, err.message);
+    console.error(`[mailer] Failed to load custom SMTP for org ${organizationId || 'platform'}:`, err.message);
   }
 
+  const defaultFromEmail = config.defaultSenderEmail || config.smtpUser || 'info@leadsrubix.com';
+  const defaultFromName = config.defaultSenderName || 'Leads Rubix CRM';
   return {
     transporter,
-    fromAddress: `"Leads Rubix CRM" <${config.smtpUser}>`,
-    fromName: 'Leads Rubix CRM',
-    fromEmail: config.smtpUser,
+    fromAddress: `"${defaultFromName}" <${defaultFromEmail}>`,
+    fromName: defaultFromName,
+    fromEmail: defaultFromEmail,
+    isCustom: false,
     templates: []
   };
 }
@@ -586,43 +597,62 @@ async function getTransporterForOrganization(organizationId) {
  */
 async function testSmtpConnection(smtpConfig, recipientEmail) {
   const host = smtpConfig?.smtpHost || smtpConfig?.smtp_host;
-  const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 465;
+  const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 587;
   const user = smtpConfig?.smtpUser || smtpConfig?.smtp_user;
   const pass = smtpConfig?.smtpPass || smtpConfig?.smtp_pass;
-  const fromEmail = smtpConfig?.fromEmail || smtpConfig?.from_email || user;
-  const fromName = smtpConfig?.fromName || smtpConfig?.from_name || 'Workspace Test';
+  const fromEmail = smtpConfig?.fromEmail || smtpConfig?.from_email || user || config.defaultSenderEmail || 'info@leadsrubix.com';
+  const fromName = smtpConfig?.fromName || smtpConfig?.from_name || 'Leads Rubix CRM';
 
   if (!host || !user || !pass) {
     throw new Error('SMTP host, username, and password are required for connection test.');
   }
 
+  const isPort465 = port === 465;
   const testTransporter = nodemailer.createTransport({
     host,
     port,
-    secure: port === 465 || smtpConfig?.security === 'SSL',
+    secure: isPort465, // Port 587 strictly uses STARTTLS (secure: false)
     auth: { user, pass },
     tls: { rejectUnauthorized: false }
   });
 
-  // Verify connection configuration
+  // Verify connection configuration live
   await testTransporter.verify();
 
+  let messageId = null;
   if (recipientEmail) {
-    await testTransporter.sendMail({
+    const isAwsSes = String(host).includes('amazonaws.com');
+    const info = await testTransporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to: recipientEmail,
-      subject: 'SMTP Connection Test - Leads Rubix CRM',
+      subject: `🚀 Leads Rubix CRM ${isAwsSes ? 'Amazon SES' : 'SMTP'} Gateway Test`,
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f9; border-radius: 8px;">
-          <h2 style="color: #272944;">SMTP Connection Successful!</h2>
-          <p>Your custom workspace SMTP server (<strong>${host}:${port}</strong>) is configured correctly and verified live.</p>
-          <p style="color: #6b7280; font-size: 12px;">Sent via Leads Rubix CRM Workspace Email Settings.</p>
+        <div style="font-family: Arial, sans-serif; padding: 24px; background-color: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #0f172a; margin: 0; font-size: 22px;">Gateway Connection Verified!</h2>
+            <p style="color: #10b981; font-weight: 700; margin: 6px 0 0 0;">Outbound Engine Operational</p>
+          </div>
+          <div style="background-color: #ffffff; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+            <p style="margin: 4px 0; color: #334155; font-size: 14px;"><strong>Host:</strong> ${host}</p>
+            <p style="margin: 4px 0; color: #334155; font-size: 14px;"><strong>Port:</strong> ${port} (${isPort465 ? 'SSL/SMTPS' : 'STARTTLS'})</p>
+            <p style="margin: 4px 0; color: #334155; font-size: 14px;"><strong>Sender:</strong> "${fromName}" &lt;${fromEmail}&gt;</p>
+            <p style="margin: 4px 0; color: #334155; font-size: 14px;"><strong>Engine:</strong> ${isAwsSes ? 'Amazon SES (ap-south-1)' : 'Custom Dedicated SMTP'}</p>
+          </div>
+          <p style="color: #64748b; font-size: 12px; text-align: center; margin: 0;">Dispatched in real-time by Leads Rubix CRM Omnichannel Gateway Engine.</p>
         </div>
       `
     });
+    messageId = info?.messageId || null;
   }
 
-  return { success: true, message: `SMTP connection to ${host}:${port} verified successfully.` };
+  return {
+    success: true,
+    message: `SMTP connection to ${host}:${port} verified successfully!`,
+    messageId,
+    host,
+    port,
+    sender: fromEmail
+  };
 }
 
 /**
@@ -631,14 +661,18 @@ async function testSmtpConnection(smtpConfig, recipientEmail) {
 async function sendDynamicEmail({ toEmail, subject, htmlContent, organizationId }) {
   if (!toEmail) return { success: false, error: 'Recipient email required' };
   try {
-    const { transporter: activeTransporter, fromAddress } = await getTransporterForOrganization(organizationId);
+    const { transporter: activeTransporter, fromAddress, isCustom } = await getTransporterForOrganization(organizationId);
     const info = await activeTransporter.sendMail({
       from: fromAddress,
       to: toEmail,
       subject: subject || 'Leads Rubix CRM Notification',
       html: htmlContent
     });
-    return { success: true, messageId: info?.messageId || '' };
+    return {
+      success: true,
+      messageId: info?.messageId || '',
+      provider: isCustom ? 'CUSTOM_SMTP' : 'AWS_SES'
+    };
   } catch (err) {
     console.error(`[mailer] Failed to send dynamic email to ${toEmail}:`, err.message);
     return { success: false, error: err.message };

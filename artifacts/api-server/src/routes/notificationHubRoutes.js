@@ -810,13 +810,17 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
 
     const whatsappService = require('../services/whatsappService');
     const mailer = require('../utils/mailer');
+    const awsSnsService = require('../services/awsSnsService');
     const NotificationLog = mongoose.model('NotificationLog');
 
     const testMessage = messageContent || `🚀 Leads Rubix CRM Diagnostic Test: Omnichannel Notification Engine is fully operational for ${channel.toUpperCase()}!`;
     let status = 'SUCCESS';
     let errorMessage = '';
+    let providerName = 'system_platform';
+    let messageId = '';
 
     if (channel === 'whatsapp') {
+      providerName = 'whatsapp_gateway';
       const waRes = await whatsappService.sendDirectWhatsAppMessage({
         organizationId: orgId,
         phone: recipientTarget,
@@ -836,9 +840,29 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
         htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px;"><p>${testMessage}</p></div>`,
         organizationId: orgId
       });
+      providerName = emailRes?.provider || 'AWS_SES';
+      messageId = emailRes?.messageId || '';
       if (!emailRes || emailRes.success === false) {
         status = 'FAILED';
         errorMessage = emailRes?.error || 'Email diagnostic failed';
+      }
+    } else if (channel === 'push') {
+      const isArn = String(recipientTarget).startsWith('arn:aws:sns:');
+      providerName = isArn ? 'AWS_SNS' : 'EXPO_PUSH_RELAY';
+      const pushRes = await awsSnsService.sendPushNotification({
+        token: isArn ? null : recipientTarget,
+        endpointArn: isArn ? recipientTarget : null,
+        title: '🎯 Leads Rubix CRM Mobile Alert',
+        message: testMessage,
+        data: {
+          eventKey: eventKey || 'test.diagnostic',
+          type: 'diagnostic_test'
+        }
+      });
+      messageId = pushRes?.messageId || pushRes?.expo?.id || `push-${Date.now()}`;
+      if (!pushRes || pushRes.success === false) {
+        status = 'FAILED';
+        errorMessage = pushRes?.error || 'Mobile push diagnostic failed';
       }
     }
 
@@ -850,7 +874,7 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       recipient_name: recipientName || 'Diagnostic Tester',
       recipient_id: req.user?.id ? String(req.user.id) : null,
       recipient_target: recipientTarget,
-      provider: channel === 'whatsapp' ? 'whatsapp_gateway' : 'smtp',
+      provider: providerName,
       is_universal: true,
       status,
       title: 'Diagnostic Test',
@@ -860,13 +884,15 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
     }).catch(() => {});
 
     if (status === 'FAILED') {
-      return res.status(500).json({ success: false, message: errorMessage, error: errorMessage });
+      return res.status(500).json({ success: false, message: errorMessage, error: errorMessage, provider: providerName });
     }
 
     return res.json({
       success: true,
       message: `Diagnostic test message sent successfully via ${channel.toUpperCase()}!`,
       status,
+      provider: providerName,
+      messageId,
       recipient: recipientTarget
     });
   } catch (err) {
