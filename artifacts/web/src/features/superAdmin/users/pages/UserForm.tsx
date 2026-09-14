@@ -485,7 +485,7 @@ export default function UserFormPage() {
           ) : (
             <DynamicForm
               screen="users"
-              industryCode={isSuperAdmin ? core.industryId : undefined}
+              industryCode={isSuperAdmin ? core.industryId : (authedUser?.industryId || (authedUser as any)?.industry_code)}
               roleKey={isSuperAdmin ? selectedRole : authedUser?.role}
               organizationId={isSuperAdmin ? core.organizationId : (authedUser as any)?.organizationId}
               initialValues={dynamicValues as Record<string, string | number | boolean | null>}

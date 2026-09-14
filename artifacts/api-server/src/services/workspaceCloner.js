@@ -244,6 +244,7 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
   }
 
   // 9. Auto-provision Baseline Team, Branch, and Designations
+  const canonicalIndustryCode = industryDoc?.code || String(industryDbId);
   const existingTeam = await Team.findOne({
     $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
   });
@@ -252,7 +253,7 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     const teamCode = industryDoc?.default_team_code || 'GST';
     await Team.create({
       organization_id: organizationId,
-      industry_id: String(industryDbId),
+      industry_id: canonicalIndustryCode,
       teams: [
         { name: teamName, code: teamCode, is_active: true }
       ]
@@ -267,7 +268,7 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     const branchCode = industryDoc?.default_branch_code || 'HQ';
     await Branch.create({
       organization_id: organizationId,
-      industry_id: String(industryDbId),
+      industry_id: canonicalIndustryCode,
       branches: [
         { name: branchName, code: branchCode, is_active: true }
       ]
@@ -294,7 +295,7 @@ exports.cloneWorkspace = async (organizationId, workspaceId, industryId) => {
     });
     await Designation.create({
       organization_id: organizationId,
-      industry_id: String(industryDbId),
+      industry_id: canonicalIndustryCode,
       designations: designationsList
     });
   }

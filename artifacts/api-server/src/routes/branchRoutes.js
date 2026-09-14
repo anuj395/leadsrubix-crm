@@ -13,12 +13,30 @@ router.get('/', authenticate, async (req, res) => {
     const industryId = isSuperAdmin(req.user) ? req.query.industryId : req.user?.industryId;
     const organizationId = isSuperAdmin(req.user) ? req.query.organizationId : req.user?.organizationId;
 
-    const query = {};
-    if (industryId) query.industry_id = industryId;
-    if (organizationId) query.organization_id = organizationId;
+    let query = {};
+    if (organizationId) {
+      query.organization_id = organizationId;
+    } else if (industryId) {
+      query.industry_id = industryId;
+      query.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
+    }
 
-    const doc = await Branch.findOne(query).exec();
-    const items = doc ? doc.branches.map(b => ({ ...b.toObject(), id: b._id })) : [];
+    const docs = await Branch.find(query).sort({ updatedAt: -1 }).exec();
+    const seen = new Set();
+    const items = [];
+    for (const doc of docs) {
+      if (doc && Array.isArray(doc.branches)) {
+        for (const b of doc.branches) {
+          const idStr = String(b._id);
+          const nameStr = (b.name || '').toLowerCase().trim();
+          if (!seen.has(idStr) && !seen.has(nameStr)) {
+            seen.add(idStr);
+            seen.add(nameStr);
+            items.push({ ...b.toObject(), id: b._id });
+          }
+        }
+      }
+    }
     res.json({ items, total: items.length });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch branches' });
@@ -50,20 +68,24 @@ router.post('/', authenticate, async (req, res) => {
     const industryId = isSuperAdmin(req.user) ? req.body.industryId || req.user?.industryId : req.user?.industryId;
     const organizationId = isSuperAdmin(req.user) ? req.body.organizationId || req.user?.organizationId : req.user?.organizationId;
 
-    const query = {};
-    if (industryId) query.industry_id = industryId;
-    if (organizationId) query.organization_id = organizationId;
+    let doc = null;
+    if (organizationId) {
+      doc = await Branch.findOne({ organization_id: organizationId }).sort({ updatedAt: -1 });
+    } else if (industryId) {
+      doc = await Branch.findOne({ industry_id: industryId, organization_id: null });
+    }
 
-    let doc = await Branch.findOne(query);
     if (!doc) {
       doc = await Branch.create({
         industry_id: industryId,
         organization_id: organizationId,
         branches: []
       });
+    } else if (industryId && doc.industry_id !== industryId) {
+      doc.industry_id = industryId;
     }
 
-    doc.branches.push({ name, code, isActive: isActive !== false });
+    doc.branches.push({ name, code: code || '', isActive: isActive !== false, is_active: isActive !== false });
     await doc.save();
 
     const created = doc.branches[doc.branches.length - 1];

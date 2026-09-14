@@ -15,17 +15,72 @@ async function resolveTenantList(Model, arrayKey, targetIndustry, targetOrganiza
   }
   if (targetIndustry) {
     const Industry = mongoose.model('Industry');
-    const ind = await Industry.findOne({ $or: [{ _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null }, { code: targetIndustry }] }).lean().exec();
+    const ind = await Industry.findOne({
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null },
+        { code: targetIndustry }
+      ]
+    }).lean().exec();
     if (ind) {
-      query.industry_id = { $in: [String(ind._id), ind.code] };
+      if (targetOrganization) {
+        query.$or = [
+          { industry_id: { $in: [String(ind._id), ind.code] } },
+          { industry_id: null },
+          { industry_id: { $exists: false } }
+        ];
+      } else {
+        query.industry_id = { $in: [String(ind._id), ind.code] };
+      }
     } else {
-      query.industry_id = targetIndustry;
+      if (targetOrganization) {
+        query.$or = [
+          { industry_id: targetIndustry },
+          { industry_id: null },
+          { industry_id: { $exists: false } }
+        ];
+      } else {
+        query.industry_id = targetIndustry;
+      }
     }
   }
-  
-  let doc = await Model.findOne(query).lean().exec();
-  const raw = doc ? doc[arrayKey] || [] : [];
-  return raw.filter(item => item.isActive !== false && item.is_active !== false);
+
+  let docs = await Model.find(query).sort({ updatedAt: -1 }).lean().exec();
+
+  if (docs.length === 0 && targetOrganization) {
+    // Defensive fallback: If tenant has no custom setup yet, load industry baseline defaults
+    let fallbackQuery = { $or: [{ organization_id: null }, { organization_id: { $exists: false } }] };
+    if (targetIndustry) {
+      const Industry = mongoose.model('Industry');
+      const ind = await Industry.findOne({
+        $or: [
+          { _id: mongoose.Types.ObjectId.isValid(targetIndustry) ? targetIndustry : null },
+          { code: targetIndustry }
+        ]
+      }).lean().exec();
+      if (ind) fallbackQuery.industry_id = { $in: [String(ind._id), ind.code] };
+      else fallbackQuery.industry_id = targetIndustry;
+    }
+    const fallbackDocs = await Model.find(fallbackQuery).sort({ updatedAt: -1 }).lean().exec();
+    if (fallbackDocs.length > 0) {
+      docs = fallbackDocs;
+    }
+  }
+
+  const seenKeys = new Set();
+  const mergedItems = [];
+
+  for (const doc of docs) {
+    const rawList = doc ? (doc[arrayKey] || []) : [];
+    for (const item of rawList) {
+      if (item.isActive === false || item.is_active === false) continue;
+      const dedupeKey = (item.name || item.value || item.label || '').toLowerCase().trim();
+      if (!dedupeKey || seenKeys.has(dedupeKey)) continue;
+      seenKeys.add(dedupeKey);
+      mergedItems.push(item);
+    }
+  }
+
+  return mergedItems;
 }
 
 /**
@@ -470,15 +525,13 @@ router.get('/:key', (req, res, next) => {
   if (key === 'teams') {
     try {
       const Team = mongoose.model('Team');
-      const targetIndustry = req.user?.role === 'superAdmin'
-        ? (req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId)
-        : req.user?.industryId;
+      const targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
       
       const targetOrganization = req.user?.role === 'superAdmin'
         ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
-        : (req.user?.organizationId || req.user?.organization_id);
+        : (req.user?.organizationId || req.user?.organization_id || req.query.organizationId);
 
-      if (!targetIndustry && req.user?.role === 'superAdmin' && req.query.organizationId) {
+      if (!targetIndustry && req.query.organizationId) {
         const Organization = mongoose.model('Organization');
         const org = await Organization.findOne({
           $or: [
@@ -504,15 +557,13 @@ router.get('/:key', (req, res, next) => {
   if (key === 'branches') {
     try {
       const Branch = mongoose.model('Branch');
-      const targetIndustry = req.user?.role === 'superAdmin'
-        ? (req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId)
-        : req.user?.industryId;
+      const targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
 
       const targetOrganization = req.user?.role === 'superAdmin'
         ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
-        : (req.user?.organizationId || req.user?.organization_id);
+        : (req.user?.organizationId || req.user?.organization_id || req.query.organizationId);
 
-      if (!targetIndustry && req.user?.role === 'superAdmin' && req.query.organizationId) {
+      if (!targetIndustry && req.query.organizationId) {
         const Organization = mongoose.model('Organization');
         const org = await Organization.findOne({
           $or: [
@@ -538,15 +589,13 @@ router.get('/:key', (req, res, next) => {
   if (key === 'designations') {
     try {
       const Designation = mongoose.model('Designation');
-      const targetIndustry = req.user?.role === 'superAdmin'
-        ? (req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId)
-        : req.user?.industryId;
+      const targetIndustry = req.query.industryId || req.query.industry_code || req.body?.industryId || req.body?.industry_code || req.user?.industryId;
 
       const targetOrganization = req.user?.role === 'superAdmin'
         ? (req.query.organizationId || req.user?.organizationId || req.user?.organization_id)
-        : (req.user?.organizationId || req.user?.organization_id);
+        : (req.user?.organizationId || req.user?.organization_id || req.query.organizationId);
 
-      if (!targetIndustry && req.user?.role === 'superAdmin' && req.query.organizationId) {
+      if (!targetIndustry && req.query.organizationId) {
         const Organization = mongoose.model('Organization');
         const org = await Organization.findOne({
           $or: [
