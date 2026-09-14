@@ -1,19 +1,36 @@
 const nodemailer = require('nodemailer');
 const config = require('../config');
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: config.smtpHost,
-  port: config.smtpPort,
-  secure: config.smtpPort === 465, // true for 465, false for other ports
+// Primary Gateway: AWS SES Transporter (ap-south-1)
+const awsSesTransporter = nodemailer.createTransport({
+  host: config.awsSesSmtpHost || config.smtpHost,
+  port: config.awsSesSmtpPort || config.smtpPort,
+  secure: (config.awsSesSmtpPort || config.smtpPort) === 465, // false for 587 STARTTLS
   auth: {
-    user: config.smtpUser,
-    pass: config.smtpPass,
+    user: config.awsSesSmtpUser || config.smtpUser,
+    pass: config.awsSesSmtpPass || config.smtpPass,
   },
   tls: {
     rejectUnauthorized: false,
   },
 });
+
+// Secondary Gateway: Google Workspace SMTP Transporter (Auto-Failover)
+const googleTransporter = nodemailer.createTransport({
+  host: config.googleSmtpHost || 'smtp.gmail.com',
+  port: config.googleSmtpPort || 465,
+  secure: (config.googleSmtpPort || 465) === 465, // true for 465 SSL
+  auth: {
+    user: config.googleSmtpUser || 'info@leadsrubix.com',
+    pass: config.googleSmtpPass || 'jucupgkwmniheujp',
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
+// Backwards-compatible primary transporter export
+const transporter = awsSesTransporter;
 
 /**
  * Send login credentials to a newly created organization user.
@@ -125,8 +142,18 @@ Temp Password: ${tempPassword}
       triggerAction: 'user_created'
     }).catch(() => null);
 
-    await transporter.sendMail(mailOptions);
-    console.log(`[mailer] Account credentials email sent successfully to ${emailAddress}`);
+    const dispatchRes = await sendWithDualEngineFailover({
+      to: emailAddress,
+      from: mailOptions.from,
+      subject: mailOptions.subject,
+      html: htmlContent,
+      organizationId: null
+    });
+
+    if (!dispatchRes.success) {
+      throw new Error(dispatchRes.error || 'Credentials dispatch failed');
+    }
+    console.log(`[mailer] Account credentials email delivered to ${emailAddress} via ${dispatchRes.provider}`);
   } catch (error) {
     console.error(`[mailer] Error sending credentials email to ${emailAddress}:`, error);
   }
@@ -180,8 +207,18 @@ async function sendResetPasswordEmail({ emailAddress, resetLink }) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`[mailer] Password reset email sent successfully to ${emailAddress}`);
+    const dispatchRes = await sendWithDualEngineFailover({
+      to: emailAddress,
+      from: mailOptions.from,
+      subject: mailOptions.subject,
+      html: htmlContent,
+      organizationId: null
+    });
+
+    if (!dispatchRes.success) {
+      throw new Error(dispatchRes.error || 'Password reset dispatch failed');
+    }
+    console.log(`[mailer] Password reset email delivered to ${emailAddress} via ${dispatchRes.provider}`);
   } catch (error) {
     console.error(`[mailer] Error sending password reset email to ${emailAddress}:`, error);
     throw error;
@@ -656,31 +693,123 @@ async function testSmtpConnection(smtpConfig, recipientEmail) {
 }
 
 /**
- * Sends a dynamic HTML email resolving custom or system SMTP transporter.
+ * Enterprise Dual-Engine Outbound Email Dispatcher:
+ * 1. Checks for workspace custom SMTP if organizationId is present.
+ * 2. 1st Priority (Primary Gateway): AWS SES Transporter (ap-south-1)
+ * 3. 2nd Priority (Auto-Failover Gateway): Google Workspace SMTP Transporter
+ *
+ * @param {Object} options
+ * @param {string} options.to - Recipient email
+ * @param {string} [options.from] - Custom from address
+ * @param {string} options.subject - Email subject
+ * @param {string} [options.html] - HTML body
+ * @param {string} [options.text] - Plain text body
+ * @param {Array}  [options.attachments] - Attachments
+ * @param {string} [options.organizationId] - Organization ID
+ * @param {string} [options.replyTo] - Reply-to email
+ * @returns {Promise<{ success: boolean, provider: string, messageId: string, error?: string, fallbackReason?: string }>}
  */
-async function sendDynamicEmail({ toEmail, subject, htmlContent, organizationId }) {
-  if (!toEmail) return { success: false, error: 'Recipient email required' };
+async function sendWithDualEngineFailover({ to, from, subject, html, text, attachments, organizationId, replyTo }) {
+  if (!to) {
+    return { success: false, error: 'Recipient email address is required' };
+  }
+
+  const defaultSender = `"${config.defaultSenderName || 'Leads Rubix CRM'}" <${config.defaultSenderEmail || 'info@leadsrubix.com'}>`;
+  const mailPayload = {
+    to,
+    from: from || defaultSender,
+    subject: subject || 'Leads Rubix CRM Notification',
+    html: html || (text ? `<p>${text}</p>` : '<p></p>'),
+    text,
+    attachments,
+    replyTo
+  };
+
+  // Step 1: Check for custom workspace SMTP if organizationId is present
+  if (organizationId) {
+    try {
+      const { transporter: customTransporter, fromAddress, isCustom } = await getTransporterForOrganization(organizationId);
+      if (isCustom && customTransporter) {
+        mailPayload.from = from || fromAddress;
+        console.log(`[mailer] Dispatching email to ${to} via custom workspace SMTP...`);
+        const info = await customTransporter.sendMail(mailPayload);
+        return {
+          success: true,
+          provider: 'CUSTOM_WORKSPACE_SMTP',
+          messageId: info.messageId || `custom-${Date.now()}`
+        };
+      }
+    } catch (customErr) {
+      console.warn(`[mailer] Custom workspace SMTP failed for org ${organizationId}: ${customErr.message}. Falling back to primary AWS SES...`);
+    }
+  }
+
+  // Step 2: 1st Priority (Primary Engine) - AWS SES
   try {
-    const { transporter: activeTransporter, fromAddress, isCustom } = await getTransporterForOrganization(organizationId);
-    const info = await activeTransporter.sendMail({
-      from: fromAddress,
-      to: toEmail,
-      subject: subject || 'Leads Rubix CRM Notification',
-      html: htmlContent
-    });
+    console.log(`[mailer] [1st Priority: AWS SES] Dispatching email to ${to}...`);
+    const info = await awsSesTransporter.sendMail(mailPayload);
+    console.log(`[mailer] [AWS SES SUCCESS] Email delivered to ${to} (MessageId: ${info.messageId})`);
     return {
       success: true,
-      messageId: info?.messageId || '',
-      provider: isCustom ? 'CUSTOM_SMTP' : 'AWS_SES'
+      provider: 'AWS_SES',
+      messageId: info.messageId || `ses-${Date.now()}`
     };
-  } catch (err) {
-    console.error(`[mailer] Failed to send dynamic email to ${toEmail}:`, err.message);
-    return { success: false, error: err.message };
+  } catch (sesErr) {
+    console.warn(`[mailer] [AWS SES FAILED] Error sending to ${to}: ${sesErr.message}`);
+    console.log(`[mailer] [2nd Priority: GOOGLE SMTP FAILOVER] Auto-switching to Google Workspace for ${to}...`);
+
+    // Step 3: 2nd Priority (Auto-Failover Engine) - Google Workspace SMTP
+    try {
+      const googleSenderUser = config.googleSmtpUser || 'info@leadsrubix.com';
+      const googleSender = mailPayload.from && mailPayload.from.includes(googleSenderUser)
+        ? mailPayload.from
+        : `"${config.defaultSenderName || 'Leads Rubix CRM'}" <${googleSenderUser}>`;
+
+      const googlePayload = {
+        ...mailPayload,
+        from: googleSender
+      };
+
+      const googleInfo = await googleTransporter.sendMail(googlePayload);
+      console.log(`[mailer] [GOOGLE SMTP SUCCESS] Fallback email delivered to ${to} (MessageId: ${googleInfo.messageId})`);
+      return {
+        success: true,
+        provider: 'GOOGLE_SMTP_FALLBACK',
+        messageId: googleInfo.messageId || `google-${Date.now()}`,
+        fallbackReason: sesErr.message
+      };
+    } catch (googleErr) {
+      console.error(`[mailer] [CRITICAL ERROR] Both AWS SES and Google SMTP failed for ${to}. SES: ${sesErr.message} | Google: ${googleErr.message}`);
+      return {
+        success: false,
+        provider: 'FAILED',
+        error: `SES: ${sesErr.message} | Google: ${googleErr.message}`
+      };
+    }
   }
+}
+
+/**
+ * Sends a dynamic HTML email resolving custom SMTP or dual-engine failover.
+ */
+async function sendDynamicEmail({ toEmail, subject, htmlContent, organizationId, fromAddress, replyTo, attachments }) {
+  if (!toEmail) return { success: false, error: 'Recipient email required' };
+  return await sendWithDualEngineFailover({
+    to: toEmail,
+    from: fromAddress,
+    subject: subject || 'Leads Rubix CRM Notification',
+    html: htmlContent,
+    organizationId,
+    replyTo,
+    attachments
+  });
 }
 
 module.exports = {
   transporter,
+  awsSesTransporter,
+  googleTransporter,
+  sendWithDualEngineFailover,
   sendCredentialsEmail,
   sendResetPasswordEmail,
   sendNewLeadEmail,

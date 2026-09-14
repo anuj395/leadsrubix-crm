@@ -141,30 +141,37 @@ async function sendSesEmail({ fromAddress, toEmail, subject, htmlContent, replyT
       provider: 'AWS_SES'
     };
   } catch (err) {
-    console.warn('[awsSesService] AWS SES Send failed (Sandbox/Unverified):', err.message);
-    console.log(`[awsSesService] Dispatching email to ${toEmail} via live SMTP fallback...`);
+    console.warn('[awsSesService] AWS SES Send failed (Sandbox/Unverified/Error):', err.message);
+    console.log(`[awsSesService] [2nd Priority: GOOGLE SMTP FAILOVER] Auto-switching to Google Workspace for ${toEmail}...`);
     try {
-      const { transporter } = require('../utils/mailer');
+      const { googleTransporter } = require('../utils/mailer');
+      const googleUser = process.env.GOOGLE_SMTP_USER || 'info@leadsrubix.com';
+      const googleSender = sender && sender.includes(googleUser)
+        ? sender
+        : `"${DEFAULT_SENDER_NAME}" <${googleUser}>`;
+
       const mailOptions = {
-        from: sender,
+        from: googleSender,
         to: toEmail,
         subject: subject || 'Leads Rubix Notification',
-        html: htmlContent || '<p>Notification</p>'
+        html: htmlContent || '<p>Notification</p>',
+        replyTo
       };
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`[awsSesService] Live SMTP fallback email delivered successfully to ${toEmail} (MessageId: ${info.messageId})`);
+      const info = await googleTransporter.sendMail(mailOptions);
+      console.log(`[awsSesService] [GOOGLE SMTP SUCCESS] Fallback email delivered to ${toEmail} (MessageId: ${info.messageId})`);
       return {
         success: true,
-        messageId: info.messageId || `smtp-${Date.now()}`,
-        provider: 'SMTP_LIVE_FALLBACK'
+        messageId: info.messageId || `google-${Date.now()}`,
+        provider: 'GOOGLE_SMTP_FALLBACK',
+        fallbackReason: err.message
       };
-    } catch (smtpErr) {
-      console.error('[awsSesService] Both AWS SES and SMTP failed:', smtpErr.message);
+    } catch (googleErr) {
+      console.error('[awsSesService] [CRITICAL ERROR] Both AWS SES and Google SMTP failed:', googleErr.message);
       return {
         success: false,
         messageId: `failed-${Date.now()}`,
         provider: 'FAILED',
-        note: `SES: ${err.message} | SMTP: ${smtpErr.message}`
+        note: `SES: ${err.message} | Google SMTP: ${googleErr.message}`
       };
     }
   }

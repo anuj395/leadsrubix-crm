@@ -223,17 +223,21 @@ async function processQueueWorker() {
         htmlContent: job.htmlContent
       });
 
+      if (!res || res.success === false) {
+        throw new Error(res?.note || 'Both AWS SES and Google SMTP failed to deliver');
+      }
+
       const durationMs = Date.now() - startTime;
       systemStats.totalDispatched++;
 
-      // Update log record to SENT
+      // Update log record to SENT with the actual provider (AWS_SES or GOOGLE_SMTP_FALLBACK)
       await EmailLog.updateOne(
         { _id: job.jobId },
         {
           $set: {
             status: 'SENT',
             sender: fromAddress,
-            provider,
+            provider: res.provider || provider,
             ses_message_id: res.messageId,
             duration_ms: durationMs
           }
