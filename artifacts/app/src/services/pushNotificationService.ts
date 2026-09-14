@@ -12,27 +12,108 @@ export interface PushNotificationPayload {
 
 class PushNotificationService {
   private pushToken: string | null = null;
+  private channelInitialized = false;
+
+  constructor() {
+    this.initNotificationHandler();
+  }
+
+  private initNotificationHandler() {
+    try {
+      const Notifications = require('expo-notifications');
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+    } catch (e) {
+      // Graceful fallback if expo-notifications is not yet loaded
+    }
+  }
+
+  /**
+   * Initializes Android Notification Channel (Required for Android 8.0+ / Android 13+)
+   */
+  private async initAndroidChannel(Notifications: any) {
+    if (Platform.OS === 'android' && !this.channelInitialized) {
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'CRM Alerts & Notifications',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#EA580C',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        });
+        this.channelInitialized = true;
+      } catch (err) {
+        console.warn('[PushNotificationService] Failed to set Android notification channel:', err);
+      }
+    }
+  }
 
   /**
    * Registers mobile device push token with API server and AWS SNS platform endpoint
    */
   async registerForPushNotifications(): Promise<string | null> {
     try {
-      // In Expo managed workflow / native build, fetch device push token
       let token = '';
+
       try {
         const Notifications = require('expo-notifications');
+
+        // 1. Initialize Android High-Importance Channel
+        await this.initAndroidChannel(Notifications);
+
+        // 2. Request Notifications Permission (Android 13+ POST_NOTIFICATIONS & iOS alert/badge/sound)
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
 
         if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
+          const { status } = await Notifications.requestPermissionsAsync({
+            ios: {
+              allowAlert: true,
+              allowBadge: true,
+              allowSound: true,
+            },
+          });
           finalStatus = status;
         }
 
+        // 3. If permission granted, acquire Native Device Token (FCM for Android, APNs for iOS)
         if (finalStatus === 'granted') {
-          const tokenData = await Notifications.getExpoPushTokenAsync();
-          token = tokenData.data;
+          // Reset iOS Badge Count on App Open
+          if (Platform.OS === 'ios') {
+            try {
+              await Notifications.setBadgeCountAsync(0);
+            } catch (badgeErr) {
+              // Ignore badge error
+            }
+          }
+
+          // Prioritize Native FCM/APNs Device Token for AWS SNS
+          try {
+            const deviceToken = await Notifications.getDevicePushTokenAsync();
+            if (deviceToken && deviceToken.data) {
+              token = deviceToken.data;
+              console.log(`[PushNotificationService] Acquired native ${Platform.OS} device token for AWS SNS.`);
+            }
+          } catch (deviceTokenErr) {
+            console.log('[PushNotificationService] Native device token not available (e.g. Simulator/Expo Go), falling back:', deviceTokenErr);
+          }
+
+          // Fallback to Expo Push Token if device token unavailable
+          if (!token) {
+            try {
+              const expoTokenData = await Notifications.getExpoPushTokenAsync();
+              token = expoTokenData.data;
+            } catch (expoTokenErr) {
+              console.log('[PushNotificationService] Expo push token fallback error:', expoTokenErr);
+            }
+          }
         }
       } catch (e) {
         console.log('[PushNotificationService] Native push permissions / Expo notifications fallback:', e);
@@ -50,7 +131,7 @@ class PushNotificationService {
         platform: Platform.OS
       });
 
-      console.log('[PushNotificationService] Device push token registered successfully with AWS SNS backend.');
+      console.log(`[PushNotificationService] Device push token (${Platform.OS}) registered successfully with AWS SNS backend.`);
       return token;
     } catch (err) {
       console.warn('[PushNotificationService] Error registering push token:', err);
@@ -65,7 +146,7 @@ class PushNotificationService {
     try {
       const Notifications = require('expo-notifications');
 
-      // 1. App Open (Foreground State): Display top alert banner & trigger sound
+      // Ensure foreground alerts, sound & badge are active
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
           shouldShowAlert: true,
@@ -74,16 +155,20 @@ class PushNotificationService {
         }),
       });
 
-      // 2. App Open (Foreground State) Listener
+      // 1. App Open (Foreground State) Listener
       const foregroundListener = Notifications.addNotificationReceivedListener((notification: any) => {
         const data = notification?.request?.content?.data as PushNotificationPayload;
         console.log('[PushNotificationService] Received Foreground Push Notification:', data);
       });
 
-      // 3. App Background / Closed (Terminated State) Notification Click Listener
+      // 2. App Background / Closed (Terminated State) Notification Click Listener
       const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
         const data = response?.notification?.request?.content?.data as PushNotificationPayload;
         console.log('[PushNotificationService] User Tapped Push Notification:', data);
+
+        if (Platform.OS === 'ios') {
+          Notifications.setBadgeCountAsync(0).catch(() => {});
+        }
 
         if (data && onNavigateToScreen) {
           const targetScreen = data.screen || (data.leadId ? 'LeadDetails' : 'Notifications');
