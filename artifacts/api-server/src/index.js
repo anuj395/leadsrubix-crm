@@ -518,6 +518,103 @@ const migrateExistingWorkspaces = async () => {
         }
       }
     }
+
+    // Self-heal & consolidate duplicate Team, Designation, and Branch documents
+    try {
+      const Team = mongoose.model('Team');
+      const Branch = mongoose.model('Branch');
+      const Designation = mongoose.model('Designation');
+      const Industry = mongoose.model('Industry');
+
+      let canonicalIndustry = org.industryId || org.industry_id || 'temp0001';
+      const indDoc = await Industry.findOne({
+        $or: [
+          { _id: mongoose.Types.ObjectId.isValid(canonicalIndustry) ? canonicalIndustry : null },
+          { code: canonicalIndustry }
+        ]
+      }).lean().exec();
+      const finalIndustryCode = indDoc?.code || canonicalIndustry;
+
+      // Consolidate Teams
+      const teamDocs = await Team.find({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      }).sort({ updatedAt: -1 }).exec();
+      if (teamDocs.length > 1) {
+        const primaryDoc = teamDocs[0];
+        const seenTeams = new Set((primaryDoc.teams || []).map(t => (t.name || '').toLowerCase().trim()));
+        for (let i = 1; i < teamDocs.length; i++) {
+          const otherDoc = teamDocs[i];
+          for (const t of (otherDoc.teams || [])) {
+            const key = (t.name || '').toLowerCase().trim();
+            if (key && !seenTeams.has(key)) {
+              seenTeams.add(key);
+              primaryDoc.teams.push(t);
+            }
+          }
+          await Team.findByIdAndDelete(otherDoc._id);
+        }
+        primaryDoc.industry_id = finalIndustryCode;
+        await primaryDoc.save();
+        console.log(`[migration] Consolidated ${teamDocs.length} duplicate Team documents for: ${orgId}`);
+      } else if (teamDocs.length === 1 && teamDocs[0].industry_id !== finalIndustryCode) {
+        teamDocs[0].industry_id = finalIndustryCode;
+        await teamDocs[0].save();
+      }
+
+      // Consolidate Designations
+      const desDocs = await Designation.find({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      }).sort({ updatedAt: -1 }).exec();
+      if (desDocs.length > 1) {
+        const primaryDoc = desDocs[0];
+        const seenDes = new Set((primaryDoc.designations || []).map(d => (d.name || d.value || d.label || '').toLowerCase().trim()));
+        for (let i = 1; i < desDocs.length; i++) {
+          const otherDoc = desDocs[i];
+          for (const d of (otherDoc.designations || [])) {
+            const key = (d.name || d.value || d.label || '').toLowerCase().trim();
+            if (key && !seenDes.has(key)) {
+              seenDes.add(key);
+              primaryDoc.designations.push(d);
+            }
+          }
+          await Designation.findByIdAndDelete(otherDoc._id);
+        }
+        primaryDoc.industry_id = finalIndustryCode;
+        await primaryDoc.save();
+        console.log(`[migration] Consolidated ${desDocs.length} duplicate Designation documents for: ${orgId}`);
+      } else if (desDocs.length === 1 && desDocs[0].industry_id !== finalIndustryCode) {
+        desDocs[0].industry_id = finalIndustryCode;
+        await desDocs[0].save();
+      }
+
+      // Consolidate Branches
+      const branchDocs = await Branch.find({
+        $or: [{ organization_id: orgId }, { organizationId: orgId }]
+      }).sort({ updatedAt: -1 }).exec();
+      if (branchDocs.length > 1) {
+        const primaryDoc = branchDocs[0];
+        const seenBranches = new Set((primaryDoc.branches || []).map(b => (b.name || '').toLowerCase().trim()));
+        for (let i = 1; i < branchDocs.length; i++) {
+          const otherDoc = branchDocs[i];
+          for (const b of (otherDoc.branches || [])) {
+            const key = (b.name || '').toLowerCase().trim();
+            if (key && !seenBranches.has(key)) {
+              seenBranches.add(key);
+              primaryDoc.branches.push(b);
+            }
+          }
+          await Branch.findByIdAndDelete(otherDoc._id);
+        }
+        primaryDoc.industry_id = finalIndustryCode;
+        await primaryDoc.save();
+        console.log(`[migration] Consolidated ${branchDocs.length} duplicate Branch documents for: ${orgId}`);
+      } else if (branchDocs.length === 1 && branchDocs[0].industry_id !== finalIndustryCode) {
+        branchDocs[0].industry_id = finalIndustryCode;
+        await branchDocs[0].save();
+      }
+    } catch (err) {
+      console.error(`[migration] Failed to consolidate tenant dropdowns for ${orgId}:`, err.message);
+    }
   }
 };
 

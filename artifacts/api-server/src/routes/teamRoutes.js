@@ -13,12 +13,30 @@ router.get('/', authenticate, async (req, res) => {
     const industryId = isSuperAdmin(req.user) ? req.query.industryId : req.user?.industryId;
     const organizationId = isSuperAdmin(req.user) ? req.query.organizationId : req.user?.organizationId;
 
-    const query = {};
-    if (industryId) query.industry_id = industryId;
-    if (organizationId) query.organization_id = organizationId;
+    let query = {};
+    if (organizationId) {
+      query.organization_id = organizationId;
+    } else if (industryId) {
+      query.industry_id = industryId;
+      query.$or = [{ organization_id: null }, { organization_id: { $exists: false } }];
+    }
 
-    const doc = await Team.findOne(query).exec();
-    const items = doc ? doc.teams.map(t => ({ ...t.toObject(), id: t._id })) : [];
+    const docs = await Team.find(query).sort({ updatedAt: -1 }).exec();
+    const seen = new Set();
+    const items = [];
+    for (const doc of docs) {
+      if (doc && Array.isArray(doc.teams)) {
+        for (const t of doc.teams) {
+          const idStr = String(t._id);
+          const nameStr = (t.name || '').toLowerCase().trim();
+          if (!seen.has(idStr) && !seen.has(nameStr)) {
+            seen.add(idStr);
+            seen.add(nameStr);
+            items.push({ ...t.toObject(), id: t._id });
+          }
+        }
+      }
+    }
     res.json({ items, total: items.length });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch teams' });
@@ -50,20 +68,24 @@ router.post('/', authenticate, async (req, res) => {
     const industryId = isSuperAdmin(req.user) ? req.body.industryId || req.user?.industryId : req.user?.industryId;
     const organizationId = isSuperAdmin(req.user) ? req.body.organizationId || req.user?.organizationId : req.user?.organizationId;
 
-    const query = {};
-    if (industryId) query.industry_id = industryId;
-    if (organizationId) query.organization_id = organizationId;
+    let doc = null;
+    if (organizationId) {
+      doc = await Team.findOne({ organization_id: organizationId }).sort({ updatedAt: -1 });
+    } else if (industryId) {
+      doc = await Team.findOne({ industry_id: industryId, organization_id: null });
+    }
 
-    let doc = await Team.findOne(query);
     if (!doc) {
       doc = await Team.create({
         industry_id: industryId,
         organization_id: organizationId,
         teams: []
       });
+    } else if (industryId && doc.industry_id !== industryId) {
+      doc.industry_id = industryId;
     }
 
-    doc.teams.push({ name, code, isActive: isActive !== false });
+    doc.teams.push({ name, code: code || '', isActive: isActive !== false, is_active: isActive !== false });
     await doc.save();
 
     const created = doc.teams[doc.teams.length - 1];
