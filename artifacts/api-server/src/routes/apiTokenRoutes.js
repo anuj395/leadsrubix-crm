@@ -36,12 +36,18 @@ async function resolveTenantFields(orgId) {
   }
 }
 
-function formatApiToken(t, orgMap = {}) {
+function formatApiToken(t, orgMap = {}, trafficMap = {}) {
   if (!t) return null;
   const orgId = t.organization_id || t.organizationId || '';
+  const tokenKey = t.api_key || t.apiKey || '';
+  const sourceName = String(t.source || '').trim().toLowerCase();
+  
+  const trafficInfo = trafficMap[tokenKey] || trafficMap[sourceName] || { count: 0, lastAt: null };
+  const leadCount = Number(trafficInfo.count || 0);
+
   return {
     id: String(t._id || t.id || ''),
-    apiKey: t.api_key || t.apiKey || '',
+    apiKey: tokenKey,
     organizationId: orgId,
     organizationName: orgMap[orgId] || t.organizationName || '',
     industryId: t.industry_id || t.industryId || '',
@@ -50,6 +56,9 @@ function formatApiToken(t, orgMap = {}) {
     leadSourceId: t.lead_source_id || t.leadSourceId || null,
     countryCode: t.country_code || t.countryCode || '+91',
     status: t.status || 'ACTIVE',
+    hasTraffic: leadCount > 0,
+    leadCount: leadCount,
+    lastLeadAt: trafficInfo.lastAt || null,
     createdAt: t.created_at || t.createdAt || null,
     updatedAt: t.updated_at || t.updatedAt || null,
     accessToken: t.access_token || t.accessToken || undefined,
@@ -188,7 +197,60 @@ router.get('/', authenticate, requireScreenAction('configApi', 'view'), async (r
 
     const tokens = await ApiToken.find(query).sort({ createdAt: -1 }).lean().exec();
 
-    const formatted = tokens.map(t => formatApiToken(t, orgMap));
+    // Aggregate traffic activity from ApiData (webhook logs) and Contacts
+    const trafficMap = {};
+    try {
+      const ApiData = mongoose.model('ApiData');
+      const Contact = mongoose.model('Contact');
+
+      const orgFilter = andFilters.find(f => f.organization_id);
+      const apiDataQuery = orgFilter ? { organization_id: orgFilter.organization_id } : {};
+      const contactQuery = orgFilter ? { organization_id: orgFilter.organization_id } : {};
+
+      // 1. Check ApiData logs
+      const apiLogs = await ApiData.find(apiDataQuery).select('token api_key source campaign created_at status').lean().exec();
+      for (const log of (apiLogs || [])) {
+        if (log.status === 'SUCCESS' || log.status === 'active') {
+          const tok = log.token || log.api_key;
+          if (tok) {
+            trafficMap[tok] = trafficMap[tok] || { count: 0, lastAt: null };
+            trafficMap[tok].count++;
+            if (!trafficMap[tok].lastAt || new Date(log.created_at) > new Date(trafficMap[tok].lastAt)) {
+              trafficMap[tok].lastAt = log.created_at;
+            }
+          }
+          const src = String(log.campaign || log.source || '').trim().toLowerCase();
+          if (src) {
+            trafficMap[src] = trafficMap[src] || { count: 0, lastAt: null };
+            trafficMap[src].count++;
+            if (!trafficMap[src].lastAt || new Date(log.created_at) > new Date(trafficMap[src].lastAt)) {
+              trafficMap[src].lastAt = log.created_at;
+            }
+          }
+        }
+      }
+
+      // 2. Check Contacts collection by lead source
+      const contactSources = await Contact.aggregate([
+        { $match: contactQuery },
+        { $group: { _id: '$lead_source', count: { $sum: 1 }, lastAt: { $max: '$created_at' } } }
+      ]).exec().catch(() => []);
+
+      for (const cs of (contactSources || [])) {
+        if (cs._id) {
+          const src = String(cs._id).trim().toLowerCase();
+          trafficMap[src] = trafficMap[src] || { count: 0, lastAt: null };
+          trafficMap[src].count = Math.max(trafficMap[src].count, cs.count);
+          if (cs.lastAt && (!trafficMap[src].lastAt || new Date(cs.lastAt) > new Date(trafficMap[src].lastAt))) {
+            trafficMap[src].lastAt = cs.lastAt;
+          }
+        }
+      }
+    } catch (trafficErr) {
+      console.warn('[apiTokenRoutes] Could not calculate traffic activity:', trafficErr.message);
+    }
+
+    const formatted = tokens.map(t => formatApiToken(t, orgMap, trafficMap));
 
     res.json(formatted);
   } catch (err) {
