@@ -118,58 +118,31 @@ export default function IntegrationsPage() {
 
   const isPortalConnected = (key: string) => {
     if (key === 'whatsapp') {
-      return waConnected
+      return Boolean(waConnected)
     }
+    // Facebook is ONLY connected if user has completed Facebook OAuth login (accessToken present)
     if (key === 'facebook') {
-      return fbConnected || activeTokens.some((t: any) => 
-        norm(t.source).includes('facebook') && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.accessToken || t.access_token || t.apiKey || t.api_key)
-      )
+      return Boolean(fbConnected)
     }
-    if (key === '99acres') {
-      return activeTokens.some((t: any) => 
-        (norm(t.source).includes('99acre') || norm(t.source).includes('acres')) && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.apiKey || t.api_key)
-      )
+
+    const matchSource = (sourceName: string) => {
+      const n = norm(sourceName)
+      if (key === '99acres') return n.includes('99acre') || n.includes('acres')
+      if (key === 'magicbricks') return n.includes('magicbrick')
+      if (key === 'housing') return n.includes('housing')
+      if (key === 'justdial') return n.includes('justdial')
+      if (key === 'sulekha') return n.includes('sulekha')
+      if (key === 'website') return n.includes('website')
+      return false
     }
-    if (key === 'magicbricks') {
-      return activeTokens.some((t: any) => 
-        norm(t.source).includes('magicbrick') && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.apiKey || t.api_key)
-      )
-    }
-    if (key === 'housing') {
-      return activeTokens.some((t: any) => 
-        norm(t.source).includes('housing') && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.apiKey || t.api_key)
-      )
-    }
-    if (key === 'justdial') {
-      return activeTokens.some((t: any) => 
-        norm(t.source).includes('justdial') && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.apiKey || t.api_key)
-      )
-    }
-    if (key === 'sulekha') {
-      return activeTokens.some((t: any) => 
-        norm(t.source).includes('sulekha') && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.apiKey || t.api_key)
-      )
-    }
-    if (key === 'website') {
-      return activeTokens.some((t: any) => 
-        norm(t.source).includes('website') && 
-        (t.status === 'ACTIVE' || t.status === 'Active') && 
-        (t.apiKey || t.api_key)
-      )
-    }
-    return false
+
+    const matchingToken = activeTokens.find((t: any) => matchSource(t.source))
+    // Portal is Connected ONLY IF active AND has verified inbound lead traffic / webhook activity
+    return Boolean(
+      matchingToken &&
+      (matchingToken.status === 'ACTIVE' || matchingToken.status === 'Active') &&
+      (matchingToken.hasTraffic === true || matchingToken.leadCount > 0)
+    )
   }
 
   const handleConfigure = (key: string) => {
@@ -224,7 +197,7 @@ export default function IntegrationsPage() {
                     justifyContent: 'space-between',
                     borderRadius: 2,
                     boxShadow: 'rgba(100, 100, 111, 0.15) 0px 7px 29px 0px',
-                    border: isConnected ? '1.5px solid #22C55E' : '1px solid #f0f0f0',
+                    border: isConnected ? '1.5px solid #22C55E' : '1px solid #E2E8F0',
                     transition: 'transform 0.2s',
                     '&:hover': {
                       transform: 'translateY(-3px)',
@@ -276,7 +249,19 @@ export default function IntegrationsPage() {
                             borderRadius: '8px',
                           }}
                         />
-                      ) : null}
+                      ) : (
+                        <Chip
+                          label="Configure"
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(245, 158, 11, 0.12)',
+                            color: '#D97706',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      )}
                     </Box>
                     <Typography variant="body2" color="text.secondary" sx={{ minHeight: 48, mb: 2 }}>
                       {item.description}
@@ -291,7 +276,7 @@ export default function IntegrationsPage() {
                         sx={{
                           textTransform: 'none',
                           fontWeight: 700,
-                          color: isConnected ? '#16A34A' : undefined,
+                          color: isConnected ? '#16A34A' : '#2563EB',
                         }}
                       >
                         {isConnected ? 'Connected' : 'Configure'}
