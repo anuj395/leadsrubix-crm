@@ -448,12 +448,13 @@ async function dispatchCrmEvent({
             target = recipientObj.id || recipientObj.name;
             provider = 'aws_sns';
             const tokens = recipientObj.pushTokens || [];
+            const validTokens = tokens.filter(t => t && t.token && !String(t.token).startsWith('sim_device_'));
 
-            if (tokens.length === 0) {
+            if (validTokens.length === 0) {
               status = 'SUPPRESSED';
-              errorMessage = 'No mobile push device tokens registered for user';
+              errorMessage = 'No active mobile push device tokens registered for user';
             } else {
-              for (const t of tokens) {
+              for (const t of validTokens) {
                 await awsSnsService.sendPushNotification({
                   endpointArn: t.endpointArn || null,
                   token: t.token,

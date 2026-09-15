@@ -108,30 +108,37 @@ class PushNotificationService {
           // Fallback to Expo Push Token if device token unavailable
           if (!token) {
             try {
-              const expoTokenData = await Notifications.getExpoPushTokenAsync();
-              token = expoTokenData.data;
+              const expoTokenData = await Notifications.getExpoPushTokenAsync({
+                projectId: '749b72c8-bc02-4d8a-90cd-507490ebbfdf'
+              });
+              if (expoTokenData && expoTokenData.data) {
+                token = expoTokenData.data;
+                console.log(`[PushNotificationService] Acquired Expo push token: ${token}`);
+              }
             } catch (expoTokenErr) {
-              console.log('[PushNotificationService] Expo push token fallback error:', expoTokenErr);
+              console.warn('[PushNotificationService] Expo push token fallback error:', expoTokenErr);
             }
           }
         }
       } catch (e) {
-        console.log('[PushNotificationService] Native push permissions / Expo notifications fallback:', e);
+        console.warn('[PushNotificationService] Native push permissions / Expo notifications error:', e);
       }
 
-      if (!token) {
-        token = `sim_device_${Platform.OS}_${Date.now()}`;
+      // Do NOT send fake simulator tokens to backend
+      if (!token || String(token).startsWith('sim_device_')) {
+        console.warn('[PushNotificationService] No valid push token acquired. Skipping backend registration.');
+        return null;
       }
 
       this.pushToken = token;
 
-      // Register device push token with backend for AWS SNS Endpoint creation
+      // Register genuine device push token with backend
       await apiClient.post('/auth/register-push-token', {
         pushToken: token,
         platform: Platform.OS
       });
 
-      console.log(`[PushNotificationService] Device push token (${Platform.OS}) registered successfully with AWS SNS backend.`);
+      console.log(`[PushNotificationService] Device push token (${Platform.OS}) registered successfully with backend.`);
       return token;
     } catch (err) {
       console.warn('[PushNotificationService] Error registering push token:', err);
