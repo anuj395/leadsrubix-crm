@@ -30,6 +30,7 @@ import { DashboardRecentLeads } from '../../components/dashboard/DashboardRecent
 import { DashboardRecentCalls } from '../../components/dashboard/DashboardRecentCalls';
 import { PostCallDispositionModal, PostCallCallerInfo, CallDialerModal } from '../../components/telephony';
 import { TaskDetailModal } from '../../components/tasks/TaskDetailModal';
+import { notificationService } from '../../services/notificationService';
 import { theme } from '../../theme/theme';
 
 export const DashboardScreen = ({ navigation }: any) => {
@@ -38,6 +39,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [recentCalls, setRecentCalls] = useState<CallLogItem[]>([]);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -107,6 +109,9 @@ export const DashboardScreen = ({ navigation }: any) => {
       setTasks(tasksRes);
       setLeads(chosenLeads);
       setRecentCalls(callsToDisplay);
+
+      // Fetch real unread notification count
+      notificationService.getUnreadCount().then(setUnreadNotifs).catch(() => {});
 
       // Persist to safeStorage for instant boot
       const cacheKey = `@dashboard_cache_${user?.organizationId || 'default'}`;
@@ -234,7 +239,7 @@ export const DashboardScreen = ({ navigation }: any) => {
               activeOpacity={0.8}
             >
               <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-              <View style={styles.notifBadgeDot} />
+              {unreadNotifs > 0 ? <View style={styles.notifBadgeDot} /> : null}
             </TouchableOpacity>
           </View>
         </View>

@@ -41,19 +41,65 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
     fetchNotifs();
   }, []);
 
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchNotifs();
   };
 
-  const markAllAsRead = () => {
+  /**
+   * Optimistically marks all notifications as read and persists to backend
+   */
+  const markAllAsRead = async () => {
+    if (isMarkingAllRead) return;
+    setIsMarkingAllRead(true);
+
+    // 1. Instant optimistic UI update
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+
+    try {
+      // 2. Persist to backend server
+      await notificationService.markAllAsRead();
+    } catch (err) {
+      console.warn('[NotificationsScreen] Error syncing markAllAsRead:', err);
+    } finally {
+      setIsMarkingAllRead(false);
+    }
   };
 
-  const toggleReadStatus = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
-    );
+  /**
+   * Handles notification item click: marks as read on server & deep links to CRM entity
+   */
+  const handleNotificationPress = async (item: NotificationItem) => {
+    // 1. If unread, mark read locally and persist to backend
+    if (!item.isRead) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+      );
+      notificationService.markAsRead(item.id).catch((err) => {
+        console.warn('[NotificationsScreen] Error marking notification as read:', err);
+      });
+    }
+
+    // 2. Intelligent CRM deep linking to lead / task / call
+    const targetId = item.leadId || item.relatedId;
+    const typeLower = (item.type || '').toLowerCase();
+    const titleLower = (item.title || '').toLowerCase();
+
+    if (targetId && (typeLower.includes('lead') || titleLower.includes('lead'))) {
+      if (navigation?.navigate) {
+        navigation.navigate('LeadDetail', { leadId: targetId });
+      }
+    } else if (targetId && (typeLower.includes('task') || titleLower.includes('task') || titleLower.includes('visit'))) {
+      if (navigation?.navigate) {
+        navigation.navigate('Tasks', { taskId: targetId });
+      }
+    } else if (targetId && (typeLower.includes('call') || titleLower.includes('call'))) {
+      if (navigation?.navigate) {
+        navigation.navigate('CallLogs', { callId: targetId });
+      }
+    }
   };
 
   // Counts
@@ -111,7 +157,7 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
     return (
       <TouchableOpacity
         style={[styles.notificationCard, !item.isRead && styles.unreadNotificationCard]}
-        onPress={() => toggleReadStatus(item.id)}
+        onPress={() => handleNotificationPress(item)}
         activeOpacity={0.88}
       >
         <View style={[styles.iconBox, { backgroundColor: meta.bg }]}>
@@ -146,15 +192,29 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
       {/* ─── Zone 1: Luxury Midnight #151728 Header ─── */}
       <View style={styles.luxuryHeader}>
         <View style={styles.headerTopRow}>
-          <CompanyLogo variant="white" height={28} />
+          <View style={styles.headerLeftGroup}>
+            {navigation?.canGoBack && navigation.canGoBack() ? (
+              <TouchableOpacity
+                style={styles.headerBackBtn}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <CompanyLogo variant="white" height={26} />
+          </View>
 
           <TouchableOpacity
-            style={styles.markReadBtn}
+            style={[styles.markReadBtn, isMarkingAllRead && { opacity: 0.6 }]}
             onPress={markAllAsRead}
+            disabled={isMarkingAllRead}
             activeOpacity={0.85}
           >
             <Ionicons name="checkmark-done-sharp" size={15} color="#38BDF8" />
-            <Text style={styles.markReadText}>Mark all read</Text>
+            <Text style={styles.markReadText}>
+              {isMarkingAllRead ? 'Updating...' : 'Mark all read'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -272,6 +332,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
+  },
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerBackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   markReadBtn: {
     flexDirection: 'row',
