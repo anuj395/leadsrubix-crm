@@ -2038,31 +2038,7 @@ exports.scheduleCallbackAtomic = async ({
       longitude
     });
 
-    if (createdTask) {
-      try {
-        const { dispatchCrmEvent } = require('./notificationDispatcherService');
-        dispatchCrmEvent({
-          eventKey: 'task.reminder',
-          organizationId: createdTask.organization_id || contact.organization_id || authedUser?.organizationId,
-          entityType: 'task',
-          entityData: {
-            id: createdTask._id || createdTask.id,
-            _id: createdTask._id || createdTask.id,
-            taskType: createdTask.type || createdTask.task_type || 'Call Back',
-            taskDueDate: createdTask.due_date || createdTask.dueDate || followUpDate,
-            dueDate: createdTask.due_date || createdTask.dueDate || followUpDate,
-            assignedTo: createdTask.assigned_to || contact.contact_owner_email || authedUser?.email,
-            contactOwnerEmail: createdTask.assigned_to || contact.contact_owner_email || authedUser?.email,
-            customerName: contact.customer_name || contact.customerName || createdTask.customer_name,
-            contactNumber: contact.contact_number || contact.contactNumber || createdTask.contact_number,
-            notes: notes || callBackReason || '',
-            crmLeadUrl: `https://crm.leadsrubix.com/leads/${contactId}`
-          }
-        }).catch(tErr => console.warn('[contactService] Task notification dispatch error:', tErr));
-      } catch (tErr) {
-        console.warn('[contactService] Task dispatch warning:', tErr);
-      }
-    }
+    // Note: task.reminder will be dispatched by taskReminderCron 15 minutes prior to dueDate
   } catch (createErr) {
     console.error('Failed to create atomic Task', createErr);
   }
