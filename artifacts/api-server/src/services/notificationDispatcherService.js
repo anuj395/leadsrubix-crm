@@ -344,10 +344,22 @@ async function dispatchCrmEvent({
 
     // 6. Build Dispatch Queue
     const dispatchTasks = [];
+    const dispatchedRecipients = new Set();
 
     // Helper: Queue dispatch task
     const enqueueDispatch = ({ recipientRole, recipientObj, channel }) => {
       if (!recipientObj) return;
+
+      // Deduplication: Avoid duplicate notifications if the same person has multiple roles (e.g. Agent AND Admin)
+      const recipientKey = recipientObj.id || recipientObj.email || recipientObj.phone;
+      if (recipientKey) {
+        const dedupeKey = `${channel}:${recipientKey}`;
+        if (dispatchedRecipients.has(dedupeKey)) {
+          return; // Skip duplicate dispatch to same user for this event
+        }
+        dispatchedRecipients.add(dedupeKey);
+      }
+
       const tpl = templateByChannel[channel];
       const dynamicFallback = !tpl ? getDynamicFallbackContent(channel) : null;
 
@@ -416,6 +428,8 @@ async function dispatchCrmEvent({
                   data: {
                     type: eventKey,
                     entityId: String(entityId),
+                    leadId: entityType === 'contact' ? String(entityId) : (entityData?.contact_id || entityData?.contactId || String(entityId)),
+                    screen: 'LeadDetails',
                     url: directLeadUrl
                   }
                 });

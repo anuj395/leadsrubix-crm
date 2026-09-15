@@ -561,14 +561,31 @@ function buildController({
             const userObj = await mongoose.model('User').findOne({ email: assignedUserEmail }).exec();
             if (userObj) targetUserId = userObj._id || userObj.uid;
           }
-          if (targetUserId) {
+
+          // Check if this task is self-assigned (creator is the assignee)
+          const creatorEmail = (req.user?.email || '').trim().toLowerCase();
+          const creatorId = String(req.user?.id || req.user?._id || req.user?.uid || '').trim();
+          const targetIdStr = String(targetUserId || '').trim();
+          const targetEmailStr = String(assignedUserEmail || '').trim().toLowerCase();
+
+          const isSelfAssigned = (creatorEmail && targetEmailStr && creatorEmail === targetEmailStr) ||
+                                 (creatorId && targetIdStr && creatorId === targetIdStr);
+
+          // Only send instant assignment push alert if assigned by someone else (e.g. manager / admin)
+          if (targetUserId && !isSelfAssigned) {
+            const rawDueDate = doc.due_date || doc.dueDate;
+            const formattedDueDate = rawDueDate
+              ? new Date(rawDueDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : 'N/A';
+            const taskLabel = doc.task_type || doc.taskType || doc.type || doc.callbackReason || doc.callBackReason || doc.title || doc.name || 'Follow-up Task';
+
             const { createNotification } = require('./notificationService');
             await createNotification({
               userId: targetUserId,
               organizationId: doc.organization_id || req.user?.organizationId,
               workspaceId: doc.workspaceId || doc.workspace_id || null,
-              title: 'New Task Assigned',
-              message: `A new task "${doc.title || doc.name || 'Task Details'}" has been assigned to you. Due date: ${doc.dueDate ? new Date(doc.dueDate).toLocaleDateString() : 'N/A'}.`,
+              title: `New Task Assigned: ${taskLabel}`,
+              message: `A new ${taskLabel} has been assigned to you. Due: ${formattedDueDate}.`,
               type: 'TASK_ASSIGNED',
               relatedId: doc._id
             });

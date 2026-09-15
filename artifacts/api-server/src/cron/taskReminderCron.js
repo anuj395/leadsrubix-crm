@@ -50,10 +50,13 @@ async function processTaskReminders() {
           }
         });
 
-        // Mark reminder as sent
+        // Mark reminder as sent atomically in DB
         task.reminder_sent = true;
         task.reminderSent = true;
         await task.save().catch(e => console.warn('[TaskReminderCron] Save error:', e.message));
+        await Task.findByIdAndUpdate(task._id, {
+          $set: { reminder_sent: true, reminderSent: true }
+        }).exec().catch(e => console.warn('[TaskReminderCron] findByIdAndUpdate error:', e.message));
       } catch (taskErr) {
         console.error(`[TaskReminderCron] Error dispatching reminder for task ${task._id}:`, taskErr.message);
       }
