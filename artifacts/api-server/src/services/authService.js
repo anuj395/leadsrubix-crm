@@ -248,6 +248,16 @@ exports.registerPushToken = async ({ userId, pushToken, platform }) => {
     throw err;
   }
 
+  // Reject simulator or invalid dummy tokens
+  if (String(pushToken).startsWith('sim_device_')) {
+    console.warn(`[authService] Ignoring simulator push token for user "${userId}".`);
+    return {
+      success: false,
+      message: 'Simulator push tokens are ignored.',
+      endpointArn: null
+    };
+  }
+
   const awsSnsService = require('./awsSnsService');
   const snsRes = await awsSnsService.registerDevicePushToken({
     token: pushToken,
@@ -263,8 +273,10 @@ exports.registerPushToken = async ({ userId, pushToken, platform }) => {
     throw err;
   }
 
+  // Purge any legacy simulator tokens and deduplicate current token
   const existingTokens = Array.isArray(userDoc.aws_push_tokens) ? userDoc.aws_push_tokens : [];
-  const filtered = existingTokens.filter(t => t && t.token !== pushToken);
+  const filtered = existingTokens.filter(t => t && t.token && t.token !== pushToken && !String(t.token).startsWith('sim_device_'));
+
   filtered.push({
     token: pushToken,
     endpointArn,
@@ -272,7 +284,8 @@ exports.registerPushToken = async ({ userId, pushToken, platform }) => {
     updatedAt: new Date()
   });
 
-  userDoc.aws_push_tokens = filtered;
+  // Limit to at most 3 active devices per user
+  userDoc.aws_push_tokens = filtered.slice(-3);
   if (endpointArn) {
     userDoc.sns_endpoint_arn = endpointArn;
   }

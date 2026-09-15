@@ -86,13 +86,29 @@ async function registerDevicePushToken({ token, platform = 'android', userId }) 
  * Sends a Push Notification via AWS SNS to an EndpointArn or Expo push fallback
  */
 async function sendPushNotification({ endpointArn, token, title, message, data = {} }) {
-  const payloadData = {
+  const rawPayload = {
     title: title || '🎯 New CRM Alert',
     message: message || '',
     ...data
   };
 
-  if (endpointArn) {
+  // Google FCM HTTP v1 & APNs strictly require data values to be strings
+  const sanitizedData = {};
+  for (const [key, val] of Object.entries(rawPayload)) {
+    if (val === null || val === undefined) {
+      sanitizedData[key] = '';
+    } else if (typeof val === 'object') {
+      try {
+        sanitizedData[key] = JSON.stringify(val);
+      } catch (e) {
+        sanitizedData[key] = String(val);
+      }
+    } else {
+      sanitizedData[key] = String(val);
+    }
+  }
+
+  if (endpointArn && snsClient) {
     try {
       const apnsPayload = JSON.stringify({
         aps: {
@@ -104,18 +120,20 @@ async function sendPushNotification({ endpointArn, token, title, message, data =
           badge: 1,
           'content-available': 1
         },
-        data: payloadData
+        data: sanitizedData
       });
 
       const snsPayload = {
-        default: message,
+        default: message || title || 'CRM Notification',
         GCM: JSON.stringify({
           notification: {
             title: title || '🎯 New CRM Alert',
             body: message || '',
-            sound: 'default'
+            sound: 'default',
+            channel_id: 'default',
+            android_channel_id: 'default'
           },
-          data: payloadData
+          data: sanitizedData
         }),
         APNS: apnsPayload,
         APNS_SANDBOX: apnsPayload
@@ -127,25 +145,47 @@ async function sendPushNotification({ endpointArn, token, title, message, data =
         MessageStructure: 'json'
       });
 
-      const res = await snsClient.send(command);
-      console.log(`[awsSnsService] AWS SNS Push notification published successfully (MessageId: ${res.MessageId})`);
-      return { success: true, messageId: res.MessageId };
+      try {
+        const res = await snsClient.send(command);
+        console.log(`[awsSnsService] AWS SNS Push notification published successfully (MessageId: ${res.MessageId})`);
+        return { success: true, messageId: res.MessageId };
+      } catch (publishErr) {
+        // If endpoint is disabled, attempt to re-enable it and retry once
+        if (publishErr.name === 'EndpointDisabledException' || (publishErr.message && publishErr.message.includes('EndpointDisabled'))) {
+          console.log(`[awsSnsService] Endpoint "${endpointArn}" is disabled. Attempting to re-enable...`);
+          if (SetEndpointAttributesCommand) {
+            try {
+              await snsClient.send(new SetEndpointAttributesCommand({
+                EndpointArn: endpointArn,
+                Attributes: { Enabled: 'true' }
+              }));
+              const retryRes = await snsClient.send(command);
+              console.log(`[awsSnsService] Successfully re-enabled & published to AWS SNS (MessageId: ${retryRes.MessageId})`);
+              return { success: true, messageId: retryRes.MessageId };
+            } catch (retryErr) {
+              console.warn(`[awsSnsService] Retry failed after re-enabling endpoint:`, retryErr.message);
+            }
+          }
+        }
+        console.error(`[awsSnsService] AWS SNS Publish error for endpoint "${endpointArn}":`, publishErr.message);
+      }
     } catch (err) {
-      console.error(`[awsSnsService] AWS SNS Publish error for endpoint "${endpointArn}":`, err.message);
+      console.error(`[awsSnsService] Unexpected error building SNS payload:`, err.message);
     }
   }
 
-  // Fallback to Expo Push HTTP API if endpointArn is absent but raw token is available
-  if (token) {
+  // Fallback to Expo Push HTTP API if endpointArn is absent/failed but raw real token is available
+  if (token && !String(token).startsWith('sim_device_')) {
     try {
       const axios = require('axios');
       const expoRes = await axios.post('https://exp.host/--/api/v2/push/send', {
         to: token,
         sound: 'default',
+        channelId: 'default',
         priority: 'high',
         title: title || '🎯 New CRM Alert',
         body: message || '',
-        data: payloadData
+        data: sanitizedData
       });
       console.log(`[awsSnsService] Expo push fallback dispatched successfully to token.`);
       return { success: true, expo: expoRes.data };
