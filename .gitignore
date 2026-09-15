@@ -55,6 +55,9 @@ scratch/
 
 
 
+# Firebase Service Account Credentials (Secrets)
+*firebase-adminsdk*.json
+
 *.aab
 *.apk
 *.ipa

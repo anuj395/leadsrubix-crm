@@ -33,7 +33,11 @@
         "NSContactsUsageDescription": "Leads Rubix requires access to contacts to allow users to select and attach contact details while creating a lead.",
         "NSLocationWhenInUseUsageDescription": "Leads Rubix uses your location to capture accurate site visit check-ins and lead coordinates.",
         "NSCalendarsUsageDescription": "Leads Rubix requires calendar access to synchronize scheduled client visits and tasks.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "entitlements": {
+        "aps-environment": "production"
       }
     },
     "android": {
@@ -44,8 +48,23 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.leadsrubix.crm"
+      "package": "com.leadsrubix.crm",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#EA580C"
+        }
+      ]
+    ],
     "androidNavigationBar": {
       "visible": "always",
       "barStyle": "dark-content",

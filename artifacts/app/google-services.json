@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "208975726311",
+    "project_id": "lead-rubix-crm",
+    "storage_bucket": "lead-rubix-crm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:208975726311:android:337c27f3b9c0a5981a4442",
+        "android_client_info": {
+          "package_name": "com.leadsrubix.crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxFTpao0I-f145jFK4tbDnxguM335y70k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

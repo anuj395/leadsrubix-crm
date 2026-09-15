@@ -33,11 +33,11 @@ async function registerDevicePushToken({ token, platform = 'android', userId }) 
   }
 
   const platformArn = platform === 'ios' 
-    ? (PLATFORM_APPLICATION_ARN_IOS || PLATFORM_APPLICATION_ARN_ANDROID)
+    ? (PLATFORM_APPLICATION_ARN_IOS || null)
     : PLATFORM_APPLICATION_ARN_ANDROID;
 
   if (!platformArn) {
-    console.warn(`[awsSnsService] AWS_SNS_ARN_${platform.toUpperCase()} not configured. Storing raw token for Expo/FCM push fallback.`);
+    console.warn(`[awsSnsService] AWS_SNS_ARN_${platform.toUpperCase()} not configured. Storing raw token for Expo push fallback.`);
     return { success: true, endpointArn: null, token };
   }
 
@@ -51,6 +51,32 @@ async function registerDevicePushToken({ token, platform = 'android', userId }) 
     console.log(`[awsSnsService] Created AWS SNS EndpointArn: ${res.EndpointArn}`);
     return { success: true, endpointArn: res.EndpointArn, token };
   } catch (err) {
+    // AWS SNS Idempotency: Handle "Endpoint already exists" error gracefully
+    if (err.message && (err.message.includes('already exists') || err.name === 'InvalidParameterException')) {
+      const match = err.message.match(/Endpoint (arn:aws:sns:[^ ]+) already exists/i);
+      const existingEndpointArn = match ? match[1] : null;
+
+      if (existingEndpointArn) {
+        console.log(`[awsSnsService] Endpoint already exists in AWS SNS (${existingEndpointArn}). Re-enabling.`);
+        try {
+          if (SetEndpointAttributesCommand) {
+            const setAttrsCommand = new SetEndpointAttributesCommand({
+              EndpointArn: existingEndpointArn,
+              Attributes: {
+                Enabled: 'true',
+                Token: token
+              }
+            });
+            await snsClient.send(setAttrsCommand);
+          }
+          return { success: true, endpointArn: existingEndpointArn, token };
+        } catch (attrErr) {
+          console.warn(`[awsSnsService] Failed to set endpoint attributes:`, attrErr.message);
+          return { success: true, endpointArn: existingEndpointArn, token };
+        }
+      }
+    }
+
     console.error(`[awsSnsService] Error creating AWS SNS platform endpoint:`, err.message);
     return { success: false, error: err.message, token };
   }
@@ -68,6 +94,19 @@ async function sendPushNotification({ endpointArn, token, title, message, data =
 
   if (endpointArn) {
     try {
+      const apnsPayload = JSON.stringify({
+        aps: {
+          alert: {
+            title: title || '🎯 New CRM Alert',
+            body: message || ''
+          },
+          sound: 'default',
+          badge: 1,
+          'content-available': 1
+        },
+        data: payloadData
+      });
+
       const snsPayload = {
         default: message,
         GCM: JSON.stringify({
@@ -78,17 +117,8 @@ async function sendPushNotification({ endpointArn, token, title, message, data =
           },
           data: payloadData
         }),
-        APNS: JSON.stringify({
-          aps: {
-            alert: {
-              title: title || '🎯 New CRM Alert',
-              body: message || ''
-            },
-            sound: 'default',
-            'content-available': 1
-          },
-          data: payloadData
-        })
+        APNS: apnsPayload,
+        APNS_SANDBOX: apnsPayload
       };
 
       const command = new PublishCommand({
