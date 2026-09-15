@@ -359,9 +359,55 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
         entityData: { title: 'Luxury Penthouse Deal', dealValue: 50000000 }
       });
 
-      assert.strictEqual(result.suppressed, true, 'Event must be suppressed');
-      assert.strictEqual(waCalls.length, 0, 'Zero dispatches on disabled event');
+      assert.strictEqual(result.suppressed, true, 'Event must be suppressed when is_enabled=false');
+      assert.strictEqual(waCalls.length, 0, 'No WhatsApp calls allowed for suppressed event');
       assert.strictEqual(emailCalls.length, 0);
+    });
+
+    it('Scenario 1.5: Inbound lead.created routes customer.welcome template to customer while sending internal lead alert to agent', async () => {
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true, email: false, push: false, in_app: false }
+          },
+          org_admin: { enabled: false, channels: { whatsapp: false } },
+          team_lead: { enabled: false, channels: { whatsapp: false } },
+          customer: {
+            enabled: true,
+            channels: { whatsapp: true, email: false }
+          }
+        }
+      };
+
+      const result = await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_welcome_test',
+          customerName: 'Aarav Gupta',
+          contactNumber: '919876543219',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerName: 'Sales Agent Rep',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(result.success, true);
+
+      // Customer must receive welcome template
+      const custWa = waCalls.find(c => c.recipient === '919876543219');
+      assert.ok(custWa, 'Customer must receive WhatsApp greeting');
+      assert.ok(!custWa.text.includes('Speed-to-Lead'), 'Customer must NOT receive internal Speed-to-Lead agent copy');
+      assert.ok(custWa.text.includes('Hello Aarav Gupta') || custWa.text.includes('Welcome'), 'Customer must receive warm welcome greeting');
+
+      // Agent must receive internal alert
+      const agentWa = waCalls.find(c => c.recipient === '919876500001');
+      assert.ok(agentWa, 'Agent must receive WhatsApp alert');
+      assert.ok(agentWa.text.includes('Aarav Gupta'), 'Agent alert must include prospect name');
     });
   });
 

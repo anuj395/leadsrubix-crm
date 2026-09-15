@@ -275,6 +275,10 @@ async function dispatchCrmEvent({
       ? `${frontendBase}/leads/deals-list`
       : (entityId ? `${frontendBase}/leads/contacts` : `${frontendBase}/leads/contacts`);
 
+    const defaultOrgPhone = orgDoc?.phone || orgDoc?.contact_number || orgDoc?.contactNumber || orgDoc?.mobile || '';
+    const assignedAgentName = recipients.agent?.name || 'Our Property Advisor';
+    const assignedAgentPhone = recipients.agent?.phone || defaultOrgPhone || 'Our Helpline';
+
     const mergeMap = {
       customer_name: recipients.customer?.name || 'Customer',
       customer_phone: recipients.customer?.phone || '',
@@ -282,8 +286,8 @@ async function dispatchCrmEvent({
       alternate_phone: entityData.alternateNumber || entityData.alternate_no || '',
       lead_source: entityData.source || entityData.leadSource || entityData.lead_source || 'Direct',
       lead_type: entityData.leadType || entityData.lead_type || 'Leads',
-      assigned_agent_name: recipients.agent?.name || 'Assigned Representative',
-      assigned_agent_phone: recipients.agent?.phone || '',
+      assigned_agent_name: assignedAgentName,
+      assigned_agent_phone: assignedAgentPhone,
       assigned_agent_email: recipients.agent?.email || '',
       previous_agent_name: metadata.previousAgentName || entityData.previousOwner || entityData.previous_owner || 'Previous Representative',
       team_lead_name: recipients.teamLead?.name || 'Team Lead',
@@ -302,23 +306,32 @@ async function dispatchCrmEvent({
       unit_number: entityData.unitNumber || entityData.unit_number || ''
     };
 
-    // 5. Load Active Templates for all 4 channels
+    // 5. Load Active Templates for all channels (including customer.welcome for customer recipients)
     const defaultTemplates = getIndustryTemplates(industryId);
     const customTemplates = await NotificationTemplate.find({
       $or: [{ organization_id: organizationId }, { organization_id: null }],
-      event_key: eventKey,
+      event_key: { $in: [eventKey, 'customer.welcome'] },
       is_active: true
     }).lean().exec();
 
     const templateByChannel = {};
     for (const ch of ['whatsapp', 'email', 'push', 'in_app']) {
       // Prioritize tenant custom template -> then platform template -> then industry default
-      const tenantTpl = customTemplates.find(t => t.organization_id === organizationId && t.channel === ch);
-      const platformTpl = customTemplates.find(t => !t.organization_id && t.channel === ch);
+      const tenantTpl = customTemplates.find(t => t.organization_id === organizationId && t.event_key === eventKey && t.channel === ch);
+      const platformTpl = customTemplates.find(t => !t.organization_id && t.event_key === eventKey && t.channel === ch);
       const defaultTpl = defaultTemplates.find(t => t.event_key === eventKey && t.channel === ch);
       // Fallback to lead.created template for the same channel if available
       const fallbackTpl = defaultTemplates.find(t => t.event_key === 'lead.created' && t.channel === ch);
       templateByChannel[ch] = tenantTpl || platformTpl || defaultTpl || fallbackTpl || null;
+    }
+
+    // Customer Welcome Template Resolution (WhatsApp & Email)
+    const customerWelcomeByChannel = {};
+    for (const ch of ['whatsapp', 'email']) {
+      const tenantCustTpl = customTemplates.find(t => t.organization_id === organizationId && t.event_key === 'customer.welcome' && t.channel === ch);
+      const platformCustTpl = customTemplates.find(t => !t.organization_id && t.event_key === 'customer.welcome' && t.channel === ch);
+      const defaultCustTpl = defaultTemplates.find(t => t.event_key === 'customer.welcome' && t.channel === ch);
+      customerWelcomeByChannel[ch] = tenantCustTpl || platformCustTpl || defaultCustTpl || null;
     }
 
     // Helper: Dynamic fallback content generator if no template exists
@@ -360,8 +373,29 @@ async function dispatchCrmEvent({
         dispatchedRecipients.add(dedupeKey);
       }
 
-      const tpl = templateByChannel[channel];
-      const dynamicFallback = !tpl ? getDynamicFallbackContent(channel) : null;
+      // Resolve appropriate template based on recipient role
+      let tpl = null;
+      let dynamicFallback = null;
+
+      if (recipientRole === 'customer') {
+        // Customers for inbound leads MUST receive customer-facing welcome/greeting copy, NEVER internal sales rep alerts
+        if (eventKey === 'lead.created' || eventKey === 'customer.welcome') {
+          tpl = customerWelcomeByChannel[channel] || (eventKey === 'customer.welcome' ? templateByChannel[channel] : null);
+          if (!tpl) {
+            dynamicFallback = {
+              subject: `Welcome to ${orgName || 'our community'}`,
+              body: `Hello {{customer_name}}, 👋\n\nThank you for reaching out to *${orgName || 'us'}*. Your dedicated advisor {{assigned_agent_name}} will connect with you shortly.\n\n*Your Executive:* {{assigned_agent_name}}\n*Direct Phone:* {{assigned_agent_phone}}\n\nPlease feel free to reply directly to this chat for any questions. We are glad to assist you!\n\nBest regards,\n*${orgName || 'Our Team'}*`
+            };
+          }
+        } else {
+          // For other events (e.g. deal.won, deal.lost), use the event's customer template
+          tpl = templateByChannel[channel];
+          dynamicFallback = !tpl ? getDynamicFallbackContent(channel) : null;
+        }
+      } else {
+        tpl = templateByChannel[channel];
+        dynamicFallback = !tpl ? getDynamicFallbackContent(channel) : null;
+      }
 
       const subjectTpl = tpl?.subject_template || dynamicFallback?.subject || `CRM Alert: ${eventKey}`;
       const bodyTpl = tpl?.body_template || dynamicFallback?.body || `Notification for ${mergeMap.customer_name}`;
@@ -509,9 +543,37 @@ async function dispatchCrmEvent({
       }
     }
 
-    // 4. Customer
-    if (isRoleEligible(routing.customer) && recipients.customer) {
-      for (const [ch, isEnabled] of Object.entries(routing.customer.channels || {})) {
+    // 4. Customer Routing Evaluation
+    let customerChannels = {};
+    if (isRoleEligible(routing.customer)) {
+      customerChannels = { ...(routing.customer.channels || {}) };
+    }
+
+    // If event is lead.created and customer routing is not explicitly enabled on lead.created, check customer.welcome matrix rule
+    if (eventKey === 'lead.created' && !Object.values(customerChannels).some(Boolean)) {
+      try {
+        let welcomeRule = await NotificationMatrixRule.findOne({
+          organization_id: organizationId,
+          event_key: 'customer.welcome'
+        }).lean().exec();
+
+        if (!welcomeRule) {
+          welcomeRule = await NotificationMatrixRule.findOne({
+            organization_id: null,
+            event_key: 'customer.welcome'
+          }).lean().exec();
+        }
+
+        if (welcomeRule && isRoleEligible(welcomeRule.routing?.customer)) {
+          customerChannels = { ...(welcomeRule.routing.customer.channels || {}) };
+        }
+      } catch (e) {
+        console.warn('[NotificationDispatcher] Error checking customer.welcome rule:', e.message);
+      }
+    }
+
+    if (recipients.customer && Object.values(customerChannels).some(Boolean)) {
+      for (const [ch, isEnabled] of Object.entries(customerChannels)) {
         if (isEnabled) enqueueDispatch({ recipientRole: 'customer', recipientObj: recipients.customer, channel: ch });
       }
     }
