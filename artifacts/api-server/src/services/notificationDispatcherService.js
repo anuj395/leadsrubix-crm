@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const whatsappService = require('./whatsappService');
 const mailer = require('../utils/mailer');
 const awsSnsService = require('./awsSnsService');
+const firebaseNotificationService = require('./firebaseNotificationService');
 const {
   STANDARD_EVENTS,
   DEFAULT_MATRIX_RULES,
@@ -446,7 +447,7 @@ async function dispatchCrmEvent({
             }
           } else if (channel === 'push') {
             target = recipientObj.id || recipientObj.name;
-            provider = 'aws_sns';
+            provider = 'firebase_fcm_v1';
             const tokens = recipientObj.pushTokens || [];
             const validTokens = tokens.filter(t => t && t.token && !String(t.token).startsWith('sim_device_'));
 
@@ -454,20 +455,72 @@ async function dispatchCrmEvent({
               status = 'SUPPRESSED';
               errorMessage = 'No active mobile push device tokens registered for user';
             } else {
+              const pushPayloadData = {
+                type: eventKey,
+                entityId: String(entityId),
+                leadId: entityType === 'contact' ? String(entityId) : (entityData?.contact_id || entityData?.contactId || String(entityId)),
+                screen: 'LeadDetails',
+                url: directLeadUrl
+              };
+
+              let dispatchedCount = 0;
+              let lastError = '';
+
               for (const t of validTokens) {
-                await awsSnsService.sendPushNotification({
+                // 1. Direct Firebase FCM HTTP v1 Delivery
+                if (firebaseNotificationService.isConfigured()) {
+                  provider = 'firebase_fcm_v1';
+                  const fbRes = await firebaseNotificationService.sendDirectPushNotification({
+                    token: t.token,
+                    title: renderedSubject,
+                    message: renderedBody,
+                    data: pushPayloadData
+                  });
+
+                  if (fbRes.success) {
+                    dispatchedCount++;
+                    continue;
+                  } else {
+                    lastError = fbRes.error || 'Firebase FCM dispatch failed';
+                    // Auto-prune unregistered / stale tokens from DB
+                    if (fbRes.isUnregistered && recipientObj.id) {
+                      try {
+                        const User = mongoose.model('User');
+                        await User.updateOne(
+                          { _id: recipientObj.id },
+                          { $pull: { aws_push_tokens: { token: t.token } } }
+                        );
+                        console.log(`[NotificationDispatcher] Pruned expired push token for user ${recipientObj.id}`);
+                      } catch (pruneErr) {
+                        // ignore prune failure
+                      }
+                    }
+                  }
+                }
+
+                // 2. Fallback to AWS SNS / Expo Push
+                provider = 'aws_sns';
+                const snsRes = await awsSnsService.sendPushNotification({
                   endpointArn: t.endpointArn || null,
                   token: t.token,
                   title: renderedSubject,
                   message: renderedBody,
-                  data: {
-                    type: eventKey,
-                    entityId: String(entityId),
-                    leadId: entityType === 'contact' ? String(entityId) : (entityData?.contact_id || entityData?.contactId || String(entityId)),
-                    screen: 'LeadDetails',
-                    url: directLeadUrl
-                  }
+                  data: pushPayloadData
                 });
+
+                if (snsRes.success) {
+                  dispatchedCount++;
+                } else {
+                  lastError = snsRes.error || lastError || 'AWS SNS delivery failed';
+                }
+              }
+
+              if (dispatchedCount > 0) {
+                status = 'SUCCESS';
+                errorMessage = '';
+              } else {
+                status = 'FAILED';
+                errorMessage = lastError || 'Push dispatch failed for all tokens';
               }
             }
           } else if (channel === 'in_app') {

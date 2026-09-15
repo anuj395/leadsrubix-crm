@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Platform, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Platform, BackHandler, AppState } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -94,7 +94,18 @@ export const AppNavigator = () => {
           setNavStack(prev => [...prev, { screen: 'Notifications', params: {} }]);
         }
       });
-      return () => cleanup();
+
+      // Auto-re-sync push token whenever app is brought to foreground
+      const appStateSub = AppState.addEventListener('change', (nextAppState) => {
+        if (nextAppState === 'active') {
+          pushNotificationService.registerForPushNotifications();
+        }
+      });
+
+      return () => {
+        cleanup();
+        appStateSub.remove();
+      };
     }
   }, [token]);
 

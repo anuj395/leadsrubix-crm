@@ -12,6 +12,7 @@ export interface PushNotificationPayload {
 
 class PushNotificationService {
   private pushToken: string | null = null;
+  private lastRegisteredToken: string | null = null;
   private channelInitialized = false;
 
   constructor() {
@@ -131,6 +132,9 @@ class PushNotificationService {
       }
 
       this.pushToken = token;
+      if (this.lastRegisteredToken === token) {
+        return token;
+      }
 
       // Register genuine device push token with backend
       await apiClient.post('/auth/register-push-token', {
@@ -138,6 +142,7 @@ class PushNotificationService {
         platform: Platform.OS
       });
 
+      this.lastRegisteredToken = token;
       console.log(`[PushNotificationService] Device push token (${Platform.OS}) registered successfully with backend.`);
       return token;
     } catch (err) {
