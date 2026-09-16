@@ -30,6 +30,8 @@ import { UpdatePasswordScreen } from '../screens/account/UpdatePasswordScreen';
 import { DealsScreen } from '../screens/deals/DealsScreen';
 import { SplashScreen } from '../screens/splash/SplashScreen';
 import { pushNotificationService } from '../services/pushNotificationService';
+import { LegalConsentModal, LEGAL_CONSENT_KEY } from '../components/legal/LegalConsentModal';
+import { PrivacyPolicyModal, LegalTab } from '../components/legal/PrivacyPolicyModal';
 
 type ScreenName =
   | 'Onboarding'
@@ -61,15 +63,18 @@ export const AppNavigator = () => {
   const [authScreen, setAuthScreen] = useState<'Onboarding' | 'Login' | 'Signup' | 'ForgotPassword' | 'ResetPassword'>('Login');
   const [routeParams, setRouteParams] = useState<any>({});
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
+  const [hasAcceptedLegalConsent, setHasAcceptedLegalConsent] = useState<boolean | null>(null);
+  const [privacyModalVisible, setPrivacyModalVisible] = useState<boolean>(false);
+  const [privacyModalTab, setPrivacyModalTab] = useState<LegalTab>('privacy');
   const [isSplashVisible, setIsSplashVisible] = useState<boolean>(true);
   const [splashTimerDone, setSplashTimerDone] = useState<boolean>(false);
   const focusListeners = React.useRef<Set<() => void>>(new Set());
 
   useEffect(() => {
-    if (splashTimerDone && !isLoading && hasSeenOnboarding !== null) {
+    if (splashTimerDone && !isLoading && hasSeenOnboarding !== null && hasAcceptedLegalConsent !== null) {
       setIsSplashVisible(false);
     }
-  }, [splashTimerDone, isLoading, hasSeenOnboarding]);
+  }, [splashTimerDone, isLoading, hasSeenOnboarding, hasAcceptedLegalConsent]);
 
   useEffect(() => {
     focusListeners.current.forEach((cb) => {
@@ -119,6 +124,18 @@ export const AppNavigator = () => {
   }, [token]);
 
   useEffect(() => {
+    const checkLegalConsent = async () => {
+      try {
+        const consent = await safeStorage.getItem(LEGAL_CONSENT_KEY);
+        setHasAcceptedLegalConsent(consent === 'true');
+      } catch (e) {
+        setHasAcceptedLegalConsent(false);
+      }
+    };
+    checkLegalConsent();
+  }, []);
+
+  useEffect(() => {
     const checkOnboarding = async () => {
       try {
         setHasSeenOnboarding(true);
@@ -163,12 +180,44 @@ export const AppNavigator = () => {
     return () => subscription.remove();
   }, [token, authScreen, navStack, currentScreen]);
 
-  if (isSplashVisible || isLoading || hasSeenOnboarding === null) {
+  if (isSplashVisible || isLoading || hasSeenOnboarding === null || hasAcceptedLegalConsent === null) {
     return (
-      <SplashScreen
-        minDurationMs={1200}
-        onFinish={() => setSplashTimerDone(true)}
-      />
+      <View style={{ flex: 1, backgroundColor: '#151728' }}>
+        <SplashScreen
+          minDurationMs={1200}
+          onFinish={() => setSplashTimerDone(true)}
+          onOpenLegal={(tab) => {
+            setPrivacyModalTab(tab || 'privacy');
+            setPrivacyModalVisible(true);
+          }}
+        />
+        <PrivacyPolicyModal
+          visible={privacyModalVisible}
+          initialTab={privacyModalTab}
+          onClose={() => setPrivacyModalVisible(false)}
+        />
+      </View>
+    );
+  }
+
+  // If first launch and user hasn't accepted legal consent yet
+  if (!hasAcceptedLegalConsent) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#151728' }}>
+        <LegalConsentModal
+          visible={true}
+          onAccept={() => setHasAcceptedLegalConsent(true)}
+          onViewPrivacyPolicy={(tab) => {
+            setPrivacyModalTab(tab || 'privacy');
+            setPrivacyModalVisible(true);
+          }}
+        />
+        <PrivacyPolicyModal
+          visible={privacyModalVisible}
+          initialTab={privacyModalTab}
+          onClose={() => setPrivacyModalVisible(false)}
+        />
+      </View>
     );
   }
 
@@ -181,6 +230,10 @@ export const AppNavigator = () => {
       ) => {
         if (params) setRouteParams(params);
         setAuthScreen(screen);
+      },
+      openLegal: (tab?: LegalTab) => {
+        setPrivacyModalTab(tab || 'privacy');
+        setPrivacyModalVisible(true);
       },
     };
 
@@ -203,6 +256,11 @@ export const AppNavigator = () => {
         ) : (
           <ResetPasswordScreen navigation={authNav} route={{ params: routeParams }} />
         )}
+        <PrivacyPolicyModal
+          visible={privacyModalVisible}
+          initialTab={privacyModalTab}
+          onClose={() => setPrivacyModalVisible(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -276,6 +334,10 @@ export const AppNavigator = () => {
       }
     },
     canGoBack: () => navStack.length > 1 || currentScreen !== 'Dashboard',
+    openLegal: (tab?: LegalTab) => {
+      setPrivacyModalTab(tab || 'privacy');
+      setPrivacyModalVisible(true);
+    },
     addListener: (event: string, callback: () => void) => {
       if (event === 'focus') {
         focusListeners.current.add(callback);
@@ -394,6 +456,12 @@ export const AppNavigator = () => {
           })}
         </View>
       )}
+
+      <PrivacyPolicyModal
+        visible={privacyModalVisible}
+        initialTab={privacyModalTab}
+        onClose={() => setPrivacyModalVisible(false)}
+      />
     </View>
   );
 };

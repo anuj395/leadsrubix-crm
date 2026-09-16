@@ -166,13 +166,23 @@ export const LoginScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Inline Forgot Password Link */}
+          {/* Inline Forgot Password & Demo Login Row */}
           <View style={styles.forgotRow}>
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Text style={styles.forgotLink}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setEmail('dev@digitalrubix.com');
+                setPassword('dev@1221');
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.demoLink}>Demo Login</Text>
             </TouchableOpacity>
           </View>
 
@@ -201,6 +211,27 @@ export const LoginScreen = ({ navigation }: any) => {
             <TouchableOpacity onPress={() => navigation.navigate('Signup')} activeOpacity={0.7}>
               <Text style={styles.signupLinkText}>Create an account</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Legal Consent Notice */}
+          <View style={styles.legalNoticeContainer}>
+            <Text style={styles.legalNoticeText}>
+              By signing in, you agree to our{' '}
+              <Text
+                style={styles.legalNoticeLink}
+                onPress={() => navigation?.openLegal ? navigation.openLegal('terms') : null}
+              >
+                Terms of Service
+              </Text>{' '}
+              &amp;{' '}
+              <Text
+                style={styles.legalNoticeLink}
+                onPress={() => navigation?.openLegal ? navigation.openLegal('privacy') : null}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -370,7 +401,9 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   forgotRow: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
     marginTop: 2,
   },
@@ -379,6 +412,17 @@ const styles = StyleSheet.create({
     color: theme.colors.brand700,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  demoLink: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '700',
+    backgroundColor: 'rgba(5, 150, 105, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.2)',
   },
   primaryCtaButton3D: {
     backgroundColor: theme.colors.brand700,
@@ -397,13 +441,14 @@ const styles = StyleSheet.create({
   ctaContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
   },
   ctaButtonText: {
-    fontSize: 15.5,
-    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
+    fontSize: 15.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   ctaArrowCircle: {
@@ -434,6 +479,22 @@ const styles = StyleSheet.create({
     color: theme.colors.brand700,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  legalNoticeContainer: {
+    marginTop: 14,
+    paddingTop: 10,
+    alignItems: 'center',
+  },
+  legalNoticeText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  legalNoticeLink: {
+    color: theme.colors.brand700,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   bottomFooterInfo: {
     alignItems: 'center',

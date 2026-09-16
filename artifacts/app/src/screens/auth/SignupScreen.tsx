@@ -741,6 +741,27 @@ export const SignupScreen = ({ navigation }: any) => {
                       );
                     })}
 
+                    {/* Legal Consent Notice */}
+                    <View style={styles.legalNoticeContainer}>
+                      <Text style={styles.legalNoticeText}>
+                        By registering your organization, you agree to our{' '}
+                        <Text
+                          style={styles.legalNoticeLink}
+                          onPress={() => navigation?.openLegal ? navigation.openLegal('terms') : null}
+                        >
+                          Terms of Service
+                        </Text>{' '}
+                        &amp;{' '}
+                        <Text
+                          style={styles.legalNoticeLink}
+                          onPress={() => navigation?.openLegal ? navigation.openLegal('privacy') : null}
+                        >
+                          Privacy Policy
+                        </Text>
+                        .
+                      </Text>
+                    </View>
+
                     {/* Primary Executive Sign Up Button */}
                     <TouchableOpacity
                       style={styles.primaryCtaButton3D}
@@ -1171,5 +1192,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#0284C7',
+  },
+  legalNoticeContainer: {
+    marginBottom: 14,
+    marginTop: 6,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  legalNoticeText: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  legalNoticeLink: {
+    color: theme.colors.brand700,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

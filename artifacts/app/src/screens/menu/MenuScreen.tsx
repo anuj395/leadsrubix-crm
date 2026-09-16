@@ -247,6 +247,26 @@ export const MenuScreen = ({ navigation }: any) => {
               </View>
               <Ionicons name="chevron-forward-sharp" size={16} color="#CBD5E1" />
             </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            {/* Legal & Privacy Policy */}
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => navigation?.openLegal ? navigation.openLegal('privacy') : navigation.navigate('Profile')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="shield-checkmark-sharp" size={20} color="#1D4ED8" />
+              </View>
+              <View style={styles.actionTextGroup}>
+                <Text style={styles.actionTitle}>Legal, Privacy &amp; Terms</Text>
+                <Text style={styles.actionSubtitle}>
+                  Data compliance, GDPR rights &amp; permissions
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward-sharp" size={16} color="#CBD5E1" />
+            </TouchableOpacity>
           </View>
         </View>
 

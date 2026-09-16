@@ -25,7 +25,9 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "build:apk:local": "./build-apk-local.sh",
-    "build:apk:eas": "eas build -p android -e preview --local"
+    "build:apk:eas": "eas build -p android -e preview --local",
+    "build:ios:prod": "eas build --platform ios --profile production",
+    "build:ios:submit": "eas build --platform ios --profile production --auto-submit"
   },
   "private": true
 }

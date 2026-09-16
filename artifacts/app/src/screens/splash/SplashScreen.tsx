@@ -8,12 +8,14 @@ import {
   StatusBar,
   Platform,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface SplashScreenProps {
   onFinish?: () => void;
   minDurationMs?: number;
+  onOpenLegal?: (tab?: 'privacy' | 'terms' | 'permissions') => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -21,6 +23,7 @@ const { width } = Dimensions.get('window');
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onFinish,
   minDurationMs = 1200,
+  onOpenLegal,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0.35)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
@@ -123,7 +126,24 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           <Ionicons name="shield-checkmark" size={13} color="#10B981" />
           <Text style={styles.securityPillText}>256-Bit SSL Encrypted • Real-time Cloud Sync</Text>
         </View>
-        <Text style={styles.versionText}>v1.0.0 • Enterprise Edition</Text>
+
+        <View style={styles.legalRow}>
+          <TouchableOpacity
+            onPress={() => onOpenLegal?.('privacy')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.legalLinkText}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalDot}>•</Text>
+          <TouchableOpacity
+            onPress={() => onOpenLegal?.('terms')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.legalLinkText}>Terms of Service</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.versionText}>v1.0.1 • Enterprise Edition</Text>
       </Animated.View>
     </View>
   );
@@ -251,5 +271,21 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '600',
     letterSpacing: 0.8,
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  legalLinkText: {
+    fontSize: 11,
+    color: '#38BDF8',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  legalDot: {
+    fontSize: 10,
+    color: '#475569',
   },
 });
