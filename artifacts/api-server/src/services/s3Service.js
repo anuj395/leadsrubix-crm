@@ -137,8 +137,29 @@ async function uploadBase64Media({
     return base64Data;
   }
 
-  const matches = base64Data.match(/^data:([A-Za-z-+\/0-9.]+);base64,(.+)$/);
-  if (!matches) {
+  const trimmed = base64Data.trim();
+  let mimeType = 'application/octet-stream';
+  let buffer = null;
+
+  if (trimmed.startsWith('data:')) {
+    const commaIndex = trimmed.indexOf(',');
+    if (commaIndex !== -1) {
+      const header = trimmed.substring(5, commaIndex);
+      const isBase64 = header.includes(';base64');
+      const rawMime = header.split(';')[0];
+      if (rawMime) mimeType = rawMime.trim();
+
+      const rawContent = trimmed.substring(commaIndex + 1);
+      if (isBase64) {
+        const cleanBase64 = rawContent.replace(/\s+/g, '');
+        buffer = Buffer.from(cleanBase64, 'base64');
+      } else {
+        buffer = Buffer.from(decodeURIComponent(rawContent), 'utf-8');
+      }
+    }
+  }
+
+  if (!buffer) {
     // Already a remote URL
     return {
       url: base64Data,
@@ -148,10 +169,9 @@ async function uploadBase64Media({
     };
   }
 
-  const mimeType = matches[1];
-  const buffer = Buffer.from(matches[2], 'base64');
   let ext = mimeType.split('/')[1] || 'bin';
-  ext = ext.split('+')[0].replace('jpeg', 'jpg');
+  ext = ext.split('+')[0].split(';')[0].replace('jpeg', 'jpg');
+  if (ext === 'octet-stream') ext = 'bin';
 
   const finalFilename = filename.includes('.') ? filename : `${filename}.${ext}`;
 

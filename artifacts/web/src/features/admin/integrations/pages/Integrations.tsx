@@ -16,8 +16,10 @@ import BusinessIcon from '@mui/icons-material/Business'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import HubIcon from '@mui/icons-material/Hub'
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
+import { IntegrationGuideModal, type IntegrationPlatformKey } from '../components/IntegrationGuideModal'
 
 interface IntegrationItem {
   key: string
@@ -32,7 +34,7 @@ const INTEGRATION_ITEMS: IntegrationItem[] = [
     key: 'ivr',
     name: 'Cloud Telephony & IVR',
     description: 'Connect multiple cloud telephony lines (Tata Smartflo, TeleCMI, Exotel, MyOperator, PBX) for real-time inbound call capture into Inbound Inquiries, intelligent agent routing, and Call Logs with recordings.',
-    icon: <PhoneInTalkIcon sx={{ fontSize: 32, color: '#7C3AED' }} />,
+    icon: <PhoneInTalkIcon sx={{ fontSize: 32, color: '#272944' }} />,
   },
   {
     key: 'facebook',
@@ -89,6 +91,8 @@ export default function IntegrationsPage() {
   const [fbConnected, setFbConnected] = useState<boolean>(false)
   const [waConnected, setWaConnected] = useState<boolean>(false)
   const [activeTokens, setActiveTokens] = useState<any[]>([])
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
+  const [guidePlatform, setGuidePlatform] = useState<IntegrationPlatformKey>('facebook')
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -198,6 +202,17 @@ export default function IntegrationsPage() {
         title="Third-Party Integrations"
         subtitle="Manage and configure active incoming data lead streams with advertising engines, listing portals, and messaging platforms."
         sx={{ overflow: 'visible' }}
+        action={
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<MenuBookIcon />}
+            onClick={() => setGuideModalOpen(true)}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+          >
+            Setup Guides & Documentation
+          </Button>
+        }
       >
         <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }} sx={{ mt: 0.5 }}>
           {INTEGRATION_ITEMS.map((item) => {
@@ -347,6 +362,12 @@ export default function IntegrationsPage() {
           })}
         </Grid>
       </AppCard>
+
+      <IntegrationGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        initialPlatform={guidePlatform}
+      />
     </Box>
   )
 }

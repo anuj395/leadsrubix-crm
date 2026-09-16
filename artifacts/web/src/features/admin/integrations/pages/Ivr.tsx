@@ -50,11 +50,14 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RouterIcon from '@mui/icons-material/Router'
 import HubIcon from '@mui/icons-material/Hub'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+import { alpha } from '@mui/material/styles'
 
 import { api } from '@/services/api'
 import { AppCard } from '@/components/ui/AppCard'
 import { useAppSelector } from '@/store/hooks'
 import { listUsers, type AdminUser } from '@/services/usersAdminService'
+import { IntegrationGuideModal } from '../components/IntegrationGuideModal'
 
 export interface TelephonyChannel {
   _id: string
@@ -117,6 +120,7 @@ export function IvrPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [activeChannelForEdit, setActiveChannelForEdit] = useState<TelephonyChannel | null>(null)
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
 
   // Form states
   const [formName, setFormName] = useState('')
@@ -495,15 +499,23 @@ export function IvrPage() {
         action={
           <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
             <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<MenuBookIcon />}
+              onClick={() => setGuideModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            >
+              Telephony & IVR Guide
+            </Button>
+            <Button
               variant="contained"
+              color="primary"
               onClick={handleOpenCreateDialog}
               startIcon={<AddIcon />}
               sx={{
                 textTransform: 'none',
                 fontWeight: 700,
                 borderRadius: '8px',
-                bgcolor: '#7C3AED',
-                '&:hover': { bgcolor: '#6D28D9' },
                 whiteSpace: 'nowrap',
               }}
             >
@@ -541,7 +553,7 @@ export function IvrPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
               <Chip
                 icon={<DomainIcon sx={{ fontSize: '0.85rem !important' }} />}
-                label={`Organization: ${authUser?.organizationName || 'Default Workspace'} • ${industryInfo.industryName}`}
+                label={`Organization: ${(authUser as any)?.organizationName || 'Default Workspace'} • ${industryInfo.industryName}`}
                 size="small"
                 variant="outlined"
                 color="secondary"
@@ -550,7 +562,7 @@ export function IvrPage() {
               <Chip
                 label="Multi-Tenant Scoped"
                 size="small"
-                sx={{ bgcolor: 'rgba(124, 58, 237, 0.08)', color: '#7C3AED', fontWeight: 700, fontSize: '0.72rem', height: 26 }}
+                sx={{ bgcolor: (t) => alpha(t.palette.primary.main, 0.08), color: 'primary.main', fontWeight: 700, fontSize: '0.72rem', height: 26 }}
               />
               <Chip
                 label={`${channels.length} Configured Telephony Line${channels.length === 1 ? '' : 's'}`}
@@ -562,7 +574,7 @@ export function IvrPage() {
 
             {/* Configured Telephony Channels Cards */}
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <RouterIcon sx={{ color: '#7C3AED', fontSize: 20 }} />
+              <RouterIcon sx={{ color: 'primary.main', fontSize: 20 }} />
               Configured IVR Lines & Telephony Streams
             </Typography>
 
@@ -580,12 +592,12 @@ export function IvrPage() {
                       variant="outlined"
                       sx={{
                         borderRadius: 2.5,
-                        borderColor: isSelected ? '#7C3AED' : 'divider',
+                        borderColor: isSelected ? 'primary.main' : 'divider',
                         borderWidth: isSelected ? 2 : 1,
                         bgcolor: isSelected
-                          ? (theme) => (theme.palette.mode === 'dark' ? 'rgba(124, 58, 237, 0.08)' : 'rgba(124, 58, 237, 0.03)')
+                          ? (theme) => (theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.14) : alpha(theme.palette.primary.main, 0.04))
                           : 'background.paper',
-                        boxShadow: isSelected ? '0 4px 20px rgba(124, 58, 237, 0.12)' : 'none',
+                        boxShadow: isSelected ? (theme) => `0 4px 20px ${alpha(theme.palette.primary.main, 0.16)}` : 'none',
                         transition: 'all 0.2s ease',
                         cursor: 'pointer',
                         display: 'flex',
@@ -602,8 +614,8 @@ export function IvrPage() {
                                 label={provName}
                                 size="small"
                                 sx={{
-                                  bgcolor: 'rgba(124, 58, 237, 0.1)',
-                                  color: '#7C3AED',
+                                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                                  color: 'primary.main',
                                   fontWeight: 700,
                                   fontSize: '0.7rem',
                                   height: 20,
@@ -752,7 +764,7 @@ export function IvrPage() {
                               fontWeight: 600,
                               fontSize: '0.75rem',
                               borderRadius: 1.5,
-                              ...(isSelected ? { bgcolor: '#7C3AED', '&:hover': { bgcolor: '#6D28D9' } } : {}),
+                              ...(isSelected ? { bgcolor: 'primary.main', '&:hover': { bgcolor: '#16182D' } } : {}),
                             }}
                           >
                             {isSelected ? 'Configuring' : 'Select'}
@@ -783,12 +795,12 @@ export function IvrPage() {
                     bgcolor: 'action.hover',
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      borderColor: '#7C3AED',
-                      bgcolor: 'rgba(124, 58, 237, 0.04)',
+                      borderColor: 'primary.main',
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
                     },
                   }}
                 >
-                  <Avatar sx={{ bgcolor: 'rgba(124, 58, 237, 0.1)', color: '#7C3AED', mb: 1.5, width: 44, height: 44 }}>
+                  <Avatar sx={{ bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1), color: 'primary.main', mb: 1.5, width: 44, height: 44 }}>
                     <AddIcon />
                   </Avatar>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -810,8 +822,8 @@ export function IvrPage() {
                     p: 2.5,
                     mb: 3,
                     borderRadius: 2.5,
-                    bgcolor: selectedChannel.status === 'ACTIVE' ? 'rgba(124, 58, 237, 0.04)' : 'action.hover',
-                    borderColor: 'rgba(124, 58, 237, 0.25)',
+                    bgcolor: selectedChannel.status === 'ACTIVE' ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'action.hover',
+                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.22),
                     display: 'flex',
                     flexDirection: { xs: 'column', sm: 'row' },
                     justifyContent: 'space-between',
@@ -825,13 +837,13 @@ export function IvrPage() {
                         width: 48,
                         height: 48,
                         borderRadius: '12px',
-                        bgcolor: 'rgba(124, 58, 237, 0.12)',
+                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      <PhoneInTalkIcon sx={{ fontSize: 26, color: '#7C3AED' }} />
+                      <PhoneInTalkIcon sx={{ fontSize: 26, color: 'primary.main' }} />
                     </Box>
                     <Box>
                       <Stack direction="row" spacing={1} alignItems="center">
@@ -873,9 +885,9 @@ export function IvrPage() {
                         textTransform: 'none',
                         fontWeight: 600,
                         borderRadius: '8px',
-                        borderColor: '#7C3AED',
-                        color: '#7C3AED',
-                        '&:hover': { bgcolor: 'rgba(124, 58, 237, 0.08)', borderColor: '#6D28D9' },
+                        borderColor: 'primary.main',
+                        color: 'primary.main',
+                        '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.08), borderColor: 'primary.main' },
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -889,9 +901,9 @@ export function IvrPage() {
                         textTransform: 'none',
                         fontWeight: 600,
                         borderRadius: '8px',
-                        bgcolor: '#1e293b',
+                        bgcolor: 'primary.main',
                         color: '#fff',
-                        '&:hover': { bgcolor: '#0f172a' },
+                        '&:hover': { bgcolor: '#16182D' },
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -981,7 +993,7 @@ export function IvrPage() {
                         sx={{
                           p: 1.5,
                           borderRadius: 1.5,
-                          bgcolor: (theme) => (theme.palette.mode === 'dark' ? '#0f172a' : '#1e293b'),
+                          bgcolor: '#16182D',
                           color: '#38bdf8',
                           fontFamily: 'monospace',
                           fontSize: '0.75rem',
@@ -998,7 +1010,7 @@ export function IvrPage() {
 
                 {/* Provider Setup Guide */}
                 <Paper variant="outlined" sx={{ p: 3, mb: 4, borderRadius: 2.5 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5, color: '#7C3AED' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5, color: 'primary.main' }}>
                     {selectedProviderInfo?.name} Setup Guide
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
@@ -1013,7 +1025,7 @@ export function IvrPage() {
                             width: 22,
                             height: 22,
                             borderRadius: '50%',
-                            bgcolor: '#7C3AED',
+                            bgcolor: 'primary.main',
                             color: '#fff',
                             fontSize: '0.75rem',
                             fontWeight: 700,
@@ -1044,7 +1056,7 @@ export function IvrPage() {
             <Paper variant="outlined" sx={{ p: 3, mb: 4, borderRadius: 2.5 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                  <PeopleAltOutlinedIcon sx={{ color: '#7C3AED' }} />
+                  <PeopleAltOutlinedIcon sx={{ color: 'primary.main' }} />
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       Organization Telephony Routing Roster
@@ -1096,7 +1108,7 @@ export function IvrPage() {
                           <TableRow key={u._id || u.id} hover>
                             <TableCell>
                               <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#7C3AED' }}>
+                                <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
                                   {fullName.charAt(0).toUpperCase()}
                                 </Avatar>
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -1232,14 +1244,13 @@ export function IvrPage() {
           </Button>
           <Button
             variant="contained"
+            color="primary"
             onClick={handleSaveCreate}
             disabled={savingChannel || !formName.trim()}
             startIcon={savingChannel ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
             sx={{
               textTransform: 'none',
               fontWeight: 700,
-              bgcolor: '#7C3AED',
-              '&:hover': { bgcolor: '#6D28D9' },
             }}
           >
             {savingChannel ? 'Creating...' : 'Create IVR Line'}
@@ -1320,13 +1331,12 @@ export function IvrPage() {
           </Button>
           <Button
             variant="contained"
+            color="primary"
             onClick={handleSaveEdit}
             disabled={savingChannel || !formName.trim()}
             sx={{
               textTransform: 'none',
               fontWeight: 700,
-              bgcolor: '#7C3AED',
-              '&:hover': { bgcolor: '#6D28D9' },
             }}
           >
             {savingChannel ? 'Saving...' : 'Save Changes'}
@@ -1349,6 +1359,14 @@ export function IvrPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Setup Guide & Documentation Modal */}
+      <IntegrationGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        initialPlatform="ivr"
+        token={channelApiKey}
+      />
 
       {/* Notifications Toast */}
       <Snackbar

@@ -18,15 +18,20 @@ import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import Chip from '@mui/material/Chip'
 import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import CodeIcon from '@mui/icons-material/Code'
 import IntegrationInstructionsIcon from '@mui/icons-material/IntegrationInstructions'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import AssessmentIcon from '@mui/icons-material/Assessment'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { api } from '@/services/api'
 import { AppCard } from '@/components/ui/AppCard'
 import { useAppSelector } from '@/store/hooks'
+import { IntegrationGuideModal } from '../components/IntegrationGuideModal'
+import { TestLeadModal } from '../components/TestLeadModal'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -55,6 +60,8 @@ export default function WebsitePage() {
   const [loading, setLoading] = useState(false)
   const [apiKey, setApiKey] = useState('')
   const [activeTab, setActiveTab] = useState(0)
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
+  const [testModalOpen, setTestModalOpen] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -74,14 +81,14 @@ export default function WebsitePage() {
       
       const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === 'website')
       if (filtered) {
-        setApiKey(filtered.api_key || '')
+        setApiKey(filtered.apiKey || filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
           source: 'Website',
           countryCode: '+91',
           status: 'ACTIVE',
         })
-        setApiKey(resCreate.data?.api_key || '')
+        setApiKey(resCreate.data?.apiKey || resCreate.data?.api_key || '')
       }
     } catch (e: any) {
       setToast({ open: true, msg: 'Failed to configure Website integration', sev: 'error' })
@@ -368,7 +375,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
-      <AppCard title={labels.title} subtitle={labels.subtitle} fullHeight>
+      <AppCard
+        title={labels.title}
+        subtitle={labels.subtitle}
+        fullHeight
+        action={
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<MenuBookIcon />}
+              onClick={() => setGuideModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+            >
+              Setup Guide & Documentation
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PlayArrowIcon />}
+              onClick={() => setTestModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+            >
+              Send Test Lead
+            </Button>
+          </Stack>
+        }
+      >
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', mt: 2, pr: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '1.25rem' }}>
             {labels.header}
@@ -561,7 +594,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </Typography>
                     <pre
                       style={{
-                        background: '#1e293b',
+                        background: '#16182D',
                         color: '#f8fafc',
                         borderRadius: 8,
                         padding: '14px 16px',
@@ -686,7 +719,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </Box>
                   <pre
                     style={{
-                      background: '#1e293b',
+                      background: '#16182D',
                       color: '#f8fafc',
                       borderRadius: 8,
                       padding: '12px 16px',
@@ -714,7 +747,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </Box>
                   <pre
                     style={{
-                      background: '#1e293b',
+                      background: '#16182D',
                       color: '#f8fafc',
                       borderRadius: 8,
                       padding: '14px 16px',
@@ -803,7 +836,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </Box>
                   <pre
                     style={{
-                      background: '#1e293b',
+                      background: '#16182D',
                       color: '#f8fafc',
                       borderRadius: 8,
                       padding: '14px 16px',
@@ -831,7 +864,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </Box>
                   <pre
                     style={{
-                      background: '#1e293b',
+                      background: '#16182D',
                       color: '#f8fafc',
                       borderRadius: 8,
                       padding: '14px 16px',
@@ -873,6 +906,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </Paper>
         </Box>
       </AppCard>
+
+      <IntegrationGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        initialPlatform="website"
+        token={apiKey}
+      />
+
+      <TestLeadModal
+        open={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        platformKey="website"
+        platformName="Website"
+        token={apiKey}
+        onTokenGenerated={(t) => setApiKey(t)}
+      />
 
       <Snackbar
         open={toast.open}

@@ -9,6 +9,8 @@ export interface NotificationItem {
   isRead: boolean;
   relatedId?: string | null;
   leadId?: string | null;
+  dealId?: string | null;
+  taskId?: string | null;
 }
 
 export const notificationService = {
@@ -33,7 +35,9 @@ export const notificationService = {
         }
 
         const rawLeadId = n.lead_id || n.leadId || (n.data && (n.data.leadId || n.data.lead_id)) || null;
-        const rawRelatedId = n.related_id || n.relatedId || (n.data && n.data.relatedId) || rawLeadId || null;
+        const rawDealId = n.deal_id || n.dealId || (n.data && (n.data.dealId || n.data.deal_id)) || null;
+        const rawTaskId = n.task_id || n.taskId || (n.data && (n.data.taskId || n.data.task_id)) || null;
+        const rawRelatedId = n.related_id || n.relatedId || (n.data && n.data.relatedId) || rawLeadId || rawDealId || rawTaskId || null;
 
         return {
           id: n._id || n.id || Date.now().toString(),
@@ -43,7 +47,9 @@ export const notificationService = {
           type: n.type || 'lead_assigned',
           isRead: Boolean(n.is_read ?? n.isRead ?? n.read ?? false),
           relatedId: rawRelatedId,
-          leadId: rawLeadId || rawRelatedId,
+          leadId: rawLeadId || (n.type?.includes('lead') ? rawRelatedId : null),
+          dealId: rawDealId || (n.type?.includes('deal') ? rawRelatedId : null),
+          taskId: rawTaskId || (n.type?.includes('task') ? rawRelatedId : null),
         };
       });
     } catch (err) {
