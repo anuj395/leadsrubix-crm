@@ -547,15 +547,20 @@ export default function AnalyticsPage() {
     if (!tab) return null
 
     const renderWidget = (w: any) => {
-      const path = w.data_key.split('.')
+      const path = (w?.data_key || '').split('.')
       let dataList = data as any
       for (const key of path) {
-        dataList = dataList?.[key]
+        if (dataList && key) dataList = dataList[key]
+        else {
+          dataList = undefined
+          break
+        }
       }
-      const normalizedDataList = dataList.map((item: any) => ({
-        name: item.name || item.associate || item.reason || item.title || 'Other',
-        value: item.value !== undefined ? Number(item.value) : (item.total !== undefined ? Number(item.total) : 0),
-        color: item.color
+      const safeDataList = Array.isArray(dataList) ? dataList : []
+      const normalizedDataList = safeDataList.map((item: any) => ({
+        name: item?.name || item?.associate || item?.reason || item?.title || 'Other',
+        value: item?.value !== undefined ? Number(item.value) : (item?.total !== undefined ? Number(item.total) : 0),
+        color: item?.color
       }))
 
       if (w.type === 'TABLE') {
@@ -598,8 +603,8 @@ export default function AnalyticsPage() {
                   </Box>
                 </thead>
                 <tbody>
-                  {dataList.length > 0 ? (
-                    dataList.map((r: any, idx: number) => (
+                  {safeDataList.length > 0 ? (
+                    safeDataList.map((r: any, idx: number) => (
                       <Box
                         component="tr"
                         key={idx}
@@ -728,32 +733,36 @@ export default function AnalyticsPage() {
                     }}
                   >
                     {secKPIs.map((w: any) => {
-                      const path = w.data_key.split('.')
+                      const path = (w?.data_key || '').split('.')
                       let val = data as any
                       for (const key of path) {
-                        val = val?.[key]
+                        if (val && key) val = val[key]
+                        else {
+                          val = undefined
+                          break
+                        }
                       }
                       
-                      let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                      else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                      let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      if (w?.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                      else if (w?.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
 
                       const cardPayload = {
-                        label: w.title,
+                        label: w?.title || '',
                         val: val !== undefined ? val : 0,
-                        color: w.color || '#EC4899',
-                        bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+                        color: w?.color || '#EC4899',
+                        bg: `linear-gradient(135deg, ${alpha(w?.color || '#EC4899', 0.06)} 0%, ${alpha(w?.color || '#EC4899', 0.01)} 100%)`,
                         icon: iconNode
                       }
 
                       return (
-                        <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                        <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w?.id || w?.title}>
                           <Card
                             onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
                             sx={{
@@ -827,32 +836,36 @@ export default function AnalyticsPage() {
             }}
           >
             {flatKPIs.map((w: any) => {
-              const path = w.data_key.split('.')
+              const path = (w?.data_key || '').split('.')
               let val = data as any
               for (const key of path) {
-                val = val?.[key]
+                if (val && key) val = val[key]
+                else {
+                  val = undefined
+                  break
+                }
               }
 
-              let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-              else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+              let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              if (w?.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+              else if (w?.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
 
               const cardPayload = {
-                label: w.title,
+                label: w?.title || '',
                 val: val !== undefined ? val : 0,
-                color: w.color || '#EC4899',
-                bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+                color: w?.color || '#EC4899',
+                bg: `linear-gradient(135deg, ${alpha(w?.color || '#EC4899', 0.06)} 0%, ${alpha(w?.color || '#EC4899', 0.01)} 100%)`,
                 icon: iconNode
               }
 
               return (
-                <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w?.id || w?.title}>
                   <Card
                     onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
                     sx={{
@@ -1236,32 +1249,36 @@ overflowY: 'auto',
                 }}
               >
                 {(keyMetricsSection.widgets || []).map((w: any) => {
-                  const path = w.data_key.split('.')
+                  const path = (w?.data_key || '').split('.')
                   let val = data as any
                   for (const key of path) {
-                    val = val?.[key]
+                    if (val && key) val = val[key]
+                    else {
+                      val = undefined
+                      break
+                    }
                   }
 
-                  let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  if (w.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w.color }} />
-                  else if (w.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w.color }} />
+                  let iconNode = <PeopleIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  if (w?.icon === 'AssignmentIcon') iconNode = <AssignmentIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'PhoneCallbackIcon') iconNode = <PhoneCallbackIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'ThumbUpIcon') iconNode = <ThumbUpIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'CheckCircleIcon') iconNode = <CheckCircleIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'CancelIcon') iconNode = <CancelIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'TrendingDownIcon') iconNode = <TrendingDownIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'EventAvailableIcon') iconNode = <EventAvailableIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
+                  else if (w?.icon === 'EventIcon') iconNode = <EventIcon sx={{ fontSize: '1.4rem', color: w?.color }} />
 
                   const cardPayload = {
-                    label: w.title,
+                    label: w?.title || '',
                     val: val !== undefined ? val : 0,
-                    color: w.color || '#EC4899',
-                    bg: `linear-gradient(135deg, ${alpha(w.color || '#EC4899', 0.06)} 0%, ${alpha(w.color || '#EC4899', 0.01)} 100%)`,
+                    color: w?.color || '#EC4899',
+                    bg: `linear-gradient(135deg, ${alpha(w?.color || '#EC4899', 0.06)} 0%, ${alpha(w?.color || '#EC4899', 0.01)} 100%)`,
                     icon: iconNode
                   }
 
                   return (
-                    <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w.id}>
+                    <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{metricDescriptions[cardPayload.label] || cardPayload.label}</Box>} placement="top" key={w?.id || w?.title}>
                       <Card
                         onClick={w.id === 'totalLeads' ? undefined : () => handleCardClick(w.title)}
                         sx={{
@@ -1459,8 +1476,8 @@ overflowY: 'auto',
                         </Box>
                       </thead>
                       <tbody>
-                        {data.contacts.feedbackSummary.length > 0 ? (
-                          data.contacts.feedbackSummary.map((r, i) => (
+                        {(data?.contacts?.feedbackSummary || []).length > 0 ? (
+                          (data?.contacts?.feedbackSummary || []).map((r, i) => (
                             <Box
                               component="tr"
                               key={r.associate}
@@ -1546,8 +1563,8 @@ overflowY: 'auto',
                       </Box>
                     </thead>
                     <tbody>
-                      {data.contacts.callBackReasons.length > 0 ? (
-                        data.contacts.callBackReasons.map((r, i) => (
+                      {(data?.contacts?.callBackReasons || []).length > 0 ? (
+                        (data?.contacts?.callBackReasons || []).map((r, i) => (
                           <Box
                             component="tr"
                             key={r.associate}
@@ -1635,8 +1652,8 @@ overflowY: 'auto',
                         </Box>
                       </thead>
                       <tbody>
-                        {data.tasks.completedTasks.length > 0 ? (
-                          data.tasks.completedTasks.map((r, i) => (
+                        {(data?.tasks?.completedTasks || []).length > 0 ? (
+                          (data?.tasks?.completedTasks || []).map((r, i) => (
                             <Box
                               component="tr"
                               key={r.associate}
@@ -1714,8 +1731,8 @@ overflowY: 'auto',
                         </Box>
                       </thead>
                       <tbody>
-                        {data.tasks.pendingTasks.length > 0 ? (
-                          data.tasks.pendingTasks.map((r, i) => (
+                        {(data?.tasks?.pendingTasks || []).length > 0 ? (
+                          (data?.tasks?.pendingTasks || []).map((r, i) => (
                             <Box
                               component="tr"
                               key={r.associate}
@@ -1816,8 +1833,8 @@ overflowY: 'auto',
                       </Box>
                     </thead>
                     <tbody>
-                      {data.callLogs.callLogSummary.length > 0 ? (
-                        data.callLogs.callLogSummary.map((r, i) => (
+                      {(data?.callLogs?.callLogSummary || []).length > 0 ? (
+                        (data?.callLogs?.callLogSummary || []).map((r, i) => (
                           <Box
                             component="tr"
                             key={r.associate}

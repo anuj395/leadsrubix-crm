@@ -101,8 +101,7 @@ jobs:
             fi
             sudo chown -R ubuntu:ubuntu "$REL_DIR"
             
-            # Atomic update of the dist directory
-            rm -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+            # Non-destructive asset update: ensure old hashed chunks remain accessible to active tabs
             mkdir -p /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
             cp -rf "$REL_DIR/"* /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/
             sudo chown -R ubuntu:ubuntu /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
