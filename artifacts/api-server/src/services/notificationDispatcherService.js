@@ -97,8 +97,12 @@ async function getRoutingMatrix(organizationId) {
 
 /**
  * Resolves all recipients (Agent, Team Lead, Admin, Customer) for a given CRM entity
+/**
+ * Universal CRM Recipient Resolver
+ * Standardizes recipient extraction across multi-tenant contacts, tasks, and deals.
+ * Adheres to NAMING_CONVENTIONS.md: dual-case support (snake_case + camelCase).
  */
-async function resolveCrmRecipients({ organizationId, entityData = {}, matrixRule = {} }) {
+async function resolveCrmRecipients({ organizationId, entityData = {}, matrixRule = {}, actorUser = null }) {
   const User = mongoose.model('User');
   const Organization = mongoose.model('Organization');
 
@@ -109,56 +113,168 @@ async function resolveCrmRecipients({ organizationId, entityData = {}, matrixRul
     customer: null
   };
 
-  // 1. Resolve Assigned Agent
-  const ownerEmail = entityData.contactOwnerEmail || entityData.contact_owner_email || entityData.assignedTo || entityData.assigned_to || entityData.ownerEmail || entityData.owner_email || entityData.agentEmail || '';
-  const ownerId = entityData.contactOwnerId || entityData.contact_owner_id || entityData.assigned_user_id || entityData.ownerId || entityData.owner_id || entityData.uid || '';
+  // 1. Extract All Possible Owner Identifiers (Dual-Case & Multi-Format)
+  const rawOwnerEmail = entityData.contactOwnerEmail ||
+    entityData.contact_owner_email ||
+    entityData.assignedTo ||
+    entityData.assigned_to ||
+    entityData.ownerEmail ||
+    entityData.owner_email ||
+    entityData.agentEmail ||
+    entityData.toUser ||
+    entityData.to_user ||
+    entityData.recipient_email ||
+    '';
+  const ownerEmail = String(rawOwnerEmail).trim();
+
+  const rawOwnerId = entityData.contactOwnerId ||
+    entityData.contact_owner_id ||
+    entityData.assigned_user_id ||
+    entityData.ownerId ||
+    entityData.owner_id ||
+    entityData.uid ||
+    entityData.userId ||
+    entityData.user_id ||
+    '';
+  const ownerId = String(rawOwnerId).trim();
 
   let agentUser = null;
+
+  // Tier 1: Lookup by database ID (_id) if valid ObjectId
   if (ownerId && mongoose.Types.ObjectId.isValid(ownerId)) {
     agentUser = await User.findById(ownerId).lean().exec();
   }
+
+  // Tier 2: Lookup by CRM alphanumeric UID (e.g. 28-char generated uid)
   if (!agentUser && ownerId) {
     agentUser = await User.findOne({ uid: String(ownerId) }).lean().exec();
   }
+
+  // Tier 3: Lookup by Email (case-insensitive, trimmed)
   if (!agentUser && ownerEmail && ownerEmail.includes('@')) {
-    agentUser = await User.findOne({ email: { $regex: new RegExp(`^${escapeRegex(ownerEmail)}$`, 'i') } }).lean().exec();
-  } else if (!agentUser && ownerEmail && ownerEmail !== 'Unassigned') {
-    agentUser = await User.findOne({ name: { $regex: new RegExp(`^${escapeRegex(ownerEmail)}$`, 'i') } }).lean().exec();
+    const cleanEmail = ownerEmail.toLowerCase();
+    agentUser = await User.findOne({
+      email: { $regex: new RegExp(`^${escapeRegex(cleanEmail)}$`, 'i') }
+    }).lean().exec();
   }
+
+  // Tier 4: Lookup by Name (Checking name, first_name, and firstName)
+  if (!agentUser && ownerEmail && ownerEmail !== 'Unassigned' && ownerEmail !== 'SYSTEM') {
+    const cleanName = ownerEmail;
+    agentUser = await User.findOne({
+      $or: [
+        { name: { $regex: new RegExp(`^${escapeRegex(cleanName)}$`, 'i') } },
+        { first_name: { $regex: new RegExp(`^${escapeRegex(cleanName)}$`, 'i') } },
+        { firstName: { $regex: new RegExp(`^${escapeRegex(cleanName)}$`, 'i') } }
+      ]
+    }).lean().exec();
+  }
+
+  // Tier 5: Fallback via parent Contact if entity is a Task or Deal
+  if (!agentUser && (entityData.contact_id || entityData.contactId)) {
+    try {
+      const Contact = mongoose.model('Contact');
+      const parentContact = await Contact.findById(entityData.contact_id || entityData.contactId).lean().exec();
+      if (parentContact) {
+        const parentOwnerEmail = String(parentContact.contactOwnerEmail || parentContact.contact_owner_email || parentContact.assignedTo || parentContact.assigned_to || '').trim();
+        const parentOwnerId = String(parentContact.contactOwnerId || parentContact.contact_owner_id || parentContact.uid || '').trim();
+        if (parentOwnerId && mongoose.Types.ObjectId.isValid(parentOwnerId)) {
+          agentUser = await User.findById(parentOwnerId).lean().exec();
+        }
+        if (!agentUser && parentOwnerId) {
+          agentUser = await User.findOne({ uid: parentOwnerId }).lean().exec();
+        }
+        if (!agentUser && parentOwnerEmail && parentOwnerEmail.includes('@')) {
+          agentUser = await User.findOne({
+            email: { $regex: new RegExp(`^${escapeRegex(parentOwnerEmail.toLowerCase())}$`, 'i') }
+          }).lean().exec();
+        }
+      }
+    } catch (e) {
+      // non-fatal
+    }
+  }
+
+  // Tier 6: Fallback to actorUser or created_by
+  if (!agentUser && (actorUser?.id || actorUser?._id || entityData.created_by || entityData.createdBy)) {
+    const fallbackId = String(actorUser?.id || actorUser?._id || entityData.created_by || entityData.createdBy).trim();
+    if (fallbackId && mongoose.Types.ObjectId.isValid(fallbackId)) {
+      agentUser = await User.findById(fallbackId).lean().exec();
+    } else if (fallbackId && fallbackId.includes('@')) {
+      agentUser = await User.findOne({ email: { $regex: new RegExp(`^${escapeRegex(fallbackId.toLowerCase())}$`, 'i') } }).lean().exec();
+    }
+  }
+
+  // Helper to normalize push tokens array (handles string tokens, object tokens, and device_id fallback)
+  const extractNormalizedTokens = (userDoc) => {
+    if (!userDoc) return [];
+    const rawTokens = Array.isArray(userDoc.aws_push_tokens) && userDoc.aws_push_tokens.length > 0
+      ? userDoc.aws_push_tokens
+      : (userDoc.device_id ? [{ token: userDoc.device_id, endpointArn: userDoc.sns_endpoint_arn || null }] : []);
+
+    return rawTokens.map(t => {
+      if (typeof t === 'string' && t.trim().length > 0) {
+        return { token: t.trim(), endpointArn: null, platform: 'android' };
+      }
+      if (t && typeof t === 'object' && t.token && String(t.token).trim().length > 0) {
+        return {
+          token: String(t.token).trim(),
+          endpointArn: t.endpointArn || null,
+          platform: t.platform || 'android'
+        };
+      }
+      return null;
+    }).filter(t => t && t.token && !t.token.startsWith('sim_device_'));
+  };
 
   if (agentUser) {
     const rawPhone = agentUser.contactNumber || agentUser.contact_number || agentUser.phone || agentUser.mobile || agentUser.fields?.phone || agentUser.fields?.contactNumber || '';
     const normPhone = whatsappService.normalizePhoneNumber(rawPhone);
     recipients.agent = {
       id: String(agentUser._id),
-      name: agentUser.name || `${agentUser.firstName || ''} ${agentUser.lastName || ''}`.trim() || agentUser.email,
+      name: agentUser.name || `${agentUser.firstName || agentUser.first_name || ''} ${agentUser.lastName || agentUser.last_name || ''}`.trim() || agentUser.email,
       phone: normPhone,
       email: agentUser.email,
-      pushTokens: Array.isArray(agentUser.aws_push_tokens) && agentUser.aws_push_tokens.length > 0
-        ? agentUser.aws_push_tokens
-        : (agentUser.device_id ? [{ token: agentUser.device_id, endpointArn: agentUser.sns_endpoint_arn || null }] : [])
+      pushTokens: extractNormalizedTokens(agentUser)
     };
   }
 
   // 2. Resolve Team Lead / Reporting Manager
-  if (agentUser?.team_id || agentUser?.teamId) {
+  if (agentUser) {
     try {
-      const Team = mongoose.model('Team');
-      const teamId = agentUser.team_id || agentUser.teamId;
-      const teamDoc = await Team.findById(teamId).lean().exec();
-      const leadId = teamDoc?.team_lead_id || teamDoc?.teamLeadId;
-      if (leadId && mongoose.Types.ObjectId.isValid(leadId)) {
-        const leadUser = await User.findById(leadId).lean().exec();
-        if (leadUser && String(leadUser._id) !== String(agentUser._id)) {
-          const leadRawPhone = leadUser.contactNumber || leadUser.contact_number || leadUser.phone || leadUser.mobile || '';
-          recipients.teamLead = {
-            id: String(leadUser._id),
-            name: leadUser.name || `${leadUser.firstName || ''} ${leadUser.lastName || ''}`.trim() || leadUser.email,
-            phone: whatsappService.normalizePhoneNumber(leadRawPhone),
-            email: leadUser.email,
-            pushTokens: Array.isArray(leadUser.aws_push_tokens) ? leadUser.aws_push_tokens : []
-          };
+      let leadUser = null;
+      const reportingTo = String(agentUser.reporting_to || agentUser.reportingTo || '').trim();
+      if (reportingTo) {
+        if (mongoose.Types.ObjectId.isValid(reportingTo)) {
+          leadUser = await User.findById(reportingTo).lean().exec();
         }
+        if (!leadUser && reportingTo.includes('@')) {
+          leadUser = await User.findOne({ email: { $regex: new RegExp(`^${escapeRegex(reportingTo.toLowerCase())}$`, 'i') } }).lean().exec();
+        }
+        if (!leadUser) {
+          leadUser = await User.findOne({ uid: reportingTo }).lean().exec();
+        }
+      }
+
+      if (!leadUser && (agentUser.team_id || agentUser.teamId)) {
+        const Team = mongoose.model('Team');
+        const teamId = agentUser.team_id || agentUser.teamId;
+        const teamDoc = await Team.findById(teamId).lean().exec();
+        const leadId = teamDoc?.team_lead_id || teamDoc?.teamLeadId;
+        if (leadId && mongoose.Types.ObjectId.isValid(leadId)) {
+          leadUser = await User.findById(leadId).lean().exec();
+        }
+      }
+
+      if (leadUser && String(leadUser._id) !== String(agentUser._id)) {
+        const leadRawPhone = leadUser.contactNumber || leadUser.contact_number || leadUser.phone || leadUser.mobile || '';
+        recipients.teamLead = {
+          id: String(leadUser._id),
+          name: leadUser.name || `${leadUser.firstName || leadUser.first_name || ''} ${leadUser.lastName || leadUser.last_name || ''}`.trim() || leadUser.email,
+          phone: whatsappService.normalizePhoneNumber(leadRawPhone),
+          email: leadUser.email,
+          pushTokens: extractNormalizedTokens(leadUser)
+        };
       }
     } catch (e) {
       // safe fallback
@@ -170,7 +286,7 @@ async function resolveCrmRecipients({ organizationId, entityData = {}, matrixRul
   const adminOverrideEmail = matrixRule?.routing?.org_admin?.override_email || '';
 
   const adminQuery = {
-    role: 'admin',
+    role: { $in: ['admin', 'superAdmin'] },
     $or: [
       { organization_id: organizationId },
       { organizationId: organizationId }
@@ -182,10 +298,10 @@ async function resolveCrmRecipients({ organizationId, entityData = {}, matrixRul
 
   recipients.admin = {
     id: adminUser ? String(adminUser._id) : 'admin_default',
-    name: adminUser?.name || `${adminUser?.firstName || ''} ${adminUser?.lastName || ''}`.trim() || 'Organization Administrator',
+    name: adminUser?.name || `${adminUser?.firstName || adminUser?.first_name || ''} ${adminUser?.lastName || adminUser?.last_name || ''}`.trim() || 'Organization Administrator',
     phone: whatsappService.normalizePhoneNumber(adminRawPhone),
     email: adminEmail,
-    pushTokens: Array.isArray(adminUser?.aws_push_tokens) ? adminUser.aws_push_tokens : []
+    pushTokens: extractNormalizedTokens(adminUser)
   };
 
   // 4. Resolve Customer
@@ -235,15 +351,19 @@ async function dispatchCrmEvent({
     const orgName = orgDoc?.name || orgDoc?.organization_name || orgDoc?.organizationName || 'Leads Rubix CRM';
     const industryId = orgDoc?.industry_id || orgDoc?.industryId || 'temp0001';
 
-    // 2. Resolve Matrix Rule for this Event
-    let matrixRule = await NotificationMatrixRule.findOne({
-      organization_id: organizationId,
-      event_key: eventKey
-    }).lean().exec();
+    // 2. Resolve Matrix Rule for this Event (Dual-Case & Multi-Tenant Aware)
+    const orgIdStr = organizationId ? String(organizationId) : null;
+    let matrixRule = null;
+    if (orgIdStr) {
+      matrixRule = await NotificationMatrixRule.findOne({
+        $or: [{ organization_id: orgIdStr }, { organizationId: orgIdStr }],
+        event_key: eventKey
+      }).lean().exec();
+    }
 
     if (!matrixRule) {
       matrixRule = await NotificationMatrixRule.findOne({
-        organization_id: null,
+        $or: [{ organization_id: null }, { organization_id: { $exists: false } }],
         event_key: eventKey
       }).lean().exec();
     }
@@ -267,7 +387,7 @@ async function dispatchCrmEvent({
     }
 
     // 3. Resolve Recipients
-    const recipients = await resolveCrmRecipients({ organizationId, entityData, matrixRule });
+    const recipients = await resolveCrmRecipients({ organizationId, entityData, matrixRule, actorUser });
 
     // 4. Construct Universal Merge Token Map
     const frontendBase = (process.env.FRONTEND_URL || 'http://3.110.156.220').replace(/\/+$/, '');
@@ -277,8 +397,8 @@ async function dispatchCrmEvent({
       : (entityId ? `${frontendBase}/leads/contacts` : `${frontendBase}/leads/contacts`);
 
     const defaultOrgPhone = orgDoc?.phone || orgDoc?.contact_number || orgDoc?.contactNumber || orgDoc?.mobile || '';
-    const assignedAgentName = recipients.agent?.name || 'Our Property Advisor';
-    const assignedAgentPhone = recipients.agent?.phone || defaultOrgPhone || 'Our Helpline';
+    const assignedAgentName = recipients.agent?.name || 'Representative';
+    const assignedAgentPhone = recipients.agent?.phone || defaultOrgPhone || '';
 
     const mergeMap = {
       customer_name: recipients.customer?.name || 'Customer',
@@ -290,14 +410,14 @@ async function dispatchCrmEvent({
       assigned_agent_name: assignedAgentName,
       assigned_agent_phone: assignedAgentPhone,
       assigned_agent_email: recipients.agent?.email || '',
-      previous_agent_name: metadata.previousAgentName || entityData.previousOwner || entityData.previous_owner || 'Previous Representative',
-      team_lead_name: recipients.teamLead?.name || 'Team Lead',
+      previous_agent_name: metadata.previousAgentName || entityData.previousOwner || entityData.previous_owner || '',
+      team_lead_name: recipients.teamLead?.name || '',
       organization_name: orgName,
-      deal_title: entityData.dealTitle || entityData.deal_title || entityData.title || 'Opportunity',
+      deal_title: entityData.dealTitle || entityData.deal_title || entityData.title || '',
       deal_amount: entityData.dealValue || entityData.deal_value || entityData.amount || '0',
       deal_stage: entityData.stage || entityData.stageName || 'Pipeline',
-      task_title: entityData.taskTitle || entityData.title || entityData.task_title || entityData.nextFollowUpType || 'Scheduled Follow-up',
-      task_due: entityData.dueDate || entityData.due_date || entityData.nextFollowUp || entityData.scheduled_at || new Date().toLocaleString('en-IN'),
+      task_title: entityData.taskTitle || entityData.title || entityData.task_type || entityData.taskType || entityData.type || entityData.nextFollowUpType || 'Scheduled Follow-up',
+      task_due: entityData.dueDate || entityData.due_date || entityData.nextFollowUp || entityData.scheduled_at || new Date().toLocaleString(),
       crm_lead_url: directLeadUrl,
       // Industry fields
       budget: entityData.budget || '',
@@ -448,18 +568,36 @@ async function dispatchCrmEvent({
           } else if (channel === 'push') {
             target = recipientObj.id || recipientObj.name;
             provider = 'firebase_fcm_v1';
-            const tokens = recipientObj.pushTokens || [];
-            const validTokens = tokens.filter(t => t && t.token && !String(t.token).startsWith('sim_device_'));
+            const rawTokens = recipientObj.pushTokens || [];
+            const validTokens = rawTokens.map(t => {
+              if (typeof t === 'string' && t.trim().length > 0) return { token: t.trim(), endpointArn: null };
+              if (t && typeof t === 'object' && t.token && String(t.token).trim().length > 0) {
+                return { token: String(t.token).trim(), endpointArn: t.endpointArn || null };
+              }
+              return null;
+            }).filter(t => t && t.token && !t.token.startsWith('sim_device_'));
 
             if (validTokens.length === 0) {
               status = 'SUPPRESSED';
               errorMessage = 'No active mobile push device tokens registered for user';
             } else {
+              const isTaskEvent = eventKey.startsWith('task.') || entityType === 'task';
+              const isDealEvent = eventKey.startsWith('deal.') || entityType === 'deal';
+              const targetScreen = isDealEvent ? 'Deals' : (isTaskEvent ? 'Tasks' : 'LeadDetails');
+
+              const targetLeadId = String(entityData?.contact_id || entityData?.contactId || entityData?.leadId || (!isDealEvent && !isTaskEvent ? entityId : '') || '');
+              const targetDealId = String(isDealEvent ? (entityData?.deal_id || entityData?.dealId || entityId) : (entityData?.deal_id || entityData?.dealId || ''));
+              const targetTaskId = String(isTaskEvent ? (entityData?.task_id || entityData?.taskId || entityId) : (entityData?.task_id || entityData?.taskId || ''));
+
               const pushPayloadData = {
                 type: eventKey,
+                eventKey,
                 entityId: String(entityId),
-                leadId: entityType === 'contact' ? String(entityId) : (entityData?.contact_id || entityData?.contactId || String(entityId)),
-                screen: 'LeadDetails',
+                leadId: targetLeadId,
+                contactId: targetLeadId,
+                dealId: targetDealId,
+                taskId: targetTaskId,
+                screen: targetScreen,
                 url: directLeadUrl
               };
 

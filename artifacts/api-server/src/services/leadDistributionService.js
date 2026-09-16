@@ -628,6 +628,41 @@ const leadDistributionService = {
           rotation_time: rotationMinutes,
         });
 
+        // Dispatch Omnichannel Lead Rotation Push Notification
+        try {
+          const { dispatchCrmEvent } = require('./notificationDispatcherService');
+          dispatchCrmEvent({
+            eventKey: 'lead.assigned',
+            organizationId: orgIdStr,
+            entityType: 'contact',
+            entityData: {
+              ...lead.toObject ? lead.toObject() : lead,
+              _id: String(lead._id),
+              id: String(lead._id),
+              customer_name: lead.customer_name || lead.customerName || lead.name || lead.fullName || '',
+              customerName: lead.customer_name || lead.customerName || lead.name || lead.fullName || '',
+              contact_no: lead.contact_number || lead.contactNumber || lead.phone || '',
+              contactNumber: lead.contact_number || lead.contactNumber || lead.phone || '',
+              contact_owner_email: newUserDoc.email,
+              contactOwnerEmail: newUserDoc.email,
+              assigned_to: newUserDoc.name || `${newUserDoc.first_name || ''} ${newUserDoc.last_name || ''}`.trim() || newUserDoc.email,
+              assignedTo: newUserDoc.name || `${newUserDoc.first_name || ''} ${newUserDoc.last_name || ''}`.trim() || newUserDoc.email,
+              contact_owner_id: String(newUserDoc._id),
+              contactOwnerId: String(newUserDoc._id),
+              uid: String(newUserDoc.uid || newUserDoc._id),
+              previous_owner: previousOwner || '',
+              previousOwner: previousOwner || '',
+              source: lead.source || rule.source || ''
+            },
+            metadata: {
+              previousAgentName: previousOwner || '',
+              rotationReason: `Auto Timeout Reassignment (${rotationMinutes} mins)`
+            }
+          }).catch(dErr => console.warn('[LeadDistributionService] Auto-rotation dispatch warning:', dErr.message));
+        } catch (nErr) {
+          console.warn('[LeadDistributionService] Notification trigger error:', nErr.message);
+        }
+
         currentIndex = (currentIndex + 1) % activeQueue.length;
         totalRotated++;
       }

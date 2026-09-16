@@ -13,40 +13,98 @@ async function processTaskReminders() {
     const windowEnd = new Date(now.getTime() + 15 * 60 * 1000); // due in next 15 mins
     const windowStart = new Date(now.getTime() - 2 * 60 * 60 * 1000); // not older than 2 hours
 
-    const dueTasks = await Task.find({
+    // Query active/pending tasks with un-sent reminders (immunized against raw SQL JSONB cast errors)
+    const activeTasks = await Task.find({
       status: { $in: ['PENDING', 'ACTIVE'] },
       $or: [
         { reminder_sent: false },
         { reminder_sent: null },
         { reminderSent: false },
         { reminderSent: null }
-      ],
-      due_date: { $gte: windowStart, $lte: windowEnd }
-    }).limit(50).exec();
+      ]
+    }).limit(100).exec();
 
-    if (!dueTasks || dueTasks.length === 0) {
+    if (!activeTasks || activeTasks.length === 0) {
+      return;
+    }
+
+    // Filter tasks safely in JavaScript (handles due_date, dueDate, next_follow_up without SQL syntax crashes)
+    const dueTasks = [];
+    for (const task of activeTasks) {
+      if (task.reminder_sent === true || task.reminderSent === true) continue;
+      const rawDate = task.due_date || task.dueDate || task.next_follow_up || task.nextFollowUp;
+      if (!rawDate) continue;
+      const parsedTime = new Date(rawDate).getTime();
+      if (isNaN(parsedTime)) continue;
+
+      if (parsedTime >= windowStart.getTime() && parsedTime <= windowEnd.getTime()) {
+        dueTasks.push({ task, rawDate });
+      }
+    }
+
+    if (dueTasks.length === 0) {
       return;
     }
 
     console.log(`[TaskReminderCron] Found ${dueTasks.length} tasks/callbacks due for reminder.`);
 
-    for (const task of dueTasks) {
+    for (const { task, rawDate } of dueTasks) {
       try {
-        const orgId = task.organization_id || task.organizationId || null;
+        let custName = task.customer_name || task.customerName || '';
+        let custPhone = task.contact_number || task.contactNumber || '';
+        let ownerEmail = task.assigned_to || task.assignedTo || task.contact_owner_email || task.contactOwnerEmail || '';
+        let ownerId = task.uid || task.contact_owner_id || task.contactOwnerId || task.created_by || task.createdBy || '';
+        let orgId = task.organization_id || task.organizationId || null;
+
+        const cId = task.contact_id || task.contactId;
+        if (cId && (!custName || !custPhone || !ownerEmail || !orgId)) {
+          try {
+            const Contact = mongoose.model('Contact');
+            const contactDoc = await Contact.findById(cId).lean().exec();
+            if (contactDoc) {
+              custName = custName || contactDoc.customer_name || contactDoc.customerName || '';
+              custPhone = custPhone || contactDoc.contact_number || contactDoc.contactNumber || contactDoc.phone || '';
+              ownerEmail = ownerEmail || contactDoc.contact_owner_email || contactDoc.contactOwnerEmail || contactDoc.assigned_to || contactDoc.assignedTo || '';
+              ownerId = ownerId || contactDoc.contact_owner_id || contactDoc.contactOwnerId || contactDoc.uid || '';
+              orgId = orgId || contactDoc.organization_id || contactDoc.organizationId || null;
+            }
+          } catch (cErr) {
+            // non-fatal
+          }
+        }
+
+        const assignedRep = task.assigned_to || task.assignedTo || task.assigned_user_name || task.assignedUserName || ownerEmail || '';
+        const taskSubject = task.title || task.name || task.task_title || task.taskTitle || task.task_type || task.taskType || task.type || 'Task';
+        const taskTypeStr = task.task_type || task.taskType || task.type || task.action_type || 'Task';
+
         await dispatchCrmEvent({
           eventKey: 'task.reminder',
           organizationId: orgId,
           entityType: 'task',
           entityData: {
-            _id: task._id,
-            id: task._id,
-            customerName: task.customer_name || task.customerName,
-            contactNumber: task.contact_number || task.contactNumber,
-            contactOwnerEmail: task.assigned_to || task.assignedTo || task.contact_owner_email || task.contactOwnerEmail,
-            taskTitle: task.task_type || task.type || 'Scheduled Follow-up',
-            dueDate: task.due_date ? new Date(task.due_date).toLocaleString('en-IN') : 'Now',
-            nextFollowUpType: task.type || 'Call Back',
-            callBackReason: task.callback_reason || task.callbackReason || 'Scheduled Follow-up'
+            _id: String(task._id),
+            id: String(task._id),
+            contact_id: cId ? String(cId) : '',
+            contactId: cId ? String(cId) : '',
+            customerName: custName,
+            customer_name: custName,
+            contactNumber: custPhone,
+            contact_number: custPhone,
+            contactOwnerEmail: ownerEmail,
+            contact_owner_email: ownerEmail,
+            contactOwnerId: ownerId,
+            contact_owner_id: ownerId,
+            assignedTo: assignedRep,
+            assigned_to: assignedRep,
+            taskTitle: taskSubject,
+            task_title: taskSubject,
+            task_type: taskTypeStr,
+            taskType: taskTypeStr,
+            type: taskTypeStr,
+            dueDate: new Date(rawDate).toLocaleString(),
+            due_date: new Date(rawDate).toISOString(),
+            nextFollowUpType: task.type || taskTypeStr,
+            callBackReason: task.callback_reason || task.callbackReason || ''
           }
         });
 
