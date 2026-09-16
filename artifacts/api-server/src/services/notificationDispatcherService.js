@@ -710,8 +710,8 @@ async function dispatchCrmEvent({
 
     const isRoleEligible = (roleConfig) => {
       if (!roleConfig) return false;
-      if (roleConfig.enabled === false && !Object.values(roleConfig.channels || {}).some(Boolean)) return false;
-      return true;
+      if (roleConfig.enabled === false) return false;
+      return Object.values(roleConfig.channels || {}).some(Boolean);
     };
 
     // 1. Agent
@@ -735,23 +735,27 @@ async function dispatchCrmEvent({
       }
     }
 
-    // 4. Customer Routing Evaluation
+    // 4. Customer Routing Evaluation (Strict Tenant Admin Preference)
+    const orgCustomerEnabled = orgDoc?.customer_notifications_enabled !== false && orgDoc?.customerNotificationsEnabled !== false;
     let customerChannels = {};
-    if (isRoleEligible(routing.customer)) {
+
+    if (orgCustomerEnabled && isRoleEligible(routing.customer)) {
       customerChannels = { ...(routing.customer.channels || {}) };
     }
 
-    // If event is lead.created and customer routing is not explicitly enabled on lead.created, check customer.welcome matrix rule
-    if (eventKey === 'lead.created' && !Object.values(customerChannels).some(Boolean)) {
+    // Only fallback to customer.welcome if the tenant has NOT explicitly disabled customer routing for this event
+    const isCustomerExplicitlyDisabled = routing.customer?.enabled === false;
+    if (orgCustomerEnabled && !isCustomerExplicitlyDisabled && eventKey === 'lead.created' && !Object.values(customerChannels).some(Boolean)) {
       try {
         let welcomeRule = await NotificationMatrixRule.findOne({
-          organization_id: organizationId,
+          $or: [{ organization_id: organizationId }, { organizationId: organizationId }],
           event_key: 'customer.welcome'
         }).lean().exec();
 
+        // Only check global default if tenant has no custom welcome rule AND hasn't disabled customer routing
         if (!welcomeRule) {
           welcomeRule = await NotificationMatrixRule.findOne({
-            organization_id: null,
+            $or: [{ organization_id: null }, { organization_id: { $exists: false } }],
             event_key: 'customer.welcome'
           }).lean().exec();
         }

@@ -82,22 +82,30 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
       });
     }
 
-    // 2. Intelligent CRM deep linking to lead / task / call
-    const targetId = item.leadId || item.relatedId;
+    // 2. Intelligent CRM deep linking to lead / deal / task / call
+    const leadId = item.leadId || (item.type?.includes('lead') ? item.relatedId : null);
+    const dealId = item.dealId || (item.type?.includes('deal') ? item.relatedId : null);
+    const taskId = item.taskId || (item.type?.includes('task') ? item.relatedId : null);
+    const targetId = item.relatedId || leadId || dealId || taskId;
+
     const typeLower = (item.type || '').toLowerCase();
     const titleLower = (item.title || '').toLowerCase();
 
-    if (targetId && (typeLower.includes('lead') || titleLower.includes('lead'))) {
+    if (dealId || typeLower.includes('deal') || titleLower.includes('deal') || titleLower.includes('won') || titleLower.includes('milestone')) {
       if (navigation?.navigate) {
-        navigation.navigate('LeadDetail', { leadId: targetId });
+        navigation.navigate('Deals', { dealId: dealId || targetId });
       }
-    } else if (targetId && (typeLower.includes('task') || titleLower.includes('task') || titleLower.includes('visit'))) {
+    } else if (taskId || typeLower.includes('task') || titleLower.includes('task') || titleLower.includes('visit') || titleLower.includes('due')) {
       if (navigation?.navigate) {
-        navigation.navigate('Tasks', { taskId: targetId });
+        navigation.navigate('Tasks', { taskId: taskId || targetId });
       }
-    } else if (targetId && (typeLower.includes('call') || titleLower.includes('call'))) {
+    } else if (typeLower.includes('call') || titleLower.includes('call')) {
       if (navigation?.navigate) {
         navigation.navigate('CallLogs', { callId: targetId });
+      }
+    } else if (leadId || targetId) {
+      if (navigation?.navigate) {
+        navigation.navigate('LeadDetail', { leadId: leadId || targetId });
       }
     }
   };
@@ -180,6 +188,14 @@ export const NotificationsScreen = ({ navigation }: { navigation?: any }) => {
             <Text style={styles.timeText}>{item.timestamp}</Text>
           </View>
           <Text style={styles.bodyText}>{item.body}</Text>
+          {(item.leadId || item.dealId || item.taskId || item.relatedId) ? (
+            <View style={styles.viewActionContainer}>
+              <View style={styles.viewActionPill}>
+                <Text style={styles.viewActionText}>View Record</Text>
+                <Ionicons name="arrow-forward-sharp" size={12} color="#2563EB" />
+              </View>
+            </View>
+          ) : null}
         </View>
       </TouchableOpacity>
     );
@@ -539,6 +555,28 @@ const styles = StyleSheet.create({
     color: '#475569',
     lineHeight: 18,
     marginTop: 2,
+  },
+  viewActionContainer: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  viewActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    gap: 4,
+  },
+  viewActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+    letterSpacing: 0.2,
   },
 
   // ─── Loading & Empty States ───

@@ -10,17 +10,25 @@ import IconButton from '@mui/material/IconButton'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import InputAdornment from '@mui/material/InputAdornment'
 import Paper from '@mui/material/Paper'
 import Grid from '@mui/material/Grid'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { api } from '@/services/api'
 import { AppCard } from '@/components/ui/AppCard'
+import { IntegrationGuideModal } from '../components/IntegrationGuideModal'
+import { TestLeadModal } from '../components/TestLeadModal'
 
 export default function JustDialPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [apiKey, setApiKey] = useState('')
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
+  const [testModalOpen, setTestModalOpen] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -41,14 +49,14 @@ export default function JustDialPage() {
       
       const filtered = tokens.find((item: any) => String(item.source).toLowerCase() === 'justdial')
       if (filtered) {
-        setApiKey(filtered.api_key || '')
+        setApiKey(filtered.apiKey || filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
           source: 'Justdial',
           countryCode: '+91',
           status: 'ACTIVE',
         })
-        setApiKey(resCreate.data?.api_key || '')
+        setApiKey(resCreate.data?.apiKey || resCreate.data?.api_key || '')
       }
     } catch (e: any) {
       setToast({ open: true, msg: 'Failed to configure JustDial integration', sev: 'error' })
@@ -132,7 +140,33 @@ export default function JustDialPage() {
 
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
-      <AppCard title="JustDial Integration" subtitle="Configure automatic lead capturing from your JustDial advertisements." fullHeight>
+      <AppCard
+        title="JustDial Integration"
+        subtitle="Configure automatic lead capturing from your JustDial advertisements."
+        fullHeight
+        action={
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<MenuBookIcon />}
+              onClick={() => setGuideModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+            >
+              Setup Guide & Documentation
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PlayArrowIcon />}
+              onClick={() => setTestModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+            >
+              Send Test Lead
+            </Button>
+          </Stack>
+        }
+      >
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', mt: 2, pr: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '1.25rem' }}>
             Receive New Leads from JustDial in Your Leads Rubix Account
@@ -208,7 +242,7 @@ export default function JustDialPage() {
                     </IconButton>
                     <pre
                       style={{
-                        background: '#1e293b',
+                        background: '#16182D',
                         color: '#f8fafc',
                         borderRadius: 12,
                         padding: '16px',
@@ -227,20 +261,46 @@ export default function JustDialPage() {
 
             <Grid size={{ xs: 12, md: 5 }}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', borderColor: 'divider' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                  Integration Processing Info
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+                  Integration Processing & Field Mapping
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
-                  Once the JustDial setup is completed, their support team typically activates the webhook mapping within 3-5 business days.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6, fontSize: '0.85rem' }}>
+                  Once the JustDial setup is completed, inquiries stream into your CRM in real time.
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  After activation, leads will immediately begin streaming into your dynamic Lead Management panel under the specified campaign parameters.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, lineHeight: 1.6, fontSize: '0.85rem' }}>
+                  Lead ID, customer name, mobile number, product/service category, and area location are automatically mapped.
                 </Typography>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  fullWidth
+                  startIcon={<MenuBookIcon />}
+                  onClick={() => setGuideModalOpen(true)}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                >
+                  View JustDial Field Mappings & Guide
+                </Button>
               </Paper>
             </Grid>
           </Grid>
         </Box>
       </AppCard>
+
+      <IntegrationGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        initialPlatform="justdial"
+        token={apiKey}
+      />
+
+      <TestLeadModal
+        open={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        platformKey="justdial"
+        platformName="JustDial"
+        token={apiKey}
+        onTokenGenerated={(t) => setApiKey(t)}
+      />
 
       <Snackbar
         open={toast.open}

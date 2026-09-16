@@ -30,12 +30,14 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import DynamicFeedIcon from '@mui/icons-material/DynamicFeed'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
 import { alpha } from '@mui/material/styles'
 import axios from 'axios'
 import { api } from '@/services/api'
 import { storage } from '@/services/storage'
 import { AppCard } from '@/components/ui/AppCard'
 import FormModel from './FormModel'
+import { IntegrationGuideModal } from '../components/IntegrationGuideModal'
 
 declare global {
   interface Window {
@@ -53,6 +55,7 @@ export default function FacebookLeadsPage() {
   const [fbConfig, setFbConfig] = useState<any>(null)
   const [projectsList, setProjectsList] = useState<any[]>([])
   const [selectedModalPage, setSelectedModalPage] = useState<any>(null)
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -417,7 +420,21 @@ export default function FacebookLeadsPage() {
         flexDirection: 'column',
       }}
     >
-      <AppCard title="Facebook Integration" subtitle="Manage connected Facebook business pages and capture Lead Ads automatically.">
+      <AppCard
+        title="Facebook Integration"
+        subtitle="Manage connected Facebook business pages and capture Lead Ads automatically."
+        action={
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<MenuBookIcon />}
+            onClick={() => setGuideModalOpen(true)}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+          >
+            Setup Guide & Documentation
+          </Button>
+        }
+      >
         {loading ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 2 }}>
             <CircularProgress size={36} />
@@ -735,6 +752,12 @@ export default function FacebookLeadsPage() {
           {toast.msg}
         </Alert>
       </Snackbar>
+
+      <IntegrationGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        initialPlatform="facebook"
+      />
     </Box>
   )
 }

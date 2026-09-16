@@ -462,23 +462,6 @@ exports.updateStage = async (req, res, next) => {
             stage: updated.stage || 'Won'
           }
         }).catch(err => console.warn('[dealController] deal.won dispatch error:', err));
-        
-        whatsappService.sendNotification({
-          organizationId: orgId,
-          eventType: 'deal_won',
-          deal: {
-            id: updated._id || updated.id,
-            title: updated.title || updated.name,
-            amount: updated.amount,
-            owner_name: updated.owner_name || updated.ownerName,
-            owner_email: updated.owner_email || updated.ownerEmail,
-            contact_name: updated.contact_name || updated.contactName,
-            contact_phone: updated.contact_phone || updated.contactPhone,
-            contact_email: updated.contact_email || updated.contactEmail
-          },
-          ownerEmail: updated.owner_email || updated.ownerEmail,
-          ownerName: updated.owner_name || updated.ownerName
-        }).catch(wErr => console.warn('[dealController] WhatsApp deal_won notification error:', wErr));
       } catch (wErr) {
         console.warn('[dealController] WhatsApp deal_won error:', wErr);
       }

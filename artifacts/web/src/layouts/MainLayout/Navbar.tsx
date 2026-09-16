@@ -242,12 +242,21 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
     const handleNotificationClick = (item: NotificationItem) => {
         dispatch(markNotificationRead(item._id || item.id))
         setNotificationsAnchor(null)
-        if (item.related_id) {
-            if (item.type === 'LEAD_ASSIGNED' || item.type === 'LEAD_TRANSFERRED') {
-                navigate(`/leads/contacts/${item.related_id}/edit`)
-            } else if (item.type === 'TASK_ASSIGNED') {
-                navigate('/leads/tasks')
-            }
+
+        const typeLower = (item.type || '').toLowerCase()
+        const titleLower = (item.title || '').toLowerCase()
+        const relatedId = item.related_id || (item as any).relatedId || (item as any).leadId || (item as any).entityId
+
+        if (typeLower.includes('deal') || titleLower.includes('deal') || titleLower.includes('won') || titleLower.includes('milestone')) {
+            navigate(relatedId ? `/leads/deals-list?dealId=${relatedId}` : '/leads/deals-list')
+        } else if (typeLower.includes('task') || titleLower.includes('task') || titleLower.includes('due') || titleLower.includes('visit') || titleLower.includes('sla')) {
+            navigate(relatedId ? `/leads/tasks?taskId=${relatedId}` : '/leads/tasks')
+        } else if (typeLower.includes('call') || titleLower.includes('call')) {
+            navigate(relatedId ? `/leads/call-logs?callId=${relatedId}` : '/leads/call-logs')
+        } else if (relatedId) {
+            navigate(`/leads/contacts/${relatedId}`)
+        } else {
+            navigate('/leads/contacts')
         }
     }
 
@@ -669,9 +678,31 @@ export function Navbar({ onMobileMenuOpen }: NavbarProps) {
                                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, lineHeight: 1.3 }}>
                                                 {item.message}
                                             </Typography>
-                                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6875rem' }}>
-                                                {formatRelativeTime(item.created_at || item.createdAt)}
-                                            </Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.75 }}>
+                                                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6875rem' }}>
+                                                    {formatRelativeTime(item.created_at || item.createdAt)}
+                                                </Typography>
+                                                <Button
+                                                    size="small"
+                                                    variant="text"
+                                                    sx={{
+                                                        py: 0.25,
+                                                        px: 0.75,
+                                                        minWidth: 'auto',
+                                                        fontSize: '0.725rem',
+                                                        textTransform: 'none',
+                                                        fontWeight: 600,
+                                                        color: 'primary.main',
+                                                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
+                                                    }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleNotificationClick(item)
+                                                    }}
+                                                >
+                                                    View Record →
+                                                </Button>
+                                            </Box>
                                         </Box>
                                     </Box>
                                 ))

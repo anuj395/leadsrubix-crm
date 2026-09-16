@@ -48,6 +48,7 @@ function formatApiToken(t, orgMap = {}, trafficMap = {}) {
   return {
     id: String(t._id || t.id || ''),
     apiKey: tokenKey,
+    api_key: tokenKey,
     organizationId: orgId,
     organizationName: orgMap[orgId] || t.organizationName || '',
     industryId: t.industry_id || t.industryId || '',

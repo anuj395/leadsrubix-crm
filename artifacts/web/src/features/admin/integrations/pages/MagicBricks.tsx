@@ -15,13 +15,20 @@ import TextField from '@mui/material/TextField'
 import InputAdornment from '@mui/material/InputAdornment'
 import Paper from '@mui/material/Paper'
 import Grid from '@mui/material/Grid'
+import Stack from '@mui/material/Stack'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { api } from '@/services/api'
 import { AppCard } from '@/components/ui/AppCard'
+import { IntegrationGuideModal } from '../components/IntegrationGuideModal'
+import { TestLeadModal } from '../components/TestLeadModal'
 
 export default function MagicBricksPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [apiKey, setApiKey] = useState('')
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
+  const [testModalOpen, setTestModalOpen] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; sev: 'success' | 'error' }>({
     open: false,
     msg: '',
@@ -61,14 +68,14 @@ export default function MagicBricksPage() {
       
       const filtered = tokens.find((item: any) => norm(item.source).includes('magicbrick'))
       if (filtered) {
-        setApiKey(filtered.api_key || '')
+        setApiKey(filtered.apiKey || filtered.api_key || '')
       } else {
         const resCreate = await api.post('/api-tokens', {
           source: canonicalSource,
           countryCode: '+91',
           status: 'ACTIVE',
         })
-        setApiKey(resCreate.data?.api_key || '')
+        setApiKey(resCreate.data?.apiKey || resCreate.data?.api_key || '')
       }
     } catch (e: any) {
       setToast({ open: true, msg: 'Failed to configure MagicBricks integration', sev: 'error' })
@@ -152,7 +159,33 @@ export default function MagicBricksPage() {
 
       {loading && <CircularProgress sx={{ mx: 'auto', my: 4 }} />}
 
-      <AppCard title="MagicBricks Integration" subtitle="Configure automatic lead capturing from your MagicBricks advertisements." fullHeight>
+      <AppCard
+        title="MagicBricks Integration"
+        subtitle="Configure automatic lead capturing from your MagicBricks advertisements."
+        fullHeight
+        action={
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<MenuBookIcon />}
+              onClick={() => setGuideModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+            >
+              Setup Guide & Documentation
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PlayArrowIcon />}
+              onClick={() => setTestModalOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', whiteSpace: 'nowrap' }}
+            >
+              Send Test Lead
+            </Button>
+          </Stack>
+        }
+      >
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', mt: 2, pr: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '1.25rem' }}>
             Receive New Leads from MagicBricks Directly in Your Leads Rubix Account
@@ -237,7 +270,7 @@ export default function MagicBricksPage() {
                     </IconButton>
                     <pre
                       style={{
-                        background: '#1e293b',
+                        background: '#16182D',
                         color: '#f8fafc',
                         borderRadius: 12,
                         padding: '16px',
@@ -256,20 +289,46 @@ export default function MagicBricksPage() {
 
             <Grid size={{ xs: 12, md: 5 }}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', borderColor: 'divider' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                  Integration Processing Info
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+                  Integration Processing & Field Mapping
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
-                  Once the MagicBricks team configures the payload mapping on their backend, active listing leads will immediately begin streaming into your Leads Rubix panel.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6, fontSize: '0.85rem' }}>
+                  Once the MagicBricks team configures the payload mapping on their backend, active listing leads immediately stream into your CRM.
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  This setup is fully database-integrated and does not require manual token management once created.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, lineHeight: 1.6, fontSize: '0.85rem' }}>
+                  Buyer name, phone number, project title, and customer comments are automatically mapped to CRM contacts and tasks.
                 </Typography>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  fullWidth
+                  startIcon={<MenuBookIcon />}
+                  onClick={() => setGuideModalOpen(true)}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+                >
+                  View MagicBricks Field Mappings & Guide
+                </Button>
               </Paper>
             </Grid>
           </Grid>
         </Box>
       </AppCard>
+
+      <IntegrationGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        initialPlatform="magicbricks"
+        token={apiKey}
+      />
+
+      <TestLeadModal
+        open={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        platformKey="magicbricks"
+        platformName="MagicBricks"
+        token={apiKey}
+        onTokenGenerated={(t) => setApiKey(t)}
+      />
 
       <Snackbar
         open={toast.open}
