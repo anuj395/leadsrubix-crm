@@ -315,20 +315,42 @@ router.get('/logs', authenticate, async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const andClauses = [];
 
-    // 1. Role-based scoping
+    // 1. Role-based scoping & multi-tenant isolation
     if (userRole === 'superAdmin') {
       if (orgId) {
-        query.organization_id = orgId;
+        andClauses.push({
+          $or: [
+            { organization_id: orgId },
+            { organizationId: orgId },
+            { organization_id: 'default' },
+            { organization_id: null }
+          ]
+        });
       }
+      // If superAdmin and no orgId specified, global visibility across all workspaces
     } else if (userRole === 'admin') {
       if (orgId) {
-        query.organization_id = orgId;
+        andClauses.push({
+          $or: [
+            { organization_id: orgId },
+            { organizationId: orgId },
+            { organization_id: 'default' },
+            { organization_id: null }
+          ]
+        });
       }
     } else if (userRole === 'teamLead' || userRole === 'leadManager') {
       if (orgId) {
-        query.organization_id = orgId;
+        andClauses.push({
+          $or: [
+            { organization_id: orgId },
+            { organizationId: orgId },
+            { organization_id: 'default' },
+            { organization_id: null }
+          ]
+        });
       }
       try {
         const visibleIds = await getVisibleUserIds(req.user);
@@ -345,28 +367,33 @@ router.get('/logs', authenticate, async (req, res) => {
         if (userEmail) allowedTargets.push(userEmail);
         if (userPhone) allowedTargets.push(userPhone);
 
-        query.$and = query.$and || [];
-        query.$and.push({
+        andClauses.push({
           $or: [
             { recipient_id: { $in: allowedIds } },
             { recipient_target: { $in: allowedTargets } },
-            { recipient_role: { $in: ['team_lead', 'agent'] } }
+            { recipient_role: { $in: ['team_lead', 'agent', 'sales', 'telecaller'] } }
           ]
         });
       } catch (hierErr) {
         console.warn('[NotificationHubRoutes] Failed to resolve team hierarchy in logs:', hierErr.message);
       }
     } else {
-      // Sales Agent: strictly own alerts
+      // Sales Agent / Telecaller: strictly own alerts
       if (orgId) {
-        query.organization_id = orgId;
+        andClauses.push({
+          $or: [
+            { organization_id: orgId },
+            { organizationId: orgId },
+            { organization_id: 'default' },
+            { organization_id: null }
+          ]
+        });
       }
       const selfTargets = [];
       if (userEmail) selfTargets.push(userEmail);
       if (userPhone) selfTargets.push(userPhone);
 
-      query.$and = query.$and || [];
-      query.$and.push({
+      andClauses.push({
         $or: [
           ...(userId ? [{ recipient_id: userId }] : []),
           ...(selfTargets.length > 0 ? [{ recipient_target: { $in: selfTargets } }] : []),
@@ -377,30 +404,56 @@ router.get('/logs', authenticate, async (req, res) => {
 
     // 2. Query filters
     if (req.query.channel && req.query.channel !== 'all') {
-      query.channel = req.query.channel;
+      andClauses.push({ channel: req.query.channel.toLowerCase().trim() });
     }
+
     if (req.query.status && req.query.status !== 'all') {
-      query.status = req.query.status.toUpperCase();
+      const st = req.query.status.toUpperCase().trim();
+      if (st === 'DELIVERED' || st === 'SUCCESS') {
+        andClauses.push({ status: { $in: ['SUCCESS', 'DELIVERED', 'SENT'] } });
+      } else if (st === 'SENT') {
+        andClauses.push({ status: { $in: ['SENT', 'SUCCESS', 'DELIVERED'] } });
+      } else if (st === 'FAILED') {
+        andClauses.push({ status: 'FAILED' });
+      } else if (st === 'SUPPRESSED') {
+        andClauses.push({ status: 'SUPPRESSED' });
+      } else if (st === 'QUEUED') {
+        andClauses.push({ status: 'QUEUED' });
+      } else {
+        andClauses.push({ status: st });
+      }
     }
+
     if (req.query.eventKey && req.query.eventKey !== 'all') {
-      query.event_key = req.query.eventKey;
+      andClauses.push({ event_key: req.query.eventKey.trim() });
     }
+
     if (req.query.recipientRole && req.query.recipientRole !== 'all') {
-      query.recipient_role = req.query.recipientRole;
+      const role = req.query.recipientRole.trim().toLowerCase();
+      if (role === 'agent' || role === 'assigned_agent') {
+        andClauses.push({ recipient_role: { $in: ['agent', 'assigned_agent'] } });
+      } else if (role === 'admin' || role === 'org_admin') {
+        andClauses.push({ recipient_role: { $in: ['admin', 'org_admin'] } });
+      } else {
+        andClauses.push({ recipient_role: role });
+      }
     }
+
     if (req.query.search && String(req.query.search).trim().length > 0) {
-      const searchRegex = new RegExp(String(req.query.search).trim(), 'i');
-      const searchCond = {
+      const searchRegex = new RegExp(escapeRegex(String(req.query.search).trim()), 'i');
+      andClauses.push({
         $or: [
           { recipient_name: searchRegex },
           { recipient_target: searchRegex },
           { message_body: searchRegex },
-          { title: searchRegex }
+          { title: searchRegex },
+          { event_key: searchRegex },
+          { channel: searchRegex }
         ]
-      };
-      query.$and = query.$and || [];
-      query.$and.push(searchCond);
+      });
     }
+
+    const query = andClauses.length > 0 ? { $and: andClauses } : {};
 
     const [logs, total] = await Promise.all([
       NotificationLog.find(query)

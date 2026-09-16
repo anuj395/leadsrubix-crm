@@ -32,6 +32,8 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TablePagination from '@mui/material/TablePagination';
+import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import Accordion from '@mui/material/Accordion';
@@ -284,8 +286,14 @@ export default function NotificationHubPage() {
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
   const [logFilterChannel, setLogFilterChannel] = useState<string>('all');
   const [logFilterStatus, setLogFilterStatus] = useState<string>('all');
+  const [logFilterEventKey, setLogFilterEventKey] = useState<string>('all');
+  const [logFilterRecipientRole, setLogFilterRecipientRole] = useState<string>('all');
   const [logFilterSearch, setLogFilterSearch] = useState<string>('');
+  const [logPage, setLogPage] = useState<number>(0);
+  const [logRowsPerPage, setLogRowsPerPage] = useState<number>(25);
+  const [logTotal, setLogTotal] = useState<number>(0);
   const [selectedLogPayload, setSelectedLogPayload] = useState<NotificationLog | null>(null);
+  const hasMountedLogsRef = useRef(false);
 
   // Diagnostic Test Modal State
   const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
@@ -303,6 +311,17 @@ export default function NotificationHubPage() {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // Auto-refresh delivery logs when navigating to logs tab
+  useEffect(() => {
+    if (currentTabKey === 'logs') {
+      if (!hasMountedLogsRef.current) {
+        hasMountedLogsRef.current = true;
+      } else {
+        loadLogs();
+      }
+    }
+  }, [currentTabKey]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -456,23 +475,72 @@ export default function NotificationHubPage() {
     }
   };
 
-  const loadLogs = async () => {
+  const loadLogs = async (override?: {
+    page?: number;
+    limit?: number;
+    channel?: string;
+    status?: string;
+    eventKey?: string;
+    recipientRole?: string;
+    search?: string;
+  }) => {
     setLogsLoading(true);
     try {
+      const pageToUse = override?.page !== undefined ? override.page : logPage;
+      const limitToUse = override?.limit !== undefined ? override.limit : logRowsPerPage;
+      const channelToUse = override?.channel !== undefined ? override.channel : logFilterChannel;
+      const statusToUse = override?.status !== undefined ? override.status : logFilterStatus;
+      const eventKeyToUse = override?.eventKey !== undefined ? override.eventKey : logFilterEventKey;
+      const recipientRoleToUse = override?.recipientRole !== undefined ? override.recipientRole : logFilterRecipientRole;
+      const searchToUse = override?.search !== undefined ? override.search : logFilterSearch;
+
       const data = await notificationHubApi.getLogs({
-        channel: logFilterChannel !== 'all' ? logFilterChannel : undefined,
-        status: logFilterStatus !== 'all' ? logFilterStatus : undefined,
-        search: logFilterSearch.trim() || undefined,
-        limit: 50
+        channel: channelToUse !== 'all' ? channelToUse : undefined,
+        status: statusToUse !== 'all' ? statusToUse : undefined,
+        eventKey: eventKeyToUse !== 'all' ? eventKeyToUse : undefined,
+        recipientRole: recipientRoleToUse !== 'all' ? recipientRoleToUse : undefined,
+        search: searchToUse.trim() || undefined,
+        page: pageToUse + 1, // MUI is 0-indexed, backend API is 1-indexed
+        limit: limitToUse
       });
       if (data.success) {
         setLogs(data.logs || []);
+        setLogTotal(data.total || 0);
       }
     } catch (err: any) {
       console.warn('Failed to fetch delivery logs:', err);
     } finally {
       setLogsLoading(false);
     }
+  };
+
+  const handleLogPageChange = (_: unknown, newPage: number) => {
+    setLogPage(newPage);
+    loadLogs({ page: newPage });
+  };
+
+  const handleLogRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const newLimit = parseInt(event.target.value, 10);
+    setLogRowsPerPage(newLimit);
+    setLogPage(0);
+    loadLogs({ page: 0, limit: newLimit });
+  };
+
+  const handleResetLogFilters = () => {
+    setLogFilterChannel('all');
+    setLogFilterStatus('all');
+    setLogFilterEventKey('all');
+    setLogFilterRecipientRole('all');
+    setLogFilterSearch('');
+    setLogPage(0);
+    loadLogs({
+      page: 0,
+      channel: 'all',
+      status: 'all',
+      eventKey: 'all',
+      recipientRole: 'all',
+      search: ''
+    });
   };
 
   // Sync active template editor state when event or channel changes
@@ -2906,14 +2974,19 @@ export default function NotificationHubPage() {
 
           {/* Filters Bar */}
           <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid size={{ xs: 12, sm: 3 }}>
+            <Grid container spacing={1.5} alignItems="center">
+              <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Channel</InputLabel>
                   <Select
                     value={logFilterChannel}
                     label="Channel"
-                    onChange={(e) => setLogFilterChannel(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLogFilterChannel(val);
+                      setLogPage(0);
+                      loadLogs({ channel: val, page: 0 });
+                    }}
                   >
                     <MenuItem value="all">All Channels</MenuItem>
                     <MenuItem value="whatsapp">WhatsApp</MenuItem>
@@ -2924,50 +2997,142 @@ export default function NotificationHubPage() {
                 </FormControl>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 3 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Delivery Status</InputLabel>
                   <Select
                     value={logFilterStatus}
                     label="Delivery Status"
-                    onChange={(e) => setLogFilterStatus(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLogFilterStatus(val);
+                      setLogPage(0);
+                      loadLogs({ status: val, page: 0 });
+                    }}
                   >
                     <MenuItem value="all">All Statuses</MenuItem>
+                    <MenuItem value="delivered">Delivered (Success)</MenuItem>
                     <MenuItem value="sent">Sent</MenuItem>
-                    <MenuItem value="delivered">Delivered</MenuItem>
                     <MenuItem value="failed">Failed</MenuItem>
+                    <MenuItem value="suppressed">Suppressed</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>CRM Event</InputLabel>
+                  <Select
+                    value={logFilterEventKey}
+                    label="CRM Event"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLogFilterEventKey(val);
+                      setLogPage(0);
+                      loadLogs({ eventKey: val, page: 0 });
+                    }}
+                  >
+                    <MenuItem value="all">All Events</MenuItem>
+                    {eventsList.map((ev) => (
+                      <MenuItem key={ev.key} value={ev.key}>
+                        {ev.name || ev.key}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Recipient Role</InputLabel>
+                  <Select
+                    value={logFilterRecipientRole}
+                    label="Recipient Role"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLogFilterRecipientRole(val);
+                      setLogPage(0);
+                      loadLogs({ recipientRole: val, page: 0 });
+                    }}
+                  >
+                    <MenuItem value="all">All Roles</MenuItem>
+                    <MenuItem value="agent">Sales Agent</MenuItem>
+                    <MenuItem value="customer">Customer</MenuItem>
+                    <MenuItem value="admin">Administrator</MenuItem>
+                    <MenuItem value="team_lead">Team Lead</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 2 }}>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => {
+                      setLogPage(0);
+                      loadLogs({ page: 0 });
+                    }}
+                    disabled={logsLoading}
+                    sx={{ textTransform: 'none', fontWeight: 600, height: 40, borderRadius: 2 }}
+                  >
+                    {logsLoading ? 'Loading...' : 'Filter'}
+                  </Button>
+                  <Tooltip title="Reset all filters">
+                    <IconButton
+                      onClick={handleResetLogFilters}
+                      disabled={logsLoading}
+                      size="small"
+                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, width: 40, height: 40 }}
+                    >
+                      <RestartAltIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 10 }}>
                 <TextField
                   fullWidth
                   size="small"
-                  label="Search Contact / Phone / Email"
+                  placeholder="Search contact, phone, email, event key, channel, message content..."
                   value={logFilterSearch}
                   onChange={(e) => setLogFilterSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && loadLogs()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setLogPage(0);
+                      loadLogs({ page: 0, search: logFilterSearch });
+                    }
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: logFilterSearch ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setLogFilterSearch('');
+                            setLogPage(0);
+                            loadLogs({ page: 0, search: '' });
+                          }}
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null
+                  }}
                 />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 2 }}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<RefreshIcon />}
-                  onClick={loadLogs}
-                  disabled={logsLoading}
-                  sx={{ textTransform: 'none', fontWeight: 600, height: 40, borderRadius: 2 }}
-                >
-                  {logsLoading ? 'Loading...' : 'Filter'}
-                </Button>
               </Grid>
             </Grid>
           </Paper>
 
           {/* Logs Table */}
           <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+            {logsLoading && <LinearProgress sx={{ height: 3 }} />}
             <TableContainer
               sx={{
                 overflowX: 'auto',
@@ -2991,7 +3156,7 @@ export default function NotificationHubPage() {
                   {logs.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                        No delivery logs found matching the selected filters.
+                        {logsLoading ? 'Loading delivery logs...' : 'No delivery logs found matching the selected filters.'}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -3077,6 +3242,24 @@ export default function NotificationHubPage() {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Server-Side Table Pagination */}
+            <TablePagination
+              component="div"
+              count={logTotal}
+              page={logPage}
+              onPageChange={handleLogPageChange}
+              rowsPerPage={logRowsPerPage}
+              onRowsPerPageChange={handleLogRowsPerPageChange}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              showFirstButton
+              showLastButton
+              sx={{
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                px: 2
+              }}
+            />
           </Paper>
         </Box>
       )}

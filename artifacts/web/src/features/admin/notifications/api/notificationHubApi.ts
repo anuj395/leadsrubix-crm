@@ -140,6 +140,7 @@ export const notificationHubApi = {
     channel?: string;
     status?: string;
     eventKey?: string;
+    recipientRole?: string;
     search?: string;
     page?: number;
     limit?: number;
