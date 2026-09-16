@@ -14,7 +14,7 @@ const PROVIDERS_CATALOG = [
     key: 'tata_smartflo',
     name: 'Tata Tele (Smartflo)',
     tagline: 'Enterprise Cloud PBX & Smart DID routing for call centers and sales teams.',
-    defaultDid: '+91 80 4567 8900',
+    examplePlaceholder: 'e.g. +91 80 1234 5678',
     steps: [
       'Log into your Tata Smartflo Portal > Integrations & Webhooks.',
       'Create a new Webhook Subscription for "Call Completed / Call CDR" events.',
@@ -28,7 +28,7 @@ const PROVIDERS_CATALOG = [
     key: 'telecmi',
     name: 'TeleCMI',
     tagline: 'AI Cloud Contact Center with live call routing, recording sync, and agent hunt groups.',
-    defaultDid: '+91 80 4567 8901',
+    examplePlaceholder: 'e.g. +91 80 1234 5678',
     steps: [
       'Open your TeleCMI Dashboard > Webhook / API Settings.',
       'Add a Webhook event for "Call End" and "Missed Call".',
@@ -42,7 +42,7 @@ const PROVIDERS_CATALOG = [
     key: 'exotel',
     name: 'Exotel',
     tagline: 'Exotel Passthru or Call-Log Applet integration for real-time inbound call distribution.',
-    defaultDid: '+91 11 6789 0001',
+    examplePlaceholder: 'e.g. +91 11 1234 5678',
     steps: [
       'Log into your Exotel Dashboard and navigate to App Bazaar > Create Flow / Flow Builder.',
       'Add a Passthru Applet after your greeting or IVR flow.',
@@ -56,7 +56,7 @@ const PROVIDERS_CATALOG = [
     key: 'myoperator',
     name: 'MyOperator',
     tagline: 'Virtual numbers and IVR system to log received, missed, and after-hours customer calls.',
-    defaultDid: '+91 92 1234 5678',
+    examplePlaceholder: 'e.g. +91 92 1234 5678',
     steps: [
       'Log into your MyOperator Panel and navigate to Integrations > Webhook.',
       'Enable Webhook integration for incoming call logs.',
@@ -70,7 +70,7 @@ const PROVIDERS_CATALOG = [
     key: 'airtel_iq',
     name: 'Airtel IQ',
     tagline: 'Enterprise telecom cloud API with instant call connection and audio analytics.',
-    defaultDid: '+91 12 4455 6677',
+    examplePlaceholder: 'e.g. +91 12 1234 5678',
     steps: [
       'Access your Airtel IQ Portal > Voice API Configuration.',
       'Configure the Callback Event URL to the Leads Rubix Webhook URL.',
@@ -83,7 +83,7 @@ const PROVIDERS_CATALOG = [
     key: 'cloud_ivr',
     name: 'Standard Cloud IVR',
     tagline: 'Direct cloud telephony webhook integration for Inbound Inquiry capture and Call Logs.',
-    defaultDid: '+91 80 4000 5000',
+    examplePlaceholder: 'e.g. +91 80 1234 5678',
     steps: [
       'Log into your cloud telephony administrator portal with your credentials.',
       'Navigate to Apps or Integrations from the navigation menu.',
@@ -97,7 +97,7 @@ const PROVIDERS_CATALOG = [
     key: 'custom_pbx',
     name: 'Custom PBX / Universal Asterisk',
     tagline: 'Universal REST Webhook integration for Asterisk, FreePBX, Vicidial, Twilio, or VoIP.',
-    defaultDid: '+91 80 0000 0000',
+    examplePlaceholder: 'e.g. +91 80 1234 5678',
     steps: [
       'Configure your PBX / IVR dialplan (e.g. Hangup handler or CDR trigger) to make an HTTP POST request.',
       'Send a JSON body to the Leads Rubix Webhook URL with Content-Type: application/json.',
@@ -144,6 +144,17 @@ exports.listChannels = async (req, res) => {
       .lean()
       .exec();
 
+    // Automatic cleanup of historical dummy numbers (e.g. +91 80 4567 8900-8909) from earlier seed
+    for (const ch of channels) {
+      const vNum = ch.virtual_number || ch.virtualNumber || '';
+      if (vNum && (vNum.includes('4567') || vNum.includes('80 4567'))) {
+        const cleaned = vNum.replace(/(\+?91[\s-]?)?80[\s-]?4567[\s-]?890\d?/g, '').trim();
+        await TelephonyChannel.updateOne({ _id: ch._id }, { $set: { virtual_number: cleaned } });
+        ch.virtual_number = cleaned;
+        ch.virtualNumber = cleaned;
+      }
+    }
+
     // Auto-migration / seed: If organization has NO channels yet, check if they have an existing IVR ApiToken
     if (channels.length === 0) {
       const existingToken = await ApiToken.findOne({
@@ -169,7 +180,7 @@ exports.listChannels = async (req, res) => {
         name: 'Primary Inbound Line',
         provider: 'tata_smartflo',
         provider_name: 'Tata Tele (Smartflo)',
-        virtual_number: '+91 80 4567 8900',
+        virtual_number: '',
         api_key: seedKey,
         routing_mode: 'AGENT_PHONE_MATCH',
         status: 'ACTIVE',
@@ -222,24 +233,24 @@ exports.createChannel = async (req, res) => {
 
     const {
       name,
-      provider = 'tata_smartflo',
-      virtual_number = '',
-      virtualNumber = '',
-      routing_mode = 'AGENT_PHONE_MATCH',
-      routingMode = 'AGENT_PHONE_MATCH',
-      default_agent_id = null,
-      defaultAgentId = null,
+      provider,
+      virtual_number,
+      virtualNumber,
+      routing_mode,
+      routingMode,
+      default_agent_id,
+      defaultAgentId,
     } = req.body;
 
-    if (!name || String(name).trim() === '') {
-      return res.status(400).json({ success: false, message: 'Channel Name is required' });
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ success: false, message: 'Channel name is required' });
     }
 
     const resolvedProvider = PROVIDERS_CATALOG.find((p) => p.key === provider) || PROVIDERS_CATALOG[0];
+
     const targetAgentId = default_agent_id || defaultAgentId || null;
     let agentName = '';
     let agentEmail = '';
-
     if (targetAgentId && mongoose.Types.ObjectId.isValid(targetAgentId)) {
       const u = await User.findById(targetAgentId).lean().exec();
       if (u) {
@@ -249,7 +260,7 @@ exports.createChannel = async (req, res) => {
     }
 
     const channelApiKey = generateChannelKey();
-    const finalVirtualNumber = virtual_number || virtualNumber || resolvedProvider.defaultDid || '';
+    const finalVirtualNumber = (virtual_number || virtualNumber || '').trim();
 
     const channelDoc = await TelephonyChannel.create({
       organization_id: orgId,
@@ -330,7 +341,7 @@ exports.updateChannel = async (req, res) => {
       }
     }
     if (virtual_number !== undefined || virtualNumber !== undefined) {
-      existing.virtual_number = virtual_number !== undefined ? virtual_number : virtualNumber;
+      existing.virtual_number = String(virtual_number !== undefined ? virtual_number : virtualNumber || '').trim();
     }
     if (routing_mode || routingMode) {
       existing.routing_mode = routing_mode || routingMode;
@@ -453,7 +464,7 @@ exports.testChannelCall = async (req, res) => {
       customer_name: 'Inbound Caller',
       agent_phone: agentPhone,
       agent_name: agentName,
-      virtual_number: channel.virtual_number || '+918045678900',
+      virtual_number: channel.virtual_number || 'Unassigned DID',
       duration: 45,
       call_status: 'Answered',
       recording_url: 'https://storage.cloud-telephony.com/recordings/sample_call.mp3',
