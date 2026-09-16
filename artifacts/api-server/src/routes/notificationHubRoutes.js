@@ -901,4 +901,73 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/notifications/test-crm-event
+ * Simulates and dispatches a full CRM lifecycle event through the complete routing matrix,
+ * recipient resolver, and omnichannel dispatchers (Push, In-App Bell, WhatsApp, Email).
+ */
+router.post('/test-crm-event', authenticate, async (req, res) => {
+  try {
+    const orgId = resolveOrgId(req);
+    const { eventKey, entityData = {} } = req.body;
+    if (!eventKey) {
+      return res.status(400).json({ success: false, message: 'eventKey is required.' });
+    }
+
+    const userName = `${req.user?.first_name || ''} ${req.user?.last_name || ''}`.trim() || req.user?.name || 'Tester';
+    const userEmail = (req.user?.email || '').toLowerCase().trim();
+    const userPhone = String(req.user?.contactNumber || req.user?.contact_number || req.user?.phone || '').trim();
+    const userId = req.user?.id || req.user?._id;
+
+    const enrichedEntity = {
+      _id: entityData._id || entityData.leadId || entityData.dealId || entityData.taskId || new mongoose.Types.ObjectId().toString(),
+      name: entityData.name || entityData.leadName || entityData.contactName || userName,
+      first_name: entityData.first_name || req.user?.first_name || 'Test',
+      last_name: entityData.last_name || req.user?.last_name || 'Customer',
+      email: entityData.email || userEmail || '',
+      phone: entityData.phone || userPhone || '',
+      contactNumber: entityData.contactNumber || entityData.phone || userPhone || '',
+      company: entityData.company || '',
+      stage: entityData.stage || entityData.leadStage || 'New',
+      source: entityData.source || 'Website',
+      title: entityData.title || entityData.dealTitle || entityData.taskTitle || 'Test Subject',
+      deal_value: entityData.deal_value || entityData.dealValue || entityData.value || '0',
+      dealValue: entityData.dealValue || entityData.deal_value || '0',
+      due_date: entityData.due_date || entityData.dueDate || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      dueDate: entityData.dueDate || entityData.due_date || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      task_type: entityData.task_type || entityData.taskType || 'Callback',
+      taskType: entityData.taskType || entityData.task_type || 'Callback',
+      contactOwnerId: entityData.contactOwnerId || entityData.contact_owner_id || userId,
+      contact_owner_id: entityData.contact_owner_id || entityData.contactOwnerId || userId,
+      contactOwnerEmail: entityData.contactOwnerEmail || entityData.contact_owner_email || userEmail,
+      contact_owner_email: entityData.contact_owner_email || entityData.contactOwnerEmail || userEmail,
+      assignedTo: entityData.assignedTo || entityData.assigned_to || userName,
+      assigned_to: entityData.assigned_to || entityData.assignedTo || userName,
+      actorUser: entityData.actorUser || {
+        id: userId,
+        name: userName,
+        email: userEmail
+      },
+      ...entityData
+    };
+
+    const dispatchResult = await dispatchCrmEvent({
+      eventKey,
+      organizationId: orgId,
+      entityData: enrichedEntity,
+      actorUser: enrichedEntity.actorUser
+    });
+
+    return res.json({
+      success: true,
+      eventKey,
+      organizationId: orgId,
+      result: dispatchResult
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in /test-crm-event:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

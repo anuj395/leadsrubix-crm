@@ -266,11 +266,40 @@ exports.transition = async (req, res, next) => {
     if (activeRecord) {
       try {
         const { dispatchCrmEvent } = require('../services/notificationDispatcherService');
+        const activeObj = activeRecord.toObject ? activeRecord.toObject() : activeRecord;
+        const ownerEmail = activeObj.contactOwnerEmail || activeObj.contact_owner_email || activeObj.ownerEmail || activeObj.owner_email || existingContact?.contactOwnerEmail || existingContact?.contact_owner_email || '';
+        const ownerId = activeObj.contactOwnerId || activeObj.contact_owner_id || activeObj.uid || activeObj.owner_id || activeObj.ownerId || existingContact?.contactOwnerId || existingContact?.contact_owner_id || existingContact?.uid || '';
+        const custName = activeObj.customerName || activeObj.customer_name || activeObj.name || activeObj.fullName || (activeObj.first_name ? `${activeObj.first_name} ${activeObj.last_name || ''}`.trim() : '') || existingContact?.customerName || existingContact?.customer_name || existingContact?.name || '';
+        const assignedRep = activeObj.assignedTo || activeObj.assigned_to || activeObj.assignedUserName || existingContact?.assignedTo || existingContact?.assigned_to || ownerEmail || '';
+        const actorName = req.user?.name || `${req.user?.first_name || ''} ${req.user?.last_name || ''}`.trim() || req.user?.email || '';
+
         dispatchCrmEvent({
           eventKey: 'lead.stage_changed',
-          organizationId: activeRecord.organization_id || activeRecord.organizationId,
+          organizationId: activeObj.organization_id || activeObj.organizationId,
           entityType: 'contact',
-          entityData: activeRecord
+          entityData: {
+            ...activeObj,
+            _id: String(id),
+            id: String(id),
+            stage: targetStage,
+            deal_stage: targetStage,
+            customerName: custName,
+            customer_name: custName,
+            contactNumber: activeObj.contactNumber || activeObj.contact_number || activeObj.phone || existingContact?.contactNumber || existingContact?.contact_number || existingContact?.phone || '',
+            contact_number: activeObj.contactNumber || activeObj.contact_number || activeObj.phone || existingContact?.contactNumber || existingContact?.contact_number || existingContact?.phone || '',
+            contactOwnerEmail: ownerEmail,
+            contact_owner_email: ownerEmail,
+            assignedTo: assignedRep,
+            assigned_to: assignedRep,
+            contactOwnerId: ownerId,
+            contact_owner_id: ownerId,
+            uid: ownerId
+          },
+          actorUser: req.user,
+          metadata: {
+            previousStage: oldStage,
+            changedBy: actorName
+          }
         }).catch(err => console.error('[NotificationDispatcher] lead.stage_changed error:', err));
       } catch (e) {}
     }

@@ -81,10 +81,17 @@ const slaTriggerService = {
             entityData: {
               _id: lead._id,
               id: lead._id,
-              name: lead.name || lead.customerName || lead.customer_name || 'Inquiry',
-              customerName: lead.name || lead.customerName || lead.customer_name || 'Inquiry',
+              name: lead.name || lead.customerName || lead.customer_name || lead.fullName || '',
+              customerName: lead.name || lead.customerName || lead.customer_name || lead.fullName || '',
               contactNumber: lead.contactNumber || lead.contact_number || lead.phone || '',
-              contactOwnerEmail: lead.contactOwnerEmail || lead.contact_owner_email || lead.assignedTo || lead.assigned_to || '',
+              contact_number: lead.contactNumber || lead.contact_number || lead.phone || '',
+              contactOwnerEmail: lead.contactOwnerEmail || lead.contact_owner_email || lead.owner_email || '',
+              contact_owner_email: lead.contactOwnerEmail || lead.contact_owner_email || lead.owner_email || '',
+              assignedTo: lead.assignedTo || lead.assigned_to || lead.contactOwnerEmail || lead.contact_owner_email || '',
+              assigned_to: lead.assignedTo || lead.assigned_to || lead.contactOwnerEmail || lead.contact_owner_email || '',
+              contactOwnerId: lead.uid || lead.contact_owner_id || lead.contactOwnerId || '',
+              contact_owner_id: lead.uid || lead.contact_owner_id || lead.contactOwnerId || '',
+              uid: lead.uid || lead.contact_owner_id || lead.contactOwnerId || '',
               slaTimeoutMinutes: cfg.freshLeadTimeoutMinutes || 60
             }
           }).catch(err => console.error('[SlaTriggerService] dispatch error:', err.message));

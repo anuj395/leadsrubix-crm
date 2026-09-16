@@ -85,10 +85,19 @@ export const AppNavigator = () => {
     if (token) {
       pushNotificationService.registerForPushNotifications();
       const cleanup = pushNotificationService.setupNotificationListeners((targetScreen, params) => {
-        if (targetScreen === 'LeadDetails' && params?.leadId) {
+        if ((targetScreen === 'LeadDetails' || targetScreen === 'LeadDetail') && (params?.leadId || params?.contactId)) {
+          const leadId = params.leadId || params.contactId;
           setCurrentScreen('LeadDetail');
-          setRouteParams({ leadId: params.leadId });
-          setNavStack(prev => [...prev, { screen: 'LeadDetail', params: { leadId: params.leadId } }]);
+          setRouteParams({ leadId });
+          setNavStack(prev => [...prev, { screen: 'LeadDetail', params: { leadId } }]);
+        } else if (targetScreen === 'Deals') {
+          setCurrentScreen('Deals');
+          setRouteParams(params || {});
+          setNavStack(prev => [...prev, { screen: 'Deals', params: params || {} }]);
+        } else if (targetScreen === 'Tasks') {
+          setCurrentScreen('Tasks');
+          setRouteParams(params || {});
+          setNavStack(prev => [...prev, { screen: 'Tasks', params: params || {} }]);
         } else if (targetScreen === 'Notifications') {
           setCurrentScreen('Notifications');
           setNavStack(prev => [...prev, { screen: 'Notifications', params: {} }]);

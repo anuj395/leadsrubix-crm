@@ -7,6 +7,9 @@ export interface PushNotificationPayload {
   type?: string;
   relatedId?: string;
   leadId?: string;
+  contactId?: string;
+  dealId?: string;
+  taskId?: string;
   screen?: string;
 }
 
@@ -183,8 +186,15 @@ class PushNotificationService {
         }
 
         if (data && onNavigateToScreen) {
-          const targetScreen = data.screen || (data.leadId ? 'LeadDetails' : 'Notifications');
-          const params = data.leadId ? { leadId: data.leadId } : { notificationId: data.relatedId };
+          const leadId = data.leadId || data.contactId;
+          const targetScreen = data.screen || (leadId ? 'LeadDetails' : (data.dealId ? 'Deals' : (data.taskId ? 'Tasks' : 'Notifications')));
+          const params = {
+            leadId,
+            contactId: leadId,
+            dealId: data.dealId,
+            taskId: data.taskId,
+            notificationId: data.relatedId,
+          };
           onNavigateToScreen(targetScreen, params);
         }
       });

@@ -11,6 +11,7 @@ import {
   ScrollView,
   FlatList,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../api/apiClient';
@@ -18,6 +19,7 @@ import { LeadItem } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
 import { CalendarDatePickerModal } from '../ui/CalendarDatePickerModal';
+import { useSafeModalInsets } from '../../hooks/useSafeModalInsets';
 
 export interface CallbackFormField {
   key: string;
@@ -104,6 +106,7 @@ export const CallbackModal: React.FC<Props> = ({
   onSuccess,
 }) => {
   const { user } = useAuth();
+  const { bottomInset, sheetBottomPadding } = useSafeModalInsets();
 
   // Dynamic Form Fields & Values
   const [formFields, setCallbackFormFields] = useState<CallbackFormField[]>(DEFAULT_CALLBACK_FIELDS);
@@ -465,8 +468,11 @@ export const CallbackModal: React.FC<Props> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
+      >
+        <View style={[styles.modalCard, { paddingBottom: sheetBottomPadding }]}>
           {/* Header Matching Web 1:1 */}
           <View style={styles.modalHeaderRow}>
             <View style={styles.modalTitleGroup}>
@@ -487,7 +493,8 @@ export const CallbackModal: React.FC<Props> = ({
             <ScrollView
               style={styles.modalScrollView}
               contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
             >
               {formFields.map((field) => renderDynamicField(field))}
             </ScrollView>
@@ -511,7 +518,7 @@ export const CallbackModal: React.FC<Props> = ({
         {/* IN-MODAL OVERLAY: OPTION PICKER */}
         {pickerModal.visible && (
           <View style={styles.inModalOverlay}>
-            <View style={styles.inModalSheet}>
+            <View style={[styles.inModalSheet, { paddingBottom: sheetBottomPadding }]}>
               <View style={styles.modalHeaderRow}>
                 <View style={styles.modalTitleGroup}>
                   <Text style={styles.modalTitle}>Select {pickerModal.fieldLabel}</Text>
@@ -539,6 +546,8 @@ export const CallbackModal: React.FC<Props> = ({
                 data={filteredPickerOptions}
                 keyExtractor={(item, index) => `${item}_${index}`}
                 style={{ maxHeight: 280 }}
+                contentContainerStyle={{ paddingBottom: Math.max(bottomInset, 16) }}
+                keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => {
                   const isSelected = pickerModal.currentValue === item;
                   return (
@@ -592,7 +601,7 @@ export const CallbackModal: React.FC<Props> = ({
           asInModalOverlay={true}
           minDate={new Date()}
         />
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -610,7 +619,6 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.25,
@@ -644,6 +652,7 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     flexGrow: 0,
+    flexShrink: 1,
   },
   modalScrollContent: {
     paddingBottom: 14,
@@ -778,6 +787,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    flexShrink: 0,
   },
   modalCancelBtn: {
     paddingHorizontal: 16,
@@ -817,7 +827,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 18,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
     maxHeight: '92%',
   },
 

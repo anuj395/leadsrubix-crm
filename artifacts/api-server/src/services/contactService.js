@@ -822,18 +822,37 @@ exports.updateForUser = async ({ id, payload, authedUser }) => {
       } catch (e) {}
     }
 
-    // 2. Dispatch lead.assigned if contact owner changed
-    const oldOwner = existing.contactOwnerEmail || existing.contact_owner_email || existing.assignedTo || existing.assigned_to;
-    const newOwner = cleaned.contactOwnerEmail || cleaned.contact_owner_email || cleaned.assignedTo || cleaned.assigned_to;
-    if (newOwner && oldOwner && String(newOwner).trim().toLowerCase() !== String(oldOwner).trim().toLowerCase()) {
+    // 2. Dispatch lead.assigned (or lead.transferred) if contact owner changed
+    const oldOwner = String(existing.contactOwnerEmail || existing.contact_owner_email || existing.assignedTo || existing.assigned_to || '').trim();
+    const newOwner = String(cleaned.contactOwnerEmail || cleaned.contact_owner_email || cleaned.assignedTo || cleaned.assigned_to || '').trim();
+    const isOwnerChanged = Boolean(
+      newOwner &&
+      newOwner.toLowerCase() !== 'unassigned' &&
+      (!oldOwner || oldOwner.toLowerCase() === 'unassigned' || newOwner.toLowerCase() !== oldOwner.toLowerCase())
+    );
+
+    if (isOwnerChanged) {
+      const isTransfer = Boolean(cleaned.transferReason || cleaned.transfer_reason || cleaned.transferStatus || cleaned.transfer_status);
+      const targetEvent = isTransfer ? 'lead.transferred' : 'lead.assigned';
       try {
         const { dispatchCrmEvent } = require('./notificationDispatcherService');
         dispatchCrmEvent({
-          eventKey: 'lead.assigned',
+          eventKey: targetEvent,
           organizationId: targetOrgId || updated.organization_id || updated.organizationId,
           entityType: 'contact',
-          entityData: updated
-        }).catch(err => console.error('[NotificationDispatcher] lead.assigned error in updateForUser:', err.message));
+          entityData: {
+            ...updated.toObject ? updated.toObject() : updated,
+            previous_owner: oldOwner || '',
+            previousOwner: oldOwner || '',
+            contactOwnerEmail: newOwner,
+            contact_owner_email: newOwner,
+            assignedTo: newOwner,
+            assigned_to: newOwner
+          },
+          metadata: {
+            previousAgentName: oldOwner || ''
+          }
+        }).catch(err => console.error(`[NotificationDispatcher] ${targetEvent} error in updateForUser:`, err.message));
       } catch (e) {}
     }
   }
@@ -990,11 +1009,18 @@ exports.transferLeads = async ({ ids, owner, reason, leadType, options = {}, aut
           customerName: leadCustomerName,
           contact_no: leadContactNo,
           contactNumber: leadContactNo,
-          previous_owner: oldOwner || 'Previous Representative',
-          previousOwner: oldOwner || 'Previous Representative'
+          contactOwnerEmail: targetOwnerEmail,
+          contact_owner_email: targetOwnerEmail,
+          assignedTo: targetOwnerEmail,
+          assigned_to: targetOwnerEmail,
+          contactOwnerId: targetOwnerUid,
+          contact_owner_id: targetOwnerUid,
+          uid: targetOwnerUid,
+          previous_owner: oldOwner || '',
+          previousOwner: oldOwner || ''
         },
         metadata: {
-          previousAgentName: oldOwner || 'Previous Representative'
+          previousAgentName: oldOwner || ''
         }
       }).catch(err => console.error('[NotificationDispatcher] Transfer dispatch error:', err));
     } catch (e) {
@@ -1159,6 +1185,8 @@ exports.bulkReassignContacts = async ({ ids, contactOwnerEmail, uid, authedUser 
           contact_owner_email: contactOwnerEmail,
           assignedTo: contactOwnerEmail,
           assigned_to: contactOwnerEmail,
+          contactOwnerId: uid || null,
+          contact_owner_id: uid || null,
           uid: uid || null,
           customer_name: leadCustomerName,
           customerName: leadCustomerName,
@@ -2034,11 +2062,43 @@ exports.scheduleCallbackAtomic = async ({
       notes: notes || '',
       created_by: authedUser?.email || authedUser?.id || '',
       assigned_to: contact.contact_owner_email || authedUser?.email || '',
+      assignedTo: contact.contact_owner_email || authedUser?.email || '',
+      contact_owner_email: contact.contact_owner_email || authedUser?.email || '',
+      contactOwnerEmail: contact.contact_owner_email || authedUser?.email || '',
+      uid: contact.uid || authedUser?.uid || null,
       latitude,
       longitude
     });
 
-    // Note: task.reminder will be dispatched by taskReminderCron 15 minutes prior to dueDate
+    // If scheduled due time is within the next 30 minutes, immediately dispatch reminder confirmation push
+    if (followUpDate && (new Date(followUpDate).getTime() - Date.now() <= 30 * 60 * 1000)) {
+      try {
+        const { dispatchCrmEvent } = require('./notificationDispatcherService');
+        dispatchCrmEvent({
+          eventKey: 'task.reminder',
+          organizationId: contact.organization_id || contact.organizationId || authedUser?.organizationId,
+          entityType: 'task',
+          entityData: {
+            _id: createdTask?._id || contactId,
+            id: createdTask?._id || contactId,
+            contact_id: contactId,
+            contactId: contactId,
+            customerName: contact.customer_name || contact.customerName || contact.name || '',
+            contactNumber: contact.contact_number || contact.contactNumber || contact.phone || '',
+            contactOwnerEmail: contact.contact_owner_email || contact.contactOwnerEmail || authedUser?.email || '',
+            assignedTo: contact.assigned_to || contact.assignedTo || contact.contact_owner_email || contact.contactOwnerEmail || authedUser?.email || '',
+            contactOwnerId: contact.contact_owner_id || contact.contactOwnerId || contact.uid || authedUser?.id || authedUser?.uid || '',
+            contact_owner_id: contact.contact_owner_id || contact.contactOwnerId || contact.uid || authedUser?.id || authedUser?.uid || '',
+            taskTitle: 'Call Back',
+            task_type: 'Call Back',
+            type: 'Call Back',
+            dueDate: new Date(followUpDate).toLocaleString(),
+            due_date: new Date(followUpDate).toISOString(),
+            callBackReason: callBackReason || ''
+          }
+        }).catch(err => console.warn('[ContactService] Immediate callback reminder dispatch warning:', err.message));
+      } catch (e) {}
+    }
   } catch (createErr) {
     console.error('Failed to create atomic Task', createErr);
   }

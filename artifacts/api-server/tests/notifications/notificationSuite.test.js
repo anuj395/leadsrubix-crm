@@ -132,7 +132,8 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
     User.findOne = (query) => ({
       lean: () => ({
         exec: async () => {
-          if (query?.role === 'admin') return mockAdminUser;
+          const roleVal = query?.role;
+          if (roleVal === 'admin' || (roleVal && roleVal.$in && roleVal.$in.includes('admin'))) return mockAdminUser;
           return mockAgentUser;
         }
       })
