@@ -1,16 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
+import Tooltip from '@mui/material/Tooltip'
+import Chip from '@mui/material/Chip'
+import IconButton from '@mui/material/IconButton'
 import CallMadeIcon from '@mui/icons-material/CallMade'
 import CallReceivedIcon from '@mui/icons-material/CallReceived'
 import SupportAgentIcon from '@mui/icons-material/SupportAgent'
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk'
 import PhoneCallbackIcon from '@mui/icons-material/PhoneCallback'
 import PhoneMissedIcon from '@mui/icons-material/PhoneMissed'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
+import DownloadIcon from '@mui/icons-material/Download'
 import type { GridColDef } from '@mui/x-data-grid'
 import { AppCard } from '@/components/ui/AppCard'
 import { AppDataGrid } from '@/components/ui/AppDataGrid'
@@ -21,6 +27,108 @@ import { useTableConfig } from '@/hooks/useTableConfig'
 import { useActionPermission } from '@/hooks/useActionPermission'
 import api from '@/services/axiosInstance'
 import Alert from '@mui/material/Alert'
+
+function AudioPlayerCell({ url }: { url?: string }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
+    }
+  }, [])
+
+  if (!url) {
+    return (
+      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+        —
+      </Typography>
+    )
+  }
+
+  const togglePlay = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(url)
+      audioRef.current.playbackRate = playbackRate
+      audioRef.current.onended = () => setIsPlaying(false)
+      audioRef.current.onerror = () => setIsPlaying(false)
+    }
+    if (isPlaying) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      audioRef.current.playbackRate = playbackRate
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false))
+    }
+  }
+
+  const cycleSpeed = () => {
+    const nextRate = playbackRate === 1 ? 1.25 : playbackRate === 1.25 ? 1.5 : 1
+    setPlaybackRate(nextRate)
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextRate
+    }
+  }
+
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <Tooltip title={isPlaying ? 'Pause recording' : 'Play call recording'}>
+        <IconButton
+          size="small"
+          onClick={togglePlay}
+          sx={{
+            width: 26,
+            height: 26,
+            bgcolor: isPlaying ? 'primary.main' : 'action.hover',
+            color: isPlaying ? '#fff' : 'primary.main',
+            '&:hover': {
+              bgcolor: isPlaying ? 'primary.dark' : 'primary.light',
+              color: '#fff',
+            },
+          }}
+        >
+          {isPlaying ? <PauseIcon sx={{ fontSize: 15 }} /> : <PlayArrowIcon sx={{ fontSize: 15 }} />}
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="Toggle playback speed">
+        <Chip
+          label={`${playbackRate}x`}
+          size="small"
+          onClick={cycleSpeed}
+          sx={{
+            height: 20,
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip title="Download recording">
+        <IconButton
+          size="small"
+          component="a"
+          href={url}
+          target="_blank"
+          download
+          sx={{ width: 24, height: 24, color: 'text.secondary' }}
+        >
+          <DownloadIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  )
+}
 
 interface CallLog {
   _id: string
@@ -36,6 +144,8 @@ interface CallLog {
   duration: number | string
   stage?: string
   status?: 'Answered' | 'Missed' | 'No Answer' | 'Busy'
+  recording_url?: string
+  recordingUrl?: string
   created_at?: string
   createdAt?: string
   details?: string
@@ -221,6 +331,18 @@ export default function CallLogsListPage() {
           const secs = d % 60
           return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
         }
+      },
+      {
+        field: 'recording',
+        headerName: 'Recording',
+        width: 135,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          const row = params.row
+          const url = row.recording_url || row.recordingUrl || (row as any).recording
+          return <AudioPlayerCell url={url} />
+        },
       },
       {
         field: 'created_at',

@@ -779,5 +779,10 @@ router.post('/facebook', async (req, res, next) => {
 const awsSesWebhookCtrl = require('../controllers/awsSesWebhookController');
 router.post('/aws-ses', awsSesWebhookCtrl.handleSesWebhook);
 
+// --- Cloud Telephony & IVR Webhooks Ingest Endpoint ---
+const ivrWebhookRoutes = require('./ivrWebhookRoutes');
+router.use('/ivr', ivrWebhookRoutes);
+
 module.exports = router;
+
 

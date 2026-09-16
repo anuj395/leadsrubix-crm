@@ -13,6 +13,7 @@ export const paths = {
   bookingForm: '/configuration/booking',
   resources: '/configuration/resources',
   whatsapp: '/integrations/whatsapp',
+  ivr: '/integrations/ivr',
   users: '/users',
   contactsList: '/leads/contacts',
   tasksList: '/leads/tasks',

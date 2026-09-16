@@ -25,7 +25,16 @@ const callLogSchema = new mongoose.Schema(
     inventory_type:  { type: String, default: '', alias: 'inventoryType' },
     uid:            { type: String, default: '', index: true },
     latitude:       { type: Number, default: null },
-    longitude:      { type: Number, default: null }
+    longitude:      { type: Number, default: null },
+    call_sid:       { type: String, default: '', index: true, alias: 'callSid' },
+    recording_url:  { type: String, default: '', alias: 'recordingUrl' },
+    virtual_number: { type: String, default: '', alias: 'virtualNumber' },
+    agent_number:   { type: String, default: '', alias: 'agentNumber' },
+    agent_extension:{ type: String, default: '', alias: 'agentExtension' },
+    call_status:    { type: String, default: '', alias: 'callStatus' },
+    direction:      { type: String, default: 'Inbound' },
+    provider:       { type: String, default: 'Cloud Telephony' },
+    ivr_option:     { type: String, default: '', alias: 'ivrOption' }
   },
   { 
     timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' },

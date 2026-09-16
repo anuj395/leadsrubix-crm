@@ -49,6 +49,7 @@ import JustDialPage from '@/features/admin/integrations/pages/JustDial'
 import SulekhaPage from '@/features/admin/integrations/pages/Sulekha'
 import WebsitePage from '@/features/admin/integrations/pages/Website'
 import HousingPage from '@/features/admin/integrations/pages/Housing'
+import IvrPage from '@/features/admin/integrations/pages/Ivr'
 
 
 
@@ -142,6 +143,7 @@ export const routeComponentMap: Record<string, any> = {
   "/integrations/sulekha": SulekhaPage,
   "/integrations/website": WebsitePage,
   "/integrations/housing": HousingPage,
+  "/integrations/ivr": IvrPage,
 
 
 

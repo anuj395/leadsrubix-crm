@@ -411,14 +411,27 @@ export default function ContactsListPage() {
 
   const indCode = String(industryId || '').toLowerCase().trim();
 
+  const isRawInquiry = (it: any) => {
+    return (
+      it.lifecycle_stage === 'INQUIRY' ||
+      it.lifecycleStage === 'INQUIRY' ||
+      it.isRawInquiry === true
+    )
+  }
+
   const filterCounts = useMemo(() => {
     let fresh = 0
     let callback = 0
     let interested = 0
     let deals = 0
     let lost = 0
+    let eligibleCount = 0
 
     items.forEach((it) => {
+      // Strictly exclude raw inquiries from verified contacts
+      if (isRawInquiry(it)) return
+
+      eligibleCount++
       const stage = normalizeStage(it.stage || (it as any).lead_stage || (it as any).propertyStage)
       const isDeal = (it as any).converted_to_deal || (it as any).convertedToDeal || (it as any).is_converted || stage === 'WON'
 
@@ -436,7 +449,7 @@ export default function ContactsListPage() {
     })
 
     return {
-      all: items.length,
+      all: eligibleCount,
       fresh,
       callback,
       interested,
@@ -450,6 +463,9 @@ export default function ContactsListPage() {
     const todayStr = now.toISOString().split('T')[0]
 
     return items.filter((it) => {
+      // Strictly exclude raw inquiries from verified contacts
+      if (isRawInquiry(it)) return false
+
       const stage = normalizeStage(it.stage || (it as any).lead_stage || (it as any).propertyStage)
       const isDeal = (it as any).converted_to_deal || (it as any).convertedToDeal || (it as any).is_converted || stage === 'WON'
 
