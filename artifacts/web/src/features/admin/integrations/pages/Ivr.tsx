@@ -96,7 +96,7 @@ export interface ProviderCatalogItem {
   key: string
   name: string
   tagline: string
-  defaultDid: string
+  examplePlaceholder?: string
   steps: string[]
   paramNotes: string
 }
@@ -215,7 +215,7 @@ export function IvrPage() {
         key: selectedChannel.provider,
         name: selectedChannel.provider_name || selectedChannel.providerName || 'Cloud Telephony',
         tagline: 'Direct cloud telephony webhook integration for inbound calls and Call Logs.',
-        defaultDid: selectedChannel.virtual_number || '+91 80 4567 8900',
+        examplePlaceholder: 'e.g. +91 80 1234 5678',
         steps: [
           'Log into your cloud telephony provider portal with your organization credentials.',
           'Navigate to Webhooks / Integration settings.',
@@ -261,7 +261,7 @@ export function IvrPage() {
   // Dynamic sample payload tailored to active channel and provider
   const samplePayload = useMemo(() => {
     const provName = selectedChannel?.provider_name || selectedChannel?.providerName || selectedProviderInfo?.name || 'Cloud Telephony'
-    const vDid = selectedChannel?.virtual_number || selectedChannel?.virtualNumber || '+918045678900'
+    const vDid = selectedChannel?.virtual_number || selectedChannel?.virtualNumber || 'YOUR_VIRTUAL_DID'
     return {
       token: channelApiKey,
       customer_number: '+919876543210',
@@ -275,7 +275,9 @@ export function IvrPage() {
       ivr_option: 'Inbound Sales',
       provider: provName,
       channel_id: selectedChannel?._id || '',
-      notes: `Inbound Call via ${provName} (${selectedChannel?.name || 'Main Line'}) on DID ${vDid}`,
+      notes: vDid && vDid !== 'YOUR_VIRTUAL_DID'
+        ? `Inbound Call via ${provName} (${selectedChannel?.name || 'Main Line'}) on DID ${vDid}`
+        : `Inbound Call via ${provName} (${selectedChannel?.name || 'Main Line'})`,
     }
   }, [channelApiKey, agentPhone, agentDisplayName, selectedChannel, selectedProviderInfo])
 
@@ -331,8 +333,7 @@ export function IvrPage() {
   const handleOpenCreateDialog = () => {
     setFormName('')
     setFormProvider('tata_smartflo')
-    const prov = providersCatalog.find((p) => p.key === 'tata_smartflo')
-    setFormVirtualNumber(prov?.defaultDid || '+91 80 4567 8900')
+    setFormVirtualNumber('')
     setFormRoutingMode('AGENT_PHONE_MATCH')
     setFormDefaultAgentId('')
     setCreateDialogOpen(true)
@@ -608,12 +609,20 @@ export function IvrPage() {
                                   height: 20,
                                 }}
                               />
-                              {ch.status === 'ACTIVE' ? (
+                              {ch.status === 'ACTIVE' && (ch.virtual_number || ch.virtualNumber) ? (
                                 <Chip
                                   icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.75rem !important' }} />}
                                   label="Active"
                                   size="small"
                                   color="success"
+                                  sx={{ height: 20, fontSize: '0.68rem', fontWeight: 600 }}
+                                />
+                              ) : ch.status === 'ACTIVE' && !(ch.virtual_number || ch.virtualNumber) ? (
+                                <Chip
+                                  icon={<WarningAmberRoundedIcon sx={{ fontSize: '0.75rem !important' }} />}
+                                  label="Pending Setup"
+                                  size="small"
+                                  color="warning"
                                   sx={{ height: 20, fontSize: '0.68rem', fontWeight: 600 }}
                                 />
                               ) : (
@@ -652,13 +661,35 @@ export function IvrPage() {
                           </Stack>
                         </Stack>
 
-                        <Box sx={{ mb: 2, p: 1.5, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+                        <Box
+                          sx={{
+                            mb: 2,
+                            p: 1.5,
+                            borderRadius: 1.5,
+                            bgcolor: (ch.virtual_number || ch.virtualNumber) ? 'action.hover' : 'rgba(245, 158, 11, 0.08)',
+                            border: !(ch.virtual_number || ch.virtualNumber) ? '1px dashed rgba(245, 158, 11, 0.5)' : undefined,
+                          }}
+                        >
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
                             Virtual Pilot DID Number
                           </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', mt: 0.25 }}>
-                            {ch.virtual_number || ch.virtualNumber || 'Unassigned DID'}
-                          </Typography>
+                          {(ch.virtual_number || ch.virtualNumber) ? (
+                            <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', mt: 0.25 }}>
+                              {ch.virtual_number || ch.virtualNumber}
+                            </Typography>
+                          ) : (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 600,
+                                color: '#D97706',
+                                fontStyle: 'italic',
+                                mt: 0.25,
+                              }}
+                            >
+                              Unassigned (Click edit to configure)
+                            </Typography>
+                          )}
                         </Box>
 
                         <Grid container spacing={1} sx={{ mb: 1 }}>
@@ -825,7 +856,9 @@ export function IvrPage() {
                         )}
                       </Stack>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.8125rem' }}>
-                        Inbound callers on DID {selectedChannel.virtual_number || selectedChannel.virtualNumber || 'Pilot'} automatically create {industryInfo.funnelNoun} and record audio in Call Logs.
+                        {(selectedChannel.virtual_number || selectedChannel.virtualNumber)
+                          ? `Inbound callers on DID ${selectedChannel.virtual_number || selectedChannel.virtualNumber} automatically create ${industryInfo.funnelNoun} and record audio in Call Logs.`
+                          : `Configure your virtual DID number to automatically capture inbound calls as ${industryInfo.funnelNoun} and record audio in Call Logs.`}
                       </Typography>
                     </Box>
                   </Stack>
@@ -1140,12 +1173,7 @@ export function IvrPage() {
                 value={formProvider}
                 label="Telephony Provider"
                 onChange={(e) => {
-                  const val = e.target.value
-                  setFormProvider(val)
-                  const prov = providersCatalog.find((p) => p.key === val)
-                  if (prov?.defaultDid && !formVirtualNumber) {
-                    setFormVirtualNumber(prov.defaultDid)
-                  }
+                  setFormProvider(e.target.value)
                 }}
               >
                 {providersCatalog.map((p) => (
@@ -1162,10 +1190,10 @@ export function IvrPage() {
             <TextField
               fullWidth
               label="Virtual Pilot DID Number"
-              placeholder="+91 80 4567 8900"
+              placeholder={providersCatalog.find((p) => p.key === formProvider)?.examplePlaceholder || "e.g. +91 80 1234 5678"}
               value={formVirtualNumber}
               onChange={(e) => setFormVirtualNumber(e.target.value)}
-              helperText="The virtual pilot number configured in your cloud telephony portal."
+              helperText="The virtual pilot number configured in your cloud telephony portal (leave blank if pending assignment)."
             />
 
             <FormControl fullWidth>
@@ -1250,8 +1278,10 @@ export function IvrPage() {
             <TextField
               fullWidth
               label="Virtual Pilot DID Number"
+              placeholder={providersCatalog.find((p) => p.key === formProvider)?.examplePlaceholder || "e.g. +91 80 1234 5678"}
               value={formVirtualNumber}
               onChange={(e) => setFormVirtualNumber(e.target.value)}
+              helperText="The virtual pilot number configured in your cloud telephony portal (leave blank if pending assignment)."
             />
 
             <FormControl fullWidth>
