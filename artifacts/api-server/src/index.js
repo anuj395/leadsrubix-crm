@@ -66,6 +66,7 @@ require('./models/workspaceModel');
 require('./models/analyticsConfigModel');
 require('./models/importLogModel');
 require('./models/callLogModel');
+require('./models/telephonyChannelModel');
 require('./models/sidebarModel');
 require('./models/taskModel');
 require('./models/notificationModel');

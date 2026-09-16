@@ -117,6 +117,9 @@ export default function InquiriesListPage() {
     let lostCount = 0
 
     inquiries.forEach((item) => {
+      const isQualifiedLead = (item.is_qualified === true || item.isQualified === true) && (item.lifecycle_stage === 'LEAD' || item.lifecycleStage === 'LEAD')
+      if (isQualifiedLead) return
+
       const stage = normalizeStage(item.stage || item.lifecycle_stage)
       const hasOwner = Boolean(item.contactOwnerEmail || item.contact_owner_email || item.contactOwnerId || item.contact_owner_id)
       if (!hasOwner) unassigned++
@@ -157,6 +160,9 @@ export default function InquiriesListPage() {
 
   const filteredInquiries = useMemo(() => {
     return inquiries.filter((item) => {
+      const isQualifiedLead = (item.is_qualified === true || item.isQualified === true) && (item.lifecycle_stage === 'LEAD' || item.lifecycleStage === 'LEAD')
+      if (isQualifiedLead && filterStage !== 'ALL') return false
+
       const stage = normalizeStage(item.stage || item.lifecycle_stage)
       const hasOwner = Boolean(item.contactOwnerEmail || item.contact_owner_email || item.contactOwnerId || item.contact_owner_id)
 
@@ -309,12 +315,29 @@ export default function InquiriesListPage() {
     {
       field: 'source',
       headerName: 'SOURCE',
-      width: 105,
-      minWidth: 105,
+      width: 130,
+      minWidth: 120,
       renderCell: (params) => {
         const src = String(params.row.source || params.row.lead_source || 'Inbound').trim()
+        const isIvr = src.toLowerCase().includes('ivr')
         const isMeta = src.toLowerCase().includes('meta') || src.toLowerCase().includes('facebook')
         const isPortal = src.toLowerCase().includes('99') || src.toLowerCase().includes('acre') || src.toLowerCase().includes('magic')
+        if (isIvr) {
+          return (
+            <Chip
+              label={src}
+              size="small"
+              sx={{
+                fontWeight: 700,
+                fontSize: '0.7rem',
+                height: 22,
+                bgcolor: 'rgba(124, 58, 237, 0.1)',
+                color: '#7C3AED',
+                border: '1px solid rgba(124, 58, 237, 0.3)',
+              }}
+            />
+          )
+        }
         return (
           <Chip
             label={src}

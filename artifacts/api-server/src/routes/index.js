@@ -119,6 +119,12 @@ router.use('/lead-distribution', leadDistributionRoutes);
 
 router.use('/holidays', holidayRoutes);
 router.use('/working-days', workingDayRoutes);
+
+const telephonyRoutes = require('./telephonyRoutes');
+router.use('/telephony', telephonyRoutes);
+const ivrWebhookRoutes = require('./ivrWebhookRoutes');
+router.use('/webhook/ivr', ivrWebhookRoutes);
+router.use('/webhooks/ivr', ivrWebhookRoutes);
 router.use('/webhook', webhookRoutes);
 router.use('/webhooks', webhookRoutes);
 const emailSettingsCtrl = require('../controllers/emailSettingsController');

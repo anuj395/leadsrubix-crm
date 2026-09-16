@@ -15,6 +15,7 @@ import ContactPageIcon from '@mui/icons-material/ContactPage'
 import BusinessIcon from '@mui/icons-material/Business'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import HubIcon from '@mui/icons-material/Hub'
+import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk'
 import { AppCard } from '@/components/ui/AppCard'
 import { api } from '@/services/api'
 
@@ -27,6 +28,12 @@ interface IntegrationItem {
 }
 
 const INTEGRATION_ITEMS: IntegrationItem[] = [
+  {
+    key: 'ivr',
+    name: 'Cloud Telephony & IVR',
+    description: 'Connect multiple cloud telephony lines (Tata Smartflo, TeleCMI, Exotel, MyOperator, PBX) for real-time inbound call capture into Inbound Inquiries, intelligent agent routing, and Call Logs with recordings.',
+    icon: <PhoneInTalkIcon sx={{ fontSize: 32, color: '#7C3AED' }} />,
+  },
   {
     key: 'facebook',
     name: 'Facebook',
@@ -92,8 +99,11 @@ export default function IntegrationsPage() {
           api.get('/whatsapp-config'),
         ])
 
-        if (resFb.status === 'fulfilled' && resFb.value.data?.accessToken) {
-          setFbConnected(true)
+        if (resFb.status === 'fulfilled') {
+          const d = resFb.value.data
+          const hasToken = Boolean(d?.accessToken && String(d?.accessToken).trim() !== '')
+          const hasPages = Array.isArray(d?.facebookPages) && d.facebookPages.length > 0
+          setFbConnected(Boolean(hasToken && hasPages))
         }
 
         if (resTokens.status === 'fulfilled' && Array.isArray(resTokens.value.data)) {
@@ -120,13 +130,14 @@ export default function IntegrationsPage() {
     if (key === 'whatsapp') {
       return Boolean(waConnected)
     }
-    // Facebook is ONLY connected if user has completed Facebook OAuth login (accessToken present)
+    // Facebook is ONLY connected if user has completed Facebook OAuth login AND connected pages
     if (key === 'facebook') {
       return Boolean(fbConnected)
     }
 
     const matchSource = (sourceName: string) => {
       const n = norm(sourceName)
+      if (key === 'ivr') return n.includes('ivr') || n.includes('telephony') || n.includes('exotel') || n.includes('mcube')
       if (key === '99acres') return n.includes('99acre') || n.includes('acres')
       if (key === 'magicbricks') return n.includes('magicbrick')
       if (key === 'housing') return n.includes('housing')
@@ -148,6 +159,8 @@ export default function IntegrationsPage() {
   const handleConfigure = (key: string) => {
     if (key === 'whatsapp' || key === 'notifications') {
       navigate('/configuration/notifications')
+    } else if (key === 'ivr') {
+      navigate('/integrations/ivr')
     } else if (key === 'facebook') {
       navigate('/integrations/facebook')
     } else if (key === '99acres') {
@@ -170,113 +183,158 @@ export default function IntegrationsPage() {
   return (
     <Box
       sx={{
-        p: { xs: 2, sm: 3 },
+        p: { xs: 1.5, sm: 2, md: 2.5 },
+        pb: { xs: 8, sm: 10 },
         width: '100%',
         minWidth: 0,
         height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'auto',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        boxSizing: 'border-box',
       }}
     >
       <AppCard
         title="Third-Party Integrations"
         subtitle="Manage and configure active incoming data lead streams with advertising engines, listing portals, and messaging platforms."
+        sx={{ overflow: 'visible' }}
       >
-        <Grid container spacing={3} sx={{ mt: 1 }}>
+        <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }} sx={{ mt: 0.5 }}>
           {INTEGRATION_ITEMS.map((item) => {
             const isConnected = isPortalConnected(item.key)
 
             return (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.key}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, xl: 3 }} key={item.key}>
                 <Card
+                  onClick={() => !item.comingSoon && handleConfigure(item.key)}
                   sx={{
                     height: '100%',
+                    minHeight: 148,
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    borderRadius: 2,
-                    boxShadow: 'rgba(100, 100, 111, 0.15) 0px 7px 29px 0px',
+                    borderRadius: '12px',
+                    boxShadow: 'rgba(100, 100, 111, 0.08) 0px 4px 16px 0px',
                     border: isConnected ? '1.5px solid #22C55E' : '1px solid #E2E8F0',
-                    transition: 'transform 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-3px)',
+                    transition: 'all 0.2s ease',
+                    cursor: item.comingSoon ? 'default' : 'pointer',
+                    '&:hover': item.comingSoon ? {} : {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 'rgba(100, 100, 111, 0.16) 0px 8px 24px 0px',
+                      borderColor: isConnected ? '#16A34A' : 'primary.main',
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        {item.icon}
-                        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                          {item.name}
-                        </Typography>
+                  <CardContent
+                    sx={{
+                      p: 2,
+                      pb: '16px !important',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 1.5, bgcolor: 'action.hover', flexShrink: 0 }}>
+                            {item.icon}
+                          </Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '0.95rem' }} noWrap>
+                            {item.name}
+                          </Typography>
+                        </Box>
+                        {item.comingSoon ? (
+                          <Chip
+                            label="Coming Soon"
+                            size="small"
+                            sx={{
+                              bgcolor: '#FFF3CD',
+                              color: '#856404',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: 22,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        ) : isConnected ? (
+                          <Chip
+                            icon={<CheckCircleRoundedIcon sx={{ fontSize: '0.8rem !important', color: '#16A34A !important' }} />}
+                            label="Connected"
+                            size="small"
+                            sx={{
+                              bgcolor: 'rgba(34, 197, 94, 0.12)',
+                              color: '#16A34A',
+                              fontWeight: 700,
+                              fontSize: '0.7rem',
+                              height: 22,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        ) : item.key === 'whatsapp' ? (
+                          <Chip
+                            label="Config Required"
+                            size="small"
+                            sx={{
+                              bgcolor: 'rgba(245, 158, 11, 0.12)',
+                              color: '#D97706',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: 22,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        ) : (
+                          <Chip
+                            label="Configure"
+                            size="small"
+                            sx={{
+                              bgcolor: 'rgba(245, 158, 11, 0.12)',
+                              color: '#D97706',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: 22,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        )}
                       </Box>
-                      {item.comingSoon ? (
-                        <Chip
-                          label="Coming Soon"
-                          size="small"
-                          sx={{
-                            bgcolor: '#FFF3CD',
-                            color: '#856404',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                          }}
-                        />
-                      ) : isConnected ? (
-                        <Chip
-                          icon={<CheckCircleRoundedIcon sx={{ fontSize: '0.85rem !important', color: '#16A34A !important' }} />}
-                          label="Connected"
-                          size="small"
-                          sx={{
-                            bgcolor: 'rgba(34, 197, 94, 0.12)',
-                            color: '#16A34A',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                          }}
-                        />
-                      ) : item.key === 'whatsapp' ? (
-                        <Chip
-                          label="Config Required"
-                          size="small"
-                          sx={{
-                            bgcolor: 'rgba(245, 158, 11, 0.12)',
-                            color: '#D97706',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                          }}
-                        />
-                      ) : (
-                        <Chip
-                          label="Configure"
-                          size="small"
-                          sx={{
-                            bgcolor: 'rgba(245, 158, 11, 0.12)',
-                            color: '#D97706',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                          }}
-                        />
-                      )}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: '0.785rem',
+                          lineHeight: 1.4,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          mt: 0.5,
+                          mb: 1.5,
+                        }}
+                      >
+                        {item.description}
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ minHeight: 48, mb: 2 }}>
-                      {item.description}
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
                       <Button
                         size="small"
                         color={isConnected ? 'success' : 'primary'}
                         disabled={item.comingSoon}
-                        endIcon={<ArrowForwardIosIcon sx={{ fontSize: '10px !important' }} />}
-                        onClick={() => handleConfigure(item.key)}
+                        endIcon={<ArrowForwardIosIcon sx={{ fontSize: '9px !important' }} />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleConfigure(item.key)
+                        }}
                         sx={{
                           textTransform: 'none',
                           fontWeight: 700,
-                          color: isConnected ? '#16A34A' : '#2563EB',
+                          fontSize: '0.75rem',
+                          p: 0,
+                          minWidth: 'auto',
+                          color: isConnected ? '#16A34A' : 'primary.main',
                         }}
                       >
                         {isConnected ? 'Connected' : 'Configure'}
