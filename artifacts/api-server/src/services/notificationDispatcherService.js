@@ -386,6 +386,29 @@ async function dispatchCrmEvent({
       return { success: true, suppressed: true, reason: 'Disabled in matrix rules' };
     }
 
+    // 2.5 Resolve Workspace-Level Gateway Enablement (Strict Circuit-Breakers)
+    const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+    let waDoc = null;
+    if (organizationId) {
+      waDoc = await WhatsAppConfig.findOne({
+        $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
+      }).lean().exec();
+    }
+
+    const isWaAllowed = Boolean(
+      (orgDoc?.whatsapp_enabled !== false && orgDoc?.whatsappEnabled !== false) &&
+      (!waDoc || (waDoc.is_active !== false && waDoc.isActive !== false && waDoc.is_enabled !== false))
+    );
+
+    const isEmailAllowed = Boolean(
+      (orgDoc?.email_enabled !== false && orgDoc?.emailEnabled !== false) &&
+      (!orgDoc?.smtp_config || orgDoc?.smtp_config?.isActive !== false) &&
+      (!orgDoc?.smtpConfig || orgDoc?.smtpConfig?.isActive !== false)
+    );
+
+    const isPushAllowed = Boolean(orgDoc?.push_enabled !== false && orgDoc?.pushEnabled !== false);
+    const isInAppAllowed = Boolean(orgDoc?.in_app_enabled !== false && orgDoc?.inAppEnabled !== false);
+
     // 3. Resolve Recipients
     const recipients = await resolveCrmRecipients({ organizationId, entityData, matrixRule, actorUser });
 
@@ -535,136 +558,160 @@ async function dispatchCrmEvent({
           if (channel === 'whatsapp') {
             target = recipientObj.phone;
             provider = 'whatsapp_gateway';
-            if (!target) throw new Error('No verified recipient phone number available');
+            if (!isWaAllowed) {
+              status = 'SUPPRESSED';
+              errorMessage = 'WhatsApp gateway disabled by workspace admin';
+            } else if (!target) {
+              throw new Error('No verified recipient phone number available');
+            } else {
+              const waRes = await whatsappService.sendDirectWhatsAppMessage({
+                organizationId,
+                phone: target,
+                name: recipientObj.name,
+                role: recipientRole,
+                eventType: eventKey,
+                messageBody: renderedBody
+              });
 
-            const waRes = await whatsappService.sendDirectWhatsAppMessage({
-              organizationId,
-              phone: target,
-              name: recipientObj.name,
-              role: recipientRole,
-              eventType: eventKey,
-              messageBody: renderedBody
-            });
-
-            if (!waRes || waRes.success === false) {
-              const errText = waRes?.errorMessage || waRes?.message || waRes?.error || (typeof waRes?.recipients?.[0]?.error === 'string' ? waRes.recipients[0].error : null) || 'WhatsApp dispatch error';
-              throw new Error(errText);
+              if (waRes?.suppressed) {
+                status = 'SUPPRESSED';
+                errorMessage = waRes.reason || 'WhatsApp suppressed';
+              } else if (!waRes || waRes.success === false) {
+                const errText = waRes?.errorMessage || waRes?.message || waRes?.error || (typeof waRes?.recipients?.[0]?.error === 'string' ? waRes.recipients[0].error : null) || 'WhatsApp dispatch error';
+                throw new Error(errText);
+              }
             }
           } else if (channel === 'email') {
             target = recipientObj.email;
             provider = 'smtp';
-            if (!target || !target.includes('@')) throw new Error('No valid recipient email available');
+            if (!isEmailAllowed) {
+              status = 'SUPPRESSED';
+              errorMessage = 'Email gateway disabled by workspace admin';
+            } else if (!target || !target.includes('@')) {
+              throw new Error('No valid recipient email available');
+            } else {
+              const emailRes = await mailer.sendDynamicEmail({
+                toEmail: target,
+                subject: renderedSubject,
+                htmlContent: renderedBody,
+                organizationId
+              });
 
-            const emailRes = await mailer.sendDynamicEmail({
-              toEmail: target,
-              subject: renderedSubject,
-              htmlContent: renderedBody,
-              organizationId
-            });
-
-            if (!emailRes || emailRes.success === false) {
-              throw new Error(emailRes?.error || 'Email dispatch error');
+              if (emailRes?.suppressed) {
+                status = 'SUPPRESSED';
+                errorMessage = emailRes.reason || 'Email suppressed';
+              } else if (!emailRes || emailRes.success === false) {
+                throw new Error(emailRes?.error || 'Email dispatch error');
+              }
             }
           } else if (channel === 'push') {
             target = recipientObj.id || recipientObj.name;
             provider = 'firebase_fcm_v1';
-            const rawTokens = recipientObj.pushTokens || [];
-            const validTokens = rawTokens.map(t => {
-              if (typeof t === 'string' && t.trim().length > 0) return { token: t.trim(), endpointArn: null };
-              if (t && typeof t === 'object' && t.token && String(t.token).trim().length > 0) {
-                return { token: String(t.token).trim(), endpointArn: t.endpointArn || null };
-              }
-              return null;
-            }).filter(t => t && t.token && !t.token.startsWith('sim_device_'));
-
-            if (validTokens.length === 0) {
+            if (!isPushAllowed) {
               status = 'SUPPRESSED';
-              errorMessage = 'No active mobile push device tokens registered for user';
+              errorMessage = 'Mobile push notifications disabled by workspace admin';
             } else {
-              const isTaskEvent = eventKey.startsWith('task.') || entityType === 'task';
-              const isDealEvent = eventKey.startsWith('deal.') || entityType === 'deal';
-              const targetScreen = isDealEvent ? 'Deals' : (isTaskEvent ? 'Tasks' : 'LeadDetails');
+              const rawTokens = recipientObj.pushTokens || [];
+              const validTokens = rawTokens.map(t => {
+                if (typeof t === 'string' && t.trim().length > 0) return { token: t.trim(), endpointArn: null };
+                if (t && typeof t === 'object' && t.token && String(t.token).trim().length > 0) {
+                  return { token: String(t.token).trim(), endpointArn: t.endpointArn || null };
+                }
+                return null;
+              }).filter(t => t && t.token && !t.token.startsWith('sim_device_'));
 
-              const targetLeadId = String(entityData?.contact_id || entityData?.contactId || entityData?.leadId || (!isDealEvent && !isTaskEvent ? entityId : '') || '');
-              const targetDealId = String(isDealEvent ? (entityData?.deal_id || entityData?.dealId || entityId) : (entityData?.deal_id || entityData?.dealId || ''));
-              const targetTaskId = String(isTaskEvent ? (entityData?.task_id || entityData?.taskId || entityId) : (entityData?.task_id || entityData?.taskId || ''));
+              if (validTokens.length === 0) {
+                status = 'SUPPRESSED';
+                errorMessage = 'No active mobile push device tokens registered for user';
+              } else {
+                const isTaskEvent = eventKey.startsWith('task.') || entityType === 'task';
+                const isDealEvent = eventKey.startsWith('deal.') || entityType === 'deal';
+                const targetScreen = isDealEvent ? 'Deals' : (isTaskEvent ? 'Tasks' : 'LeadDetails');
 
-              const pushPayloadData = {
-                type: eventKey,
-                eventKey,
-                entityId: String(entityId),
-                leadId: targetLeadId,
-                contactId: targetLeadId,
-                dealId: targetDealId,
-                taskId: targetTaskId,
-                screen: targetScreen,
-                url: directLeadUrl
-              };
+                const targetLeadId = String(entityData?.contact_id || entityData?.contactId || entityData?.leadId || (!isDealEvent && !isTaskEvent ? entityId : '') || '');
+                const targetDealId = String(isDealEvent ? (entityData?.deal_id || entityData?.dealId || entityId) : (entityData?.deal_id || entityData?.dealId || ''));
+                const targetTaskId = String(isTaskEvent ? (entityData?.task_id || entityData?.taskId || entityId) : (entityData?.task_id || entityData?.taskId || ''));
 
-              let dispatchedCount = 0;
-              let lastError = '';
+                const pushPayloadData = {
+                  type: eventKey,
+                  eventKey,
+                  entityId: String(entityId),
+                  leadId: targetLeadId,
+                  contactId: targetLeadId,
+                  dealId: targetDealId,
+                  taskId: targetTaskId,
+                  screen: targetScreen,
+                  url: directLeadUrl
+                };
 
-              for (const t of validTokens) {
-                // 1. Direct Firebase FCM HTTP v1 Delivery
-                if (firebaseNotificationService.isConfigured()) {
-                  provider = 'firebase_fcm_v1';
-                  const fbRes = await firebaseNotificationService.sendDirectPushNotification({
+                let dispatchedCount = 0;
+                let lastError = '';
+
+                for (const t of validTokens) {
+                  // 1. Direct Firebase FCM HTTP v1 Delivery
+                  if (firebaseNotificationService.isConfigured()) {
+                    provider = 'firebase_fcm_v1';
+                    const fbRes = await firebaseNotificationService.sendDirectPushNotification({
+                      token: t.token,
+                      title: renderedSubject,
+                      message: renderedBody,
+                      data: pushPayloadData
+                    });
+
+                    if (fbRes.success) {
+                      dispatchedCount++;
+                      continue;
+                    } else {
+                      lastError = fbRes.error || 'Firebase FCM dispatch failed';
+                      // Auto-prune unregistered / stale tokens from DB
+                      if (fbRes.isUnregistered && recipientObj.id) {
+                        try {
+                          const User = mongoose.model('User');
+                          await User.updateOne(
+                            { _id: recipientObj.id },
+                            { $pull: { aws_push_tokens: { token: t.token } } }
+                          );
+                          console.log(`[NotificationDispatcher] Pruned expired push token for user ${recipientObj.id}`);
+                        } catch (pruneErr) {
+                          // ignore prune failure
+                        }
+                      }
+                    }
+                  }
+
+                  // 2. Fallback to AWS SNS / Expo Push
+                  provider = 'aws_sns';
+                  const snsRes = await awsSnsService.sendPushNotification({
+                    endpointArn: t.endpointArn || null,
                     token: t.token,
                     title: renderedSubject,
                     message: renderedBody,
                     data: pushPayloadData
                   });
 
-                  if (fbRes.success) {
+                  if (snsRes.success) {
                     dispatchedCount++;
-                    continue;
                   } else {
-                    lastError = fbRes.error || 'Firebase FCM dispatch failed';
-                    // Auto-prune unregistered / stale tokens from DB
-                    if (fbRes.isUnregistered && recipientObj.id) {
-                      try {
-                        const User = mongoose.model('User');
-                        await User.updateOne(
-                          { _id: recipientObj.id },
-                          { $pull: { aws_push_tokens: { token: t.token } } }
-                        );
-                        console.log(`[NotificationDispatcher] Pruned expired push token for user ${recipientObj.id}`);
-                      } catch (pruneErr) {
-                        // ignore prune failure
-                      }
-                    }
+                    lastError = snsRes.error || lastError || 'AWS SNS delivery failed';
                   }
                 }
 
-                // 2. Fallback to AWS SNS / Expo Push
-                provider = 'aws_sns';
-                const snsRes = await awsSnsService.sendPushNotification({
-                  endpointArn: t.endpointArn || null,
-                  token: t.token,
-                  title: renderedSubject,
-                  message: renderedBody,
-                  data: pushPayloadData
-                });
-
-                if (snsRes.success) {
-                  dispatchedCount++;
+                if (dispatchedCount > 0) {
+                  status = 'SUCCESS';
+                  errorMessage = '';
                 } else {
-                  lastError = snsRes.error || lastError || 'AWS SNS delivery failed';
+                  status = 'FAILED';
+                  errorMessage = lastError || 'Push dispatch failed for all tokens';
                 }
-              }
-
-              if (dispatchedCount > 0) {
-                status = 'SUCCESS';
-                errorMessage = '';
-              } else {
-                status = 'FAILED';
-                errorMessage = lastError || 'Push dispatch failed for all tokens';
               }
             }
           } else if (channel === 'in_app') {
             target = recipientObj.id;
             provider = 'in_app';
-            if (target && recipientObj.id !== 'admin_default') {
+            if (!isInAppAllowed) {
+              status = 'SUPPRESSED';
+              errorMessage = 'In-app notifications disabled by workspace admin';
+            } else if (target && recipientObj.id !== 'admin_default') {
               await Notification.create({
                 user_id: String(recipientObj.id),
                 organization_id: String(organizationId),

@@ -380,6 +380,22 @@ async function sendNotification({
       }).lean().exec();
     }
 
+    // Circuit Breaker: Strict Workspace-Level Suppression
+    const isTenantExplicitlyDisabled = Boolean(
+      (tenantConfig && (tenantConfig.is_active === false || tenantConfig.isActive === false || tenantConfig.is_enabled === false)) ||
+      (org && (org.whatsapp_enabled === false || org.whatsappEnabled === false))
+    );
+
+    if (isTenantExplicitlyDisabled && !testProvider) {
+      console.log(`[WhatsAppService] WhatsApp gateway is explicitly DISABLED by client admin for organization: ${organizationId || 'global'}. Suppressing dispatch.`);
+      return {
+        success: true,
+        suppressed: true,
+        reason: 'WhatsApp gateway disabled by workspace admin',
+        message: 'WhatsApp gateway disabled by workspace admin'
+      };
+    }
+
     // Load all candidate global universal configs
     const candidateUniversal = await WhatsAppConfig.find({
       $or: [
@@ -420,8 +436,8 @@ async function sendNotification({
       // Tenant's custom verified WhatsApp API takes precedence
       activeConfig = tenantConfig;
       isUniversalGateway = false;
-    } else if (universalConfig && (hasValidKey(universalConfig.wapi?.wapi_token) || hasValidKey(universalConfig.simply?.access_token) || hasValidKey(universalConfig.chat_simplified?.api_key || universalConfig.chatSimplified?.apiKey))) {
-      // Seamless fallback to SuperAdmin Universal Platform Gateway
+    } else if (!isTenantExplicitlyDisabled && universalConfig && (hasValidKey(universalConfig.wapi?.wapi_token) || hasValidKey(universalConfig.simply?.access_token) || hasValidKey(universalConfig.chat_simplified?.api_key || universalConfig.chatSimplified?.apiKey))) {
+      // Seamless fallback to SuperAdmin Universal Platform Gateway (only if tenant has NOT disabled WhatsApp)
       activeConfig = universalConfig;
       isUniversalGateway = true;
     } else if (tenantConfig) {
@@ -450,8 +466,8 @@ async function sendNotification({
         }
       }
 
-      // If tenant config lacked active/valid credentials, fallback to platform Universal Gateway
-      if (!activeChannel && universalConfig) {
+      // If tenant config lacked active/valid credentials, fallback to platform Universal Gateway (ONLY IF NOT DISABLED)
+      if (!isTenantExplicitlyDisabled && !activeChannel && universalConfig) {
         if (hasValidKey(universalConfig.wapi?.wapi_token)) {
           activeChannel = 'wapi';
           channelSettings = { ...universalConfig.wapi, active: true };

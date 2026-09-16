@@ -466,7 +466,7 @@ export default function NotificationHubPage() {
           fromEmail: s.fromEmail || 'info@leadsrubix.com',
           fromName: s.fromName || 'Leads Rubix CRM',
           security: s.security || (portVal === 465 ? 'SSL' : 'TLS'),
-          isActive: s.useCustomSmtp !== false,
+          isActive: s.isActive !== undefined ? Boolean(s.isActive) : true,
           hasConfiguredPassword: Boolean(s.hasConfiguredPassword || s.smtpPass),
         });
       }
@@ -835,7 +835,8 @@ export default function NotificationHubPage() {
     try {
       const payload = {
         smtpConfig: {
-          useCustomSmtp: Boolean(emailConfig.isActive),
+          isActive: Boolean(emailConfig.isActive),
+          useCustomSmtp: Boolean(emailConfig.useCustomSmtp),
           smtpHost: emailConfig.smtpHost?.trim() || 'email-smtp.ap-south-1.amazonaws.com',
           smtpPort: Number(emailConfig.smtpPort) || 587,
           smtpUser: emailConfig.smtpUser?.trim() || '',
@@ -858,7 +859,7 @@ export default function NotificationHubPage() {
           fromName: s.fromName || prev.fromName,
           security: s.security || prev.security,
           hasConfiguredPassword: Boolean(s.hasConfiguredPassword || prev.smtpPass),
-          isActive: s.useCustomSmtp !== false,
+          isActive: s.isActive !== undefined ? Boolean(s.isActive) : Boolean(emailConfig.isActive),
         }));
       }
       setSnackbar({
@@ -2650,9 +2651,19 @@ export default function NotificationHubPage() {
                   />
                 </Stack>
 
-                <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                  <strong>Universal Cloud Delivery Active:</strong> Outbound alerts are routed through the configured cloud gateway with automatic fallback to ensure 99.9% uptime.
-                </Alert>
+                {!waConfig.isActive ? (
+                  <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>WhatsApp Gateway Disabled:</strong> Outbound WhatsApp alerts are completely halted for this workspace. No messages will be sent to agents, admins, or customers.
+                  </Alert>
+                ) : waConfig.wapiToken ? (
+                  <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Custom Cloud Gateway Active:</strong> Outbound alerts are routed directly through your private {waConfig.type} gateway.
+                  </Alert>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Universal Cloud Delivery Active:</strong> Outbound alerts are routed through Leads Rubix Managed Cloud Gateway.
+                  </Alert>
+                )}
 
                 <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
                   <InputLabel>Provider</InputLabel>
@@ -2750,9 +2761,19 @@ export default function NotificationHubPage() {
                   />
                 </Stack>
 
-                <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                  <strong>Universal Cloud Delivery Active:</strong> Custom SMTP routes outbound emails directly through your mail server. If disabled or unspecified, managed cloud delivery is used.
-                </Alert>
+                {!emailConfig.isActive ? (
+                  <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Email Gateway Disabled:</strong> Outbound email notifications are completely halted for this workspace. No transactional or alert emails will be sent.
+                  </Alert>
+                ) : emailConfig.useCustomSmtp && emailConfig.smtpHost ? (
+                  <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Custom SMTP Active:</strong> Outbound emails are sent directly through your configured mail server ({emailConfig.smtpHost}).
+                  </Alert>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Universal Cloud Delivery Active:</strong> Outbound emails are securely delivered via Leads Rubix Amazon SES infrastructure.
+                  </Alert>
+                )}
 
                 <Grid container spacing={1.5} sx={{ mb: 2 }}>
                   <Grid size={{ xs: 8 }}>

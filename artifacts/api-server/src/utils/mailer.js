@@ -585,6 +585,32 @@ async function getTransporterForOrganization(organizationId) {
     }
 
     const smtpConfig = org?.smtpConfig || org?.smtp_config;
+
+    // Circuit Breaker: Strict Workspace-Level Email Suppression
+    const isEmailDisabled = Boolean(
+      org && (
+        org.email_enabled === false ||
+        org.emailEnabled === false ||
+        org.smtp_config?.isActive === false ||
+        org.smtpConfig?.isActive === false
+      )
+    );
+
+    if (isEmailDisabled) {
+      console.log(`[mailer] Outbound email is explicitly DISABLED by admin for organization: ${organizationId}. Suppressing.`);
+      return {
+        transporter: null,
+        fromAddress: '',
+        fromName: '',
+        fromEmail: '',
+        isCustom: false,
+        isEmailDisabled: true,
+        suppressed: true,
+        reason: 'Email gateway disabled by workspace admin',
+        templates: []
+      };
+    }
+
     const useCustom = smtpConfig?.useCustomSmtp || smtpConfig?.use_custom_smtp;
     const host = smtpConfig?.smtpHost || smtpConfig?.smtp_host;
     const port = Number(smtpConfig?.smtpPort || smtpConfig?.smtp_port) || 587;
@@ -728,11 +754,20 @@ async function sendWithDualEngineFailover({ to, from, subject, html, text, attac
   // Step 1: Check for custom workspace SMTP if organizationId is present
   if (organizationId) {
     try {
-      const { transporter: customTransporter, fromAddress, isCustom } = await getTransporterForOrganization(organizationId);
-      if (isCustom && customTransporter) {
-        mailPayload.from = from || fromAddress;
+      const orgTransporter = await getTransporterForOrganization(organizationId);
+      if (orgTransporter && (orgTransporter.suppressed || orgTransporter.isEmailDisabled)) {
+        console.log(`[mailer] Suppressing outbound email to ${to} because email gateway is disabled for org ${organizationId}`);
+        return {
+          success: true,
+          suppressed: true,
+          provider: 'SUPPRESSED',
+          reason: orgTransporter.reason || 'Email gateway disabled by workspace admin'
+        };
+      }
+      if (orgTransporter && orgTransporter.isCustom && orgTransporter.transporter) {
+        mailPayload.from = from || orgTransporter.fromAddress;
         console.log(`[mailer] Dispatching email to ${to} via custom workspace SMTP...`);
-        const info = await customTransporter.sendMail(mailPayload);
+        const info = await orgTransporter.transporter.sendMail(mailPayload);
         return {
           success: true,
           provider: 'CUSTOM_WORKSPACE_SMTP',

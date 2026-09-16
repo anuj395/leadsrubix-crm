@@ -87,7 +87,8 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
     url: activeUrl,
     wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
     wapiToken: safeWapiToken,
-    isActive: Boolean(wapi.active || simply.active || cs.active || useCustomApi),
+    isActive: (plain.is_active === false || plain.isActive === false || plain.is_enabled === false) ? false : Boolean(wapi.active || simply.active || cs.active || useCustomApi || isUniversalMaster),
+    is_active: (plain.is_active === false || plain.isActive === false || plain.is_enabled === false) ? false : Boolean(wapi.active || simply.active || cs.active || useCustomApi || isUniversalMaster),
     fields: {
       wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
       wapiToken: safeWapiToken,
@@ -389,15 +390,49 @@ router.post('/', authenticate, async (req, res, next) => {
       config.chatSimplified = mergedCS;
     }
 
-    // 2. Gateway Hierarchy Switch ('Vice-Versa' Override Logic)
+    // 2. Gateway Hierarchy & Master Enable/Disable Switch
     const hasActiveCustomProvider = Boolean(config.wapi?.active || config.simply?.active || config.chat_simplified?.active || config.chatSimplified?.active);
-    if (req.body.useCustomApi !== undefined) {
+    
+    let isGatewayActive = true;
+    if (req.body.isActive !== undefined) {
+      isGatewayActive = Boolean(req.body.isActive);
+    } else if (req.body.is_active !== undefined) {
+      isGatewayActive = Boolean(req.body.is_active);
+    } else if (req.body.active !== undefined) {
+      isGatewayActive = Boolean(req.body.active);
+    }
+
+    config.is_active = isGatewayActive;
+    config.isActive = isGatewayActive;
+    config.is_enabled = isGatewayActive;
+
+    if (!isGatewayActive) {
+      if (config.wapi) config.wapi.active = false;
+      if (config.simply) config.simply.active = false;
+      if (config.chat_simplified) config.chat_simplified.active = false;
+      if (config.chatSimplified) config.chatSimplified.active = false;
+      config.use_custom_api = false;
+    } else if (req.body.useCustomApi !== undefined) {
       config.use_custom_api = Boolean(req.body.useCustomApi);
     } else if (req.body.use_custom_api !== undefined) {
       config.use_custom_api = Boolean(req.body.use_custom_api);
     } else {
       // Auto-switch: if client turned on a provider, custom API is enabled; if turned off, reverts to universal
       config.use_custom_api = hasActiveCustomProvider;
+    }
+
+    // Sync master toggle to Organization document for instant circuit-breaker
+    if (targetOrgIds.length > 0) {
+      await Organization.updateMany(
+        {
+          $or: [
+            { organization_id: { $in: targetOrgIds } },
+            { organizationId: { $in: targetOrgIds } },
+            ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+          ]
+        },
+        { $set: { whatsapp_enabled: isGatewayActive, whatsappEnabled: isGatewayActive } }
+      ).exec().catch(err => console.warn('[whatsappRoutes] Failed to sync whatsapp_enabled to org:', err.message));
     }
 
     // 3. Recipient Controls

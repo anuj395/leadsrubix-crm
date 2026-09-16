@@ -47,6 +47,11 @@ const organizationSchema = new mongoose.Schema(
     email_templates: { type: Array, default: [], alias: 'emailTemplates' },
     ses_config: { type: Object, default: null, alias: 'sesConfig' },
     email_quota: { type: Object, default: null, alias: 'emailQuota' },
+    whatsapp_enabled: { type: Boolean, default: true, alias: 'whatsappEnabled' },
+    email_enabled: { type: Boolean, default: true, alias: 'emailEnabled' },
+    push_enabled: { type: Boolean, default: true, alias: 'pushEnabled' },
+    in_app_enabled: { type: Boolean, default: true, alias: 'inAppEnabled' },
+    customer_notifications_enabled: { type: Boolean, default: true, alias: 'customerNotificationsEnabled' },
   },
   { 
     timestamps: true, 
@@ -125,6 +130,11 @@ function shapePublic(org) {
       usedThisMonth: 0,
       lastResetDate: new Date()
     },
+    whatsappEnabled: o.whatsappEnabled !== false && o.whatsapp_enabled !== false,
+    emailEnabled: o.emailEnabled !== false && o.email_enabled !== false,
+    pushEnabled: o.pushEnabled !== false && o.push_enabled !== false,
+    inAppEnabled: o.inAppEnabled !== false && o.in_app_enabled !== false,
+    customerNotificationsEnabled: o.customerNotificationsEnabled !== false && o.customer_notifications_enabled !== false,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   };

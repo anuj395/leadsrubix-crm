@@ -653,8 +653,11 @@ exports.getEmailSettings = async (req, res, next) => {
     };
 
     const rawPass = rawSmtpConfig.smtpPass || '';
+    const isEmailActive = org.email_enabled !== false && org.emailEnabled !== false && rawSmtpConfig.isActive !== false;
     const smtpConfig = {
       ...rawSmtpConfig,
+      isActive: isEmailActive,
+      useCustomSmtp: Boolean(rawSmtpConfig.useCustomSmtp),
       smtpPass: rawPass ? '••••••••' : '',
       hasConfiguredPassword: Boolean(rawPass)
     };
@@ -706,8 +709,18 @@ exports.updateEmailSettings = async (req, res, next) => {
           smtpConfig.smtpPass = existingPass;
         }
       }
+
+      const isEmailActive = smtpConfig.isActive !== undefined
+        ? Boolean(smtpConfig.isActive)
+        : (smtpConfig.useCustomSmtp !== undefined ? Boolean(smtpConfig.useCustomSmtp) : true);
+
+      smtpConfig.isActive = isEmailActive;
+      smtpConfig.useCustomSmtp = Boolean(smtpConfig.useCustomSmtp);
+
       updateFields.smtp_config = smtpConfig;
       updateFields.smtpConfig = smtpConfig;
+      updateFields.email_enabled = isEmailActive;
+      updateFields.emailEnabled = isEmailActive;
     }
     if (emailTemplates !== undefined) {
       updateFields.email_templates = emailTemplates;

@@ -31,6 +31,7 @@ const NotificationLog = mongoose.model('NotificationLog');
 const Notification = mongoose.model('Notification');
 const Organization = mongoose.model('Organization');
 const User = mongoose.model('User');
+const WhatsAppConfig = mongoose.model('WhatsAppConfig');
 
 const whatsappService = require('../../src/services/whatsappService');
 const mailer = require('../../src/utils/mailer');
@@ -56,11 +57,16 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
 
   // Global Mock Store
   let mockMatrixRules = {};
+  let mockWaConfig = null;
   let mockOrgDoc = {
     organization_id: 'test_org_100',
     organizationId: 'test_org_100',
     name: 'Test Enterprise Realty',
-    industry_id: 'temp0001'
+    industry_id: 'temp0001',
+    whatsapp_enabled: true,
+    email_enabled: true,
+    push_enabled: true,
+    in_app_enabled: true
   };
   let mockAdminUser = {
     _id: 'admin_user_id',
@@ -177,6 +183,12 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
         }
       })
     });
+
+    WhatsAppConfig.findOne = () => ({
+      lean: () => ({
+        exec: async () => mockWaConfig
+      })
+    });
   });
 
   beforeEach(() => {
@@ -186,11 +198,16 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
     inAppCalls = [];
     logCalls = [];
     mockMatrixRules = {};
+    mockWaConfig = null;
     mockOrgDoc = {
       organization_id: 'test_org_100',
       organizationId: 'test_org_100',
       name: 'Test Enterprise Realty',
-      industry_id: 'temp0001'
+      industry_id: 'temp0001',
+      whatsapp_enabled: true,
+      email_enabled: true,
+      push_enabled: true,
+      in_app_enabled: true
     };
   });
 
@@ -637,6 +654,115 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
       // Admin (with Override)
       assert.strictEqual(recipients.admin.phone, '919999000011', 'Admin phone should use override when configured');
       assert.strictEqual(recipients.admin.email, 'override_admin@testenterprise.com', 'Admin email should use override');
+    });
+  });
+
+  // =========================================================================
+  // SUITE 6: WORKSPACE GATEWAY CIRCUIT BREAKERS (STRICT WORKSPACE PREFERENCE)
+  // =========================================================================
+  describe('Suite 6: Workspace Gateway Circuit Breakers', () => {
+    it('Scenario 6.1: Strictly suppresses WhatsApp when WhatsApp is disabled on Workspace', async () => {
+      mockOrgDoc.whatsapp_enabled = false;
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true, email: true, push: true, in_app: true }
+          },
+          org_admin: {
+            enabled: true,
+            channels: { whatsapp: true, email: true, push: false, in_app: true }
+          }
+        }
+      };
+
+      await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_wa_disabled_test',
+          customerName: 'Rohit Sharma',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(waCalls.length, 0, 'Zero WhatsApp messages must be sent when WhatsApp is disabled on workspace');
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0, 'Suppression should be logged in audit logs');
+      assert.ok(waLogs.every(l => l.status === 'SUPPRESSED'), 'All WhatsApp logs must have SUPPRESSED status');
+      assert.ok(waLogs.some(l => l.error_message.includes('WhatsApp gateway disabled by workspace admin')));
+    });
+
+    it('Scenario 6.2: Strictly suppresses Email when Email is disabled on Workspace', async () => {
+      mockOrgDoc.email_enabled = false;
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true, email: true, in_app: true }
+          }
+        }
+      };
+
+      await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_email_disabled_test',
+          customerName: 'Kavita Singh',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(emailCalls.length, 0, 'Zero emails must be sent when email is disabled on workspace');
+      const emailLogs = logCalls.filter(l => l.channel === 'email');
+      assert.ok(emailLogs.length > 0, 'Email suppression must be recorded');
+      assert.ok(emailLogs.every(l => l.status === 'SUPPRESSED'), 'All email logs must have SUPPRESSED status');
+      assert.ok(emailLogs.some(l => l.error_message.includes('Email gateway disabled by workspace admin')));
+    });
+
+    it('Scenario 6.3: WhatsAppConfig with is_active: false suppresses WhatsApp dispatch', async () => {
+      mockWaConfig = {
+        organization_id: 'test_org_100',
+        is_active: false,
+        isActive: false
+      };
+      mockOrgDoc.whatsapp_enabled = true;
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true }
+          }
+        }
+      };
+
+      await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_waconfig_disabled_test',
+          customerName: 'Vikram Batra',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(waCalls.length, 0, 'Zero WhatsApp messages must be sent when WhatsAppConfig is_active is false');
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0);
+      assert.ok(waLogs.every(l => l.status === 'SUPPRESSED'));
     });
   });
 });

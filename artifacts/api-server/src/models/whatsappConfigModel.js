@@ -8,6 +8,8 @@ const whatsappConfigSchema = new mongoose.Schema(
     // Gateway Hierarchy & Mode
     is_universal: { type: Boolean, default: false, alias: 'isUniversal' }, // true for SuperAdmin Global record
     use_custom_api: { type: Boolean, default: false, alias: 'useCustomApi' }, // true = use custom client provider, false = inherit universal gateway
+    is_active: { type: Boolean, default: true, alias: 'isActive' }, // false = strictly disabled for this workspace (no universal fallback)
+    is_enabled: { type: Boolean, default: true, alias: 'isEnabled' },
     
     // Recipient Controls
     notify_assigned_agent: { type: Boolean, default: true, alias: 'notifyAssignedAgent' },
