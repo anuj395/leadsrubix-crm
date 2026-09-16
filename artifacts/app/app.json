@@ -2,7 +2,7 @@
   "expo": {
     "name": "Leads Rubix CRM",
     "slug": "leads-rubix",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "leadsrubixcrm",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -49,6 +49,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.leadsrubix.crm",
+      "versionCode": 10,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
