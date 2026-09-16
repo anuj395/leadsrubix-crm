@@ -33,6 +33,42 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (
+              id.includes('react') ||
+              id.includes('react-dom') ||
+              id.includes('react-router-dom') ||
+              id.includes('@reduxjs/toolkit') ||
+              id.includes('react-redux')
+            ) {
+              return 'vendor-react';
+            }
+            if (
+              id.includes('@mui/material') ||
+              id.includes('@emotion/react') ||
+              id.includes('@emotion/styled')
+            ) {
+              return 'vendor-mui';
+            }
+            if (
+              id.includes('@mui/icons-material') ||
+              id.includes('lucide-react')
+            ) {
+              return 'vendor-icons';
+            }
+            if (
+              id.includes('chart.js') ||
+              id.includes('react-chartjs-2')
+            ) {
+              return 'vendor-charts';
+            }
+          }
+        },
+      },
+    },
   },
   server: {
     port,

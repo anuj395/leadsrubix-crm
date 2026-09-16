@@ -2,36 +2,143 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/png" href="/companylogo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Leads Rubix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Leads Rubix CRM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      /* Ultra-fast zero-dependency CSS for instant first paint */
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0f172a;
+        color: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+      }
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+      .lr-initial-splash {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0f172a 100%);
+        box-sizing: border-box;
+      }
+      .lr-logo-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(79, 106, 245, 0.2);
+        margin-bottom: 24px;
+        animation: lrPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      .lr-logo-box img {
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+      }
+      .lr-brand-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+        margin: 0 0 8px 0;
+      }
+      .lr-loader-bar {
+        width: 160px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 14px;
+        position: relative;
+      }
+      .lr-loader-progress {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 40%;
+        background: linear-gradient(90deg, #4f46e5, #06b6d4);
+        border-radius: 4px;
+        animation: lrSlide 1.4s ease-in-out infinite;
+      }
+      .lr-loading-subtitle {
+        font-size: 0.8125rem;
+        color: #94a3b8;
+        letter-spacing: 0.02em;
+        margin-top: 10px;
+      }
+      @keyframes lrSlide {
+        0% { left: -40%; width: 40%; }
+        50% { width: 60%; }
+        100% { left: 100%; width: 40%; }
+      }
+      @keyframes lrPulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(79, 106, 245, 0.2); }
+        50% { transform: scale(1.03); box-shadow: 0 0 32px rgba(79, 106, 245, 0.4); }
+      }
+    </style>
   </head>
   <body>
+    <!-- Instant First-Paint Branded Splash Screen (Replaced once React mounts) -->
+    <div id="root">
+      <div class="lr-initial-splash">
+        <div class="lr-logo-box">
+          <img src="/companylogo.png" alt="Leads Rubix" onerror="this.style.display='none'" />
+        </div>
+        <h1 class="lr-brand-title">Leads Rubix</h1>
+        <div class="lr-loader-bar">
+          <div class="lr-loader-progress"></div>
+        </div>
+        <div class="lr-loading-subtitle">Loading workspace…</div>
+      </div>
+    </div>
+
+    <!-- Non-blocking Deferral for Payment and Social SDKs -->
+    <script defer src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
       window.fbAsyncInit = function () {
-        FB.init({
-          appId: "296542553118517",
-          cookie: true,
-          autoLogAppEvents: true,
-          xfbml: false,
-          version: "v19.0"
-        });
+        if (window.FB) {
+          FB.init({
+            appId: "296542553118517",
+            cookie: true,
+            autoLogAppEvents: true,
+            xfbml: false,
+            version: "v19.0"
+          });
+        }
       };
-
-      (function (d, s, id) {
-        var js, fjs = d.getElementsByTagName(s)[0];
-        if (d.getElementById(id)) return;
-        js = d.createElement(s);
-        js.id = id;
+      // Load FB SDK non-blocking on demand or deferred
+      window.addEventListener('load', function() {
+        var js = document.createElement('script');
+        js.id = 'facebook-jssdk';
         js.src = "https://connect.facebook.net/en_US/sdk.js";
-        fjs.parentNode.insertBefore(js, fjs);
-      })(document, "script", "facebook-jssdk");
+        js.async = true;
+        js.defer = true;
+        document.body.appendChild(js);
+      });
     </script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

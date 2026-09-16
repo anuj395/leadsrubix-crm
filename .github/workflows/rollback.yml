@@ -1,0 +1,101 @@
+name: Rollback AWS EC2 Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: 'Target commit SHA to roll back to (leave blank to restore previous release)'
+        required: false
+        default: ''
+      reason:
+        description: 'Reason for rollback'
+        required: false
+        default: 'Emergency / Release Rollback'
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Perform 1-Click Rollback on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ (secrets.EC2_HOST != '' && secrets.EC2_HOST != '65.0.124.51' && secrets.EC2_HOST) || '3.110.156.220' }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "Initiating 1-Click Rollback..."
+            
+            # Read current release metadata
+            if [ -f "/home/ubuntu/releases/current_release.json" ]; then
+              CURRENT_COMMIT=$(grep -o '"commit": "[^"]*' /home/ubuntu/releases/current_release.json | grep -o '[^"]*$' || echo "")
+              PREVIOUS_COMMIT=$(grep -o '"previous_commit": "[^"]*' /home/ubuntu/releases/current_release.json | grep -o '[^"]*$' || echo "")
+            else
+              CURRENT_COMMIT=""
+              PREVIOUS_COMMIT=""
+            fi
+            
+            TARGET="${{ github.event.inputs.target_commit }}"
+            if [ -z "$TARGET" ]; then
+              TARGET="$PREVIOUS_COMMIT"
+            fi
+            
+            if [ -z "$TARGET" ] || [ "$TARGET" = "initial" ]; then
+              echo "Error: No valid target commit specified or previous release found in metadata."
+              exit 1
+            fi
+            
+            echo "Rolling back from ${CURRENT_COMMIT} to target: ${TARGET}"
+            
+            # 1. Rollback Git Repository on EC2
+            cd /home/ubuntu/Leads-Rubix-CRM
+            git checkout "$TARGET"
+            
+            # 2. Restart API Server on target commit
+            cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
+            pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
+            pm2 save
+            
+            # 3. Restore Target Frontend Build if available in releases
+            TARGET_REL="/home/ubuntu/releases/release-${TARGET}"
+            if [ -d "$TARGET_REL" ]; then
+              echo "Restoring cached frontend build from ${TARGET_REL}..."
+              rm -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+              mkdir -p /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+              cp -rf "$TARGET_REL/"* /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/
+              sudo chown -R ubuntu:ubuntu /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+              sudo systemctl reload nginx 2>/dev/null || true
+            else
+              echo "Target release snapshot not cached in /releases; keeping existing frontend."
+            fi
+            
+            # 4. Update current_release.json metadata
+            cat << EOF_META > /home/ubuntu/releases/current_release.json
+            {
+              "commit": "$TARGET",
+              "rolled_back_from": "$CURRENT_COMMIT",
+              "rolled_back_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+              "reason": "${{ github.event.inputs.reason }}"
+            }
+            EOF_META
+            
+            echo "Rollback completed successfully!"
+
+      - name: Verify Live Endpoints Health After Rollback
+        run: |
+          echo "Verifying live API server health..."
+          for i in {1..10}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api1.leadsrubix.com/api/healthz || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "API server healthy (HTTP 200)"
+              break
+            fi
+            echo "Waiting for API server (status $STATUS)..."
+            sleep 3
+          done
+          
+          echo "Verifying live Web frontend..."
+          WEB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://web.leadsrubix.com || true)
+          echo "Web frontend status: $WEB_STATUS"

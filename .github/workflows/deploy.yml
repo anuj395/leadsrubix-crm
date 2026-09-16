@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - prod
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deployment'
+        required: false
+        default: 'Manual release trigger'
 
 jobs:
   build-and-deploy:
@@ -12,6 +18,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -27,6 +35,9 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Build Web Application
+        env:
+          VITE_BUILD_HASH: ${{ github.sha }}
+          VITE_APP_VERSION: '1.0.1'
         run: pnpm --filter @workspace/web build
 
       - name: Pull Latest Code on EC2 & Restart API Server
@@ -37,15 +48,33 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            set -e
+            mkdir -p /home/ubuntu/releases/release-${{ github.sha }}
             cd /home/ubuntu/Leads-Rubix-CRM
+            
+            # Save previous commit for 1-click rollback
+            PREV_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "initial")
+            echo "Previous commit: $PREV_COMMIT"
+            
             git fetch origin prod
             git checkout prod
             git reset --hard origin/prod
+            
+            # Save deployment metadata
+            cat << EOF > /home/ubuntu/releases/current_release.json
+            {
+              "commit": "${{ github.sha }}",
+              "previous_commit": "$PREV_COMMIT",
+              "deployed_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+              "deployed_by": "${{ github.actor }}"
+            }
+            EOF
+            
             cd /home/ubuntu/Leads-Rubix-CRM/artifacts/api-server
             pm2 restart api-server || pm2 start src/index.js --name "api-server" --env production
             pm2 save
 
-      - name: Copy Built Frontend to EC2
+      - name: Copy Built Frontend to Release Directory on EC2
         uses: appleboy/scp-action@master
         with:
           host: ${{ (secrets.EC2_HOST != '' && secrets.EC2_HOST != '65.0.124.51' && secrets.EC2_HOST) || '3.110.156.220' }}
@@ -53,10 +82,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
           source: "artifacts/web/dist/public/*"
-          target: "/home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist"
+          target: "/home/ubuntu/releases/release-${{ github.sha }}"
           strip_components: 4
 
-      - name: Reload Nginx on EC2
+      - name: Atomic Frontend Switch & Reload Nginx on EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ (secrets.EC2_HOST != '' && secrets.EC2_HOST != '65.0.124.51' && secrets.EC2_HOST) || '3.110.156.220' }}
@@ -64,9 +93,43 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY || secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            if [ -d "/home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public" ]; then
-              cp -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public/* /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/
-              rm -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/public
+            set -e
+            REL_DIR="/home/ubuntu/releases/release-${{ github.sha }}"
+            if [ -d "$REL_DIR/public" ]; then
+              cp -rf "$REL_DIR/public/"* "$REL_DIR/"
+              rm -rf "$REL_DIR/public"
             fi
+            sudo chown -R ubuntu:ubuntu "$REL_DIR"
+            
+            # Atomic update of the dist directory
+            rm -rf /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+            mkdir -p /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+            cp -rf "$REL_DIR/"* /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist/
             sudo chown -R ubuntu:ubuntu /home/ubuntu/Leads-Rubix-CRM/artifacts/web/dist
+            
             sudo systemctl reload nginx 2>/dev/null || true
+            
+            # Keep only the last 5 release snapshots for instant rollback
+            cd /home/ubuntu/releases
+            ls -dt release-* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
+
+      - name: Verify Live Endpoints Health
+        run: |
+          echo "Verifying live API server health..."
+          for i in {1..10}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api1.leadsrubix.com/api/healthz || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "API server healthy (HTTP 200)"
+              break
+            fi
+            echo "Waiting for API server (status $STATUS)..."
+            sleep 3
+          done
+          
+          echo "Verifying live Web frontend..."
+          WEB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://web.leadsrubix.com || true)
+          echo "Web frontend status: $WEB_STATUS"
+          if [ "$WEB_STATUS" != "200" ]; then
+            echo "Warning: Web status returned $WEB_STATUS"
+          fi
+
