@@ -111,7 +111,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         {/* Executive Sector Status Pill */}
         <View style={styles.statusBadgePill}>
           <View style={styles.greenPulseDot} />
-          <Text style={styles.statusBadgeText}>ENTERPRISE MULTI-TENANT CRM</Text>
+          <Text style={styles.statusBadgeText}>ENTERPRISE SALES CRM</Text>
         </View>
 
         {/* Sync / Boot Progress Bar */}

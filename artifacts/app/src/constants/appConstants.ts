@@ -8,12 +8,15 @@ const getDevApiUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-  // Android Emulator maps localhost to 10.0.2.2
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8080/api';
+  // If explicit local dev backend requested via EXPO_PUBLIC_USE_LOCAL
+  if (process.env.EXPO_PUBLIC_USE_LOCAL === 'true') {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:8080/api';
+    }
+    return 'http://127.0.0.1:8080/api';
   }
-  // iOS Simulator / Local Mac
-  return 'http://127.0.0.1:8080/api';
+  // Default to live cloud backend for seamless simulator & reviewer testing
+  return LIVE_API_URL;
 };
 
 // __DEV__ is true in Expo Go, Simulator, Metro, local debugging
@@ -26,7 +29,7 @@ export const APP_CONFIG = {
   build: '2026.09.16',
   environment: 'Production',
   buildNumber: '10',
-  tagline: 'Enterprise Multi-Tenant CRM Engine',
+  tagline: 'Enterprise Sales & Relationship Management CRM',
   footerVersionText: 'v1.0.1 • Enterprise Edition',
   isProduction: IS_PRODUCTION,
   isDevelopment: __DEV__,

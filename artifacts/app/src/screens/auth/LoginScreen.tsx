@@ -22,8 +22,8 @@ import { theme } from '../../theme/theme';
 
 export const LoginScreen = ({ navigation }: any) => {
   const { login } = useAuth();
-  const [email, setEmail] = useState(__DEV__ ? 'dev@digitalrubix.com' : '');
-  const [password, setPassword] = useState(__DEV__ ? 'dev@1221' : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -50,7 +50,7 @@ export const LoginScreen = ({ navigation }: any) => {
       } else if (err.response?.status === 401) {
         msg = 'Invalid work email or password. Please verify and try again.';
       } else if (!err.response) {
-        msg = 'Unable to connect to CRM server. Please check your internet connection.';
+        msg = 'Unable to connect to service. Please check your internet connection.';
       }
 
       Alert.alert(title, msg);
@@ -75,7 +75,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
         <View style={styles.statusBadgePill}>
           <View style={styles.greenPulseDot} />
-          <Text style={styles.statusBadgeText}>ENTERPRISE MULTI-TENANT CRM</Text>
+          <Text style={styles.statusBadgeText}>ENTERPRISE SALES CRM</Text>
         </View>
       </View>
 
@@ -166,23 +166,13 @@ export const LoginScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Inline Forgot Password & Demo Login Row */}
+          {/* Forgot Password Link */}
           <View style={styles.forgotRow}>
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Text style={styles.forgotLink}>Forgot password?</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setEmail('dev@digitalrubix.com');
-                setPassword('dev@1221');
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.demoLink}>Demo Login</Text>
             </TouchableOpacity>
           </View>
 
@@ -403,7 +393,7 @@ const styles = StyleSheet.create({
   forgotRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: 20,
     marginTop: 2,
   },
@@ -412,17 +402,6 @@ const styles = StyleSheet.create({
     color: theme.colors.brand700,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  demoLink: {
-    fontSize: 12,
-    color: '#059669',
-    fontWeight: '700',
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.2)',
   },
   primaryCtaButton3D: {
     backgroundColor: theme.colors.brand700,

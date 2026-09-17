@@ -429,7 +429,7 @@ export const SignupScreen = ({ navigation }: any) => {
         <View style={styles.statusBadgePill}>
           <View style={styles.greenPulseDot} />
           <Text style={styles.statusBadgeText}>
-            ENTERPRISE {selectedIndustryObj?.name?.toUpperCase() || 'MULTI-TENANT'} CRM
+            ENTERPRISE {selectedIndustryObj?.name?.toUpperCase() || 'SALES'} CRM
           </Text>
         </View>
       </View>

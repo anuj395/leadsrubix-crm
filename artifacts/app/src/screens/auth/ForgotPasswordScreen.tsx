@@ -76,7 +76,7 @@ export const ForgotPasswordScreen = ({ navigation, route }: any) => {
 
         <View style={styles.statusBadgePill}>
           <View style={styles.greenPulseDot} />
-          <Text style={styles.statusBadgeText}>ENTERPRISE MULTI-TENANT CRM</Text>
+          <Text style={styles.statusBadgeText}>ENTERPRISE SALES CRM</Text>
         </View>
       </View>
 

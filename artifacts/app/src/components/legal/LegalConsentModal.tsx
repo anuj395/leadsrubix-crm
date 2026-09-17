@@ -146,7 +146,7 @@ export const LegalConsentModal: React.FC<LegalConsentModalProps> = ({
             <View style={styles.securityBox}>
               <Ionicons name="shield-checkmark" size={18} color="#10B981" />
               <Text style={styles.securityText}>
-                Enterprise Multi-Tenant Isolation • 256-Bit SSL Encryption • Zero Sale of Personal Data
+                Bank-Grade Data Isolation • 256-Bit SSL Encryption • 100% Private & Protected
               </Text>
             </View>
 
@@ -254,6 +254,7 @@ const styles = StyleSheet.create({
   },
   dialogCard: {
     width: '100%',
+    height: Math.min(height * 0.82, 720),
     maxHeight: height * 0.88,
     backgroundColor: '#151728',
     borderRadius: 24,
