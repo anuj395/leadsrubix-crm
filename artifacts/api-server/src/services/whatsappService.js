@@ -387,6 +387,7 @@ async function sendNotification({
     // 2. Resolve Workspace Gateway & Strict Isolation (NO Universal Fallback for Clients)
     let workspaceConfig = null;
     const isSuperAdminDispatch = targetOrgIds.length === 0 || organizationId === 'null' || organizationId === null;
+    const isUniversalGateway = Boolean(isSuperAdminDispatch);
 
     if (!isSuperAdminDispatch) {
       // Client Tenant Workspace: Must find tenant's own config
