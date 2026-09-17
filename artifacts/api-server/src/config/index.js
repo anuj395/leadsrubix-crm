@@ -67,5 +67,17 @@ module.exports = {
   smtpPass: process.env.SMTP_PASS || process.env.AWS_SES_SMTP_PASS || derivedSesPass,
   defaultSenderEmail: process.env.DEFAULT_SENDER_EMAIL || 'info@leadsrubix.com',
   defaultSenderName: process.env.DEFAULT_SENDER_NAME || 'Leads Rubix CRM',
-  // add other third-party API keys, etc.
+
+  // Cloudflare Account, DNS & R2 Storage
+  cloudflare: {
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    apiToken: process.env.CLOUDFLARE_API_TOKEN || '',
+    zoneId: process.env.CLOUDFLARE_ZONE_ID || '',
+    domain: process.env.CLOUDFLARE_DOMAIN || 'leadsrubix.com',
+    r2: {
+      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || '',
+      endpoint: process.env.CLOUDFLARE_R2_ENDPOINT || ''
+    }
+  }
 };
