@@ -887,5 +887,151 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
       assert.ok(emailLogs.every(l => l.status === 'SUPPRESSED'));
       assert.ok(emailLogs.some(l => l.error_message.includes('temporarily paused platform-wide by System Administrator')), 'Reason must state paused platform-wide');
     });
+
+    it('Scenario 6.7: Client admin configured WHAPI via camelCase wapiToken / fields without explicit active:true -> Dispatches successfully when Master is ON', async () => {
+      mockMasterControls.whatsapp_enabled = true; // SuperAdmin Master ON
+      mockOrgDoc.whatsapp_enabled = true;
+      mockWaConfig = {
+        organization_id: 'test_org_100',
+        is_active: true,
+        isActive: true,
+        type: 'WHAPI',
+        fields: {
+          wapiUrl: 'https://gate.whapi.cloud',
+          wapiToken: 'whapi_client_token_456'
+        },
+        wapi: {
+          wapi_url: 'https://gate.whapi.cloud',
+          wapiToken: 'whapi_client_token_456'
+        }
+      };
+
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true }
+          }
+        }
+      };
+
+      const result = await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_client_whapi_success',
+          customerName: 'Aarav Patel',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(result.success, true, 'Dispatch should succeed when Master is ON and client has valid credentials');
+      assert.strictEqual(waCalls.length, 1, 'Exactly 1 WhatsApp message dispatched');
+      assert.strictEqual(waCalls[0].recipient, '919876500001');
+      assert.ok(waCalls[0].text.includes('Aarav Patel'));
+
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0);
+      assert.ok(waLogs.every(l => l.status === 'SUCCESS'), 'Log status must be SUCCESS');
+    });
+
+    it('Scenario 6.8: Client admin configured Simply WhatsApp -> Dispatches successfully when Master is ON', async () => {
+      mockMasterControls.whatsapp_enabled = true;
+      mockOrgDoc.whatsapp_enabled = true;
+      mockWaConfig = {
+        organization_id: 'test_org_100',
+        is_active: true,
+        isActive: true,
+        type: 'Simply WhatsApp',
+        simply: {
+          url: 'https://app.simplywhatsapp.com/api/send',
+          instance_id: 'inst_simply_999',
+          access_token: 'simply_token_abc'
+        }
+      };
+
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true }
+          }
+        }
+      };
+
+      const result = await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_client_simply_success',
+          customerName: 'Meera Nair',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(waCalls.length, 1);
+      assert.strictEqual(waCalls[0].recipient, '919876500001');
+      assert.ok(waCalls[0].text.includes('Meera Nair'));
+
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0);
+      assert.ok(waLogs.every(l => l.status === 'SUCCESS'));
+    });
+
+    it('Scenario 6.9: Client admin configured ChatSimplified -> Dispatches successfully when Master is ON', async () => {
+      mockMasterControls.whatsapp_enabled = true;
+      mockOrgDoc.whatsapp_enabled = true;
+      mockWaConfig = {
+        organization_id: 'test_org_100',
+        is_active: true,
+        isActive: true,
+        type: 'ChatSimplified',
+        chat_simplified: {
+          url: 'https://www.chatsimplified.co/api/v1/',
+          api_key: 'chatsimplified_key_xyz'
+        }
+      };
+
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true }
+          }
+        }
+      };
+
+      const result = await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_client_chatsimplified_success',
+          customerName: 'Devika Menon',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(waCalls.length, 1);
+      assert.strictEqual(waCalls[0].recipient, '919876500001');
+      assert.ok(waCalls[0].text.includes('Devika Menon'));
+
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0);
+      assert.ok(waLogs.every(l => l.status === 'SUCCESS'));
+    });
   });
 });

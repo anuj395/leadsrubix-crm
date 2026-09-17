@@ -421,12 +421,17 @@ async function dispatchCrmEvent({
       }).lean().exec();
     }
 
-    const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0);
-    const hasCustomWaGateway = Boolean(
-      (waDoc?.wapi?.active && hasValidToken(waDoc?.wapi?.wapi_token)) ||
-      (waDoc?.simply?.active && hasValidToken(waDoc?.simply?.access_token)) ||
-      ((waDoc?.chat_simplified?.active || waDoc?.chatSimplified?.active) && hasValidToken(waDoc?.chat_simplified?.api_key || waDoc?.chatSimplified?.apiKey))
-    );
+    const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0 && !String(val).includes('undefined') && !String(val).includes('null'));
+
+    const wapiToken = (waDoc?.wapi?.wapi_token || waDoc?.wapi?.wapiToken || waDoc?.fields?.wapiToken || waDoc?.wapiToken || '').trim();
+    const simplyToken = (waDoc?.simply?.access_token || waDoc?.simply?.accessToken || waDoc?.fields?.accessToken || waDoc?.accessToken || '').trim();
+    const csKey = (waDoc?.chat_simplified?.api_key || waDoc?.chatSimplified?.apiKey || waDoc?.chat_simplified?.apiKey || waDoc?.chatSimplified?.api_key || waDoc?.fields?.apiKey || waDoc?.apiKey || '').trim();
+
+    const isWapiConfigured = hasValidToken(wapiToken) && (waDoc?.wapi?.active !== false);
+    const isSimplyConfigured = hasValidToken(simplyToken) && (waDoc?.simply?.active !== false);
+    const isCsConfigured = hasValidToken(csKey) && (waDoc?.chat_simplified?.active !== false && waDoc?.chatSimplified?.active !== false);
+
+    const hasCustomWaGateway = Boolean(isWapiConfigured || isSimplyConfigured || isCsConfigured);
 
     const isWaWorkspaceEnabled = Boolean(
       (orgDoc?.whatsapp_enabled !== false && orgDoc?.whatsappEnabled !== false) &&

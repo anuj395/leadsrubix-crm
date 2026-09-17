@@ -4,6 +4,8 @@ const whatsappConfigSchema = new mongoose.Schema(
   {
     industry_id: { type: String, default: null, alias: 'industryId' },
     organization_id: { type: String, default: null, alias: 'organizationId' }, // null for global default
+    type: { type: String, default: 'WHAPI' }, // 'WHAPI', 'Simply WhatsApp', 'ChatSimplified'
+    fields: { type: mongoose.Schema.Types.Mixed, default: {} },
     
     // Gateway Hierarchy & Mode
     is_universal: { type: Boolean, default: false, alias: 'isUniversal' }, // true for SuperAdmin Global record

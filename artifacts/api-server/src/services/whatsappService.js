@@ -367,7 +367,22 @@ async function sendNotification({
     ].filter(Boolean);
 
     // Helper: Valid token check
-    const hasValidKey = (token) => Boolean(token && String(token).trim().length > 0);
+    const hasValidKey = (token) => Boolean(token && String(token).trim().length > 0 && !String(token).includes('undefined') && !String(token).includes('null'));
+
+    // Platform Master Kill Switch Circuit Breaker
+    try {
+      const SystemGatewayControl = mongoose.model('SystemGatewayControl');
+      const controls = await SystemGatewayControl.findOne({ key: 'global_master_controls' }).lean().exec();
+      if (controls && (controls.whatsapp_enabled === false || controls.whatsappEnabled === false) && !testProvider) {
+        console.log('[WhatsAppService] WhatsApp gateway is temporarily paused platform-wide by System Administrator. Suppressing dispatch.');
+        return {
+          success: true,
+          suppressed: true,
+          reason: 'WhatsApp gateway is temporarily paused platform-wide by System Administrator',
+          message: 'WhatsApp gateway is temporarily paused platform-wide by System Administrator'
+        };
+      }
+    } catch (e) {}
 
     // 2. Resolve Workspace Gateway & Strict Isolation (NO Universal Fallback for Clients)
     let workspaceConfig = null;
@@ -399,10 +414,42 @@ async function sendNotification({
       }
 
       // Check whether Tenant has their own active and properly configured Custom API
-      const hasCustomCredentials = workspaceConfig && (
-        Boolean(workspaceConfig.wapi?.active && hasValidKey(workspaceConfig.wapi?.wapi_token)) ||
-        Boolean(workspaceConfig.simply?.active && hasValidKey(workspaceConfig.simply?.access_token)) ||
-        Boolean((workspaceConfig.chat_simplified?.active || workspaceConfig.chatSimplified?.active) && hasValidKey(workspaceConfig.chat_simplified?.api_key || workspaceConfig.chatSimplified?.apiKey))
+      const wapiToken = (
+        workspaceConfig?.wapi?.wapi_token ||
+        workspaceConfig?.wapi?.wapiToken ||
+        workspaceConfig?.fields?.wapiToken ||
+        workspaceConfig?.wapiToken ||
+        ''
+      ).trim();
+
+      const simplyToken = (
+        workspaceConfig?.simply?.access_token ||
+        workspaceConfig?.simply?.accessToken ||
+        workspaceConfig?.fields?.accessToken ||
+        workspaceConfig?.accessToken ||
+        ''
+      ).trim();
+
+      const csKey = (
+        workspaceConfig?.chat_simplified?.api_key ||
+        workspaceConfig?.chatSimplified?.apiKey ||
+        workspaceConfig?.chat_simplified?.apiKey ||
+        workspaceConfig?.chatSimplified?.api_key ||
+        workspaceConfig?.fields?.apiKey ||
+        workspaceConfig?.apiKey ||
+        ''
+      ).trim();
+
+      const isWapiActive = workspaceConfig?.wapi?.active !== false;
+      const isSimplyActive = workspaceConfig?.simply?.active !== false;
+      const isCsActive = workspaceConfig?.chat_simplified?.active !== false && workspaceConfig?.chatSimplified?.active !== false;
+
+      const isWapiAvailable = hasValidKey(wapiToken) && isWapiActive;
+      const isSimplyAvailable = hasValidKey(simplyToken) && isSimplyActive;
+      const isCsAvailable = hasValidKey(csKey) && isCsActive;
+
+      const hasCustomCredentials = Boolean(
+        workspaceConfig && (isWapiAvailable || isSimplyAvailable || isCsAvailable)
       );
 
       if (!hasCustomCredentials && !testProvider) {
@@ -437,18 +484,95 @@ async function sendNotification({
 
     if (!activeChannel || !channelSettings) {
       if (activeConfig) {
-        if (activeConfig.wapi?.active && hasValidKey(activeConfig.wapi?.wapi_token)) {
-          activeChannel = 'wapi';
-          channelSettings = activeConfig.wapi;
-        } else if (activeConfig.simply?.active && hasValidKey(activeConfig.simply?.access_token)) {
+        const preferredType = String(activeConfig.type || '').toLowerCase();
+
+        const cfgWapiToken = (
+          activeConfig.wapi?.wapi_token ||
+          activeConfig.wapi?.wapiToken ||
+          activeConfig.fields?.wapiToken ||
+          activeConfig.wapiToken ||
+          ''
+        ).trim();
+        const cfgSimplyToken = (
+          activeConfig.simply?.access_token ||
+          activeConfig.simply?.accessToken ||
+          activeConfig.fields?.accessToken ||
+          activeConfig.accessToken ||
+          ''
+        ).trim();
+        const cfgSimplyInstance = (
+          activeConfig.simply?.instance_id ||
+          activeConfig.simply?.instanceId ||
+          activeConfig.fields?.instanceId ||
+          activeConfig.instanceId ||
+          ''
+        ).trim();
+        const cfgCsKey = (
+          activeConfig.chat_simplified?.api_key ||
+          activeConfig.chatSimplified?.apiKey ||
+          activeConfig.chat_simplified?.apiKey ||
+          activeConfig.chatSimplified?.api_key ||
+          activeConfig.fields?.apiKey ||
+          activeConfig.apiKey ||
+          ''
+        ).trim();
+
+        const cfgWapiActive = activeConfig.wapi?.active !== false;
+        const cfgSimplyActive = activeConfig.simply?.active !== false;
+        const cfgCsActive = activeConfig.chat_simplified?.active !== false && activeConfig.chatSimplified?.active !== false;
+
+        const cfgWapiValid = hasValidKey(cfgWapiToken) && cfgWapiActive;
+        const cfgSimplyValid = hasValidKey(cfgSimplyToken) && cfgSimplyActive;
+        const cfgCsValid = hasValidKey(cfgCsKey) && cfgCsActive;
+
+        // Prioritize by selected 'type' if specified
+        if ((preferredType.includes('simply') || preferredType === 'simply') && cfgSimplyValid) {
           activeChannel = 'simply';
-          channelSettings = activeConfig.simply;
-        } else if ((activeConfig.chat_simplified?.active || activeConfig.chatSimplified?.active) && hasValidKey(activeConfig.chat_simplified?.api_key || activeConfig.chatSimplified?.apiKey)) {
+          channelSettings = {
+            url: activeConfig.simply?.url || activeConfig.fields?.simplyUrl || 'https://app.simplywhatsapp.com/api/send',
+            instance_id: cfgSimplyInstance,
+            access_token: cfgSimplyToken,
+            active: true
+          };
+        } else if ((preferredType.includes('chat') || preferredType.includes('simplified')) && cfgCsValid) {
           activeChannel = 'chatsimplified';
-          channelSettings = activeConfig.chat_simplified || activeConfig.chatSimplified;
-        } else if (hasValidKey(activeConfig.wapi?.wapi_token)) {
+          channelSettings = {
+            url: activeConfig.chat_simplified?.url || activeConfig.chatSimplified?.url || activeConfig.fields?.csUrl || 'https://www.chatsimplified.co/api/v1/',
+            api_key: cfgCsKey,
+            active: true
+          };
+        } else if ((preferredType.includes('wapi') || preferredType.includes('whapi')) && cfgWapiValid) {
           activeChannel = 'wapi';
-          channelSettings = { ...activeConfig.wapi, active: true };
+          channelSettings = {
+            wapi_url: activeConfig.wapi?.wapi_url || activeConfig.wapi?.wapiUrl || activeConfig.fields?.wapiUrl || 'https://gate.whapi.cloud',
+            wapi_token: cfgWapiToken,
+            active: true
+          };
+        } else {
+          // Standard resolution priority
+          if (cfgWapiValid) {
+            activeChannel = 'wapi';
+            channelSettings = {
+              wapi_url: activeConfig.wapi?.wapi_url || activeConfig.wapi?.wapiUrl || activeConfig.fields?.wapiUrl || 'https://gate.whapi.cloud',
+              wapi_token: cfgWapiToken,
+              active: true
+            };
+          } else if (cfgSimplyValid) {
+            activeChannel = 'simply';
+            channelSettings = {
+              url: activeConfig.simply?.url || activeConfig.fields?.simplyUrl || 'https://app.simplywhatsapp.com/api/send',
+              instance_id: cfgSimplyInstance,
+              access_token: cfgSimplyToken,
+              active: true
+            };
+          } else if (cfgCsValid) {
+            activeChannel = 'chatsimplified';
+            channelSettings = {
+              url: activeConfig.chat_simplified?.url || activeConfig.chatSimplified?.url || activeConfig.fields?.csUrl || 'https://www.chatsimplified.co/api/v1/',
+              api_key: cfgCsKey,
+              active: true
+            };
+          }
         }
       }
     }

@@ -18,21 +18,46 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
   const orgId = plain.organization_id || plain.organizationId || targetOrgId || null;
   const indId = plain.industry_id || plain.industryId || null;
 
-  const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0);
-  const hasCustomCredentials = Boolean(
-    (wapi.active && hasValidToken(wapi.wapi_token || wapi.wapiToken)) ||
-    (simply.active && hasValidToken(simply.access_token || simply.accessToken)) ||
-    ((cs.active) && hasValidToken(cs.api_key || cs.apiKey))
-  );
+  const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0 && !String(val).includes('undefined') && !String(val).includes('null'));
 
-  // Active provider name
+  const wapiToken = (wapi.wapi_token || wapi.wapiToken || plain.fields?.wapiToken || plain.wapiToken || '').trim();
+  const simplyToken = (simply.access_token || simply.accessToken || plain.fields?.accessToken || plain.accessToken || '').trim();
+  const simplyInstance = (simply.instance_id || simply.instanceId || plain.fields?.instanceId || plain.instanceId || '').trim();
+  const csApiKey = (cs.api_key || cs.apiKey || plain.fields?.apiKey || plain.apiKey || '').trim();
+
+  const isWapiActive = wapi.active !== false;
+  const isSimplyActive = simply.active !== false;
+  const isCsActive = cs.active !== false;
+
+  const isWapiAvailable = hasValidToken(wapiToken) && isWapiActive;
+  const isSimplyAvailable = hasValidToken(simplyToken) && isSimplyActive;
+  const isCsAvailable = hasValidToken(csApiKey) && isCsActive;
+
+  const hasCustomCredentials = Boolean(isWapiAvailable || isSimplyAvailable || isCsAvailable);
+
+  const preferredType = String(plain.type || '').toLowerCase();
   let activeProvider = null;
-  if (wapi.active && hasValidToken(wapi.wapi_token || wapi.wapiToken)) activeProvider = 'wapi';
-  else if (simply.active && hasValidToken(simply.access_token || simply.accessToken)) activeProvider = 'simply';
-  else if (cs.active && hasValidToken(cs.api_key || cs.apiKey)) activeProvider = 'chatsimplified';
-  else if (wapi.active) activeProvider = 'wapi';
-  else if (simply.active) activeProvider = 'simply';
-  else if (cs.active) activeProvider = 'chatsimplified';
+  if ((preferredType.includes('simply') || preferredType === 'simply') && isSimplyAvailable) {
+    activeProvider = 'simply';
+  } else if ((preferredType.includes('chat') || preferredType.includes('simplified')) && isCsAvailable) {
+    activeProvider = 'chatsimplified';
+  } else if ((preferredType.includes('wapi') || preferredType.includes('whapi')) && isWapiAvailable) {
+    activeProvider = 'wapi';
+  } else if (isWapiAvailable) {
+    activeProvider = 'wapi';
+  } else if (isSimplyAvailable) {
+    activeProvider = 'simply';
+  } else if (isCsAvailable) {
+    activeProvider = 'chatsimplified';
+  } else if (wapi.active) {
+    activeProvider = 'wapi';
+  } else if (simply.active) {
+    activeProvider = 'simply';
+  } else if (cs.active) {
+    activeProvider = 'chatsimplified';
+  } else {
+    activeProvider = preferredType.includes('simply') ? 'simply' : (preferredType.includes('chat') ? 'chatsimplified' : 'wapi');
+  }
 
   // Fallback recipient settings and templates
   const notifyAssignedAgent = plain.notify_assigned_agent !== undefined ? Boolean(plain.notify_assigned_agent) : (plain.notifyAssignedAgent !== undefined ? Boolean(plain.notifyAssignedAgent) : true);
@@ -41,13 +66,13 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
   const notifyCustomerWelcome = plain.notify_customer_welcome !== undefined ? Boolean(plain.notify_customer_welcome) : (plain.notifyCustomerWelcome !== undefined ? Boolean(plain.notifyCustomerWelcome) : false);
 
   // Provider Credentials
-  let safeSimplyToken = simply.access_token || simply.accessToken || '';
-  let safeWapiToken = wapi.wapi_token || wapi.wapiToken || '';
-  let safeCsApiKey = cs.api_key || cs.apiKey || '';
+  let safeSimplyToken = simplyToken;
+  let safeWapiToken = wapiToken;
+  let safeCsApiKey = csApiKey;
 
   // Convenience flat fields for NotificationHub and direct UI forms
   const providerType = activeProvider === 'simply' ? 'Simply WhatsApp' : (activeProvider === 'chatsimplified' ? 'ChatSimplified' : 'WHAPI');
-  const activeUrl = activeProvider === 'simply' ? simply.url : (activeProvider === 'chatsimplified' ? cs.url : (wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud'));
+  const activeUrl = activeProvider === 'simply' ? (simply.url || 'https://app.simplywhatsapp.com/api/send') : (activeProvider === 'chatsimplified' ? (cs.url || 'https://www.chatsimplified.co/api/v1/') : (wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud'));
 
   const isExplicitlyDisabled = Boolean(
     plain.is_active === false ||
@@ -64,21 +89,27 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
     industryId: indId,
 
     // Flat UI Convenience State
-    type: providerType,
+    type: plain.type || providerType,
     url: activeUrl,
-    wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
+    wapiUrl: wapi.wapi_url || wapi.wapiUrl || plain.fields?.wapiUrl || 'https://gate.whapi.cloud',
     wapiToken: safeWapiToken,
+    simplyUrl: simply.url || plain.fields?.simplyUrl || 'https://app.simplywhatsapp.com/api/send',
+    simplyInstanceId: simplyInstance,
+    simplyAccessToken: safeSimplyToken,
+    csUrl: cs.url || plain.fields?.csUrl || 'https://www.chatsimplified.co/api/v1/',
+    csApiKey: safeCsApiKey,
     isActive: isGatewayActive,
     is_active: isGatewayActive,
     hasCustomCredentials: hasCustomCredentials,
     fields: {
-      wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
+      wapiUrl: wapi.wapi_url || wapi.wapiUrl || plain.fields?.wapiUrl || 'https://gate.whapi.cloud',
       wapiToken: safeWapiToken,
-      simplyUrl: simply.url || 'https://app.simplywhatsapp.com/api/send',
-      instanceId: simply.instance_id || simply.instanceId || '',
+      simplyUrl: simply.url || plain.fields?.simplyUrl || 'https://app.simplywhatsapp.com/api/send',
+      instanceId: simplyInstance,
       accessToken: safeSimplyToken,
-      csUrl: cs.url || 'https://www.chatsimplified.co/api/v1/',
+      csUrl: cs.url || plain.fields?.csUrl || 'https://www.chatsimplified.co/api/v1/',
       apiKey: safeCsApiKey,
+      ...(plain.fields || {})
     },
 
     // Gateway State
@@ -276,6 +307,13 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
+    if (req.body.type) {
+      config.type = req.body.type;
+    }
+    if (req.body.fields) {
+      config.fields = { ...(config.fields || {}), ...req.body.fields };
+    }
+
     // Seamlessly map flat NotificationHub payload to provider objects
     if (!req.body.wapi && (req.body.fields?.wapiToken !== undefined || req.body.wapiToken !== undefined || req.body.fields?.wapiUrl || req.body.wapiUrl || req.body.type === 'WHAPI')) {
       const activeState = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.active !== undefined ? Boolean(req.body.active) : true);
@@ -287,22 +325,24 @@ router.post('/', authenticate, async (req, res, next) => {
         wapi_token: token,
       };
     }
-    if (!req.body.simply && req.body.type === 'Simply WhatsApp') {
+    if (!req.body.simply && (req.body.type === 'Simply WhatsApp' || req.body.simplyAccessToken !== undefined || req.body.fields?.accessToken !== undefined || req.body.fields?.instanceId !== undefined)) {
       const activeState = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.active !== undefined ? Boolean(req.body.active) : true);
       req.body.simply = {
         active: activeState,
-        url: req.body.fields?.simplyUrl || req.body.url || 'https://app.simplywhatsapp.com/api/send',
-        instance_id: req.body.fields?.instanceId || req.body.instanceId || '',
-        access_token: req.body.fields?.accessToken || req.body.accessToken || req.body.fields?.wapiToken || req.body.wapiToken || '',
+        url: req.body.fields?.simplyUrl || req.body.simplyUrl || req.body.url || 'https://app.simplywhatsapp.com/api/send',
+        instance_id: req.body.fields?.instanceId || req.body.instanceId || req.body.simplyInstanceId || '',
+        access_token: req.body.fields?.accessToken || req.body.accessToken || req.body.simplyAccessToken || req.body.fields?.wapiToken || req.body.wapiToken || '',
       };
     }
-    if (!req.body.chatSimplified && req.body.type === 'ChatSimplified') {
+    if (!req.body.chatSimplified && !req.body.chat_simplified && (req.body.type === 'ChatSimplified' || req.body.csApiKey !== undefined || req.body.fields?.apiKey !== undefined)) {
       const activeState = req.body.isActive !== undefined ? Boolean(req.body.isActive) : (req.body.active !== undefined ? Boolean(req.body.active) : true);
-      req.body.chatSimplified = {
+      const csPayload = {
         active: activeState,
-        url: req.body.fields?.csUrl || req.body.url || 'https://www.chatsimplified.co/api/v1/',
-        api_key: req.body.fields?.apiKey || req.body.apiKey || req.body.fields?.wapiToken || req.body.wapiToken || '',
+        url: req.body.fields?.csUrl || req.body.csUrl || req.body.url || 'https://www.chatsimplified.co/api/v1/',
+        api_key: req.body.fields?.apiKey || req.body.apiKey || req.body.csApiKey || req.body.fields?.wapiToken || req.body.wapiToken || '',
       };
+      req.body.chatSimplified = csPayload;
+      req.body.chat_simplified = csPayload;
     }
 
     // 1. Update Providers with Deep Merge & Mask Preservation
@@ -363,8 +403,6 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     // 2. Gateway Hierarchy & Master Enable/Disable Switch
-    const hasActiveCustomProvider = Boolean(config.wapi?.active || config.simply?.active || config.chat_simplified?.active || config.chatSimplified?.active);
-    
     let isGatewayActive = true;
     if (req.body.isActive !== undefined) {
       isGatewayActive = Boolean(req.body.isActive);
@@ -384,13 +422,18 @@ router.post('/', authenticate, async (req, res, next) => {
       if (config.chat_simplified) config.chat_simplified.active = false;
       if (config.chatSimplified) config.chatSimplified.active = false;
       config.use_custom_api = false;
-    } else if (req.body.useCustomApi !== undefined) {
-      config.use_custom_api = Boolean(req.body.useCustomApi);
-    } else if (req.body.use_custom_api !== undefined) {
-      config.use_custom_api = Boolean(req.body.use_custom_api);
     } else {
-      // Auto-switch: if client turned on a provider, custom API is enabled; if turned off, reverts to universal
-      config.use_custom_api = hasActiveCustomProvider;
+      // Explicitly activate the chosen provider
+      const chosenType = (req.body.type || config.type || 'WHAPI').toLowerCase();
+      if (chosenType.includes('simply') && config.simply) {
+        config.simply.active = true;
+      } else if ((chosenType.includes('chat') || chosenType.includes('simplified')) && (config.chat_simplified || config.chatSimplified)) {
+        if (config.chat_simplified) config.chat_simplified.active = true;
+        if (config.chatSimplified) config.chatSimplified.active = true;
+      } else if (config.wapi) {
+        config.wapi.active = true;
+      }
+      config.use_custom_api = true;
     }
 
     // Sync master toggle to Organization document for instant circuit-breaker

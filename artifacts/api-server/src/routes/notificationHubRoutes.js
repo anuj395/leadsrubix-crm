@@ -1063,11 +1063,19 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
         $or: [{ organization_id: orgId }, { organizationId: orgId }]
       }).lean().exec();
       if (waConfig) {
+        const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0 && !String(val).includes('undefined') && !String(val).includes('null'));
+        const wapiToken = (waConfig.wapi?.wapi_token || waConfig.wapi?.wapiToken || waConfig.fields?.wapiToken || waConfig.wapiToken || '').trim();
+        const simplyToken = (waConfig.simply?.access_token || waConfig.simply?.accessToken || waConfig.fields?.accessToken || waConfig.accessToken || '').trim();
+        const csKey = (waConfig.chat_simplified?.api_key || waConfig.chatSimplified?.apiKey || waConfig.chat_simplified?.apiKey || waConfig.chatSimplified?.api_key || waConfig.fields?.apiKey || waConfig.apiKey || '').trim();
+
+        const isWapiActive = waConfig.wapi?.active !== false;
+        const isSimplyActive = waConfig.simply?.active !== false;
+        const isCsActive = waConfig.chat_simplified?.active !== false && waConfig.chatSimplified?.active !== false;
+
         hasCustomGateway = Boolean(
-          (waConfig.simply?.active && waConfig.simply?.access_token) ||
-          (waConfig.wapi?.active && waConfig.wapi?.wapi_token) ||
-          (waConfig.chat_simplified?.active && waConfig.chat_simplified?.api_key) ||
-          (waConfig.chatSimplified?.active && waConfig.chatSimplified?.apiKey)
+          (hasValidToken(wapiToken) && isWapiActive) ||
+          (hasValidToken(simplyToken) && isSimplyActive) ||
+          (hasValidToken(csKey) && isCsActive)
         );
       }
     } else if (channel === 'email') {

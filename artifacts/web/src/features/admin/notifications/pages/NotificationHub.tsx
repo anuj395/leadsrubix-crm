@@ -116,6 +116,8 @@ export default function NotificationHubPage() {
   const [resettingTemplates, setResettingTemplates] = useState<boolean>(false);
   const [matrixSearchQuery, setMatrixSearchQuery] = useState<string>('');
   const [showWaToken, setShowWaToken] = useState<boolean>(false);
+  const [showSimplyToken, setShowSimplyToken] = useState<boolean>(false);
+  const [showCsKey, setShowCsKey] = useState<boolean>(false);
   const [showEmailPass, setShowEmailPass] = useState<boolean>(false);
   const [savingEmailGateway, setSavingEmailGateway] = useState<boolean>(false);
   const contentContainerRef = useRef<HTMLDivElement | null>(null);
@@ -258,9 +260,15 @@ export default function NotificationHubPage() {
     type: 'WHAPI',
     wapiUrl: 'https://gate.whapi.cloud',
     wapiToken: '',
+    simplyUrl: 'https://app.simplywhatsapp.com/api/send',
+    simplyInstanceId: '',
+    simplyAccessToken: '',
+    csUrl: 'https://www.chatsimplified.co/api/v1/',
+    csApiKey: '',
     isActive: false,
     isInherited: false,
-    hasUniversalFallback: true,
+    hasUniversalFallback: false,
+    hasCustomCredentials: false,
   });
   const [emailConfig, setEmailConfig] = useState<any>({
     useCustomSmtp: false,
@@ -481,11 +489,19 @@ export default function NotificationHubPage() {
 
       if (resWa.status === 'fulfilled' && resWa.value?.data) {
         const d = resWa.value.data;
+        const simplyData = d.simply || {};
+        const csData = d.chatSimplified || d.chat_simplified || {};
+        const wapiData = d.wapi || {};
         setWaConfig({
-          type: d.type || 'WHAPI',
-          wapiUrl: d.wapiUrl || d.fields?.wapiUrl || d.url || 'https://gate.whapi.cloud',
-          wapiToken: d.wapiToken || d.fields?.wapiToken || '',
-          isActive: d.isActive !== undefined ? !!d.isActive : false,
+          type: d.type || (simplyData.active ? 'Simply WhatsApp' : (csData.active ? 'ChatSimplified' : 'WHAPI')),
+          wapiUrl: d.wapiUrl || wapiData.wapi_url || wapiData.wapiUrl || d.fields?.wapiUrl || 'https://gate.whapi.cloud',
+          wapiToken: d.wapiToken || wapiData.wapi_token || wapiData.wapiToken || d.fields?.wapiToken || '',
+          simplyUrl: d.simplyUrl || simplyData.url || d.fields?.simplyUrl || 'https://app.simplywhatsapp.com/api/send',
+          simplyInstanceId: d.simplyInstanceId || simplyData.instance_id || simplyData.instanceId || d.fields?.instanceId || '',
+          simplyAccessToken: d.simplyAccessToken || simplyData.access_token || simplyData.accessToken || d.fields?.accessToken || '',
+          csUrl: d.csUrl || csData.url || d.fields?.csUrl || 'https://www.chatsimplified.co/api/v1/',
+          csApiKey: d.csApiKey || csData.api_key || csData.apiKey || d.fields?.apiKey || '',
+          isActive: d.isActive !== undefined ? !!d.isActive : (d.is_active !== undefined ? !!d.is_active : false),
           isInherited: false,
           hasUniversalFallback: false,
           hasCustomCredentials: !!d.hasCustomCredentials,
@@ -883,29 +899,57 @@ export default function NotificationHubPage() {
   const handleSaveWaGateway = async () => {
     setSavingGateway(true);
     try {
+      const isWhapi = waConfig.type === 'WHAPI' || !waConfig.type;
+      const isSimply = waConfig.type === 'Simply WhatsApp';
+      const isCs = waConfig.type === 'ChatSimplified';
+
       const payload = {
-        type: waConfig.type,
-        url: waConfig.wapiUrl,
+        type: waConfig.type || 'WHAPI',
+        url: isSimply ? waConfig.simplyUrl : (isCs ? waConfig.csUrl : waConfig.wapiUrl),
         isActive: waConfig.isActive,
         useCustomApi: waConfig.isActive,
         fields: {
           wapiUrl: waConfig.wapiUrl,
           wapiToken: waConfig.wapiToken,
+          simplyUrl: waConfig.simplyUrl,
+          instanceId: waConfig.simplyInstanceId,
+          accessToken: waConfig.simplyAccessToken,
+          csUrl: waConfig.csUrl,
+          apiKey: waConfig.csApiKey,
         },
         wapi: {
-          active: waConfig.isActive,
+          active: isWhapi ? waConfig.isActive : false,
           wapi_url: waConfig.wapiUrl,
           wapi_token: waConfig.wapiToken,
+        },
+        simply: {
+          active: isSimply ? waConfig.isActive : false,
+          url: waConfig.simplyUrl,
+          instance_id: waConfig.simplyInstanceId,
+          access_token: waConfig.simplyAccessToken,
+        },
+        chatSimplified: {
+          active: isCs ? waConfig.isActive : false,
+          url: waConfig.csUrl,
+          api_key: waConfig.csApiKey,
         }
       };
       const res = await api.post('/whatsapp-config', payload);
       if (res.data) {
         const d = res.data;
         const newActive = d.isActive !== undefined ? !!d.isActive : waConfig.isActive;
+        const simplyData = d.simply || {};
+        const csData = d.chatSimplified || d.chat_simplified || {};
+        const wapiData = d.wapi || {};
         setWaConfig({
           type: d.type || waConfig.type,
-          wapiUrl: d.wapiUrl || d.fields?.wapiUrl || waConfig.wapiUrl,
-          wapiToken: d.wapiToken !== undefined ? d.wapiToken : (d.fields?.wapiToken !== undefined ? d.fields.wapiToken : waConfig.wapiToken),
+          wapiUrl: d.wapiUrl || wapiData.wapi_url || wapiData.wapiUrl || d.fields?.wapiUrl || waConfig.wapiUrl,
+          wapiToken: d.wapiToken !== undefined ? d.wapiToken : (wapiData.wapi_token || d.fields?.wapiToken || waConfig.wapiToken),
+          simplyUrl: d.simplyUrl || simplyData.url || d.fields?.simplyUrl || waConfig.simplyUrl,
+          simplyInstanceId: d.simplyInstanceId || simplyData.instance_id || d.fields?.instanceId || waConfig.simplyInstanceId,
+          simplyAccessToken: d.simplyAccessToken !== undefined ? d.simplyAccessToken : (simplyData.access_token || d.fields?.accessToken || waConfig.simplyAccessToken),
+          csUrl: d.csUrl || csData.url || d.fields?.csUrl || waConfig.csUrl,
+          csApiKey: d.csApiKey !== undefined ? d.csApiKey : (csData.api_key || d.fields?.apiKey || waConfig.csApiKey),
           isActive: newActive,
           isInherited: false,
           hasUniversalFallback: false,
@@ -2947,9 +2991,15 @@ export default function NotificationHubPage() {
                   <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
                     <strong>WhatsApp Gateway Disabled:</strong> Outbound WhatsApp alerts are paused for this workspace. No messages will be sent to agents, admins, or customers.
                   </Alert>
-                ) : waConfig.wapiToken ? (
+                ) : (Boolean(
+                  (waConfig.type === 'WHAPI' && waConfig.wapiToken) ||
+                  (waConfig.type === 'Simply WhatsApp' && waConfig.simplyAccessToken && waConfig.simplyInstanceId) ||
+                  (waConfig.type === 'ChatSimplified' && waConfig.csApiKey) ||
+                  waConfig.hasCustomCredentials ||
+                  waConfig.wapiToken
+                )) ? (
                   <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                    <strong>Custom Cloud Gateway Active:</strong> Outbound alerts are routed directly through your private {waConfig.type} gateway credentials.
+                    <strong>Custom Cloud Gateway Active:</strong> Outbound alerts are routed directly through your private {waConfig.type || 'WHAPI'} gateway credentials.
                   </Alert>
                 ) : (
                   <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
@@ -2960,7 +3010,7 @@ export default function NotificationHubPage() {
                 <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
                   <InputLabel>Provider</InputLabel>
                   <Select
-                    value={waConfig.type}
+                    value={waConfig.type || 'WHAPI'}
                     label="Provider"
                     onChange={(e) => setWaConfig({ ...waConfig, type: e.target.value })}
                   >
@@ -2970,34 +3020,110 @@ export default function NotificationHubPage() {
                   </Select>
                 </FormControl>
 
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="API Base URL"
-                  value={waConfig.wapiUrl}
-                  onChange={(e) => setWaConfig({ ...waConfig, wapiUrl: e.target.value })}
-                  sx={{ mb: 1.5 }}
-                />
+                {(waConfig.type === 'WHAPI' || !waConfig.type) && (
+                  <>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="API Base URL"
+                      value={waConfig.wapiUrl}
+                      onChange={(e) => setWaConfig({ ...waConfig, wapiUrl: e.target.value })}
+                      sx={{ mb: 1.5 }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type={showWaToken ? 'text' : 'password'}
+                      label="WHAPI Bearer Token"
+                      value={waConfig.wapiToken}
+                      onChange={(e) => setWaConfig({ ...waConfig, wapiToken: e.target.value })}
+                      placeholder="Paste your WHAPI Bearer token"
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowWaToken(!showWaToken)}>
+                              {showWaToken ? <VisibilityOff fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }}
+                      sx={{ mb: 2 }}
+                    />
+                  </>
+                )}
 
-                <TextField
-                  fullWidth
-                  size="small"
-                  type={showWaToken ? 'text' : 'password'}
-                  label="Bearer Token / API Key"
-                  value={waConfig.wapiToken}
-                  onChange={(e) => setWaConfig({ ...waConfig, wapiToken: e.target.value })}
-                  placeholder="Paste your WHAPI or Gateway Bearer token"
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => setShowWaToken(!showWaToken)}>
-                          {showWaToken ? <VisibilityOff fontSize="small" /> : <VisibilityIcon fontSize="small" />}
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                  }}
-                  sx={{ mb: 2 }}
-                />
+                {waConfig.type === 'Simply WhatsApp' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Simply WhatsApp API URL"
+                      value={waConfig.simplyUrl}
+                      onChange={(e) => setWaConfig({ ...waConfig, simplyUrl: e.target.value })}
+                      sx={{ mb: 1.5 }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Instance ID"
+                      value={waConfig.simplyInstanceId}
+                      onChange={(e) => setWaConfig({ ...waConfig, simplyInstanceId: e.target.value })}
+                      placeholder="e.g. 642F... or your Simply instance ID"
+                      sx={{ mb: 1.5 }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type={showSimplyToken ? 'text' : 'password'}
+                      label="Access Token"
+                      value={waConfig.simplyAccessToken}
+                      onChange={(e) => setWaConfig({ ...waConfig, simplyAccessToken: e.target.value })}
+                      placeholder="Paste your Simply WhatsApp Access Token"
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowSimplyToken(!showSimplyToken)}>
+                              {showSimplyToken ? <VisibilityOff fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }}
+                      sx={{ mb: 2 }}
+                    />
+                  </>
+                )}
+
+                {waConfig.type === 'ChatSimplified' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="ChatSimplified API URL"
+                      value={waConfig.csUrl}
+                      onChange={(e) => setWaConfig({ ...waConfig, csUrl: e.target.value })}
+                      sx={{ mb: 1.5 }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type={showCsKey ? 'text' : 'password'}
+                      label="API Key"
+                      value={waConfig.csApiKey}
+                      onChange={(e) => setWaConfig({ ...waConfig, csApiKey: e.target.value })}
+                      placeholder="Paste your ChatSimplified API Key"
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowCsKey(!showCsKey)}>
+                              {showCsKey ? <VisibilityOff fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }}
+                      sx={{ mb: 2 }}
+                    />
+                  </>
+                )}
 
                 <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                   <Button
