@@ -310,10 +310,10 @@ async function getSystemMasterGatewayControls() {
       });
     }
     return {
-      whatsapp: controls.whatsapp_enabled !== false && controls.whatsappEnabled !== false,
-      email: controls.email_enabled !== false && controls.emailEnabled !== false,
-      push: controls.push_enabled !== false && controls.pushEnabled !== false,
-      in_app: controls.in_app_enabled !== false && controls.inAppEnabled !== false
+      whatsapp: controls.whatsapp_enabled !== false && controls.whatsappEnabled !== false && controls.channels?.whatsapp !== false,
+      email: controls.email_enabled !== false && controls.emailEnabled !== false && controls.channels?.email !== false,
+      push: controls.push_enabled !== false && controls.pushEnabled !== false && controls.channels?.push !== false,
+      in_app: controls.in_app_enabled !== false && controls.inAppEnabled !== false && controls.channels?.in_app !== false
     };
   } catch (err) {
     console.warn('[getSystemMasterGatewayControls] Fallback:', err.message);
@@ -1100,6 +1100,15 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
         $or: [{ organization_id: orgId }, { organizationId: orgId }]
       }).lean().exec();
       hasCustomGateway = Boolean(org?.smtp_config?.useCustomSmtp && org?.smtp_config?.smtpPass);
+    }
+
+    // Zero universal fallback for client workspaces: WhatsApp strictly requires client's custom gateway
+    if (channel === 'whatsapp' && !hasCustomGateway && userRole !== 'superAdmin') {
+      return res.status(400).json({
+        success: false,
+        suppressed: true,
+        message: 'No active WhatsApp gateway configured for your workspace. Please configure your WhatsApp API credentials in the Gateways tab to enable WhatsApp messaging.'
+      });
     }
 
     // Anti-Leakage & Quota Shield for Universal Platform Gateway

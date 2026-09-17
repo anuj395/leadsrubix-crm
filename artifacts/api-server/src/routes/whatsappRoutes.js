@@ -442,6 +442,23 @@ router.post('/', authenticate, async (req, res, next) => {
       config.use_custom_api = hasAnyConfiguredKeys;
     }
 
+    // Keep flat fields object in exact sync
+    if (!config.fields) config.fields = {};
+    if (config.wapi) {
+      config.fields.wapiUrl = config.wapi.wapi_url;
+      config.fields.wapiToken = config.wapi.wapi_token;
+    }
+    if (config.simply) {
+      config.fields.simplyUrl = config.simply.url;
+      config.fields.instanceId = config.simply.instance_id;
+      config.fields.accessToken = config.simply.access_token;
+    }
+    if (config.chat_simplified || config.chatSimplified) {
+      const csObj = config.chat_simplified || config.chatSimplified;
+      config.fields.csUrl = csObj.url;
+      config.fields.apiKey = csObj.api_key || csObj.apiKey;
+    }
+
     // Sync master toggle to Organization document for instant circuit-breaker
     if (targetOrgIds.length > 0) {
       await Organization.updateMany(
