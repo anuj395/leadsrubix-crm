@@ -52,6 +52,7 @@ require('./models/faqModel');
 require('./models/newsModel');
 require('./models/whatsappConfigModel');
 require('./models/whatsappLogModel');
+require('./models/systemGatewayControlModel');
 require('./models/resourceItemModel');
 require('./models/apiTokenModel');
 require('./models/apiDataModel');

@@ -7,6 +7,28 @@ export interface ChannelToggles {
   in_app: boolean;
 }
 
+export type GatewayControls = ChannelToggles;
+
+export interface GatewayStatusResponse {
+  success: boolean;
+  isSuperAdmin: boolean;
+  organizationId: string | null;
+  masterControls: GatewayControls;
+  workspaceControls: GatewayControls;
+  whatsappDetails?: {
+    hasCustomCredentials: boolean;
+    providerType: string;
+    isConfigured: boolean;
+    isActive: boolean;
+  };
+  emailDetails?: {
+    useCustomSmtp: boolean;
+    smtpHost: string;
+    fromEmail: string;
+    isActive: boolean;
+  };
+}
+
 export interface RecipientRouting {
   enabled: boolean;
   channels: ChannelToggles;
@@ -176,5 +198,24 @@ export const notificationHubApi = {
   sendMyTestAlert: async (channel: 'whatsapp' | 'email' | 'push' | 'in_app') => {
     const res = await api.post('/notifications/my-test-alert', { channel });
     return res.data;
+  },
+
+  // Dual-Tier Gateway Controls (Master Global Kill Switch & Workspace Switches)
+  getGatewaysStatus: async (orgId?: string) => {
+    const res = await api.get('/notifications/gateways/status', {
+      params: orgId ? { organizationId: orgId } : undefined
+    });
+    return res.data;
+  },
+
+  toggleMasterGateway: async (channel: 'whatsapp' | 'email' | 'push' | 'in_app', isEnabled: boolean) => {
+    const res = await api.post('/notifications/gateways/master-toggle', { channel, isEnabled });
+    return res.data;
+  },
+
+  toggleWorkspaceGateway: async (channel: 'whatsapp' | 'email' | 'push' | 'in_app', isEnabled: boolean, organizationId?: string) => {
+    const res = await api.post('/notifications/gateways/workspace-toggle', { channel, isEnabled, organizationId });
+    return res.data;
   }
 };
+

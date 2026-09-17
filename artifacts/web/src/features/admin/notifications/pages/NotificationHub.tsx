@@ -65,6 +65,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import TuneIcon from '@mui/icons-material/Tune';
 import HistoryIcon from '@mui/icons-material/History';
 import SettingsInputAntennaIcon from '@mui/icons-material/SettingsInputAntenna';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import PersonIcon from '@mui/icons-material/Person';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -280,6 +282,31 @@ export default function NotificationHubPage() {
     isActive: true,
   });
   const [savingGateway, setSavingGateway] = useState<boolean>(false);
+  const [togglingGateway, setTogglingGateway] = useState<string | null>(null);
+
+  // 2-Tier Master & Workspace Controls State
+  const [masterControls, setMasterControls] = useState<{
+    whatsapp: boolean;
+    email: boolean;
+    push: boolean;
+    in_app: boolean;
+  }>({
+    whatsapp: true,
+    email: true,
+    push: true,
+    in_app: true,
+  });
+  const [workspaceControls, setWorkspaceControls] = useState<{
+    whatsapp: boolean;
+    email: boolean;
+    push: boolean;
+    in_app: boolean;
+  }>({
+    whatsapp: true,
+    email: true,
+    push: true,
+    in_app: true,
+  });
 
   // Audit Logs State
   const [logs, setLogs] = useState<NotificationLog[]>([]);
@@ -436,10 +463,21 @@ export default function NotificationHubPage() {
 
   const loadGateways = async () => {
     try {
-      const [resWa, resEmail] = await Promise.allSettled([
+      const [resWa, resEmail, resStatus] = await Promise.allSettled([
         api.get('/whatsapp-config'),
-        api.get('/organizations/email-settings')
+        api.get('/organizations/email-settings'),
+        notificationHubApi.getGatewaysStatus()
       ]);
+
+      if (resStatus.status === 'fulfilled' && resStatus.value?.success) {
+        const s = resStatus.value;
+        if (s.masterControls) {
+          setMasterControls(s.masterControls);
+        }
+        if (s.workspaceControls) {
+          setWorkspaceControls(s.workspaceControls);
+        }
+      }
 
       if (resWa.status === 'fulfilled' && resWa.value?.data) {
         const d = resWa.value.data;
@@ -448,8 +486,9 @@ export default function NotificationHubPage() {
           wapiUrl: d.wapiUrl || d.fields?.wapiUrl || d.url || 'https://gate.whapi.cloud',
           wapiToken: d.wapiToken || d.fields?.wapiToken || '',
           isActive: d.isActive !== undefined ? !!d.isActive : false,
-          isInherited: !!d.isInherited,
-          hasUniversalFallback: !!d.hasUniversalFallback,
+          isInherited: false,
+          hasUniversalFallback: false,
+          hasCustomCredentials: !!d.hasCustomCredentials,
         });
       }
 
@@ -782,6 +821,64 @@ export default function NotificationHubPage() {
     }
   };
 
+  // Toggle Master Global Kill Switch (SuperAdmin only)
+  const handleToggleMaster = async (channel: 'whatsapp' | 'email' | 'push' | 'in_app', isEnabled: boolean) => {
+    setTogglingGateway(`master_${channel}`);
+    const previous = masterControls[channel];
+    setMasterControls(prev => ({ ...prev, [channel]: isEnabled }));
+    try {
+      await notificationHubApi.toggleMasterGateway(channel, isEnabled);
+      setSnackbar({
+        open: true,
+        message: `Global Master Switch for ${channel.toUpperCase()} is now ${isEnabled ? 'ACTIVE (crm-wide)' : 'HALTED (crm-wide)'}.`,
+        severity: isEnabled ? 'success' : 'warning'
+      });
+    } catch (err: any) {
+      setMasterControls(prev => ({ ...prev, [channel]: previous }));
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || `Failed to update master switch for ${channel}`,
+        severity: 'error'
+      });
+    } finally {
+      setTogglingGateway(null);
+    }
+  };
+
+  // Toggle Workspace Switch (Admin / SuperAdmin)
+  const handleToggleWorkspace = async (channel: 'whatsapp' | 'email' | 'push' | 'in_app', isEnabled: boolean) => {
+    setTogglingGateway(`ws_${channel}`);
+    const previous = workspaceControls[channel];
+    setWorkspaceControls(prev => ({ ...prev, [channel]: isEnabled }));
+    if (channel === 'whatsapp') {
+      setWaConfig((prev: any) => ({ ...prev, isActive: isEnabled }));
+    } else if (channel === 'email') {
+      setEmailConfig((prev: any) => ({ ...prev, isActive: isEnabled }));
+    }
+    try {
+      await notificationHubApi.toggleWorkspaceGateway(channel, isEnabled);
+      setSnackbar({
+        open: true,
+        message: `${channel.toUpperCase()} alerts ${isEnabled ? 'ACTIVATED' : 'PAUSED'} for this workspace.`,
+        severity: isEnabled ? 'success' : 'info'
+      });
+    } catch (err: any) {
+      setWorkspaceControls(prev => ({ ...prev, [channel]: previous }));
+      if (channel === 'whatsapp') {
+        setWaConfig((prev: any) => ({ ...prev, isActive: previous }));
+      } else if (channel === 'email') {
+        setEmailConfig((prev: any) => ({ ...prev, isActive: previous }));
+      }
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || `Failed to toggle ${channel} for workspace`,
+        severity: 'error'
+      });
+    } finally {
+      setTogglingGateway(null);
+    }
+  };
+
   // Save WhatsApp Gateway settings
   const handleSaveWaGateway = async () => {
     setSavingGateway(true);
@@ -804,14 +901,17 @@ export default function NotificationHubPage() {
       const res = await api.post('/whatsapp-config', payload);
       if (res.data) {
         const d = res.data;
+        const newActive = d.isActive !== undefined ? !!d.isActive : waConfig.isActive;
         setWaConfig({
           type: d.type || waConfig.type,
           wapiUrl: d.wapiUrl || d.fields?.wapiUrl || waConfig.wapiUrl,
           wapiToken: d.wapiToken !== undefined ? d.wapiToken : (d.fields?.wapiToken !== undefined ? d.fields.wapiToken : waConfig.wapiToken),
-          isActive: d.isActive !== undefined ? !!d.isActive : waConfig.isActive,
-          isInherited: !!d.isInherited,
-          hasUniversalFallback: !!d.hasUniversalFallback,
+          isActive: newActive,
+          isInherited: false,
+          hasUniversalFallback: false,
+          hasCustomCredentials: !!d.hasCustomCredentials,
         });
+        setWorkspaceControls(prev => ({ ...prev, whatsapp: newActive }));
       }
       setSnackbar({
         open: true,
@@ -860,6 +960,10 @@ export default function NotificationHubPage() {
           security: s.security || prev.security,
           hasConfiguredPassword: Boolean(s.hasConfiguredPassword || prev.smtpPass),
           isActive: s.isActive !== undefined ? Boolean(s.isActive) : Boolean(emailConfig.isActive),
+        }));
+        setWorkspaceControls(prev => ({
+          ...prev,
+          email: s.isActive !== undefined ? Boolean(s.isActive) : Boolean(emailConfig.isActive)
         }));
       }
       setSnackbar({
@@ -2622,9 +2726,184 @@ export default function NotificationHubPage() {
         </Box>
       )}
 
-      {/* TAB 2: GATEWAYS & CHANNELS (Sleek 2x2 Dashboard Grid) */}
+      {/* TAB 2: GATEWAYS & CHANNELS (Dual-Tier Master & Workspace Controls) */}
       {!loading && currentTabKey === 'gateways' && isAdmin && (
         <Box>
+          {/* TIER 1: GLOBAL MASTER PLATFORM CONTROLS (SUPERADMIN EXCLUSIVE) */}
+          {isSuperAdmin && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                mb: 3,
+                border: '1px solid',
+                borderColor: '#93c5fd',
+                borderRadius: 2.5,
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(15, 23, 42, 0.6)' : '#f8fafc',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)'
+              }}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+                <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#1e293b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AdminPanelSettingsIcon fontSize="medium" />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="h6" sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
+                      System-Wide Master Controls (Global Kill Switch)
+                    </Typography>
+                    <Chip label="SuperAdmin Authority" size="small" color="primary" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }} />
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    Platform-level master kill switches. Turning a channel OFF halts delivery across ALL workspaces (including SuperAdmin and all client tenants) immediately.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Grid container spacing={2}>
+                {/* WhatsApp Master Switch */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 1.8,
+                      border: '1px solid',
+                      borderColor: masterControls.whatsapp ? '#86efac' : '#fca5a5',
+                      bgcolor: masterControls.whatsapp ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                      borderRadius: 2
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <WhatsAppIcon sx={{ color: masterControls.whatsapp ? '#16a34a' : '#dc2626', fontSize: 20 }} />
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>WhatsApp Master</Typography>
+                          <Typography variant="caption" sx={{ color: masterControls.whatsapp ? 'success.main' : 'error.main', fontWeight: 600 }}>
+                            {masterControls.whatsapp ? 'OPERATIONAL' : 'HALTED GLOBALLY'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Switch
+                        checked={masterControls.whatsapp}
+                        onChange={(e) => handleToggleMaster('whatsapp', e.target.checked)}
+                        color="success"
+                        size="small"
+                        disabled={togglingGateway === 'master_whatsapp'}
+                      />
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                {/* Email Master Switch */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 1.8,
+                      border: '1px solid',
+                      borderColor: masterControls.email ? '#93c5fd' : '#fca5a5',
+                      bgcolor: masterControls.email ? 'rgba(59, 130, 246, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                      borderRadius: 2
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <EmailIcon sx={{ color: masterControls.email ? '#2563eb' : '#dc2626', fontSize: 20 }} />
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>Email Master</Typography>
+                          <Typography variant="caption" sx={{ color: masterControls.email ? 'primary.main' : 'error.main', fontWeight: 600 }}>
+                            {masterControls.email ? 'OPERATIONAL' : 'HALTED GLOBALLY'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Switch
+                        checked={masterControls.email}
+                        onChange={(e) => handleToggleMaster('email', e.target.checked)}
+                        color="primary"
+                        size="small"
+                        disabled={togglingGateway === 'master_email'}
+                      />
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                {/* Mobile Push Master Switch */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 1.8,
+                      border: '1px solid',
+                      borderColor: masterControls.push ? '#d8b4fe' : '#fca5a5',
+                      bgcolor: masterControls.push ? 'rgba(168, 85, 247, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                      borderRadius: 2
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <PhoneIphoneIcon sx={{ color: masterControls.push ? '#9333ea' : '#dc2626', fontSize: 20 }} />
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>Push Master</Typography>
+                          <Typography variant="caption" sx={{ color: masterControls.push ? '#9333ea' : 'error.main', fontWeight: 600 }}>
+                            {masterControls.push ? 'OPERATIONAL' : 'HALTED GLOBALLY'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Switch
+                        checked={masterControls.push}
+                        onChange={(e) => handleToggleMaster('push', e.target.checked)}
+                        color="secondary"
+                        size="small"
+                        disabled={togglingGateway === 'master_push'}
+                      />
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                {/* In-App Bell Master Switch */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 1.8,
+                      border: '1px solid',
+                      borderColor: masterControls.in_app ? '#fde68a' : '#fca5a5',
+                      bgcolor: masterControls.in_app ? 'rgba(245, 158, 11, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                      borderRadius: 2
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <NotificationsIcon sx={{ color: masterControls.in_app ? '#d97706' : '#dc2626', fontSize: 20 }} />
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>In-App Master</Typography>
+                          <Typography variant="caption" sx={{ color: masterControls.in_app ? 'warning.main' : 'error.main', fontWeight: 600 }}>
+                            {masterControls.in_app ? 'OPERATIONAL' : 'HALTED GLOBALLY'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Switch
+                        checked={masterControls.in_app}
+                        onChange={(e) => handleToggleMaster('in_app', e.target.checked)}
+                        color="warning"
+                        size="small"
+                        disabled={togglingGateway === 'master_in_app'}
+                      />
+                    </Stack>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Paper>
+          )}
+
+          {/* System Maintenance Notice for Client Admin if Master is Paused */}
+          {!isSuperAdmin && (!masterControls.whatsapp || !masterControls.email || !masterControls.push || !masterControls.in_app) && (
+            <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+              <strong>System Maintenance Notice:</strong> One or more notification channels are temporarily paused platform-wide by the System Administrator. Delivery for affected channels is paused.
+            </Alert>
+          )}
+
+          {/* TIER 2: WORKSPACE GATEWAYS (2x2 Dashboard Grid) */}
           <Grid container spacing={2.5}>
             {/* WhatsApp Gateway Card */}
             <Grid size={{ xs: 12, md: 6 }}>
@@ -2635,33 +2914,46 @@ export default function NotificationHubPage() {
                   </Box>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>WhatsApp Cloud Gateway</Typography>
-                    <Typography variant="caption" color="text.secondary">Direct Cloud API / WHAPI Provider</Typography>
+                    <Typography variant="caption" color="text.secondary">Workspace Custom WHAPI / Simply Provider</Typography>
                   </Box>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={waConfig.isActive}
-                        onChange={(e) => setWaConfig({ ...waConfig, isActive: e.target.checked })}
-                        color="success"
-                        size="small"
+                  <Tooltip title={!masterControls.whatsapp ? 'Channel halted platform-wide by System Administrator' : ''}>
+                    <span>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={Boolean(workspaceControls.whatsapp && masterControls.whatsapp)}
+                            onChange={(e) => handleToggleWorkspace('whatsapp', e.target.checked)}
+                            color="success"
+                            size="small"
+                            disabled={!masterControls.whatsapp || togglingGateway === 'ws_whatsapp'}
+                          />
+                        }
+                        label={
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                            {!masterControls.whatsapp ? 'Halted by Master' : workspaceControls.whatsapp ? 'Active' : 'Disabled'}
+                          </Typography>
+                        }
+                        sx={{ m: 0 }}
                       />
-                    }
-                    label={<Typography variant="caption" sx={{ fontWeight: 700 }}>{waConfig.isActive ? 'Active' : 'Disabled'}</Typography>}
-                    sx={{ m: 0 }}
-                  />
+                    </span>
+                  </Tooltip>
                 </Stack>
 
-                {!waConfig.isActive ? (
+                {!masterControls.whatsapp ? (
+                  <Alert severity="error" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Platform Master Kill Switch Active:</strong> WhatsApp messaging is paused platform-wide across all workspaces by SuperAdmin.
+                  </Alert>
+                ) : !workspaceControls.whatsapp ? (
                   <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                    <strong>WhatsApp Gateway Disabled:</strong> Outbound WhatsApp alerts are completely halted for this workspace. No messages will be sent to agents, admins, or customers.
+                    <strong>WhatsApp Gateway Disabled:</strong> Outbound WhatsApp alerts are paused for this workspace. No messages will be sent to agents, admins, or customers.
                   </Alert>
                 ) : waConfig.wapiToken ? (
                   <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                    <strong>Custom Cloud Gateway Active:</strong> Outbound alerts are routed directly through your private {waConfig.type} gateway.
+                    <strong>Custom Cloud Gateway Active:</strong> Outbound alerts are routed directly through your private {waConfig.type} gateway credentials.
                   </Alert>
                 ) : (
                   <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                    <strong>Universal Cloud Delivery Active:</strong> Outbound alerts are routed through Leads Rubix Managed Cloud Gateway.
+                    <strong>No Custom Gateway Configured:</strong> Connect your WHAPI or Simply WhatsApp credentials below and save. Client workspaces require their own credentials; universal fallback is disabled.
                   </Alert>
                 )}
 
@@ -2747,23 +3039,36 @@ export default function NotificationHubPage() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Email (SMTP / Amazon SES)</Typography>
                     <Typography variant="caption" color="text.secondary">Transactional & Lead Alert Emails</Typography>
                   </Box>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={emailConfig.isActive}
-                        onChange={(e) => setEmailConfig({ ...emailConfig, isActive: e.target.checked })}
-                        color="primary"
-                        size="small"
+                  <Tooltip title={!masterControls.email ? 'Channel halted platform-wide by System Administrator' : ''}>
+                    <span>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={Boolean(workspaceControls.email && masterControls.email)}
+                            onChange={(e) => handleToggleWorkspace('email', e.target.checked)}
+                            color="primary"
+                            size="small"
+                            disabled={!masterControls.email || togglingGateway === 'ws_email'}
+                          />
+                        }
+                        label={
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                            {!masterControls.email ? 'Halted by Master' : workspaceControls.email ? 'Active' : 'Disabled'}
+                          </Typography>
+                        }
+                        sx={{ m: 0 }}
                       />
-                    }
-                    label={<Typography variant="caption" sx={{ fontWeight: 700 }}>{emailConfig.isActive ? 'Active' : 'Disabled'}</Typography>}
-                    sx={{ m: 0 }}
-                  />
+                    </span>
+                  </Tooltip>
                 </Stack>
 
-                {!emailConfig.isActive ? (
+                {!masterControls.email ? (
+                  <Alert severity="error" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Platform-Wide Master Kill Switch Active:</strong> Outbound email delivery is paused platform-wide across all workspaces by SuperAdmin.
+                  </Alert>
+                ) : !workspaceControls.email ? (
                   <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                    <strong>Email Gateway Disabled:</strong> Outbound email notifications are completely halted for this workspace. No transactional or alert emails will be sent.
+                    <strong>Email Gateway Disabled:</strong> Outbound email notifications are paused for this workspace. No transactional or alert emails will be sent.
                   </Alert>
                 ) : emailConfig.useCustomSmtp && emailConfig.smtpHost ? (
                   <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
@@ -2896,12 +3201,42 @@ export default function NotificationHubPage() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Mobile Push Notification</Typography>
                     <Typography variant="caption" color="text.secondary">AWS SNS Platform & Expo Push</Typography>
                   </Box>
-                  <Chip label="Auto-Provisioned" color="secondary" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }} />
+                  <Tooltip title={!masterControls.push ? 'Channel halted platform-wide by System Administrator' : ''}>
+                    <span>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={Boolean(workspaceControls.push && masterControls.push)}
+                            onChange={(e) => handleToggleWorkspace('push', e.target.checked)}
+                            color="secondary"
+                            size="small"
+                            disabled={!masterControls.push || togglingGateway === 'ws_push'}
+                          />
+                        }
+                        label={
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                            {!masterControls.push ? 'Halted by Master' : workspaceControls.push ? 'Active' : 'Disabled'}
+                          </Typography>
+                        }
+                        sx={{ m: 0 }}
+                      />
+                    </span>
+                  </Tooltip>
                 </Stack>
 
-                <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                  Mobile devices automatically register their FCM/APNS push tokens upon login to the LeadsRubix mobile app.
-                </Alert>
+                {!masterControls.push ? (
+                  <Alert severity="error" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Platform-Wide Master Kill Switch Active:</strong> Mobile Push delivery is paused platform-wide across all workspaces by SuperAdmin.
+                  </Alert>
+                ) : !workspaceControls.push ? (
+                  <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Push Notifications Disabled:</strong> Mobile push notifications are paused for this workspace.
+                  </Alert>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    Mobile devices automatically register their FCM/APNS push tokens upon login to the LeadsRubix mobile app.
+                  </Alert>
+                )}
 
                 <Grid container spacing={1.5} sx={{ mb: 2 }}>
                   <Grid size={{ xs: 6 }}>
@@ -2942,12 +3277,42 @@ export default function NotificationHubPage() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>In-App Bell Center</Typography>
                     <Typography variant="caption" color="text.secondary">CRM Top-Bar Bell & WebSockets</Typography>
                   </Box>
-                  <Chip label="Native Active" color="warning" size="small" sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }} />
+                  <Tooltip title={!masterControls.in_app ? 'Channel halted platform-wide by System Administrator' : ''}>
+                    <span>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={Boolean(workspaceControls.in_app && masterControls.in_app)}
+                            onChange={(e) => handleToggleWorkspace('in_app', e.target.checked)}
+                            color="warning"
+                            size="small"
+                            disabled={!masterControls.in_app || togglingGateway === 'ws_in_app'}
+                          />
+                        }
+                        label={
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                            {!masterControls.in_app ? 'Halted by Master' : workspaceControls.in_app ? 'Active' : 'Disabled'}
+                          </Typography>
+                        }
+                        sx={{ m: 0 }}
+                      />
+                    </span>
+                  </Tooltip>
                 </Stack>
 
-                <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
-                  Real-time PostgreSQL database storage and WebSocket push to active user sessions across all roles.
-                </Alert>
+                {!masterControls.in_app ? (
+                  <Alert severity="error" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>Platform-Wide Master Kill Switch Active:</strong> In-App Bell notifications are paused platform-wide across all workspaces by SuperAdmin.
+                  </Alert>
+                ) : !workspaceControls.in_app ? (
+                  <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    <strong>In-App Bell Disabled:</strong> In-app bell alerts and real-time popups are paused for this workspace.
+                  </Alert>
+                ) : (
+                  <Alert severity="warning" sx={{ mb: 2, fontSize: '0.75rem', py: 0.5, px: 1.5, borderRadius: 1.5 }}>
+                    Real-time PostgreSQL database storage and WebSocket push to active user sessions across all roles.
+                  </Alert>
+                )}
 
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.82rem', lineHeight: 1.5 }}>
                   In-app notifications trigger audible alerts, top-bar badge counters, and real-time toast banners across both desktop and mobile web sessions.

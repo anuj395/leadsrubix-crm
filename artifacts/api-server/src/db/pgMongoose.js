@@ -763,6 +763,7 @@ const modelToTableMap = {
   NotificationMatrixRule: 'notification_matrix_rules',
   NotificationTemplate: 'notification_templates',
   NotificationLog: 'notification_logs',
+  SystemGatewayControl: 'system_gateway_controls',
   Booking: 'bookings',
   Faq: 'faqs',
   Designation: 'designations',

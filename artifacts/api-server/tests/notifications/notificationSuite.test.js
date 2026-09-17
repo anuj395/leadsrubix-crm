@@ -24,6 +24,7 @@ require('../../src/models/notificationModel');
 require('../../src/models/organizationModel');
 require('../../src/models/userModel');
 require('../../src/models/whatsappConfigModel');
+require('../../src/models/systemGatewayControlModel');
 
 const NotificationMatrixRule = mongoose.model('NotificationMatrixRule');
 const NotificationTemplate = mongoose.model('NotificationTemplate');
@@ -32,6 +33,7 @@ const Notification = mongoose.model('Notification');
 const Organization = mongoose.model('Organization');
 const User = mongoose.model('User');
 const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+const SystemGatewayControl = mongoose.model('SystemGatewayControl');
 
 const whatsappService = require('../../src/services/whatsappService');
 const mailer = require('../../src/utils/mailer');
@@ -58,6 +60,7 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
   // Global Mock Store
   let mockMatrixRules = {};
   let mockWaConfig = null;
+  let mockMasterControls = null;
   let mockOrgDoc = {
     organization_id: 'test_org_100',
     organizationId: 'test_org_100',
@@ -189,6 +192,12 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
         exec: async () => mockWaConfig
       })
     });
+
+    SystemGatewayControl.findOne = () => ({
+      lean: () => ({
+        exec: async () => mockMasterControls
+      })
+    });
   });
 
   beforeEach(() => {
@@ -198,7 +207,22 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
     inAppCalls = [];
     logCalls = [];
     mockMatrixRules = {};
-    mockWaConfig = null;
+    mockMasterControls = {
+      key: 'global_master_controls',
+      whatsapp_enabled: true,
+      email_enabled: true,
+      push_enabled: true,
+      in_app_enabled: true
+    };
+    mockWaConfig = {
+      organization_id: 'test_org_100',
+      is_active: true,
+      wapi: {
+        active: true,
+        wapi_token: 'mock_tenant_token_123',
+        wapi_url: 'https://gate.whapi.cloud'
+      }
+    };
     mockOrgDoc = {
       organization_id: 'test_org_100',
       organizationId: 'test_org_100',
@@ -763,6 +787,105 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
       const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
       assert.ok(waLogs.length > 0);
       assert.ok(waLogs.every(l => l.status === 'SUPPRESSED'));
+    });
+
+    it('Scenario 6.4: Workspace without custom WhatsApp credentials suppresses WhatsApp (zero universal fallback)', async () => {
+      mockWaConfig = null; // Client has not configured their own WhatsApp keys
+      mockOrgDoc.whatsapp_enabled = true;
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true }
+          }
+        }
+      };
+
+      await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_no_custom_keys',
+          customerName: 'Aarav Patel',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(waCalls.length, 0, 'No WhatsApp message sent without custom credentials');
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0, 'Suppression log must be created');
+      assert.ok(waLogs.every(l => l.status === 'SUPPRESSED'), 'Status must be SUPPRESSED');
+      assert.ok(waLogs.some(l => l.error_message.includes('No WhatsApp gateway configured for this workspace')), 'Reason must state no gateway configured');
+    });
+
+    it('Scenario 6.5: Global Master Kill Switch turned OFF for WhatsApp suppresses WhatsApp platform-wide', async () => {
+      mockMasterControls.whatsapp_enabled = false; // SuperAdmin kills WhatsApp platform-wide
+      mockOrgDoc.whatsapp_enabled = true;
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { whatsapp: true }
+          }
+        }
+      };
+
+      await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_master_kill_wa',
+          customerName: 'Rohan Sharma',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(waCalls.length, 0, 'Zero WhatsApp messages when Master Kill Switch is OFF');
+      const waLogs = logCalls.filter(l => l.channel === 'whatsapp');
+      assert.ok(waLogs.length > 0);
+      assert.ok(waLogs.every(l => l.status === 'SUPPRESSED'));
+      assert.ok(waLogs.some(l => l.error_message.includes('temporarily paused platform-wide by System Administrator')), 'Reason must state paused platform-wide');
+    });
+
+    it('Scenario 6.6: Global Master Kill Switch turned OFF for Email suppresses Email platform-wide', async () => {
+      mockMasterControls.email_enabled = false; // SuperAdmin kills Email platform-wide
+      mockOrgDoc.email_enabled = true;
+      mockMatrixRules['lead.created'] = {
+        event_key: 'lead.created',
+        is_enabled: true,
+        routing: {
+          assigned_agent: {
+            enabled: true,
+            channels: { email: true }
+          }
+        }
+      };
+
+      await dispatchCrmEvent({
+        eventKey: 'lead.created',
+        organizationId: 'test_org_100',
+        entityType: 'contact',
+        entityData: {
+          _id: 'lead_master_kill_email',
+          customerName: 'Ananya Roy',
+          contactOwnerEmail: 'rep@testenterprise.com',
+          contactOwnerPhone: '919876500001'
+        }
+      });
+
+      assert.strictEqual(emailCalls.length, 0, 'Zero emails when Master Kill Switch is OFF');
+      const emailLogs = logCalls.filter(l => l.channel === 'email');
+      assert.ok(emailLogs.length > 0);
+      assert.ok(emailLogs.every(l => l.status === 'SUPPRESSED'));
+      assert.ok(emailLogs.some(l => l.error_message.includes('temporarily paused platform-wide by System Administrator')), 'Reason must state paused platform-wide');
     });
   });
 });

@@ -18,34 +18,19 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
   const orgId = plain.organization_id || plain.organizationId || targetOrgId || null;
   const indId = plain.industry_id || plain.industryId || null;
 
-  const isUniversalMaster = !orgId;
-  const hasCustomActiveProvider = Boolean(wapi.active || simply.active || cs.active);
-
-  // If useCustomApi is explicitly stored, respect it; otherwise auto-infer from active providers
-  let useCustomApi = false;
-  if (isUniversalMaster) {
-    useCustomApi = false;
-  } else if (plain.use_custom_api !== undefined) {
-    useCustomApi = Boolean(plain.use_custom_api);
-  } else if (plain.useCustomApi !== undefined) {
-    useCustomApi = Boolean(plain.useCustomApi);
-  } else {
-    useCustomApi = hasCustomActiveProvider;
-  }
-
-  // Determine active API source
-  let apiSource = 'universal';
-  if (isUniversalMaster) {
-    apiSource = 'universal_master';
-  } else if (useCustomApi && hasCustomActiveProvider) {
-    apiSource = 'custom';
-  } else {
-    apiSource = 'universal';
-  }
+  const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0);
+  const hasCustomCredentials = Boolean(
+    (wapi.active && hasValidToken(wapi.wapi_token || wapi.wapiToken)) ||
+    (simply.active && hasValidToken(simply.access_token || simply.accessToken)) ||
+    ((cs.active) && hasValidToken(cs.api_key || cs.apiKey))
+  );
 
   // Active provider name
   let activeProvider = null;
-  if (wapi.active) activeProvider = 'wapi';
+  if (wapi.active && hasValidToken(wapi.wapi_token || wapi.wapiToken)) activeProvider = 'wapi';
+  else if (simply.active && hasValidToken(simply.access_token || simply.accessToken)) activeProvider = 'simply';
+  else if (cs.active && hasValidToken(cs.api_key || cs.apiKey)) activeProvider = 'chatsimplified';
+  else if (wapi.active) activeProvider = 'wapi';
   else if (simply.active) activeProvider = 'simply';
   else if (cs.active) activeProvider = 'chatsimplified';
 
@@ -55,25 +40,21 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
   const adminPhoneOverride = plain.admin_phone_override || plain.adminPhoneOverride || '';
   const notifyCustomerWelcome = plain.notify_customer_welcome !== undefined ? Boolean(plain.notify_customer_welcome) : (plain.notifyCustomerWelcome !== undefined ? Boolean(plain.notifyCustomerWelcome) : false);
 
-  // Provider Credentials Sanitization (Anti-Leakage Protection)
-  const isTenantRequest = Boolean(targetOrgId);
+  // Provider Credentials
   let safeSimplyToken = simply.access_token || simply.accessToken || '';
   let safeWapiToken = wapi.wapi_token || wapi.wapiToken || '';
   let safeCsApiKey = cs.api_key || cs.apiKey || '';
 
-  if (!isSuperAdmin) {
-    if (isTenantRequest && isUniversalMaster) {
-      // Platform fallback: Do not leak platform master token to tenant
-      safeSimplyToken = '';
-      safeWapiToken = '';
-      safeCsApiKey = '';
-    }
-    // Tenant custom credentials remain readable by workspace admin with UI eye toggle
-  }
-
   // Convenience flat fields for NotificationHub and direct UI forms
   const providerType = activeProvider === 'simply' ? 'Simply WhatsApp' : (activeProvider === 'chatsimplified' ? 'ChatSimplified' : 'WHAPI');
   const activeUrl = activeProvider === 'simply' ? simply.url : (activeProvider === 'chatsimplified' ? cs.url : (wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud'));
+
+  const isExplicitlyDisabled = Boolean(
+    plain.is_active === false ||
+    plain.isActive === false ||
+    plain.is_enabled === false
+  );
+  const isGatewayActive = !isExplicitlyDisabled;
 
   return {
     _id: plain._id || null,
@@ -87,8 +68,9 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
     url: activeUrl,
     wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
     wapiToken: safeWapiToken,
-    isActive: (plain.is_active === false || plain.isActive === false || plain.is_enabled === false) ? false : Boolean(wapi.active || simply.active || cs.active || useCustomApi || isUniversalMaster),
-    is_active: (plain.is_active === false || plain.isActive === false || plain.is_enabled === false) ? false : Boolean(wapi.active || simply.active || cs.active || useCustomApi || isUniversalMaster),
+    isActive: isGatewayActive,
+    is_active: isGatewayActive,
+    hasCustomCredentials: hasCustomCredentials,
     fields: {
       wapiUrl: wapi.wapi_url || wapi.wapiUrl || 'https://gate.whapi.cloud',
       wapiToken: safeWapiToken,
@@ -99,14 +81,14 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
       apiKey: safeCsApiKey,
     },
 
-    // 2-Tier Gateway State
-    is_universal: isUniversalMaster,
-    isUniversal: isUniversalMaster,
-    use_custom_api: useCustomApi,
-    useCustomApi: useCustomApi,
-    apiSource: apiSource,
+    // Gateway State
+    is_universal: false,
+    isUniversal: false,
+    use_custom_api: true,
+    useCustomApi: true,
+    apiSource: hasCustomCredentials ? 'custom' : 'none',
     activeProvider: activeProvider,
-    isInherited: !isUniversalMaster && apiSource === 'universal',
+    isInherited: false,
 
     // Recipient Controls
     notify_assigned_agent: notifyAssignedAgent,
@@ -174,12 +156,12 @@ function normalizeConfigPayload(config, targetOrgId = null, universalConfig = nu
       transfer_json: cs.transfer_json || cs.transferJson || '',
       transferJson: cs.transfer_json || cs.transferJson || '',
     },
-    hasUniversalFallback: Boolean(universalConfig || isUniversalMaster),
-    isPlatformManaged: isTenantRequest && isUniversalMaster
+    hasUniversalFallback: false,
+    isPlatformManaged: false
   };
 }
 
-// GET WhatsApp configuration with 2-tier gateway hierarchy
+// GET WhatsApp configuration
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
@@ -213,24 +195,24 @@ router.get('/', authenticate, async (req, res, next) => {
           { organizationId: { $in: targetOrgIds } }
         ]
       }).exec();
+    } else {
+      // SuperAdmin Global Platform config
+      config = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: null },
+          { organizationId: null }
+        ]
+      }).exec();
     }
-
-    // Always fetch Universal Global config for hierarchy comparison
-    const universalConfig = await WhatsAppConfig.findOne({
-      $or: [
-        { organization_id: null },
-        { organizationId: null }
-      ]
-    }).exec();
 
     const isSuperAdmin = req.user.role === 'superAdmin';
 
-    // If client config doesn't exist yet, return universal default representation for tenant
+    // If client config doesn't exist yet, return a clean empty tenant config
     if (!config && orgId) {
-      return res.json(normalizeConfigPayload(universalConfig, orgId, universalConfig, isSuperAdmin));
+      return res.json(normalizeConfigPayload({ organization_id: orgId, organizationId: orgId, is_active: true }, orgId, null, isSuperAdmin));
     }
 
-    res.json(normalizeConfigPayload(config || universalConfig, orgId, universalConfig, isSuperAdmin));
+    res.json(normalizeConfigPayload(config, orgId, null, isSuperAdmin));
   } catch (err) {
     next(err);
   }
@@ -275,7 +257,7 @@ router.post('/', authenticate, async (req, res, next) => {
         ]
       }).exec();
     } else {
-      // SuperAdmin saving Global Universal Master default config
+      // SuperAdmin saving Global Platform config
       config = await WhatsAppConfig.findOne({
         $or: [
           { organization_id: null },
@@ -285,22 +267,12 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     if (!config) {
-      const globalConfig = await WhatsAppConfig.findOne({
-        $or: [
-          { organization_id: null },
-          { organizationId: null }
-        ]
-      }).exec();
-
       config = new WhatsAppConfig({
         organization_id: org?.organization_id || orgId || null,
         organizationId: org?.organizationId || orgId || null,
         industry_id: req.body.industryId || org?.industry_id || null,
         industryId: req.body.industryId || org?.industryId || null,
-        is_universal: !orgId,
-        simply: globalConfig?.simply || undefined,
-        wapi: globalConfig?.wapi || undefined,
-        chat_simplified: globalConfig?.chat_simplified || undefined,
+        is_universal: !orgId
       });
     }
 
@@ -537,7 +509,90 @@ router.get('/logs', authenticate, async (req, res, next) => {
       .lean()
       .exec();
 
-    res.json({ logs });
+    return res.json({ success: true, logs });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /whatsapp-config/toggle - Fast, atomic toggle for WhatsApp Gateway
+router.post('/toggle', authenticate, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only admins can toggle WhatsApp gateway' });
+    }
+    const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+    const Organization = mongoose.model('Organization');
+
+    let orgId = null;
+    if (req.user.role === 'superAdmin') {
+      orgId = req.body.organizationId || req.body.organization_id || req.headers['x-organization-id'] || null;
+    } else {
+      orgId = req.user.organizationId || req.user.organization_id || null;
+    }
+
+    const isEnabled = req.body.isActive !== undefined ? Boolean(req.body.isActive) : Boolean(req.body.isEnabled);
+
+    const org = orgId ? await Organization.findOne({
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+      ]
+    }).lean().exec() : null;
+
+    const targetOrgIds = [orgId, org?._id ? String(org._id) : null, org?.organization_id, org?.organizationId].filter(Boolean);
+
+    // Atomically sync Organization document
+    if (targetOrgIds.length > 0) {
+      await Organization.updateMany(
+        {
+          $or: [
+            { organization_id: { $in: targetOrgIds } },
+            { organizationId: { $in: targetOrgIds } },
+            ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+          ]
+        },
+        { $set: { whatsapp_enabled: isEnabled, whatsappEnabled: isEnabled } }
+      ).exec();
+    }
+
+    // Atomically sync WhatsAppConfig document
+    let config = null;
+    if (targetOrgIds.length > 0) {
+      config = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: { $in: targetOrgIds } },
+          { organizationId: { $in: targetOrgIds } }
+        ]
+      }).exec();
+    } else {
+      config = await WhatsAppConfig.findOne({
+        $or: [{ organization_id: null }, { organizationId: null }]
+      }).exec();
+    }
+
+    if (!config) {
+      config = new WhatsAppConfig({
+        organization_id: org?.organization_id || orgId || null,
+        organizationId: org?.organizationId || orgId || null,
+        is_universal: !orgId,
+        is_active: isEnabled,
+        isActive: isEnabled,
+        is_enabled: isEnabled
+      });
+    } else {
+      config.is_active = isEnabled;
+      config.isActive = isEnabled;
+      config.is_enabled = isEnabled;
+    }
+    await config.save();
+
+    return res.json({
+      success: true,
+      message: `WhatsApp Gateway ${isEnabled ? 'activated' : 'disabled'} for workspace.`,
+      isActive: isEnabled
+    });
   } catch (err) {
     next(err);
   }

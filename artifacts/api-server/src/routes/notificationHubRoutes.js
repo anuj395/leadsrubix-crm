@@ -294,6 +294,293 @@ router.post('/templates/reset', authenticate, permitAtLeast('admin'), async (req
 });
 
 /**
+ * Helper to fetch or initialize System-Wide Master Controls (Global Kill Switch)
+ */
+async function getSystemMasterGatewayControls() {
+  try {
+    const SystemGatewayControl = mongoose.model('SystemGatewayControl');
+    let controls = await SystemGatewayControl.findOne({ key: 'global_master_controls' }).lean().exec();
+    if (!controls) {
+      controls = await SystemGatewayControl.create({
+        key: 'global_master_controls',
+        whatsapp_enabled: true,
+        email_enabled: true,
+        push_enabled: true,
+        in_app_enabled: true
+      });
+    }
+    return {
+      whatsapp: controls.whatsapp_enabled !== false && controls.whatsappEnabled !== false,
+      email: controls.email_enabled !== false && controls.emailEnabled !== false,
+      push: controls.push_enabled !== false && controls.pushEnabled !== false,
+      in_app: controls.in_app_enabled !== false && controls.inAppEnabled !== false
+    };
+  } catch (err) {
+    console.warn('[getSystemMasterGatewayControls] Fallback:', err.message);
+    return { whatsapp: true, email: true, push: true, in_app: true };
+  }
+}
+
+/**
+ * GET /api/notifications/gateways/status
+ * Returns 2-tier gateway status:
+ * - masterControls: System-wide master kill switches (all workspaces)
+ * - workspaceControls: Current workspace gateway enablement
+ * - isSuperAdmin: boolean
+ */
+router.get('/gateways/status', authenticate, async (req, res) => {
+  try {
+    const orgId = resolveOrgId(req);
+    const isSuperAdmin = req.user?.role === 'superAdmin';
+    const Organization = mongoose.model('Organization');
+    const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+
+    const masterControls = await getSystemMasterGatewayControls();
+
+    let orgDoc = null;
+    let waDoc = null;
+
+    if (orgId) {
+      orgDoc = await Organization.findOne({
+        $or: [
+          { organization_id: orgId },
+          { organizationId: orgId },
+          ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+        ]
+      }).lean().exec();
+
+      const targetOrgIds = [orgId, orgDoc?._id ? String(orgDoc._id) : null, orgDoc?.organization_id, orgDoc?.organizationId].filter(Boolean);
+
+      if (targetOrgIds.length > 0) {
+        waDoc = await WhatsAppConfig.findOne({
+          $or: [
+            { organization_id: { $in: targetOrgIds } },
+            { organizationId: { $in: targetOrgIds } }
+          ]
+        }).lean().exec();
+      }
+    } else if (isSuperAdmin) {
+      waDoc = await WhatsAppConfig.findOne({
+        $or: [{ organization_id: null }, { organizationId: null }]
+      }).lean().exec();
+    }
+
+    const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0);
+    const hasCustomWaGateway = Boolean(
+      (waDoc?.wapi?.active && hasValidToken(waDoc?.wapi?.wapi_token)) ||
+      (waDoc?.simply?.active && hasValidToken(waDoc?.simply?.access_token)) ||
+      ((waDoc?.chat_simplified?.active || waDoc?.chatSimplified?.active) && hasValidToken(waDoc?.chat_simplified?.api_key || waDoc?.chatSimplified?.apiKey))
+    );
+
+    const workspaceControls = {
+      whatsapp: Boolean(
+        (orgDoc?.whatsapp_enabled !== false && orgDoc?.whatsappEnabled !== false) &&
+        (!waDoc || (waDoc.is_active !== false && waDoc.isActive !== false && waDoc.is_enabled !== false))
+      ),
+      email: Boolean(
+        (orgDoc?.email_enabled !== false && orgDoc?.emailEnabled !== false) &&
+        (!orgDoc?.smtp_config || orgDoc?.smtp_config?.isActive !== false) &&
+        (!orgDoc?.smtpConfig || orgDoc?.smtpConfig?.isActive !== false)
+      ),
+      push: Boolean(orgDoc?.push_enabled !== false && orgDoc?.pushEnabled !== false),
+      in_app: Boolean(orgDoc?.in_app_enabled !== false && orgDoc?.inAppEnabled !== false),
+      hasCustomWaGateway
+    };
+
+    return res.json({
+      success: true,
+      isSuperAdmin,
+      organizationId: orgId,
+      masterControls,
+      workspaceControls
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in /gateways/status:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/notifications/gateways/master-toggle
+ * SuperAdmin-only Master Kill Switch across all workspaces
+ */
+router.post('/gateways/master-toggle', authenticate, async (req, res) => {
+  try {
+    if (req.user?.role !== 'superAdmin') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only SuperAdmins can modify System-Wide Master Controls.' });
+    }
+
+    const { channel, isEnabled } = req.body;
+    if (!channel || typeof isEnabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'channel and isEnabled (boolean) are required.' });
+    }
+
+    const channelFieldMap = {
+      whatsapp: 'whatsapp_enabled',
+      email: 'email_enabled',
+      push: 'push_enabled',
+      in_app: 'in_app_enabled'
+    };
+
+    const fieldName = channelFieldMap[channel];
+    if (!fieldName) {
+      return res.status(400).json({ success: false, message: `Invalid channel: ${channel}` });
+    }
+
+    const SystemGatewayControl = mongoose.model('SystemGatewayControl');
+    const updated = await SystemGatewayControl.findOneAndUpdate(
+      { key: 'global_master_controls' },
+      { $set: { [fieldName]: isEnabled } },
+      { upsert: true, new: true }
+    ).lean();
+
+    return res.json({
+      success: true,
+      message: `Global Master Control for ${channel.toUpperCase()} is now ${isEnabled ? 'ACTIVE (All Workspaces)' : 'HALTED (All Workspaces)'}.`,
+      masterControls: {
+        whatsapp: updated.whatsapp_enabled !== false,
+        email: updated.email_enabled !== false,
+        push: updated.push_enabled !== false,
+        in_app: updated.in_app_enabled !== false
+      }
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in /gateways/master-toggle:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/notifications/gateways/workspace-toggle
+ * Fast atomic toggle for a workspace's gateway (Client Admin & SuperAdmin)
+ */
+router.post('/gateways/workspace-toggle', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only admins can configure workspace gateways.' });
+    }
+
+    const { channel, isEnabled, organizationId: paramOrgId } = req.body;
+    if (!channel || typeof isEnabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'channel and isEnabled (boolean) are required.' });
+    }
+
+    let orgId = null;
+    if (req.user.role === 'superAdmin') {
+      orgId = paramOrgId || req.headers['x-organization-id'] || null;
+    } else {
+      orgId = req.user.organizationId || req.user.organization_id || null;
+    }
+
+    const Organization = mongoose.model('Organization');
+    const WhatsAppConfig = mongoose.model('WhatsAppConfig');
+
+    const org = orgId ? await Organization.findOne({
+      $or: [
+        { organization_id: orgId },
+        { organizationId: orgId },
+        ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+      ]
+    }).lean().exec() : null;
+
+    const targetOrgIds = [orgId, org?._id ? String(org._id) : null, org?.organization_id, org?.organizationId].filter(Boolean);
+
+    if (channel === 'whatsapp') {
+      if (targetOrgIds.length > 0) {
+        await Organization.updateMany(
+          {
+            $or: [
+              { organization_id: { $in: targetOrgIds } },
+              { organizationId: { $in: targetOrgIds } },
+              ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+            ]
+          },
+          { $set: { whatsapp_enabled: isEnabled, whatsappEnabled: isEnabled } }
+        ).exec();
+      }
+
+      let config = null;
+      if (targetOrgIds.length > 0) {
+        config = await WhatsAppConfig.findOne({
+          $or: [
+            { organization_id: { $in: targetOrgIds } },
+            { organizationId: { $in: targetOrgIds } }
+          ]
+        }).exec();
+      } else {
+        config = await WhatsAppConfig.findOne({
+          $or: [{ organization_id: null }, { organizationId: null }]
+        }).exec();
+      }
+
+      if (!config) {
+        config = new WhatsAppConfig({
+          organization_id: org?.organization_id || orgId || null,
+          organizationId: org?.organizationId || orgId || null,
+          is_universal: !orgId,
+          is_active: isEnabled,
+          isActive: isEnabled,
+          is_enabled: isEnabled
+        });
+      } else {
+        config.is_active = isEnabled;
+        config.isActive = isEnabled;
+        config.is_enabled = isEnabled;
+      }
+      await config.save();
+    } else if (channel === 'email') {
+      if (targetOrgIds.length > 0) {
+        await Organization.updateMany(
+          {
+            $or: [
+              { organization_id: { $in: targetOrgIds } },
+              { organizationId: { $in: targetOrgIds } },
+              ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+            ]
+          },
+          { $set: { email_enabled: isEnabled, emailEnabled: isEnabled, 'smtp_config.isActive': isEnabled } }
+        ).exec();
+      }
+    } else if (channel === 'push') {
+      if (targetOrgIds.length > 0) {
+        await Organization.updateMany(
+          {
+            $or: [
+              { organization_id: { $in: targetOrgIds } },
+              { organizationId: { $in: targetOrgIds } },
+              ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+            ]
+          },
+          { $set: { push_enabled: isEnabled, pushEnabled: isEnabled } }
+        ).exec();
+      }
+    } else if (channel === 'in_app') {
+      if (targetOrgIds.length > 0) {
+        await Organization.updateMany(
+          {
+            $or: [
+              { organization_id: { $in: targetOrgIds } },
+              { organizationId: { $in: targetOrgIds } },
+              ...(mongoose.Types.ObjectId.isValid(orgId) ? [{ _id: orgId }] : [])
+            ]
+          },
+          { $set: { in_app_enabled: isEnabled, inAppEnabled: isEnabled } }
+        ).exec();
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `${channel.toUpperCase()} Gateway is now ${isEnabled ? 'ACTIVE' : 'DISABLED'} for this workspace.`,
+      channel,
+      isEnabled
+    });
+  } catch (err) {
+    console.error('[NotificationHubRoutes] Error in /gateways/workspace-toggle:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 /**
  * GET /api/notifications/logs
  * Unified paginated cross-channel delivery audit logs with role-based scoping:

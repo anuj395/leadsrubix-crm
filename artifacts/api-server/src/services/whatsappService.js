@@ -369,83 +369,69 @@ async function sendNotification({
     // Helper: Valid token check
     const hasValidKey = (token) => Boolean(token && String(token).trim().length > 0);
 
-    // 2. Resolve 2-Tier Gateway ('Custom Client' vs 'SuperAdmin Universal')
-    let tenantConfig = null;
-    if (targetOrgIds.length > 0) {
-      tenantConfig = await WhatsAppConfig.findOne({
+    // 2. Resolve Workspace Gateway & Strict Isolation (NO Universal Fallback for Clients)
+    let workspaceConfig = null;
+    const isSuperAdminDispatch = targetOrgIds.length === 0 || organizationId === 'null' || organizationId === null;
+
+    if (!isSuperAdminDispatch) {
+      // Client Tenant Workspace: Must find tenant's own config
+      workspaceConfig = await WhatsAppConfig.findOne({
         $or: [
           { organization_id: { $in: targetOrgIds } },
           { organizationId: { $in: targetOrgIds } }
         ]
       }).lean().exec();
-    }
 
-    // Circuit Breaker: Strict Workspace-Level Suppression
-    const isTenantExplicitlyDisabled = Boolean(
-      (tenantConfig && (tenantConfig.is_active === false || tenantConfig.isActive === false || tenantConfig.is_enabled === false)) ||
-      (org && (org.whatsapp_enabled === false || org.whatsappEnabled === false))
-    );
+      // Workspace-Level Circuit Breakers
+      const isWorkspaceDisabled = Boolean(
+        (workspaceConfig && (workspaceConfig.is_active === false || workspaceConfig.isActive === false || workspaceConfig.is_enabled === false)) ||
+        (org && (org.whatsapp_enabled === false || org.whatsappEnabled === false))
+      );
 
-    if (isTenantExplicitlyDisabled && !testProvider) {
-      console.log(`[WhatsAppService] WhatsApp gateway is explicitly DISABLED by client admin for organization: ${organizationId || 'global'}. Suppressing dispatch.`);
-      return {
-        success: true,
-        suppressed: true,
-        reason: 'WhatsApp gateway disabled by workspace admin',
-        message: 'WhatsApp gateway disabled by workspace admin'
-      };
-    }
+      if (isWorkspaceDisabled && !testProvider) {
+        console.log(`[WhatsAppService] WhatsApp gateway is explicitly DISABLED by client admin for organization: ${organizationId}. Suppressing dispatch.`);
+        return {
+          success: true,
+          suppressed: true,
+          reason: 'WhatsApp gateway disabled by workspace admin',
+          message: 'WhatsApp gateway disabled by workspace admin'
+        };
+      }
 
-    // Load all candidate global universal configs
-    const candidateUniversal = await WhatsAppConfig.find({
-      $or: [
-        { organization_id: null },
-        { organizationId: null },
-        { organization_id: '' },
-        { organizationId: '' }
-      ]
-    }).lean().exec();
+      // Check whether Tenant has their own active and properly configured Custom API
+      const hasCustomCredentials = workspaceConfig && (
+        Boolean(workspaceConfig.wapi?.active && hasValidKey(workspaceConfig.wapi?.wapi_token)) ||
+        Boolean(workspaceConfig.simply?.active && hasValidKey(workspaceConfig.simply?.access_token)) ||
+        Boolean((workspaceConfig.chat_simplified?.active || workspaceConfig.chatSimplified?.active) && hasValidKey(workspaceConfig.chat_simplified?.api_key || workspaceConfig.chatSimplified?.apiKey))
+      );
 
-    // Prioritize universal config with valid WHAPI token, then Simply, then ChatSimplified
-    let universalConfig = candidateUniversal.find(c => hasValidKey(c.wapi?.wapi_token));
-    if (!universalConfig) {
-      universalConfig = candidateUniversal.find(c => hasValidKey(c.simply?.access_token));
+      if (!hasCustomCredentials && !testProvider) {
+        console.log(`[WhatsAppService] No custom WhatsApp credentials configured for organization: ${organizationId}. Suppressing dispatch (zero universal fallback).`);
+        return {
+          success: true,
+          suppressed: true,
+          reason: 'No WhatsApp gateway configured for this workspace. Please connect WHAPI or Simply in Gateways settings.',
+          message: 'No WhatsApp gateway configured for this workspace. Please connect WHAPI or Simply in Gateways settings.'
+        };
+      }
+    } else {
+      // SuperAdmin Platform Operations ONLY
+      workspaceConfig = await WhatsAppConfig.findOne({
+        $or: [
+          { organization_id: null },
+          { organizationId: null }
+        ]
+      }).lean().exec();
     }
-    if (!universalConfig) {
-      universalConfig = candidateUniversal.find(c => hasValidKey(c.chat_simplified?.api_key || c.chatSimplified?.apiKey));
-    }
-    if (!universalConfig && candidateUniversal.length > 0) {
-      universalConfig = candidateUniversal[0];
-    }
-
-    // Determine whether Tenant has active and properly configured Custom API
-    const isCustomActive = tenantConfig && tenantConfig.use_custom_api !== false && (
-      Boolean(tenantConfig.wapi?.active && hasValidKey(tenantConfig.wapi?.wapi_token)) ||
-      Boolean(tenantConfig.simply?.active && hasValidKey(tenantConfig.simply?.access_token)) ||
-      Boolean((tenantConfig.chat_simplified?.active || tenantConfig.chatSimplified?.active) && hasValidKey(tenantConfig.chat_simplified?.api_key || tenantConfig.chatSimplified?.apiKey))
-    );
 
     let activeConfig = null;
-    let isUniversalGateway = false;
-
     if (testProvider && testCredentials) {
-      // Direct diagnostic test mode
       activeConfig = { [testProvider]: { ...testCredentials, active: true } };
-      isUniversalGateway = false;
-    } else if (isCustomActive) {
-      // Tenant's custom verified WhatsApp API takes precedence
-      activeConfig = tenantConfig;
-      isUniversalGateway = false;
-    } else if (!isTenantExplicitlyDisabled && universalConfig && (hasValidKey(universalConfig.wapi?.wapi_token) || hasValidKey(universalConfig.simply?.access_token) || hasValidKey(universalConfig.chat_simplified?.api_key || universalConfig.chatSimplified?.apiKey))) {
-      // Seamless fallback to SuperAdmin Universal Platform Gateway (only if tenant has NOT disabled WhatsApp)
-      activeConfig = universalConfig;
-      isUniversalGateway = true;
-    } else if (tenantConfig) {
-      activeConfig = tenantConfig;
-      isUniversalGateway = false;
+    } else {
+      activeConfig = workspaceConfig;
     }
 
-    // 3. Resolve Active Channel & Credentials (Defensive check: only select provider if credentials exist!)
+    // 3. Resolve Active Channel & Credentials
     let activeChannel = testProvider || '';
     let channelSettings = testCredentials || null;
 
@@ -465,34 +451,14 @@ async function sendNotification({
           channelSettings = { ...activeConfig.wapi, active: true };
         }
       }
-
-      // If tenant config lacked active/valid credentials, fallback to platform Universal Gateway (ONLY IF NOT DISABLED)
-      if (!isTenantExplicitlyDisabled && !activeChannel && universalConfig) {
-        if (hasValidKey(universalConfig.wapi?.wapi_token)) {
-          activeChannel = 'wapi';
-          channelSettings = { ...universalConfig.wapi, active: true };
-          isUniversalGateway = true;
-          activeConfig = universalConfig;
-        } else if (hasValidKey(universalConfig.simply?.access_token)) {
-          activeChannel = 'simply';
-          channelSettings = { ...universalConfig.simply, active: true };
-          isUniversalGateway = true;
-          activeConfig = universalConfig;
-        } else if (hasValidKey(universalConfig.chat_simplified?.api_key || universalConfig.chatSimplified?.apiKey)) {
-          activeChannel = 'chatsimplified';
-          channelSettings = { ...(universalConfig.chat_simplified || universalConfig.chatSimplified), active: true };
-          isUniversalGateway = true;
-          activeConfig = universalConfig;
-        }
-      }
     }
 
     if (!activeChannel || !channelSettings) {
       console.log(`[WhatsAppService] No active WhatsApp gateway found for organization: ${organizationId || 'global'}`);
-      return { success: false, message: 'WhatsApp integration is inactive' };
+      return { success: false, suppressed: true, message: 'WhatsApp gateway not configured for this workspace' };
     }
 
-    console.log(`[WhatsAppService] Active Gateway: ${isUniversalGateway ? 'SuperAdmin Universal Gateway' : 'Client Custom Gateway'} via ${activeChannel}`);
+    console.log(`[WhatsAppService] Active Gateway: ${isSuperAdminDispatch ? 'SuperAdmin System Gateway' : 'Client Workspace Gateway'} via ${activeChannel}`);
 
     // 4. Resolve Lead & Assigned User Information
     const resolvedAgent = await resolveUserAndPhone(contact, targetOrgIds);
@@ -505,7 +471,7 @@ async function sendNotification({
     const leadBudget = contact?.budget || '';
 
     // 5. Build Recipient Queue (Assigned Agent, Admin, Customer)
-    const effectiveConfig = tenantConfig || activeConfig || {};
+    const effectiveConfig = workspaceConfig || activeConfig || {};
     const notifyAssignedAgent = effectiveConfig.notify_assigned_agent !== false && effectiveConfig.notifyAssignedAgent !== false;
     const notifyAdmin = effectiveConfig.notify_admin !== false && effectiveConfig.notifyAdmin !== false;
     const notifyCustomerWelcome = Boolean(effectiveConfig.notify_customer_welcome || effectiveConfig.notifyCustomerWelcome);
@@ -536,7 +502,7 @@ async function sendNotification({
           role: 'custom',
           name: 'Direct Recipient',
           phone: cleanCustom,
-          message: customMessage || `🚀 Leads Rubix Test Message via ${activeChannel.toUpperCase()} (${isUniversalGateway ? 'Universal' : 'Custom'} Gateway).`
+          message: customMessage || `🚀 Leads Rubix Test Message via ${activeChannel.toUpperCase()} Gateway.`
         });
       }
     } else {

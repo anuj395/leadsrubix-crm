@@ -386,28 +386,69 @@ async function dispatchCrmEvent({
       return { success: true, suppressed: true, reason: 'Disabled in matrix rules' };
     }
 
-    // 2.5 Resolve Workspace-Level Gateway Enablement (Strict Circuit-Breakers)
+    // 2.5 Resolve 2-Tier Gateway Controls (Tier 1: Global Master Kill Switch | Tier 2: Workspace Controls)
+    let masterControls = { whatsapp: true, email: true, push: true, in_app: true };
+    try {
+      const SystemGatewayControl = mongoose.model('SystemGatewayControl');
+      const sysDoc = await SystemGatewayControl.findOne({ key: 'global_master_controls' }).lean().exec();
+      if (sysDoc) {
+        masterControls = {
+          whatsapp: sysDoc.whatsapp_enabled !== false && sysDoc.whatsappEnabled !== false,
+          email: sysDoc.email_enabled !== false && sysDoc.emailEnabled !== false,
+          push: sysDoc.push_enabled !== false && sysDoc.pushEnabled !== false,
+          in_app: sysDoc.in_app_enabled !== false && sysDoc.inAppEnabled !== false
+        };
+      }
+    } catch (e) {
+      console.warn('[NotificationDispatcher] Master controls fallback:', e.message);
+    }
+
+    const targetOrgIds = [
+      organizationId,
+      orgDoc?._id ? String(orgDoc._id) : null,
+      orgDoc?.organization_id,
+      orgDoc?.organizationId
+    ].filter(Boolean);
+
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
     let waDoc = null;
-    if (organizationId) {
+    if (targetOrgIds.length > 0) {
       waDoc = await WhatsAppConfig.findOne({
-        $or: [{ organization_id: organizationId }, { organizationId: organizationId }]
+        $or: [
+          { organization_id: { $in: targetOrgIds } },
+          { organizationId: { $in: targetOrgIds } }
+        ]
       }).lean().exec();
     }
 
-    const isWaAllowed = Boolean(
+    const hasValidToken = (val) => Boolean(val && String(val).trim().length > 0);
+    const hasCustomWaGateway = Boolean(
+      (waDoc?.wapi?.active && hasValidToken(waDoc?.wapi?.wapi_token)) ||
+      (waDoc?.simply?.active && hasValidToken(waDoc?.simply?.access_token)) ||
+      ((waDoc?.chat_simplified?.active || waDoc?.chatSimplified?.active) && hasValidToken(waDoc?.chat_simplified?.api_key || waDoc?.chatSimplified?.apiKey))
+    );
+
+    const isWaWorkspaceEnabled = Boolean(
       (orgDoc?.whatsapp_enabled !== false && orgDoc?.whatsappEnabled !== false) &&
       (!waDoc || (waDoc.is_active !== false && waDoc.isActive !== false && waDoc.is_enabled !== false))
     );
 
     const isEmailAllowed = Boolean(
+      masterControls.email &&
       (orgDoc?.email_enabled !== false && orgDoc?.emailEnabled !== false) &&
       (!orgDoc?.smtp_config || orgDoc?.smtp_config?.isActive !== false) &&
       (!orgDoc?.smtpConfig || orgDoc?.smtpConfig?.isActive !== false)
     );
 
-    const isPushAllowed = Boolean(orgDoc?.push_enabled !== false && orgDoc?.pushEnabled !== false);
-    const isInAppAllowed = Boolean(orgDoc?.in_app_enabled !== false && orgDoc?.inAppEnabled !== false);
+    const isPushAllowed = Boolean(
+      masterControls.push &&
+      (orgDoc?.push_enabled !== false && orgDoc?.pushEnabled !== false)
+    );
+
+    const isInAppAllowed = Boolean(
+      masterControls.in_app &&
+      (orgDoc?.in_app_enabled !== false && orgDoc?.inAppEnabled !== false)
+    );
 
     // 3. Resolve Recipients
     const recipients = await resolveCrmRecipients({ organizationId, entityData, matrixRule, actorUser });
@@ -558,9 +599,15 @@ async function dispatchCrmEvent({
           if (channel === 'whatsapp') {
             target = recipientObj.phone;
             provider = 'whatsapp_gateway';
-            if (!isWaAllowed) {
+            if (!masterControls.whatsapp) {
+              status = 'SUPPRESSED';
+              errorMessage = 'WhatsApp gateway is temporarily paused platform-wide by System Administrator';
+            } else if (!isWaWorkspaceEnabled) {
               status = 'SUPPRESSED';
               errorMessage = 'WhatsApp gateway disabled by workspace admin';
+            } else if (!hasCustomWaGateway && organizationId && organizationId !== 'null') {
+              status = 'SUPPRESSED';
+              errorMessage = 'No WhatsApp gateway configured for this workspace. Please connect WHAPI or Simply in Gateways settings.';
             } else if (!target) {
               throw new Error('No verified recipient phone number available');
             } else {
@@ -584,7 +631,10 @@ async function dispatchCrmEvent({
           } else if (channel === 'email') {
             target = recipientObj.email;
             provider = 'smtp';
-            if (!isEmailAllowed) {
+            if (!masterControls.email) {
+              status = 'SUPPRESSED';
+              errorMessage = 'Email gateway is temporarily paused platform-wide by System Administrator';
+            } else if (!isEmailAllowed) {
               status = 'SUPPRESSED';
               errorMessage = 'Email gateway disabled by workspace admin';
             } else if (!target || !target.includes('@')) {
@@ -607,7 +657,10 @@ async function dispatchCrmEvent({
           } else if (channel === 'push') {
             target = recipientObj.id || recipientObj.name;
             provider = 'firebase_fcm_v1';
-            if (!isPushAllowed) {
+            if (!masterControls.push) {
+              status = 'SUPPRESSED';
+              errorMessage = 'Mobile push gateway is temporarily paused platform-wide by System Administrator';
+            } else if (!isPushAllowed) {
               status = 'SUPPRESSED';
               errorMessage = 'Mobile push notifications disabled by workspace admin';
             } else {
@@ -708,7 +761,10 @@ async function dispatchCrmEvent({
           } else if (channel === 'in_app') {
             target = recipientObj.id;
             provider = 'in_app';
-            if (!isInAppAllowed) {
+            if (!masterControls.in_app) {
+              status = 'SUPPRESSED';
+              errorMessage = 'In-app notifications are temporarily paused platform-wide by System Administrator';
+            } else if (!isInAppAllowed) {
               status = 'SUPPRESSED';
               errorMessage = 'In-app notifications disabled by workspace admin';
             } else if (target && recipientObj.id !== 'admin_default') {
