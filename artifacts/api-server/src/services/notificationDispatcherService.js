@@ -793,7 +793,7 @@ async function dispatchCrmEvent({
         // Record in unified notification_logs
         const latency = Date.now() - itemStartTime;
         await NotificationLog.create({
-          organization_id: String(organizationId || 'default'),
+          organization_id: String(organizationId || orgDoc?._id || 'system'),
           event_key: eventKey,
           channel,
           recipient_role: recipientRole,

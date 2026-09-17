@@ -610,83 +610,74 @@ router.get('/logs', authenticate, async (req, res) => {
         andClauses.push({
           $or: [
             { organization_id: orgId },
-            { organizationId: orgId },
-            { organization_id: 'default' },
-            { organization_id: null }
+            { organizationId: orgId }
           ]
         });
       }
       // If superAdmin and no orgId specified, global visibility across all workspaces
-    } else if (userRole === 'admin') {
-      if (orgId) {
-        andClauses.push({
-          $or: [
-            { organization_id: orgId },
-            { organizationId: orgId },
-            { organization_id: 'default' },
-            { organization_id: null }
-          ]
-        });
-      }
-    } else if (userRole === 'teamLead' || userRole === 'leadManager') {
-      if (orgId) {
-        andClauses.push({
-          $or: [
-            { organization_id: orgId },
-            { organizationId: orgId },
-            { organization_id: 'default' },
-            { organization_id: null }
-          ]
-        });
-      }
-      try {
-        const visibleIds = await getVisibleUserIds(req.user);
-        const User = mongoose.model('User');
-        const teamUsers = await User.find({ _id: { $in: visibleIds } }).select('_id email contactNumber contact_number phone').lean().exec();
-
-        const allowedTargets = [];
-        const allowedIds = (visibleIds || []).map(String);
-        teamUsers.forEach(u => {
-          if (u.email) allowedTargets.push(u.email.toLowerCase().trim());
-          const ph = u.contactNumber || u.contact_number || u.phone;
-          if (ph) allowedTargets.push(ph);
-        });
-        if (userEmail) allowedTargets.push(userEmail);
-        if (userPhone) allowedTargets.push(userPhone);
-
-        andClauses.push({
-          $or: [
-            { recipient_id: { $in: allowedIds } },
-            { recipient_target: { $in: allowedTargets } },
-            { recipient_role: { $in: ['team_lead', 'agent', 'sales', 'telecaller'] } }
-          ]
-        });
-      } catch (hierErr) {
-        console.warn('[NotificationHubRoutes] Failed to resolve team hierarchy in logs:', hierErr.message);
-      }
     } else {
-      // Sales Agent / Telecaller: strictly own alerts
-      if (orgId) {
-        andClauses.push({
-          $or: [
-            { organization_id: orgId },
-            { organizationId: orgId },
-            { organization_id: 'default' },
-            { organization_id: null }
-          ]
+      // Non-superAdmin users (admin, teamLead, sales, etc.) MUST be strictly scoped to their workspace
+      if (!orgId) {
+        return res.json({
+          success: true,
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+          logs: []
         });
       }
-      const selfTargets = [];
-      if (userEmail) selfTargets.push(userEmail);
-      if (userPhone) selfTargets.push(userPhone);
 
+      // Multi-tenant isolation: strictly match current organization (ZERO cross-workspace leakage)
       andClauses.push({
         $or: [
-          ...(userId ? [{ recipient_id: userId }] : []),
-          ...(selfTargets.length > 0 ? [{ recipient_target: { $in: selfTargets } }] : []),
-          { recipient_target: new RegExp(escapeRegex(userEmail || userId || '___none___'), 'i') }
+          { organization_id: orgId },
+          { organizationId: orgId }
         ]
       });
+
+      if (userRole === 'admin' || userRole === 'clientAdmin') {
+        // Admin has workspace-wide visibility within their own organization only
+      } else if (userRole === 'teamLead' || userRole === 'leadManager') {
+        try {
+          const visibleIds = await getVisibleUserIds(req.user);
+          const User = mongoose.model('User');
+          const teamUsers = await User.find({ _id: { $in: visibleIds } }).select('_id email contactNumber contact_number phone').lean().exec();
+
+          const allowedTargets = [];
+          const allowedIds = (visibleIds || []).map(String);
+          teamUsers.forEach(u => {
+            if (u.email) allowedTargets.push(u.email.toLowerCase().trim());
+            const ph = u.contactNumber || u.contact_number || u.phone;
+            if (ph) allowedTargets.push(ph);
+          });
+          if (userEmail) allowedTargets.push(userEmail);
+          if (userPhone) allowedTargets.push(userPhone);
+
+          andClauses.push({
+            $or: [
+              { recipient_id: { $in: allowedIds } },
+              { recipient_target: { $in: allowedTargets } },
+              { recipient_role: { $in: ['team_lead', 'agent', 'sales', 'telecaller'] } }
+            ]
+          });
+        } catch (hierErr) {
+          console.warn('[NotificationHubRoutes] Failed to resolve team hierarchy in logs:', hierErr.message);
+        }
+      } else {
+        // Sales Agent / Telecaller: strictly own alerts within their own organization
+        const selfTargets = [];
+        if (userEmail) selfTargets.push(userEmail);
+        if (userPhone) selfTargets.push(userPhone);
+
+        andClauses.push({
+          $or: [
+            ...(userId ? [{ recipient_id: userId }] : []),
+            ...(selfTargets.length > 0 ? [{ recipient_target: { $in: selfTargets } }] : []),
+            { recipient_target: new RegExp(escapeRegex(userEmail || userId || '___none___'), 'i') }
+          ]
+        });
+      }
     }
 
     // 2. Query filters
@@ -1002,8 +993,9 @@ router.post('/my-test-alert', authenticate, async (req, res) => {
       });
     }
 
+    const logOrgId = String(orgId || req.user?.organization_id || req.user?.organizationId || (req.user?.role === 'superAdmin' ? 'superadmin_system' : 'unknown'));
     await NotificationLog.create({
-      organization_id: String(orgId || 'default'),
+      organization_id: logOrgId,
       event_key: 'test.personal',
       channel,
       recipient_role: userRole,
@@ -1246,8 +1238,9 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       }
     }
 
+    const logOrgId = String(orgId || req.user?.organization_id || req.user?.organizationId || (req.user?.role === 'superAdmin' ? 'superadmin_system' : 'unknown'));
     await NotificationLog.create({
-      organization_id: String(orgId || 'default'),
+      organization_id: logOrgId,
       event_key: eventKey || 'test.diagnostic',
       channel,
       recipient_role: 'custom',

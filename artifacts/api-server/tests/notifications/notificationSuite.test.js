@@ -640,6 +640,105 @@ describe('CRM Omnichannel Notification Engine Test Suite', () => {
         return { success: true, messageId: 'mock_wa_' + Date.now() };
       };
     });
+
+    it('Scenario 4.3: Multi-tenant Workspace Audit Log Isolation (Zero Cross-Workspace Leakage)', async () => {
+      // Mock existing logs in the system across multiple workspaces and legacy default
+      const mockDatabaseLogs = [
+        { _id: 'log_a1', organization_id: 'org_workspace_alpha', recipient_target: 'alpha_agent@alpha.com', title: 'Alpha Alert 1' },
+        { _id: 'log_a2', organization_id: 'org_workspace_alpha', recipient_target: 'alpha_admin@alpha.com', title: 'Alpha Alert 2' },
+        { _id: 'log_b1', organization_id: 'org_workspace_beta', recipient_target: 'beta_agent@beta.com', title: 'Beta Alert 1' },
+        { _id: 'log_legacy1', organization_id: 'default', recipient_target: 'dev@digitalrubix.com', title: 'Legacy Diagnostic' },
+        { _id: 'log_legacy2', organization_id: null, recipient_target: '+919808080440', title: 'Unassigned Test' }
+      ];
+
+      NotificationLog.find = (query) => ({
+        sort: () => ({
+          skip: () => ({
+            limit: () => ({
+              lean: () => ({
+                exec: async () => {
+                  return mockDatabaseLogs.filter(item => {
+                    if (query.$and) {
+                      return query.$and.every(clause => {
+                        if (clause.$or) {
+                          return clause.$or.some(orCond => {
+                            if (orCond.organization_id !== undefined && orCond.organization_id === item.organization_id) return true;
+                            if (orCond.organizationId !== undefined && orCond.organizationId === item.organization_id) return true;
+                            return false;
+                          });
+                        }
+                        return true;
+                      });
+                    }
+                    return true;
+                  });
+                }
+              })
+            })
+          })
+        })
+      });
+
+      NotificationLog.countDocuments = (query) => ({
+        exec: async () => {
+          const filtered = mockDatabaseLogs.filter(item => {
+            if (query.$and) {
+              return query.$and.every(clause => {
+                if (clause.$or) {
+                  return clause.$or.some(orCond => {
+                    if (orCond.organization_id !== undefined && orCond.organization_id === item.organization_id) return true;
+                    if (orCond.organizationId !== undefined && orCond.organizationId === item.organization_id) return true;
+                    return false;
+                  });
+                }
+                return true;
+              });
+            }
+            return true;
+          });
+          return filtered.length;
+        }
+      });
+
+      // Workspace Alpha Admin querying logs
+      const orgIdAlpha = 'org_workspace_alpha';
+      const andClausesAlpha = [
+        {
+          $or: [
+            { organization_id: orgIdAlpha },
+            { organizationId: orgIdAlpha }
+          ]
+        }
+      ];
+      const queryAlpha = { $and: andClausesAlpha };
+      const logsAlpha = await NotificationLog.find(queryAlpha).sort().skip().limit().lean().exec();
+      const countAlpha = await NotificationLog.countDocuments(queryAlpha).exec();
+
+      assert.strictEqual(countAlpha, 2, 'Workspace Alpha must only see its own 2 logs');
+      assert.ok(logsAlpha.every(l => l.organization_id === 'org_workspace_alpha'), 'Every log must belong to Workspace Alpha');
+      assert.ok(!logsAlpha.some(l => l.organization_id === 'org_workspace_beta'), 'Must NOT contain Workspace Beta logs');
+      assert.ok(!logsAlpha.some(l => l.organization_id === 'default'), 'Must NOT contain default logs');
+      assert.ok(!logsAlpha.some(l => l.organization_id === null), 'Must NOT contain null logs');
+    });
+
+    it('Scenario 4.4: Brand New Workspace Zero-Log State (Clean Initial Experience)', async () => {
+      // New Workspace Gamma with zero dispatches
+      const orgIdGamma = 'org_workspace_gamma_new';
+      const andClausesGamma = [
+        {
+          $or: [
+            { organization_id: orgIdGamma },
+            { organizationId: orgIdGamma }
+          ]
+        }
+      ];
+      const queryGamma = { $and: andClausesGamma };
+      const logsGamma = await NotificationLog.find(queryGamma).sort().skip().limit().lean().exec();
+      const countGamma = await NotificationLog.countDocuments(queryGamma).exec();
+
+      assert.strictEqual(countGamma, 0, 'New workspace must have exactly 0 logs');
+      assert.strictEqual(logsGamma.length, 0, 'No leaking logs from other workspaces or legacy default');
+    });
   });
 
   // =========================================================================
