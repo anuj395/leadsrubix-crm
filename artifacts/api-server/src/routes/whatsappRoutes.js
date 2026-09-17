@@ -351,7 +351,7 @@ router.post('/', authenticate, async (req, res, next) => {
       const inSimply = req.body.simply;
       let inAccessToken = (inSimply.access_token !== undefined ? inSimply.access_token : (inSimply.accessToken !== undefined ? inSimply.accessToken : '')).trim();
       const existingToken = existingSimply.access_token || existingSimply.accessToken || '';
-      if (inAccessToken.includes('••••••••') || !inAccessToken) {
+      if (inAccessToken.includes('••••••••') || inAccessToken === '••••••••' || ((inSimply.access_token === undefined && inSimply.accessToken === undefined) && !inAccessToken)) {
         inAccessToken = existingToken;
       }
       config.simply = {
@@ -369,7 +369,7 @@ router.post('/', authenticate, async (req, res, next) => {
       const inWapi = req.body.wapi;
       let inWapiToken = (inWapi.wapi_token !== undefined ? inWapi.wapi_token : (inWapi.wapiToken !== undefined ? inWapi.wapiToken : '')).trim();
       const existingToken = existingWapi.wapi_token || existingWapi.wapiToken || '';
-      if (inWapiToken.includes('••••••••') || !inWapiToken) {
+      if (inWapiToken.includes('••••••••') || inWapiToken === '••••••••' || ((inWapi.wapi_token === undefined && inWapi.wapiToken === undefined) && !inWapiToken)) {
         inWapiToken = existingToken;
       }
       config.wapi = {
@@ -388,7 +388,7 @@ router.post('/', authenticate, async (req, res, next) => {
         : {};
       let inApiKey = (inCS.api_key !== undefined ? inCS.api_key : (inCS.apiKey !== undefined ? inCS.apiKey : '')).trim();
       const existingApiKey = existingCS.api_key || existingCS.apiKey || '';
-      if (inApiKey.includes('••••••••') || !inApiKey) {
+      if (inApiKey.includes('••••••••') || inApiKey === '••••••••' || ((inCS.api_key === undefined && inCS.apiKey === undefined) && !inApiKey)) {
         inApiKey = existingApiKey;
       }
       const mergedCS = {
@@ -423,17 +423,23 @@ router.post('/', authenticate, async (req, res, next) => {
       if (config.chatSimplified) config.chatSimplified.active = false;
       config.use_custom_api = false;
     } else {
-      // Explicitly activate the chosen provider
+      // Explicitly activate the chosen provider only if credentials exist
       const chosenType = (req.body.type || config.type || 'WHAPI').toLowerCase();
       if (chosenType.includes('simply') && config.simply) {
-        config.simply.active = true;
+        config.simply.active = Boolean(config.simply.access_token && config.simply.instance_id);
       } else if ((chosenType.includes('chat') || chosenType.includes('simplified')) && (config.chat_simplified || config.chatSimplified)) {
-        if (config.chat_simplified) config.chat_simplified.active = true;
-        if (config.chatSimplified) config.chatSimplified.active = true;
+        const hasKey = Boolean(config.chat_simplified?.api_key || config.chatSimplified?.apiKey);
+        if (config.chat_simplified) config.chat_simplified.active = hasKey;
+        if (config.chatSimplified) config.chatSimplified.active = hasKey;
       } else if (config.wapi) {
-        config.wapi.active = true;
+        config.wapi.active = Boolean(config.wapi.wapi_token);
       }
-      config.use_custom_api = true;
+      const hasAnyConfiguredKeys = Boolean(
+        (config.wapi?.wapi_token && config.wapi?.active) ||
+        (config.simply?.access_token && config.simply?.active) ||
+        ((config.chat_simplified?.api_key || config.chatSimplified?.apiKey) && (config.chat_simplified?.active || config.chatSimplified?.active))
+      );
+      config.use_custom_api = hasAnyConfiguredKeys;
     }
 
     // Sync master toggle to Organization document for instant circuit-breaker

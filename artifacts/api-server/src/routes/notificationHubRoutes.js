@@ -1051,6 +1051,23 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'channel and recipientTarget are required.' });
     }
 
+    // Circuit Breaker: Platform Master Controls
+    const masterControls = await getSystemMasterGatewayControls();
+    if (channel === 'whatsapp' && !masterControls.whatsapp) {
+      return res.status(403).json({
+        success: false,
+        suppressed: true,
+        message: 'WhatsApp gateway is temporarily paused platform-wide by System Administrator'
+      });
+    }
+    if (channel === 'email' && !masterControls.email) {
+      return res.status(403).json({
+        success: false,
+        suppressed: true,
+        message: 'Email gateway is temporarily paused platform-wide by System Administrator'
+      });
+    }
+
     const WhatsAppConfig = mongoose.model('WhatsAppConfig');
     const Organization = mongoose.model('Organization');
     const User = mongoose.model('User');
@@ -1177,7 +1194,10 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
         eventType: eventKey || 'test.diagnostic',
         messageBody: testMessage
       });
-      if (!waRes || waRes.success === false) {
+      if (waRes?.suppressed) {
+        status = 'SUPPRESSED';
+        errorMessage = waRes.reason || waRes.message || 'WhatsApp dispatch suppressed';
+      } else if (!waRes || waRes.success === false) {
         status = 'FAILED';
         errorMessage = waRes?.errorMessage || waRes?.message || waRes?.error || (typeof waRes?.recipients?.[0]?.error === 'string' ? waRes.recipients[0].error : null) || 'WhatsApp diagnostic failed';
       }
@@ -1190,7 +1210,10 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       });
       providerName = emailRes?.provider || 'AWS_SES';
       messageId = emailRes?.messageId || '';
-      if (!emailRes || emailRes.success === false) {
+      if (emailRes?.suppressed) {
+        status = 'SUPPRESSED';
+        errorMessage = emailRes.reason || emailRes.message || 'Email dispatch suppressed';
+      } else if (!emailRes || emailRes.success === false) {
         status = 'FAILED';
         errorMessage = emailRes?.error || 'Email diagnostic failed';
       }
@@ -1223,13 +1246,17 @@ router.post('/test-dispatch', authenticate, async (req, res) => {
       recipient_id: req.user?.id ? String(req.user.id) : null,
       recipient_target: recipientTarget,
       provider: providerName,
-      is_universal: true,
+      is_universal: !hasCustomGateway,
       status,
       title: 'Diagnostic Test',
       message_body: testMessage,
       error_message: errorMessage,
       latency_ms: 50
     }).catch(() => {});
+
+    if (status === 'SUPPRESSED') {
+      return res.status(400).json({ success: false, suppressed: true, message: errorMessage, error: errorMessage, provider: providerName });
+    }
 
     if (status === 'FAILED') {
       return res.status(500).json({ success: false, message: errorMessage, error: errorMessage, provider: providerName });
